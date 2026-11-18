@@ -22,6 +22,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 
 ### Thiết kế
 
+0. **Trước khi thiết kế một module mới, đọc lại toàn bộ các file thiết kế đã có trong `design/`** (mọi module trước đó, `ha-tang.md`, kể cả mục "Quyết định khi code"), không dựa vào trí nhớ hay bản tóm tắt. Đề xuất mới phải khớp với những gì đã chốt; chỗ nào cần đổi quy định cũ thì nói rõ là đổi, lý do, và ảnh hưởng tới module nào. *Lý do:* các module dùng chung engine (Datahub, phân quyền, công thức, nhật ký), một đề xuất lệch với quy định cũ sẽ gây mâu thuẫn khi code.
 1. **Thiết kế từng module theo vòng:** Claude phân tích và đề xuất trong chat → Dương phản biện → chốt → Claude ghi `design/moduleX-<ten>.md`, kèm trạng thái `Đã chốt` và ngày ở đầu file.
 2. **Phản biện thật.** Ý tưởng hay giả định yếu thì nói thẳng, kèm lý do và phương án tốt hơn. Không đồng ý cho xong.
 3. Một quyết định mới được chốt trong chat thì ghi vào đúng file thiết kế của module đó, và vào mục "Quy định đã chốt" bên dưới nếu nó ảnh hưởng nhiều module.
