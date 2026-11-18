@@ -181,6 +181,19 @@ Ghi chú về hàm theo thời gian:
 - **Gộp sửa:** hai người sửa hai ô khác nhau của cùng một dòng thì server gộp. Chỉ báo xung đột khi cùng một ô đã bị người khác sửa sau lúc mình đọc.
 - Bảng đang mở tự cập nhật khi người khác sửa (tín hiệu SSE).
 
+## 7a. Tìm dòng trùng
+
+Công cụ dọn bảng đã có dữ liệu trùng (ví dụ sau khi import từ Google Sheet cũ). Bổ sung ngày 18/11/2026, làm ở phần 2C.
+
+- Chọn một hoặc vài cột làm khoá, ví dụ `MST`, hoặc `Tên công ty` + `Ngày nhận`.
+- So khớp có chuẩn hoá: bỏ dấu, không phân biệt hoa thường, bỏ khoảng trắng thừa ("Công ty Thuận Phát " trùng "cong ty thuan phat").
+- Hiện các nhóm trùng, mỗi nhóm liệt kê các dòng.
+- Với mỗi nhóm, người dùng chọn: giữ một dòng và xoá các dòng còn lại, hoặc **gộp** (chọn giá trị từng ô từ các dòng, rồi xoá các dòng thừa). Có thao tác áp một cách xử lý cho mọi nhóm.
+- Dòng bị xoá vào thùng rác; việc gộp ghi lịch sử dòng như sửa tay.
+- Chỉ chủ và người có quyền "Sửa dữ liệu" dùng được. Có API tương ứng.
+
+Cách chặn trùng từ gốc vẫn là: cột **Duy nhất**, import kiểu **cập nhật theo cột khoá**, và không chép cùng một thứ ra nhiều bảng (dùng cột liên kết). Chống trùng khi gộp nhiều bảng: Bảng gộp ở [Module 3](module3-metric-dashboard.md) mục 4.
+
 ## 8. Import
 
 ### 8.1 Các bước

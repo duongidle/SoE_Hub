@@ -9,7 +9,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 | Đường dẫn | Nội dung |
 |---|---|
 | `promt.md` | Brief gốc của Dương. Chỉ đọc |
-| `examples/` | File mẫu chứa **dữ liệu thật của Base** (deal, com, onboarding, chính sách). Chỉ đọc. **Không bao giờ commit** (đã nằm trong `.gitignore`) |
+| `examples/` | File mẫu chứa **dữ liệu thật của Base** (deal, com, onboarding, chính sách). **Mọi agent được đọc tự do, lúc nào cũng được** (Dương cho phép 18/11/2026). Không sửa. **Không bao giờ commit** file hay dữ liệu lấy từ đây (đã nằm trong `.gitignore`) |
 | `design/` | Thiết kế đã chốt: `moduleX-<ten>.md`, `ha-tang.md` |
 | `progress.md` | Trạng thái và tiến độ hiện tại |
 | `CLAUDE.md` | File này |
@@ -56,7 +56,7 @@ Repo: `https://github.com/duongidle/SoE_Hub`.
 | 0 | `module0-nen-tang.md` + `ha-tang.md` | Kiến trúc, stack, quy ước, audit, khoá kỳ, sự kiện, hạ tầng | Đã chốt |
 | 1 | `module1-tai-khoan-phan-quyen.md` | Tài khoản, vai trò, cây tổ chức, cấp dữ liệu, token | Đã chốt |
 | 2 | `module2-datahub.md` | Lưu trữ, kiểu cột, công thức, lịch sử, import/export | Đã chốt |
-| 3 | `module3-metric-dashboard.md` | Định nghĩa chỉ số, biểu đồ | Chưa |
+| 3 | `module3-metric-dashboard.md` | Định nghĩa chỉ số, biểu đồ, bảng gộp | Đã chốt |
 | 4 | `module4-quan-ly-deal.md` | Template Deals, người tham gia, chính sách/com, forecast, BANT | Chưa |
 | 5 | `module5-ket-noi-ai.md` | REST, MCP, quản lý kết nối AI | Chưa |
 | 6 | `module6-thong-bao.md` | Thông báo, nhắc hẹn, nhắc hạn | Chưa |
@@ -189,7 +189,8 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 
 ## Lưu ý
 
-- `examples/` chứa dữ liệu thật của Base. Không đưa vào git, không đưa nội dung ra dịch vụ ngoài.
+- `examples/` chứa dữ liệu thật của Base. Đọc tự do, nhưng không đưa vào git (kể cả fixture hay snapshot test chứa số liệu lấy từ đó), không đưa nội dung ra dịch vụ ngoài.
+- Golden test đọc thẳng file trong `examples/` trên máy để so số với Excel; máy không có file thì test tự bỏ qua (Dương đồng ý 18/11/2026).
 - Repo GitHub đang để **public**. Không commit dữ liệu thật, secret hay `.env`.
 - Hạ tầng, chi phí và việc đứng tên server do Dương lo; thiết kế chỉ cần ghi rõ yêu cầu.
 - Golden test dùng số liệu từ file deal mẫu chỉ chạy trên máy, dữ liệu mẫu không commit.
