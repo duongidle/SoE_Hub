@@ -101,6 +101,8 @@ describe("nightly reconciliation", () => {
     await q(`UPDATE dh_columns SET calc_status = 'pending' WHERE id = $1`, [second.id]);
     await reconcileColumns(t.c.db.db, { rowBudget: 3 });
     expect((await q(`SELECT reconciled_at FROM dh_columns WHERE id = $1`, [second.id]))[0]!.reconciled_at).toBeNull();
+    // The shared test database must not keep a TODAY() column: other tests count the volatile columns that are due.
+    await a("datahub.column.delete", { table_id: s.cust.tableId, column: today.key });
     await drainOutbox(t);
   });
 });

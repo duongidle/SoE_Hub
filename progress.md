@@ -5,11 +5,11 @@ Cập nhật: 19/11/2026
 ## Giai đoạn hiện tại
 
 - Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11, mục 7 Thanh toán còn là khung). **Module 5, 6: bản nháp vòng 1 xong** (`design/module5-ket-noi-ai.md`, `design/module6-thong-bao.md`, 19/11), chờ Dương phản biện. **Module 7: bản nháp vòng 1 xong** (`design/module7-dynamic-form.md`, 19/11). Câu hỏi ở mục cuối mỗi file.
-- Code: Stage 0 và Stage 1 xong. Stage 2: 2A xong và đã rà soát; **2B (công thức) code xong, chờ Opus rà soát**; 2C, 2D chưa làm.
+- Code: Stage 0 và Stage 1 xong. Stage 2: 2A xong và đã rà soát; **2B và 2B+ code xong, chờ Opus rà soát**; 2C, 2D chưa làm.
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
-1. 2A đã rà soát, đã push `main` + `dev`. **2B code xong (18/11), chờ Opus rà soát**, báo Dương, chờ Dương bảo mới làm 2C. Nếu phiên bị ngắt: xem `git status`, `git log`, danh sách bước 2B bên dưới.
+1. 2A đã rà soát, đã push `main` + `dev`. **2B và 2B+ code xong (19/11), chờ Opus rà soát**, báo Dương, chờ Dương bảo mới làm 2C. Nếu phiên bị ngắt: xem `git status`, `git log`, danh sách bước 2B bên dưới.
 3. Ghi nhớ cho các phần sau của Stage 2:
    - 2B: golden test được đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (Dương cho phép), không commit dữ liệu lấy từ file, máy không có file thì test tự bỏ qua.
    - 2C: làm cả công cụ **Tìm dòng trùng** (Module 2 mục 7a).
@@ -37,12 +37,7 @@ Cập nhật: 19/11/2026
 Kế hoạch Stage 2:
 - **2A – Lưu trữ và API lõi** (xong, đã rà soát).
 - **2B – Engine công thức, cột tính toán, tính lại, golden test** (code xong, chờ Opus rà soát).
-- **2B+ – Tính lại theo phần, nhật ký thay đổi, đợi tính xong** (Module 2 mục 6.7, Dương chốt 18/11; đang làm). Các bước (Sonnet đánh dấu, commit sau mỗi bước):
-  - [x] 1. Index GIN cho cột Liên kết + tra ngược; hàng đợi thay đổi dùng chung, cộng dồn (migration `0007`, `change-queue.ts`, test `datahub-queue.test.ts`; chưa nối vào đường ghi, bước 2 nối)
-  - [x] 2. Tính theo phần: liên kết/lookup/rollup, gom nhóm theo khoá cũ/mới, chuỗi phụ thuộc, ngưỡng 20% (`partial.ts` ghi hàng đợi trong giao dịch ghi; `recalc.ts` đọc hàng đợi; test `datahub-partial.test.ts`). Sửa 1 dòng nguồn, 6 cột phụ thuộc: worker 51 ms (trước 3,94 s)
-  - [x] 3. Sự kiện `cũ → mới` chia lô 500, SSE dùng chung; worker song song (cài đặt; test `datahub-events.test.ts`; trang Cài đặt Admin đã tự có ô chỉnh vì đọc từ catalog)
-  - [x] 4. Số thứ tự thay đổi, `consistent_after`/`consistent`, cờ `stale`, "đang tính" theo ô (`consistency.ts`, `rows-read.ts`, `row-ops.ts`; test `datahub-consistency.test.ts`; OpenAPI + Bruno cập nhật)
-  - [~] 5. Test so sánh ngẫu nhiên (xong, commit riêng), job đối soát hằng đêm (xong: `reconcile.ts`, migration `0008`, test `datahub-reconcile.test.ts`); còn: test tốc độ, quyết định khi code (mục "Stage 2B+"), chạy `pnpm test` 2 lần, lint/typecheck/build
+- **2B+ – Tính lại theo phần, nhật ký thay đổi, đợi tính xong** (Module 2 mục 6.7): **xong 19/11, chờ Opus rà soát**. Cả 5 bước đã xong và commit; quyết định ghi ở `design/module2-datahub.md` mục "Stage 2B+".
 - 2C – Giao diện grid, view kiểu Lark tự lưu, trình soạn công thức, chia sẻ/thùng rác/giới hạn.
 - 2D – Import/export, import công thức, load test 100k dòng, e2e cả stage.
 
@@ -54,11 +49,11 @@ Kế hoạch Stage 2:
 
 ## Bước tiếp theo
 
-**2B+ đang làm (Sonnet):** bước 3 = code sự kiện `changed`/`done` (500 dòng, `old → new`), worker song song (`processPendingColumns`, cài đặt `datahub.recalc_parallel`) đã có trong `recalc.ts`; còn thiếu test riêng (lô 500, song song, SSE, cài đặt Admin), rồi bước 4 (`consistent_after`, `stale`, `pending` theo ô trong `rows-read.ts`/`row-ops.ts`; số thứ tự đã có trong `OpResult.seq`, chưa trả ra API) và bước 5. Lệnh test: `pnpm exec vitest run apps/api/test/datahub-partial apps/api/test/datahub-formulas`.
+**Opus rà soát 2B+** (diff từ commit `49d3b7b` trở đi), rồi chờ Dương bảo làm **2C** (giao diện grid: dùng `pending` theo ô, `consistency`, SSE `datahub.formula.recalculated`; view tự lưu; trình soạn công thức; Tìm dòng trùng; chia sẻ/thùng rác/giới hạn). Lệnh test nhanh: `pnpm exec vitest run apps/api/test/datahub-partial apps/api/test/datahub-events apps/api/test/datahub-consistency apps/api/test/datahub-reconcile`.
 
 2B xong cả 7 bước (mỗi bước một commit trên `dev`): 1-2 `packages/formula` (parser, 106 hàm); 3-4 cột formula/relation/lookup/rollup + tính lại (`apps/api/src/modules/datahub/computed.ts`, `recalc.ts`, `row-formulas.ts`, migration `0006`); 5 gom nhóm SQL + test tốc độ; 6 golden test; 7 API `datahub.formula.functions|preview`, OpenAPI, Bruno, README, quyết định khi code (`design/module2-datahub.md` mục 2B).
 
-Việc kế: **Opus rà soát 2B**, rồi chờ Dương bảo làm 2C (giao diện grid, view tự lưu, trình soạn công thức dùng `datahub.formula.preview` và `datahub.formula.functions`, Tìm dòng trùng, chia sẻ/thùng rác/giới hạn). 2D: import công thức (dịch tham chiếu Excel sang tên, cảnh báo `LEFT(ngày,2)`).
+Việc kế: 2C dùng `datahub.formula.preview` và `datahub.formula.functions` cho trình soạn công thức. 2D: import công thức (dịch tham chiếu Excel sang tên, cảnh báo `LEFT(ngày,2)`).
 
 ### Kết quả kiểm thử 2B
 
@@ -69,7 +64,16 @@ Việc kế: **Opus rà soát 2B**, rồi chờ Dương bảo làm 2C (giao di�
 - Sau rà soát của Opus: lỗi ở cột nguồn nay truyền đi như Excel (SQL gom nhóm và duyệt từng dòng giống nhau, test tương đương mở rộng, test rollup, test sửa nguồn thì lỗi phụ thuộc hết).
 - Lỗi tìm thấy khi test và đã sửa: (1) cột kẹt `running` vì mốc claim mất phần micro giây; (2) vị trí lỗi tên hàm tính trên văn bản đã đổi sang mã; (3) `IFERROR(a/b, "")` bị suy thành cột chữ; (4) `XLOOKUP` với giá trị thay thế suy sai kiểu; (5) chữ ngày `dd/mm/yyyy` chưa ép thành số khi tính; (6) dọn thùng rác chưa xoá khoá lỗi `!<mã cột>`; (7) `DATEDIF "MD"` ra số âm.
 
+### Kết quả kiểm thử 2B+
+
+- `pnpm test`: 39 file, 511 test pass, chạy 2 lần; lint, typecheck, build sạch. Mới so với 2B: 36 test (`datahub-partial` + `-equivalence` 2.500 lần sửa ngẫu nhiên, `-events` 7, `-consistency` 10, `-reconcile` 3, `-queue`).
+- Tốc độ (bảng 100.000 dòng, 6 cột phụ thuộc, sửa 1 dòng nguồn đổi cả khoá/số/loại/ngày): ghi 9 ms, worker 43 ms (trước 3,95 s). Tính lại cả cột 100.000 x 100.000: 2,1–2,7 s.
+- Lỗi tìm thấy khi làm và đã sửa: (1) test đối soát để lại cột `TODAY()` trong DB test dùng chung làm hỏng test TODAY/NOW ở lần chạy thứ hai (phụ thuộc thứ tự); test nay xoá cột. (2) Chờ "xong tới số S" chỉ xét cột của chính nó sẽ sai với chuỗi A→B; nay đệ quy qua `dh_formula_deps`.
+- Chưa có giao diện (2C); `pending`/`consistency` mới ở API.
+
 ## Câu hỏi còn mở
+
+- 2B+: ngân sách đối soát 1.000.000 dòng/đêm và thời gian chờ mặc định 5 s là giá trị tự chọn (ghi ở "Quyết định khi code"); Dương chỉnh nếu cần. `row.create|update|restore` trả `seq` ngay trong đối tượng dòng.
 
 - 2B: Dương đã đồng ý (b), (c), (d); (a) thay bằng mục 6.7 (2B+). 2D phải cảnh báo `LEFT(ngày,2)` khi import (324 công thức trong file mẫu dựa vào chữ hiển thị `MM/yyyy`).
 - Module 5 (mục 11), Module 6 (mục 12), Module 7 (mục 13): 5 câu hỏi mỗi module, chờ Dương trả lời rồi chốt. Chốt xong: cập nhật CLAUDE.md (bảng module, mục AI, "Định nghĩa xong", bảng Stage code) theo mục "Thay đổi so với quy định đã chốt" của từng file.
