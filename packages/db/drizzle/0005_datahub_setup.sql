@@ -85,13 +85,13 @@ END
 $$;
 --> statement-breakpoint
 
--- Cuts a name to 63 bytes (the identifier limit) without splitting a multi-byte character.
-CREATE OR REPLACE FUNCTION soe_dh_ident(p_name text) RETURNS text
+-- Cuts a name to at most `p_max` bytes (default 63, the identifier limit) without splitting a multi-byte character.
+CREATE OR REPLACE FUNCTION soe_dh_ident(p_name text, p_max integer DEFAULT 63) RETURNS text
   LANGUAGE plpgsql IMMUTABLE
   AS $$
 DECLARE s text := p_name;
 BEGIN
-  WHILE octet_length(s) > 63 LOOP s := left(s, char_length(s) - 1); END LOOP;
+  WHILE octet_length(s) > p_max LOOP s := left(s, char_length(s) - 1); END LOOP;
   RETURN s;
 END
 $$;
@@ -164,14 +164,14 @@ BEGIN
   v_name := soe_dh_ident(v_base);
   -- Two tables that cut down to the same name: the later one gets a short id suffix.
   IF EXISTS (SELECT 1 FROM dh_tables x WHERE x.sql_view = v_name AND x.id <> p_table) THEN
-    v_name := soe_dh_ident(left(v_base, 50)) || ' #' || substr(replace(p_table::text, '-', ''), 1, 6);
+    v_name := soe_dh_ident(v_base, 54) || ' #' || substr(replace(p_table::text, '-', ''), 1, 6);
   END IF;
   FOR c IN SELECT * FROM dh_columns WHERE table_id = p_table AND deleted_at IS NULL ORDER BY position, created_at, id LOOP
     v_alias := soe_dh_ident(c.name);
     v_i := 1;
     WHILE lower(v_alias) = ANY (v_used) LOOP
       v_i := v_i + 1;
-      v_alias := soe_dh_ident(left(c.name, 55)) || '_' || v_i;
+      v_alias := soe_dh_ident(c.name, 56) || '_' || v_i;
     END LOOP;
     v_used := v_used || lower(v_alias);
     v_cols := v_cols || ', ' || soe_dh_view_expr(c.type, c.key, c.config) || ' AS ' || quote_ident(v_alias);

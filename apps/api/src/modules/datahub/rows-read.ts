@@ -76,7 +76,7 @@ export async function listRows(db: Executor, access: TableAccess, schema: TableS
     includeTotal: q.includeTotal,
   });
   // Best effort: never let index bookkeeping break a read.
-  void noteIndexUse(db, access, schema, filter, sortItems).catch(() => {});
+  await noteIndexUse(db, access, schema, filter, sortItems).catch(() => {});
   return { ...page, items: shape(page.items, schema, q.labels ?? false) };
 }
 
