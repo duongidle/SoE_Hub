@@ -320,7 +320,7 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 - Giá trị công thức luôn được tính sẵn và **lưu trong database** (không tính lúc mở bảng); export chứa giá trị, XLSX kèm sheet liệt kê công thức.
 - **Thay đổi do công thức tạo ra không sinh log:** ghi do tính lại không tạo lịch sử dòng, không vào audit log, không đổi `version` và "Ngày sửa". Lịch sử và nhật ký chỉ ghi dữ liệu do người, API, form, hệ thống ngoài nhập vào. Áp dụng cho mọi bảng chạy trên engine Datahub, kể cả Deals.
 - View theo kiểu Lark Base, **tự lưu** mọi thay đổi (lọc, sắp xếp nhiều cấp, nhóm, ẩn/cố định cột, độ rộng). Người được chia sẻ đổi view chung thì lưu thành bản riêng của họ. Sắp xếp theo thứ tự lựa chọn và theo cột công thức (nền cho sắp deal theo BANT).
-- Chia sẻ cả datahub hoặc từng bảng; quyền Xem hoặc Sửa dữ liệu; chỉ chủ sửa cấu trúc.
+- Chia sẻ cả datahub hoặc từng bảng; quyền Xem hoặc Sửa dữ liệu; chỉ chủ sửa cấu trúc. Ngoại lệ: ô **Liên kết dòng** chỉ chủ ghi được (người được chia sẻ không xem được bảng đích). Người được chia sẻ thấy giá trị cột công thức, **không thấy nội dung công thức**.
 - Cột mỗi bảng mặc định 70, trần 200, Admin chỉnh.
 - Import từ Google Sheet/Excel là chức năng bắt buộc; có tuỳ chọn import công thức (dịch được thì thành cột công thức, không thì nhập giá trị và báo lý do).
 - Dashboard ghép nhiều bảng: khoá không khớp thì báo rõ số dòng ghép được, không vẽ biểu đồ rỗng; ưu tiên cột liên kết (relation/lookup).

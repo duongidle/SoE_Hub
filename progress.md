@@ -62,7 +62,7 @@ Việc kế: **Opus rà soát 2B**, rồi chờ Dương bảo làm 2C (giao di�
 
 ## Câu hỏi còn mở
 
-- 2B, cần Opus/Dương xem: (a) cột tính toán tính lại **cả cột** khi nguồn đổi (có gộp), "đang tính" ở mức cột, chưa theo ô/dòng; (b) **chỉ chủ** ghi được ô Liên kết dòng, người có quyền Sửa dữ liệu thì không; (c) người được chia sẻ không thấy văn bản công thức, chỉ thấy giá trị; (d) công thức trả chữ lẫn số thì cột là chữ (`IFERROR(a/b, "")` vẫn là số); (e) file mẫu dựa vào chữ hiển thị `MM/yyyy` của ô ngày trong `LEFT(ngày,2)` (324 công thức) mà Excel không làm vậy: 2D cần cảnh báo khi import.
+- 2B: Dương đã đồng ý (b) chỉ chủ ghi ô Liên kết, (c) ẩn nội dung công thức với người được chia sẻ, (d) hai nhánh khác kiểu thành chữ. Còn (a) tính lại cả cột: Opus đã phân tích ảnh hưởng tới Automation, chờ Dương chốt. (e) 2D phải cảnh báo `LEFT(ngày,2)` khi import (324 công thức trong file mẫu dựa vào chữ hiển thị `MM/yyyy`).
 - Module 4 (vòng 2): cột cơ bản chọn từ sheet Deals (mục 4.1); cột mặc định của Manager/Leader (4.2); sheet Index gốc cộng POD Express hai lần (4.6); bảng Probation KPI (6); bảng Thanh toán chờ Dương bàn với Manager (7). Dữ liệu BPM/Dataset đã ghi ở `examples/bpm-dataset-soe.md`.
 - `docker-compose.yml` chưa chạy thử (máy dev không có Docker): phải chạy thử trên VPS trước khi dùng thật. Biến `AUTH_SECRET` giờ bắt buộc trong compose.
 - Đăng nhập Google chưa thử với Google thật; cần tạo Google Cloud client (xem `design/ha-tang.md` mục 4) rồi thử một lần trước khi bật.
