@@ -40,7 +40,7 @@ Kế hoạch Stage 2:
 - **2B+ – Tính lại theo phần, nhật ký thay đổi, đợi tính xong** (Module 2 mục 6.7, Dương chốt 18/11; đang làm). Các bước (Sonnet đánh dấu, commit sau mỗi bước):
   - [x] 1. Index GIN cho cột Liên kết + tra ngược; hàng đợi thay đổi dùng chung, cộng dồn (migration `0007`, `change-queue.ts`, test `datahub-queue.test.ts`; chưa nối vào đường ghi, bước 2 nối)
   - [x] 2. Tính theo phần: liên kết/lookup/rollup, gom nhóm theo khoá cũ/mới, chuỗi phụ thuộc, ngưỡng 20% (`partial.ts` ghi hàng đợi trong giao dịch ghi; `recalc.ts` đọc hàng đợi; test `datahub-partial.test.ts`). Sửa 1 dòng nguồn, 6 cột phụ thuộc: worker 51 ms (trước 3,94 s)
-  - [ ] 3. Sự kiện `cũ → mới` chia lô 500, SSE dùng chung; worker song song (cài đặt)
+  - [x] 3. Sự kiện `cũ → mới` chia lô 500, SSE dùng chung; worker song song (cài đặt; test `datahub-events.test.ts`; trang Cài đặt Admin đã tự có ô chỉnh vì đọc từ catalog)
   - [ ] 4. Số thứ tự thay đổi, `consistent_after`/`consistent`, cờ `stale`, "đang tính" theo ô
   - [ ] 5. Test so sánh ngẫu nhiên, job đối soát hằng đêm, test tốc độ, OpenAPI/Bruno, quyết định khi code
 - 2C – Giao diện grid, view kiểu Lark tự lưu, trình soạn công thức, chia sẻ/thùng rác/giới hạn.
