@@ -1,0 +1,20 @@
+meta {
+  name: datahub.datahub.get
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Chi tiết một datahub và các bảng bạn thấy.
+  Quyền: `datahub:datahub:use`.
+}

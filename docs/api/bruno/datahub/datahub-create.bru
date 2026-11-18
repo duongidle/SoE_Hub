@@ -1,0 +1,29 @@
+meta {
+  name: datahub.datahub.create
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahubs
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "name": "name",
+    "description": "description"
+  }
+}
+
+docs {
+  Tạo datahub (mỗi người tối đa 5 mặc định). Tên không trùng trong các datahub của bạn.
+  Quyền: `datahub:datahub:create`.
+}

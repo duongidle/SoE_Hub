@@ -1,0 +1,24 @@
+meta {
+  name: datahub.datahub.list
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahubs
+  body: none
+  auth: none
+}
+
+params:query {
+  ~scope: mine
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh sách datahub: của tôi, được chia sẻ với tôi.
+  Quyền: `datahub:datahub:use`.
+}

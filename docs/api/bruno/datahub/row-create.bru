@@ -1,0 +1,29 @@
+meta {
+  name: datahub.row.create
+  type: http
+  seq: 21
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/rows
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "data": {},
+    "labels": "false"
+  }
+}
+
+docs {
+  Tạo một dòng. Cần quyền Sửa dữ liệu.
+  Quyền: `datahub:datahub:use`.
+}

@@ -1,0 +1,30 @@
+meta {
+  name: datahub.share.set
+  type: http
+  seq: 35
+}
+
+put {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/shares
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "grantee_id": "{{grantee_id}}",
+    "table_id": "{{table_id}}",
+    "permission": "view"
+  }
+}
+
+docs {
+  Chia sẻ cả datahub hoặc một bảng cho một người, quyền Xem hoặc Sửa dữ liệu. Chia lại thì đổi quyền.
+  Quyền: `datahub:datahub:use`.
+}

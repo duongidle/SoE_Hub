@@ -1,0 +1,25 @@
+meta {
+  name: datahub.row.get
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/rows/{{row_id}}
+  body: none
+  auth: none
+}
+
+params:query {
+  ~fields: fields
+  ~labels: false
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Một dòng.
+  Quyền: `datahub:datahub:use`.
+}

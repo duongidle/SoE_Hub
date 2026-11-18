@@ -1,0 +1,24 @@
+meta {
+  name: datahub.trash.list
+  type: http
+  seq: 40
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/trash
+  body: none
+  auth: none
+}
+
+params:query {
+  ~table_id: {{table_id}}
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Thùng rác datahub: datahub, bảng của bạn; với `table_id` còn thêm cột và dòng đã xoá của bảng đó.
+  Quyền: `datahub:datahub:use`.
+}

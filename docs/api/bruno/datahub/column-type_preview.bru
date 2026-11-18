@@ -1,0 +1,29 @@
+meta {
+  name: datahub.column.type_preview
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/columns/{{column}}/type-preview
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "type": "text",
+    "config": {}
+  }
+}
+
+docs {
+  Xem trước đổi kiểu cột: bao nhiêu giá trị chuyển được, bao nhiêu không. Không ghi gì.
+  Quyền: `datahub:datahub:use`.
+}

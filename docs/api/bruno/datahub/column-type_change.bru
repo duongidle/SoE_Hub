@@ -1,0 +1,30 @@
+meta {
+  name: datahub.column.type_change
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/columns/{{column}}/type
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "type": "text",
+    "config": {},
+    "accept_data_loss": false
+  }
+}
+
+docs {
+  Đổi kiểu cột. Giá trị không chuyển được bị xoá khỏi ô nhưng giá trị cũ nằm trong lịch sử dòng.
+  Quyền: `datahub:datahub:use`.
+}

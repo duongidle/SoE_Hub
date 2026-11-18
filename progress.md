@@ -5,7 +5,7 @@ Cập nhật: 18/11/2026
 ## Giai đoạn hiện tại
 
 - Thiết kế: Module 0, 1, 2, **3** đã chốt (Module 3 có Bảng gộp, lọc chéo, chịu tải; Module 2 có thêm mục 7a Tìm dòng trùng).
-- Code: Stage 0 và **Stage 1 xong** (18/11/2026) trên nhánh `dev`. **Stage 2 phần 2A đang chạy** (Sonnet code, Opus rà soát).
+- Code: Stage 0 và **Stage 1 xong** (18/11/2026) trên nhánh `dev`. **Stage 2 phần 2A code xong**, chờ Opus rà soát.
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
@@ -44,16 +44,25 @@ Kế hoạch Stage 2:
 - 2D – Import/export, import công thức, load test 100k dòng, e2e cả stage.
 
 Các bước của 2A (đánh dấu khi xong):
-- [ ] 1. Schema + migration (datahub, bảng, cột, dòng, view, chia sẻ, giới hạn riêng, hàm SQL cho index và view xuất)
-- [ ] 2. Tên, kiểu cột (registry cắm được), ColumnSource, truy cập/chia sẻ
-- [ ] 3. API cấu trúc: datahub, bảng, cột, đổi kiểu (xem trước), view, chia sẻ, giới hạn
-- [ ] 4. API dòng: CRUD, batch, upsert, lọc, sắp xếp, keyset, gộp ô, lịch sử, thùng rác
-- [ ] 5. SSE, chuyển giao, view SQL `dh_views`, tự tạo index, thiết lập quyền/cài đặt
-- [ ] 6. Test, OpenAPI, Bruno, README, quyết định khi code
+- [x] 1. Schema + migration
+- [x] 2. Tên, kiểu cột, ColumnSource, truy cập/chia sẻ
+- [x] 3. API cấu trúc
+- [x] 4. API dòng
+- [x] 5. SSE, chuyển giao, view SQL `dh_views`, tự tạo index
+- [x] 6. Test, OpenAPI, Bruno, README, quyết định khi code (xong, chờ Opus rà soát)
+
+### Kết quả kiểm thử 2A
+
+- `pnpm test`: 27 file, 396 test pass (chạy hai lần). `pnpm lint`, `pnpm typecheck`, `pnpm build` sạch (lint: đổi `console.log` thành `console.warn` trong test tốc độ).
+- 2A chưa có giao diện (giao diện là 2C) nên không có test trình duyệt.
+- Test tốc độ 100.000 dòng (`npx vitest run apps/api/test/datahub-perf.test.ts`), trung vị 7 lần, trang 50 dòng:
+  - Trước index: lọc Mức+Doanh thu, sắp Mức+Hạn 23 ms; lọc Hạn, sắp Doanh thu 81 ms; lọc Nhãn 39 ms; chỉ sắp Doanh thu + tổng 43 ms; trang 500 dòng 7 ms; lọc chứa chữ 53 ms; tìm kiếm 4 ms.
+  - Sau index tự động (4 index): 38, 35, 2,7, 15, 4,5, 43, 5 ms. Trang keyset kế tiếp 2,7 ms mỗi trang. Nạp 100.000 dòng mất khoảng 3,4 s.
+- 4 lỗi test phụ thuộc thứ tự đã sửa: (1) `worker.test.ts` không dọn outbox còn tồn; (2) `datahub-infra.test.ts` đếm index toàn DB thay vì theo bảng của test; (3) cùng file thiếu `ANALYZE` trước `EXPLAIN`; (4) `auth.test.ts` không khôi phục cài đặt mặc định.
 
 ## Bước tiếp theo
 
-- Làm bước 1 của 2A: `packages/db/src/schema/datahub.ts` + migration `0004`.
+- Opus rà soát 2A và báo Dương. **Chờ Dương bảo mới làm 2B.**
 
 ## Câu hỏi còn mở
 

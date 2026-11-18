@@ -1,0 +1,21 @@
+meta {
+  name: datahub.column.delete
+  type: http
+  seq: 15
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/columns/{{column}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xoá cột vào thùng rác (dữ liệu của cột được giữ để khôi phục trong 7 ngày).
+  Quyền: `datahub:datahub:use`.
+}

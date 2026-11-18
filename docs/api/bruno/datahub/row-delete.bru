@@ -1,0 +1,25 @@
+meta {
+  name: datahub.row.delete
+  type: http
+  seq: 23
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/rows/{{row_id}}
+  body: none
+  auth: none
+}
+
+params:query {
+  ~version: 1
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xoá một dòng vào thùng rác (khôi phục trong 7 ngày).
+  Quyền: `datahub:datahub:use`.
+}

@@ -1,0 +1,21 @@
+meta {
+  name: datahub.row.restore
+  type: http
+  seq: 26
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/rows/{{row_id}}/restore
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Khôi phục dòng từ thùng rác.
+  Quyền: `datahub:datahub:use`.
+}

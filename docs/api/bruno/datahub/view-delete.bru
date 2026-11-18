@@ -1,0 +1,21 @@
+meta {
+  name: datahub.view.delete
+  type: http
+  seq: 32
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/views/{{view_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xoá view. View chung: chỉ chủ bảng. View cá nhân: người tạo.
+  Quyền: `datahub:datahub:use`.
+}

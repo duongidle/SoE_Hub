@@ -426,6 +426,10 @@ describe("settings", () => {
     expect(val("auth.auto_guest_sale")).toBe(true);
     expect(val("trash.retention_days")).toBe(9);
     expect(val("auth.allowed_domains")).toEqual(["base.vn", "example.com"]);
+    // Put the defaults back: the database is shared with later test files.
+    expect((await put("auth.auto_guest_sale", false)).statusCode).toBe(200);
+    expect((await put("trash.retention_days", 7)).statusCode).toBe(200);
+    expect((await put("auth.allowed_domains", ["base.vn"])).statusCode).toBe(200);
   });
 
   it("org.member.list returns roles as an array, like org.member.get", async () => {

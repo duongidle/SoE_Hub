@@ -13255,8 +13255,22 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
                         },
-                        "created_at": {},
-                        "updated_at": {},
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "tables": {
                           "type": "array",
                           "items": {
@@ -13480,8 +13494,22 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
                           },
-                          "created_at": {},
-                          "updated_at": {},
+                          "created_at": {
+                            "anyOf": [
+                              {},
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "updated_at": {
+                            "anyOf": [
+                              {},
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
                           "tables": {
                             "type": "array",
                             "items": {
@@ -13681,8 +13709,22 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
                         },
-                        "created_at": {},
-                        "updated_at": {},
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "tables": {
                           "type": "array",
                           "items": {
@@ -13933,8 +13975,22 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
                         },
-                        "created_at": {},
-                        "updated_at": {},
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "tables": {
                           "type": "array",
                           "items": {
@@ -17460,7 +17516,14 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
                           },
-                          "created_at": {},
+                          "created_at": {
+                            "anyOf": [
+                              {},
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
                           "created_by": {
                             "anyOf": [
                               {
@@ -17473,7 +17536,14 @@
                               }
                             ]
                           },
-                          "updated_at": {},
+                          "updated_at": {
+                            "anyOf": [
+                              {},
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
                           "updated_by": {
                             "anyOf": [
                               {
@@ -17677,7 +17747,14 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
                         },
-                        "created_at": {},
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "created_by": {
                           "anyOf": [
                             {
@@ -17690,7 +17767,14 @@
                             }
                           ]
                         },
-                        "updated_at": {},
+                        "updated_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "updated_by": {
                           "anyOf": [
                             {
@@ -17899,7 +17983,14 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
                         },
-                        "created_at": {},
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "created_by": {
                           "anyOf": [
                             {
@@ -17912,7 +18003,14 @@
                             }
                           ]
                         },
-                        "updated_at": {},
+                        "updated_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "updated_by": {
                           "anyOf": [
                             {
@@ -18132,7 +18230,14 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
                         },
-                        "created_at": {},
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "created_by": {
                           "anyOf": [
                             {
@@ -18145,7 +18250,14 @@
                             }
                           ]
                         },
-                        "updated_at": {},
+                        "updated_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "updated_by": {
                           "anyOf": [
                             {
@@ -18560,7 +18672,14 @@
                               "minimum": -9007199254740991,
                               "maximum": 9007199254740991
                             },
-                            "created_at": {},
+                            "created_at": {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
                             "created_by": {
                               "anyOf": [
                                 {
@@ -18573,7 +18692,14 @@
                                 }
                               ]
                             },
-                            "updated_at": {},
+                            "updated_at": {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
                             "updated_by": {
                               "anyOf": [
                                 {
@@ -18938,7 +19064,14 @@
                                         "minimum": -9007199254740991,
                                         "maximum": 9007199254740991
                                       },
-                                      "created_at": {},
+                                      "created_at": {
+                                        "anyOf": [
+                                          {},
+                                          {
+                                            "type": "string"
+                                          }
+                                        ]
+                                      },
                                       "created_by": {
                                         "anyOf": [
                                           {
@@ -18951,7 +19084,14 @@
                                           }
                                         ]
                                       },
-                                      "updated_at": {},
+                                      "updated_at": {
+                                        "anyOf": [
+                                          {},
+                                          {
+                                            "type": "string"
+                                          }
+                                        ]
+                                      },
                                       "updated_by": {
                                         "anyOf": [
                                           {
@@ -19168,7 +19308,14 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
                         },
-                        "created_at": {},
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "created_by": {
                           "anyOf": [
                             {
@@ -19181,7 +19328,14 @@
                             }
                           ]
                         },
-                        "updated_at": {},
+                        "updated_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
                         "updated_by": {
                           "anyOf": [
                             {
@@ -19385,7 +19539,14 @@
                               "op": {
                                 "type": "string"
                               },
-                              "at": {},
+                              "at": {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              },
                               "actor": {},
                               "changes": {
                                 "type": "array",
@@ -21948,8 +22109,22 @@
                               "name": {
                                 "type": "string"
                               },
-                              "deleted_at": {},
-                              "purge_at": {}
+                              "deleted_at": {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              },
+                              "purge_at": {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              }
                             },
                             "required": [
                               "id",
@@ -21981,8 +22156,22 @@
                               "name": {
                                 "type": "string"
                               },
-                              "deleted_at": {},
-                              "purge_at": {}
+                              "deleted_at": {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              },
+                              "purge_at": {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              }
                             },
                             "required": [
                               "id",
@@ -22014,8 +22203,22 @@
                               "type": {
                                 "type": "string"
                               },
-                              "deleted_at": {},
-                              "purge_at": {}
+                              "deleted_at": {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              },
+                              "purge_at": {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              }
                             },
                             "required": [
                               "id",
@@ -22043,7 +22246,14 @@
                                 "minimum": -9007199254740991,
                                 "maximum": 9007199254740991
                               },
-                              "deleted_at": {},
+                              "deleted_at": {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              },
                               "deleted_by": {
                                 "anyOf": [
                                   {
@@ -22056,7 +22266,14 @@
                                   }
                                 ]
                               },
-                              "purge_at": {}
+                              "purge_at": {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              }
                             },
                             "required": [
                               "id",

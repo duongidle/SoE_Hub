@@ -288,11 +288,12 @@ describe("auto index (Module 0 section 6.2)", () => {
 
       const r1 = await processIndexRequests(t.c.db.db);
       expect(r1).toEqual({ done: 3, skipped: 0, failed: 0 });
-      const idx = (await db.query(`SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'dh_rows' AND indexname LIKE 'dh_ix_%'`)).rows;
+      // Only this table's indexes: other test files (the 100k perf test) may have built their own.
+      const idx = (await db.query(`SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'dh_rows' AND indexname LIKE 'dh_ix_%' AND indexdef LIKE '%' || $1 || '%'`, [x.tableId])).rows;
       expect(idx).toHaveLength(3);
-      expect(idx.every((i) => i.indexdef.includes(`table_id = '${x.tableId}'`))).toBe(true);
 
-      // The planner uses them for the same expression the API generates.
+      // The planner uses them for the same expression the API generates (fresh statistics: other files may have loaded 100k rows).
+      await db.query(`ANALYZE dh_rows`);
       const plan = (await db.query(`EXPLAIN SELECT id FROM dh_rows WHERE table_id = '${x.tableId}'::uuid AND deleted_at IS NULL AND ((data->>'${k("Số")}')::numeric) = 5`)).rows.map((r) => r["QUERY PLAN"]).join("\n");
       expect(plan).toContain("dh_ix_");
 
@@ -304,7 +305,7 @@ describe("auto index (Module 0 section 6.2)", () => {
       const r2 = await processIndexRequests(t.c.db.db);
       expect(r2.done).toBe(5);
       expect(r2.skipped).toBe(2);
-      expect(Number((await db.query(`SELECT count(*) FROM pg_indexes WHERE tablename = 'dh_rows' AND indexname LIKE 'dh_ix_%'`)).rows[0].count)).toBe(8);
+      expect(Number((await db.query(`SELECT count(*) FROM pg_indexes WHERE tablename = 'dh_rows' AND indexname LIKE 'dh_ix_%' AND indexdef LIKE '%' || $1 || '%'`, [x.tableId])).rows[0].count)).toBe(8);
     } finally {
       await db.end();
     }

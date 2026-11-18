@@ -19,6 +19,9 @@ beforeAll(async () => {
     { name: "test.other.happened", version: 1, description: "test", schema: z.unknown(), audience: () => ({ users: [SSE_USER] }) },
   );
   sseFanout = createSseFanout(t.c.events);
+  // Other test files share this database and leave pending events behind (Datahub writes emit many);
+  // clear them so each batch here only holds the events these tests create.
+  await t.c.db.db.update(outbox).set({ status: "processed" }).where(eq(outbox.status, "pending"));
 });
 afterAll(async () => {
   await t.close();

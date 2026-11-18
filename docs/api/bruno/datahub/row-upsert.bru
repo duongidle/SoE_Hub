@@ -1,0 +1,30 @@
+meta {
+  name: datahub.row.upsert
+  type: http
+  seq: 24
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/rows/upsert
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "key": "key",
+    "data": {},
+    "labels": "false"
+  }
+}
+
+docs {
+  Tạo hoặc sửa một dòng theo cột khoá (cột phải có thuộc tính duy nhất).
+  Quyền: `datahub:datahub:use`.
+}

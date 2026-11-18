@@ -1,0 +1,28 @@
+meta {
+  name: datahub.view.open
+  type: http
+  seq: 33
+}
+
+put {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/last-view
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "view_id": "{{view_id}}"
+  }
+}
+
+docs {
+  Ghi nhớ view bạn vừa mở của bảng (lần sau mở đúng view đó).
+  Quyền: `datahub:datahub:use`.
+}

@@ -1,0 +1,31 @@
+meta {
+  name: datahub.row.list
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/rows
+  body: none
+  auth: none
+}
+
+params:query {
+  ~filter: 
+  ~sort: sort
+  ~fields: fields
+  ~search: search
+  ~limit: 50
+  ~cursor: cursor
+  ~include_total: false
+  ~labels: false
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh sách dòng: lọc, sắp xếp nhiều cấp, tìm kiếm, chọn cột, phân trang keyset.
+  Quyền: `datahub:datahub:use`.
+}

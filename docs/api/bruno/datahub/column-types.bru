@@ -1,0 +1,20 @@
+meta {
+  name: datahub.column.types
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/column-types
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh mục kiểu cột và cấu hình mặc định của từng kiểu.
+  Quyền: `datahub:datahub:use`.
+}

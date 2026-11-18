@@ -1,0 +1,36 @@
+meta {
+  name: datahub.column.update
+  type: http
+  seq: 14
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/columns/{{column}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "name": "name",
+    "config": {},
+    "required": false,
+    "unique": false,
+    "default_value": null,
+    "description": "description",
+    "display": {},
+    "position": 0,
+    "version": 1
+  }
+}
+
+docs {
+  Sửa cột: tên, mô tả, bắt buộc, duy nhất, mặc định, cấu hình (lựa chọn), định dạng hiển thị, vị trí. Không đổi kiểu ở đây.
+  Quyền: `datahub:datahub:use`.
+}

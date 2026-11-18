@@ -1,0 +1,36 @@
+meta {
+  name: datahub.column.create
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/columns
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "name": "name",
+    "type": "text",
+    "config": {},
+    "required": false,
+    "unique": false,
+    "default_value": null,
+    "description": "description",
+    "display": {},
+    "position": 0
+  }
+}
+
+docs {
+  Thêm cột vào bảng (mặc định tối đa 70 cột, trần 200). Tên cột không trùng trong bảng.
+  Quyền: `datahub:datahub:use`.
+}

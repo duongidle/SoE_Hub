@@ -1,0 +1,25 @@
+meta {
+  name: datahub.row.history
+  type: http
+  seq: 27
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/rows/{{row_id}}/history
+  body: none
+  auth: none
+}
+
+params:query {
+  ~limit: 50
+  ~cursor: cursor
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Lịch sử thay đổi của một dòng (mới nhất trước): ai, lúc nào, qua kênh nào, cũ → mới.
+  Quyền: `datahub:datahub:use`.
+}

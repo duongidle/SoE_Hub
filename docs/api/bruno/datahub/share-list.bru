@@ -1,0 +1,20 @@
+meta {
+  name: datahub.share.list
+  type: http
+  seq: 34
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/shares
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh sách người được chia sẻ datahub (chỉ chủ xem).
+  Quyền: `datahub:datahub:use`.
+}

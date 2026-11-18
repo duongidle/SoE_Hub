@@ -1,0 +1,21 @@
+meta {
+  name: datahub.datahub.delete
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xoá datahub vào thùng rác (cả datahub, khôi phục nguyên vẹn trong 7 ngày).
+  Quyền: `datahub:datahub:use`.
+}

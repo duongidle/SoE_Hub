@@ -1,0 +1,30 @@
+meta {
+  name: datahub.limit.user.set
+  type: http
+  seq: 39
+}
+
+put {
+  url: {{baseUrl}}/api/v1/admin/datahub/limits/{{user_id}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "max_datahubs": 1,
+    "max_tables": 1,
+    "max_columns": 1
+  }
+}
+
+docs {
+  Admin đặt giới hạn riêng cho một người. Giá trị `null` = dùng mặc định của hệ thống. Cột tối đa 200.
+  Quyền: `system:setting:write`.
+}

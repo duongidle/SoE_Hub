@@ -1,0 +1,20 @@
+meta {
+  name: datahub.limit.user.list
+  type: http
+  seq: 38
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/datahub/limits
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Admin xem các giới hạn riêng đã đặt cho từng người.
+  Quyền: `system:setting:read`.
+}

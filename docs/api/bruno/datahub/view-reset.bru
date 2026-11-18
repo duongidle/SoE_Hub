@@ -1,0 +1,21 @@
+meta {
+  name: datahub.view.reset
+  type: http
+  seq: 31
+}
+
+post {
+  url: {{baseUrl}}/api/v1/views/{{view_id}}/reset
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Bỏ bản riêng của bạn trên view chung, về cấu hình mặc định của chủ bảng.
+  Quyền: `datahub:datahub:use`.
+}

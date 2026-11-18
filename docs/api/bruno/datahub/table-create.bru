@@ -1,0 +1,29 @@
+meta {
+  name: datahub.table.create
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/tables
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "name": "name",
+    "description": "description"
+  }
+}
+
+docs {
+  Tạo bảng trong datahub (tối đa 10 mặc định). Tên không trùng trong datahub.
+  Quyền: `datahub:datahub:use`.
+}

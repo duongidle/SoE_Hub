@@ -1,0 +1,20 @@
+meta {
+  name: datahub.limit.mine
+  type: http
+  seq: 37
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/limits
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Giới hạn datahub của bạn và mức đã dùng.
+  Quyền: `datahub:datahub:use`.
+}

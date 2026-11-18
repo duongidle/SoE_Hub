@@ -1,0 +1,21 @@
+meta {
+  name: datahub.share.remove
+  type: http
+  seq: 36
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/shares/{{share_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Gỡ một chia sẻ (chỉ chủ).
+  Quyền: `datahub:datahub:use`.
+}

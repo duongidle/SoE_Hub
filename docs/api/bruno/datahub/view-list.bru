@@ -1,0 +1,20 @@
+meta {
+  name: datahub.view.list
+  type: http
+  seq: 28
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/views
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Các view của bảng: view chung và view cá nhân của bạn, kèm view mở lần cuối.
+  Quyền: `datahub:datahub:use`.
+}

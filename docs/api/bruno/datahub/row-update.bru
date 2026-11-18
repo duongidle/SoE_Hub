@@ -1,0 +1,31 @@
+meta {
+  name: datahub.row.update
+  type: http
+  seq: 22
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/rows/{{row_id}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "data": {},
+    "base": {},
+    "version": 1,
+    "labels": "false"
+  }
+}
+
+docs {
+  Sửa một dòng, gộp theo từng ô.
+  Quyền: `datahub:datahub:use`.
+}
