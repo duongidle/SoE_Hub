@@ -9,7 +9,7 @@ Cập nhật: 18/11/2026
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
-1. **2A xong thì DỪNG** (Dương yêu cầu 18/11): Opus rà soát 2A (chạy `pnpm test`, lint, typecheck; đọc diff phần chia sẻ/phân quyền/gộp ô; xem số đo tốc độ 100k dòng), báo Dương kết quả, **không giao 2B** cho đến khi Dương bảo.
+1. 2A đã rà soát, đã push `main` + `dev` (18/11). **Dương bảo làm 2B (18/11).** 2B xong thì Opus rà soát, báo Dương, chờ Dương bảo mới làm 2C.
 2. Nếu phiên trước bị ngắt khi 2A chưa xong: agent 2A có thể đã dừng giữa chừng. Xem danh sách bước 2A bên dưới, `git status`, `git log`; giao Sonnet làm tiếp từ bước chưa đánh dấu (prompt: đọc CLAUDE.md, progress.md, `design/module2-datahub.md` + "Quyết định khi code" của Module 0/1; phạm vi 2A như danh sách bước; không làm 2B/2C/2D).
 3. Ghi nhớ cho các phần sau của Stage 2:
    - 2B: golden test được đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (Dương cho phép), không commit dữ liệu lấy từ file, máy không có file thì test tự bỏ qua.
@@ -39,8 +39,8 @@ Cập nhật: 18/11/2026
 ## Đang làm: Stage 2 (Module 2 – Datahub), do Sonnet code, Opus rà soát
 
 Kế hoạch Stage 2:
-- **2A – Lưu trữ và API lõi** (đang làm, nhánh `dev`).
-- 2B – Engine công thức, cột tính toán (formula, relation/lookup/rollup), tính lại, golden test.
+- **2A – Lưu trữ và API lõi** (xong, đã rà soát).
+- **2B – Engine công thức, cột tính toán (formula, relation/lookup/rollup), tính lại, golden test** (đang làm).
 - 2C – Giao diện grid, view kiểu Lark tự lưu, trình soạn công thức, chia sẻ/thùng rác/giới hạn.
 - 2D – Import/export, import công thức, load test 100k dòng, e2e cả stage.
 
@@ -63,7 +63,14 @@ Các bước của 2A (đánh dấu khi xong):
 
 ## Bước tiếp theo
 
-- Opus rà soát 2A và báo Dương. **Chờ Dương bảo mới làm 2B.**
+Các bước của 2B (Sonnet đánh dấu khi xong, commit sau mỗi bước):
+- [ ] 1. `packages/formula`: parser, AST, đổi tên ↔ mã, suy kiểu kết quả, mã lỗi (chạy cả trình duyệt và Node)
+- [ ] 2. Thư viện hàm (Module 2 mục 6.2) + điều kiện kiểu Excel, test từng hàm
+- [ ] 3. Kiểu cột formula, relation, lookup, rollup; kiểm tra khi lưu (cùng chủ, vòng lặp, `#REF!`, ngưỡng 20.000)
+- [ ] 4. Tính lại: cùng dòng trong lúc lưu; khác bảng qua worker; cả cột khi tạo/sửa (tiến độ); `TODAY()` 00:05, `NOW()` mỗi giờ, chạy bù; không sinh log; SSE
+- [ ] 5. Dịch tra cứu/tổng hợp điều kiện bằng sang SQL gom nhóm; test tốc độ 100k × 100k
+- [ ] 6. Golden test với công thức sheet Index của file mẫu (máy không có file thì bỏ qua)
+- [ ] 7. API xem trước công thức + danh mục hàm; OpenAPI, Bruno, README, quyết định khi code
 
 ## Câu hỏi còn mở
 
