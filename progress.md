@@ -4,7 +4,7 @@ Cập nhật: 18/11/2026
 
 ## Giai đoạn hiện tại
 
-- Thiết kế: Module 0, 1, 2, **3** đã chốt (Module 3 có Bảng gộp, lọc chéo, chịu tải; Module 2 có thêm mục 7a Tìm dòng trùng). **Module 4: bản nháp** `design/module4-quan-ly-deal.md` (18/11), chờ Dương chốt.
+- Thiết kế: Module 0, 1, 2, **3** đã chốt (Module 3 có Bảng gộp, lọc chéo, chịu tải; Module 2 có thêm mục 7a Tìm dòng trùng). **Module 4: bản nháp vòng 2** `design/module4-quan-ly-deal.md` (18/11), chờ Dương chốt.
 - Code: Stage 0 và Stage 1 xong. Stage 2: 2A xong và đã rà soát; **2B (công thức) code xong, chờ Opus rà soát**; 2C, 2D chưa làm.
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
@@ -14,7 +14,7 @@ Cập nhật: 18/11/2026
    - 2B: golden test được đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (Dương cho phép), không commit dữ liệu lấy từ file, máy không có file thì test tự bỏ qua.
    - 2C: làm cả công cụ **Tìm dòng trùng** (Module 2 mục 7a).
    - Bảng gộp thuộc Stage 3 (Module 3 mục 4), không làm ở Stage 2.
-4. **Module 4 đang chờ Dương chốt bản nháp.** Chốt xong: đổi trạng thái file thành `Đã chốt`, cập nhật bảng module và "Quy định đã chốt" trong CLAUDE.md (chia 4A/4B, winrate cohort, CR1 là tham số kế hoạch).
+4. **Module 4 đang chờ Dương chốt bản nháp.** Chốt xong: đổi trạng thái file thành `Đã chốt`, cập nhật bảng module và "Quy định đã chốt" trong CLAUDE.md (mục 18 của file: template Admin + Manager, bốn lớp cột, datahub "Quản lý Deal" được tạo bảng và được bảo vệ, Deals/Probation KPI theo phạm vi deal). Khi code Stage 4 làm mục 19 (đối chiếu Module 2).
 5. Golden test 2B đã làm (đọc file mẫu, 3.322 công thức); số liệu và hai điểm lạ của file mẫu ở `design/module2-datahub.md` mục 2B.
 
 ## Đã xong
@@ -62,7 +62,7 @@ Việc kế: **Opus rà soát 2B**, rồi chờ Dương bảo làm 2C (giao di�
 ## Câu hỏi còn mở
 
 - 2B, cần Opus/Dương xem: (a) cột tính toán tính lại **cả cột** khi nguồn đổi (có gộp), "đang tính" ở mức cột, chưa theo ô/dòng; (b) **chỉ chủ** ghi được ô Liên kết dòng, người có quyền Sửa dữ liệu thì không; (c) người được chia sẻ không thấy văn bản công thức, chỉ thấy giá trị; (d) công thức trả chữ lẫn số thì cột là chữ (`IFERROR(a/b, "")` vẫn là số); (e) file mẫu dựa vào chữ hiển thị `MM/yyyy` của ô ngày trong `LEFT(ngày,2)` (324 công thức) mà Excel không làm vậy: 2D cần cảnh báo khi import.
-- Module 4 (bản nháp): mốc "cohort đã chín" P75 hay trung vị; CR1 là tham số kế hoạch; có làm com tạm tính ở 4A không; trọng số workload; nguồn tiền thực nhận cho 4B (đề xuất BPM). Chi tiết mục 12.4 của file thiết kế.
+- Module 4 (vòng 2): cột cơ bản chọn từ sheet Deals (mục 4.1); cột mặc định của Manager/Leader (4.2); sheet Index gốc cộng POD Express hai lần (4.6); bảng Probation KPI (6); bảng Thanh toán chờ Dương bàn với Manager (7). Dữ liệu BPM/Dataset đã ghi ở `examples/bpm-dataset-soe.md`.
 - `docker-compose.yml` chưa chạy thử (máy dev không có Docker): phải chạy thử trên VPS trước khi dùng thật. Biến `AUTH_SECRET` giờ bắt buộc trong compose.
 - Đăng nhập Google chưa thử với Google thật; cần tạo Google Cloud client (xem `design/ha-tang.md` mục 4) rồi thử một lần trước khi bật.
 - Danh sách token cần duyệt và tài khoản hệ thống chưa phân trang (giới hạn 500); phân trang ở Stage 5 khi có kết nối AI.
