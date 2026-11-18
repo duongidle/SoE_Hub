@@ -69,7 +69,7 @@ Các bước của 2B (Sonnet đánh dấu khi xong, commit sau mỗi bước):
 - [x] 3. Kiểu cột formula/relation/lookup/rollup (`column-types.ts`, `computed.ts`: lưu, kiểm tra cùng chủ/vòng lặp/ngưỡng 20.000); migration `0006_formula_columns` (cột `calc_*`, bảng `dh_formula_deps`)
 - [x] 4. Tính lại: cùng dòng trong lúc lưu (`row-formulas.ts`, gọi từ `rows.ts`); khác bảng qua worker (`recalc.ts`: `formulaSubscriber`, `processPendingColumns`, vòng lặp trong `worker.ts`); `TODAY()`/`NOW()` + chạy bù (`markVolatilePending`); không log; sự kiện `datahub.formula.recalculated`. Test: `apps/api/test/datahub-formulas.test.ts` (22 test pass)
 - [x] 5. Gom nhóm SQL (`buildPlan` trong `recalc.ts`): test tương đương với duyệt từng dòng (`datahub-formulas-grouped.test.ts`) và test tốc độ 100k × 100k (`datahub-formulas-perf.test.ts`): SUMIFS 1,76 s; COUNTIFS 2 điều kiện 2,33 s; XLOOKUP 2,08 s; AVERAGEIFS 1,97 s; MAXIFS ngày 2,34 s; SUMIFS/COUNTIFS gộp 2,52 s (cả cột 100.000 dòng, nạp 2 × 100.000 dòng bằng SQL mất 4,7 s); sửa một dòng nguồn → 6 cột phụ thuộc tính lại 3,95 s
-- [ ] 6. Golden test với công thức file mẫu (máy không có file thì bỏ qua)
+- [x] 6. Golden test `apps/api/test/formula-golden.test.ts` (đọc thẳng file mẫu, tự bỏ qua khi thiếu file; thêm devDependency `exceljs`, `jszip`): 3.322/3.322 công thức của 6 sheet parse + chạy, 3.321 khớp giá trị Excel đã lưu (1 công thức `TODAY()` chỉ kiểm parse/chạy). 324 công thức `LEFT(ngày,2)` được adapter viết lại thành `TEXT(ngày,"mm")` vì giá trị lưu trong file dựa vào chữ hiển thị MM/yyyy của ô ngày (Excel/engine lấy chữ số của số serial) — ghi ở "Quyết định khi code"
 - [ ] 7. API xem trước công thức + danh mục hàm; OpenAPI, Bruno, README, quyết định khi code
 
 ## Câu hỏi còn mở

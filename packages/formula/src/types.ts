@@ -1,3 +1,5 @@
+import { parseDateText } from "./dates";
+
 /**
  * Values and errors of the formula engine (design module2 section 6). Pure TypeScript: no Node-only imports, so the same
  * code runs in the browser (preview) and on the server (official values).
@@ -114,8 +116,11 @@ export function toNumber(v: Value): number {
   if (typeof x === "number") return x;
   if (typeof x === "boolean") return x ? 1 : 0;
   const n = parseNumberText(x as string);
-  if (n === null) throw err.value(`"${String(x).slice(0, 30)}" không phải là số.`);
-  return n;
+  if (n !== null) return n;
+  // Like Excel, text that reads as a date (`18/11/2026`, `2026-11-18`) is a date number in a calculation.
+  const dt = parseDateText(x as string);
+  if (dt !== null) return dt;
+  throw err.value(`"${String(x).slice(0, 30)}" không phải là số.`);
 }
 
 /** Number or null for text that is not a number (no throw). Errors still throw. */
