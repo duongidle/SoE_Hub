@@ -85,10 +85,10 @@ Manager, Leader, Admin cũng có cột riêng như mọi người. Không phải
 Cột mặc định không có logic viết cứng trong code. Nó là cột thường của engine, chỉ khác là được template sinh sẵn.
 
 - Mọi cột tính toán (`%Com team`, `% Com cá nhân`, `Com`, `Nhóm dịch vụ`, `Mức ưu tiên (BANT)`, `Com của team`, `Com của deal`, các cột của Index và Probation KPI) đều là **cột công thức** viết bằng engine công thức. Sau này đổi cách tính chỉ cần sửa công thức, không cần sửa code.
-- Phần engine phải có thì làm thành **hàm công thức**, không làm thành cột đặc biệt:
-  - Hàm theo người xem: `ME()`, `MY_ROLE()` (vai trò của người xem trong deal), `MY_REVENUE_SHARE()`, `MY_COM_SHARE()`, `TEAM_COM_SHARE()`.
-  - Hàm tra chính sách com: `POLICY_RATE(...)`, `POLICY(...)`, theo phiên bản hiệu lực tại một ngày.
-- Chỉ ba loại cột không phải công thức, vì là dữ liệu gốc của hệ thống: Mã deal (số tự tăng), Người tham gia (danh sách và tỉ lệ do Manager chia), các cột chuẩn (ngày tạo, người sửa…).
+- Công thức chỉ dùng **hàm kiểu Excel** của Module 2 (SUMIFS, XLOOKUP, MAXIFS, IFS…). Không thêm hàm riêng cho Quản lý Deal. Ví dụ `Com` = `[Doanh thu] * [%Com team] * [% Com cá nhân]`; `%Com team` tra bảng chính sách bằng `SUMIFS` và `MAXIFS` (mục 9).
+- Cột không phải công thức là **cột tự điền**, có kiểu như mọi cột: Mã deal (văn bản, Manager hoặc API điền), Người tham gia (kiểu Người dùng, mục 4.5), Status, Doanh thu…
+- Ngày tạo, Người tạo, Ngày sửa, Người sửa là **cột hệ thống của mọi bảng ở mọi datahub** (Module 2 mục 4), không thuộc template. Ẩn được như mọi cột.
+- User sửa công thức và kiểu của **cột tuỳ chỉnh của mình** bình thường. User chỉ không sửa được cột mặc định.
 
 **Ai sửa công thức và kiểu của cột mặc định**
 
@@ -96,7 +96,7 @@ Cột mặc định không có logic viết cứng trong code. Nó là cột th�
 |---|---|---|
 | Admin, Manager | Mọi người dùng template đó | Công thức, kiểu, lựa chọn, định dạng, quyền sửa |
 | Leader | **Chỉ team của Leader đó** (bản sửa riêng của team đè lên template) | Công thức, kiểu kết quả và định dạng của **cột công thức**; lựa chọn, định dạng của cột nhập tay |
-| User | — | Không sửa được công thức hay kiểu. Chỉ đổi hiển thị trong view của mình (ẩn, độ rộng, thứ tự) |
+| User | — | Không sửa công thức hay kiểu của cột mặc định; chỉ đổi hiển thị trong view của mình (ẩn, độ rộng, thứ tự). Cột tuỳ chỉnh của mình thì sửa tự do |
 
 - Leader không đổi được kiểu của cột nhập tay kiểu "giá trị chung". Lý do: giá trị đó là của chung một deal, Manager và Admin cũng nhìn cùng giá trị. Nếu mỗi team một kiểu thì dữ liệu chung bị vỡ.
 - Bản sửa của Leader hiện nhãn `Team sửa`. Manager xem được danh sách mọi bản sửa của các team, và bấm "Về template" được.
@@ -110,7 +110,7 @@ Cột mặc định không có logic viết cứng trong code. Nó là cột th�
 | Ai sửa | Người Leading / mọi người tham gia / Leader / chỉ Manager / chỉ hệ thống (công thức) |
 | Hiển thị mặc định | Hiện hoặc ẩn trong view mặc định |
 
-Cột công thức có thể tính **theo người xem** (ví dụ `% Com cá nhân`, `Com`): giá trị vẫn tính sẵn và lưu cho từng người (đúng luật Module 2 mục 6.5), mỗi deal chỉ có vài người thấy nên số bản ghi nhỏ.
+Cột cách lưu "mỗi người một giá trị" (ví dụ `Vai trò của tôi`, `% Com cá nhân`) và cột công thức dùng chúng (ví dụ `Com`) có giá trị riêng cho từng người, vẫn tính sẵn và lưu (Module 2 mục 6.5). Mỗi deal chỉ vài người thấy nên số bản ghi nhỏ.
 
 ## 4. Bảng Deals
 
@@ -131,15 +131,17 @@ Cột công thức có thể tính **theo người xem** (ví dụ `% Com cá nh
 | 11 | Level BC | Một lựa chọn | `Level 0` đến `Level 9` (Data Validation có 1–9; chính sách có thêm Level 0) |
 | 12 | Performance BC | Một lựa chọn | `Under KPI`, `KPI`, `Goal`, `Out performance` |
 | 13 | %Com team | Công thức | Tra chính sách com (mục 9) theo Loại deal, Nguồn lead, Level BC, Performance BC |
-| 14 | % Com cá nhân | Công thức, theo người xem | % com của người xem trong deal, do Manager chia (mục 4.5) |
-| 15 | Com | Công thức, theo người xem | Doanh thu × %Com team × % Com cá nhân. Luôn ghi **Tạm tính** |
+| 14 | % Com cá nhân | Phần trăm, tự điền, mỗi người một giá trị | Lấy từ tỉ lệ com Manager chia cho người đó ở cột Người tham gia; chưa chia thì 0 (mục 4.5) |
+| 15 | Com | Công thức | `[Doanh thu] * [%Com team] * [% Com cá nhân]`. Luôn ghi **Tạm tính** |
 
 Thêm vào lớp Cơ bản vì hệ thống cần:
 
 | # | Cột | Lý do |
 |---|---|---|
-| 16 | Mã deal | Tự sinh `D-000123`. Gọi đúng một deal qua API, MCP, liên kết |
-| 17 | Người tham gia | Leading / Associate / Advisor và tỉ lệ. Quyết định ai thấy deal, doanh thu và com chia cho ai |
+| 16 | Mã deal | Văn bản, **duy nhất**, Manager điền hoặc API bắn vào (ví dụ mã phiếu BPM). Gọi đúng một deal qua API, MCP, liên kết |
+| 17 | Người tham gia | Kiểu Người dùng, chọn người trong hệ thống, mỗi người kèm vai trò và tỉ lệ (mục 4.5). Quyết định ai thấy deal và com chia cho ai |
+| 17a | Vai trò của tôi | Nhãn `Leading` / `Associate` / `Advisor`, tự điền, mỗi người một giá trị (mục 4.5) |
+| 17b | % doanh thu của tôi | Phần trăm, tự điền, mỗi người một giá trị |
 | 18 | Mức ưu tiên (BANT) | Brief yêu cầu. Bốn cột B, A, N, T ẩn mặc định, chấm trong ngăn chi tiết deal (mục 8) |
 | 19 | Mã số thuế | Nhận ra cùng khách: gợi ý `PS kèm POD`, khớp phiếu BPM, chống trùng |
 | 20 | Nhóm dịch vụ | Công thức, ẩn: `POD` / `PS` / `Khác` theo Data Validation; `Software` / `Non-software` cho bảng luỹ kế |
@@ -151,15 +153,16 @@ Không đưa vào template ban đầu (Manager thêm khi cần, hoặc mỗi ng�
 | Vai trò | Cột thêm |
 |---|---|
 | User | Không thêm (đã có `Com` của mình) |
-| Leader | `Com của team`: tổng com tạm tính của các thành viên team trong deal |
-| Manager | `Com của deal`: tổng com SoE của deal. `Tổng % com đã chia`: cảnh báo khi khác 100%. Khi có bảng Thanh toán: `Số lần tiền về`, `Com đã chia`, `Com còn lại`, `Đủ com` (rollup từ Thanh toán) |
+| Leader | `% com của team` (tự điền: tổng % com của thành viên team mình trong deal), `Com của team` = `[Doanh thu] * [%Com team] * [% com của team]` |
+| Manager | `Tổng % com đã chia` (tự điền: tổng % com của mọi người tham gia; cảnh báo khi chưa đủ 100%), `Com của deal` = `[Doanh thu] * [%Com team] * [Tổng % com đã chia]`. Khi có bảng Thanh toán: `Số lần tiền về`, `Com đã chia`, `Com còn lại`, `Đủ com` (rollup từ Thanh toán) |
 
 ### 4.3 Quyền sửa mặc định
 
 | Cột | Leading | Associate, Advisor | Leader | Manager |
 |---|---|---|---|---|
 | Cột 1–12, 18, 19 | Sửa (trừ Loại deal) | Xem | Xem; sửa nếu thành viên cho phép | Sửa |
-| Loại deal, Người tham gia, `Huỷ` | Xem | Xem | Xem | Sửa |
+| Loại deal, Mã deal, Người tham gia, `Huỷ` | Xem | Xem | Xem | Sửa |
+| Cột tự điền từ Người tham gia (17a, 17b, 14, cột % của team) | Xem | Xem | Xem | Xem (sửa qua Người tham gia) |
 | Cột công thức | — | — | — | — |
 | Cột tuỳ chỉnh của mình | Sửa | Sửa | Sửa | Sửa |
 
@@ -183,10 +186,14 @@ Kiểm chứng `Disqualified`: trong `Raw PODPS`, deal Disqualified chỉ dừng
 
 ### 4.5 Người tham gia
 
-- Ít nhất một `Leading`; được nhiều Leading (BPM cho nhiều `Lead SoE` chia `% Rev`).
-- Mỗi người có hai tỉ lệ: **% doanh thu** và **% com**. Tỉ lệ **do Manager chia**. Mặc định khi tạo: Leading đầu tiên 100% / 100%; Associate, Advisor 0% / 0% (chỉ tính workload).
+- Cột `Người tham gia` có kiểu **Người dùng** (chọn nhiều người trong hệ thống). Mỗi người được chọn kèm ba ô: **Vai trò** (nhãn `Leading` / `Associate` / `Advisor`), **% doanh thu**, **% com**. Giống bảng "Danh sách SoE tham gia deal" của BPM. Manager điền trên bảng Deals của mình, hoặc API bắn vào.
+- Chọn ai thì deal hiện trong bảng Deals của người đó. Hệ thống tự điền các cột mỗi-người-một-giá-trị của họ: `Vai trò của tôi`, `% doanh thu của tôi`, `% Com cá nhân`; với Leader thêm `% com của team`; với Manager thêm `Tổng % com đã chia`. Từ đó mọi cột `Com` chỉ là công thức nhân thường.
+- **% com mặc định 0** (chưa chia). Deal vẫn hiện, `Com` bằng 0 cho đến khi Manager chia.
+- % doanh thu mặc định: deal chỉ có một Leading thì Leading 100%; còn lại 0 cho đến khi Manager chia. Associate, Advisor mặc định 0 (chỉ tính workload).
+- Được nhiều Leading (BPM cho nhiều `Lead SoE` chia `% Rev`). Kiểu `Người dùng có thuộc tính` là tính năng chung của Datahub, bảng khác cũng dùng được (ví dụ giao việc có tỉ lệ).
 - Ràng buộc: tổng mỗi loại tỉ lệ ≤ 100%, kiểm tra ở mọi kênh.
-- Doanh thu của một người = Doanh thu × % doanh thu. Đếm deal (nhận, thắng, winrate) của một người: chỉ deal họ là Leading. Của team: đếm không trùng.
+- Doanh thu của một người = `[Doanh thu] * [% doanh thu của tôi]`. Đếm deal (nhận, thắng, winrate) của một người: `COUNTIFS(... [Vai trò của tôi], "Leading")`. Của team: đếm không trùng.
+- Dashboard và cột của Manager cảnh báo deal Won chưa chia đủ tỉ lệ.
 - Workload: mọi vai trò, trọng số mặc định Leading 1, Associate 0,5, Advisor 0,3; Manager chỉnh cho cây mình.
 - Người tham gia phải cùng cây với deal. Đổi người lưu lịch sử và phát sự kiện `deal.participant.changed`.
 
@@ -268,7 +275,11 @@ Bốn cột B, A, N, T, mỗi cột: `Có bằng chứng` / `Chưa rõ` / `Âm`.
 - **POD:** Com sale = Doanh thu × tỉ lệ tra theo (Nguồn lead, Level BC, Performance BC); Com SoE = Com sale × tỉ lệ SoE. Nên `%Com team` = tỉ lệ tra được × tỉ lệ SoE.
 - **PS:** `%Com team` = tỉ lệ PS POD; chính thức tính trên tiền PS thực nhận từng đợt (bảng Thanh toán). Ở 4A giả định khách trả đủ.
 - **POD Express, Data:** chưa có chính sách, cột hiện "Chưa có chính sách".
-- **Chính sách com có phiên bản**, ngày hiệu lực; Manager tạo phiên bản mới, không ghi đè phiên bản cũ; phiên bản đã kích hoạt không sửa được. Gồm bảng tỉ lệ BC-ML, BC-SH (Level × Performance → doanh thu tối thiểu, tỉ lệ), tỉ lệ SoE, tỉ lệ PS POD, và công thức từng loại deal. Deal dùng phiên bản hiệu lực tại Closing date. Phiên bản đầu dựng từ các sheet BC Policy và PDF.
+- **Chính sách com là bảng hệ thống dùng chung** (công thức được tham chiếu bảng hệ thống, theo CLAUDE.md), không phải logic trong code:
+  - Bảng `Chính sách com`: Hiệu lực từ, Nguồn lead (ML/SH), Level, Performance, Doanh thu tối thiểu, Tỉ lệ. Dựng từ các sheet BC-ML, BC-SH.
+  - Bảng `Tham số com`: Hiệu lực từ, Tên tham số (tỉ lệ SoE trên com sale, tỉ lệ PS POD…), Giá trị.
+- **Có phiên bản theo ngày hiệu lực:** Manager thêm một bộ dòng mới với `Hiệu lực từ` mới, không sửa dòng cũ. Dòng đã có hiệu lực bị khoá.
+- `%Com team` là công thức thường, tra đúng phiên bản theo Closing date. Ví dụ phần POD: `SUMIFS([Chính sách com].[Tỉ lệ], [Chính sách com].[Hiệu lực từ], MAXIFS([Chính sách com].[Hiệu lực từ], [Chính sách com].[Hiệu lực từ], "<="&[Closing date]), [Chính sách com].[Nguồn lead], [Nguồn lead], [Chính sách com].[Level], [Level BC], [Chính sách com].[Performance], [Performance BC])` nhân với tỉ lệ SoE tra cùng cách. Template dựng sẵn công thức này; Manager sửa khi chính sách đổi cách tính.
 - Thiếu đầu vào (ví dụ chưa có Level BC) thì `Com` để trống kèm lý do, không đoán.
 - Ai thấy com: chính người đó, Leader của họ, Manager của cây, Admin (chỉ đọc). Guest không bao giờ thấy.
 
@@ -390,6 +401,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 | Brief: datahub Deals không cho tạo thêm bảng | Datahub "Quản lý Deal" **được tạo thêm bảng**; datahub, bảng và cột mặc định được bảo vệ | Module 2 |
 | Datahub là của riêng, Leader/Manager không xem | Giữ nguyên cho bảng tự tạo và Index. **Ngoại lệ:** Deals và Probation KPI theo phạm vi deal (Leader xem team, Manager xem cây) | Module 1 mục 4 |
 | Cột hệ thống của Deals là cột cố định trong code | Cột mặc định là **cột thường do template sinh sẵn**; cột tính toán là công thức, Admin/Manager sửa cho mọi người, Leader sửa cho team, User không sửa (mục 3.3) | Module 2, CLAUDE.md |
+| Mã deal tự sinh `D-000123` (Module 0 mục 5) | Mã deal là cột văn bản duy nhất, Manager hoặc API điền; dòng vẫn có `id` và số dòng của Module 2 | Module 0 |
 | Golden test so số với Excel (Module 0 mục 21) | So với script tham chiếu trên `Raw PODPS` (mục 17) | Module 0, Stage 2B |
 
 ## 19. Kiểm tra với Module 2 khi code Stage 4
@@ -400,7 +412,9 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 2. Một **bảng hệ thống dùng chung** (Deals, Probation KPI) xuất hiện trong datahub của từng người, đã áp phạm vi.
 3. Cột theo **lớp template** và hai cách lưu giá trị (chung mỗi deal / mỗi người một giá trị), khớp với "ba nguồn cột" của Module 2 mục 3.
 4. Công thức **theo người xem** (`% Com cá nhân`, `Com`, đếm deal mình là Leading), tính sẵn và lưu theo người.
-7. Cột mặc định là cột thường do template sinh sẵn (mục 3.3): mọi cột tính toán là cột công thức; engine có các hàm theo người xem (`ME`, `MY_ROLE`, `MY_REVENUE_SHARE`, `MY_COM_SHARE`, `TEAM_COM_SHARE`) và hàm tra chính sách (`POLICY_RATE`, `POLICY`).
+7. Cột mặc định là cột thường do template sinh sẵn (mục 3.3): cột tính toán là công thức chỉ dùng hàm kiểu Excel, không có hàm riêng. Công thức ở bảng của một người (Index, bảng tự tạo) đọc cột mỗi-người-một-giá-trị của Deals theo **chủ bảng** (ví dụ `[Deals].[Vai trò của tôi]` là vai trò của chủ Index).
+9. Kiểu **Người dùng có thuộc tính** (mỗi người chọn kèm vài ô: nhãn, phần trăm), và cơ chế tự điền cột mỗi-người-một-giá-trị từ cột đó (mục 4.5).
+10. Cột hệ thống Ngày tạo, Người tạo, Ngày sửa, Người sửa có ở mọi bảng, ẩn được.
 8. Bản sửa riêng của team (Leader) đè lên định nghĩa cột template; cột riêng được "Đưa vào template".
 5. Cột liên kết, lookup, rollup và công thức từ bảng riêng (Index, Thanh toán, bảng tự tạo) sang Deals, Probation KPI; luật "cùng chủ" của công thức phải coi các bảng này là của chủ datahub.
 6. Giới hạn bảng và cột áp đúng cho datahub "Quản lý Deal".
