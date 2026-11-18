@@ -1,0 +1,29 @@
+meta {
+  name: auth.code.verify
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/codes/verify
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "nguoi.dung@base.vn",
+    "purpose": "activate",
+    "code": "123456",
+    "password": "mat-khau-cua-ban"
+  }
+}
+
+docs {
+  Nhập mã 6 số và đặt mật khẩu: kích hoạt tài khoản hoặc đặt lại mật khẩu. Đăng nhập luôn.
+  Công khai (không cần đăng nhập).
+}

@@ -86,7 +86,7 @@ describe("permission check is pluggable and enforced at the server", () => {
 
   it("AI channel (mcp) cannot call an operation with aiAllowed=false", async () => {
     const r = await t.c.executor
-      .execute("system.setting.set", { key: uniq(), value: 1 }, { actor: { userId: DEV_USER, via: "mcp", connectionId: null, automationId: null, scopes: [], ip: null, userAgent: null }, requestId: "r-ai-0001" })
+      .execute("system.setting.set", { key: uniq(), value: 1 }, { actor: { userId: DEV_USER, via: "mcp", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: null }, requestId: "r-ai-0001" })
       .catch((e) => e);
     expect(r).toMatchObject({ code: "ai_not_allowed" });
     const rows = await t.c.db.db.select().from(auditLog).where(eq(auditLog.requestId, "r-ai-0001"));
@@ -94,9 +94,9 @@ describe("permission check is pluggable and enforced at the server", () => {
   });
 });
 
-describe("production is locked until Stage 1", () => {
-  it("every request that needs an actor is refused; public ones still work", async () => {
-    const p = await makeApp({ NODE_ENV: "production", isProduction: true, devAuthEnabled: false, STORAGE_SIGNING_SECRET: "x".repeat(32) });
+describe("production ignores the test-only actor header", () => {
+  it("X-Dev-Actor does nothing: every request that needs an actor is refused without a session or token", async () => {
+    const p = await makeApp({ NODE_ENV: "production", isProduction: true, devAuthEnabled: false, STORAGE_SIGNING_SECRET: "x".repeat(32), AUTH_SECRET: "y".repeat(40) });
     try {
       const h = { "x-dev-actor": DEV_USER };
       for (const url of ["/api/v1/system/whoami", "/api/v1/system/settings", "/api/openapi.json", "/api/docs/", "/api/v1/events"]) {
@@ -108,7 +108,7 @@ describe("production is locked until Stage 1", () => {
       expect(w.statusCode).toBe(401);
       expect((await p.app.inject({ method: "GET", url: "/health" })).statusCode).toBe(200);
       expect((await p.app.inject({ method: "GET", url: "/api/v1/system/ping" })).statusCode).toBe(200);
-      expect(p.c.auth.mode).toBe("locked");
+      expect(p.c.auth.mode).toBe("real");
     } finally {
       await p.close();
     }
@@ -159,7 +159,7 @@ describe("settings: version, audit, history, outbox in one transaction", () => {
     const bad = defineCommand({
       name: "test.boom.run",
       summary: "test",
-      permission: "test:run",
+      permission: "system:setting:write",
       aiAllowed: true,
       emits: ["system.setting.changed"],
       input: z.object({}),
@@ -171,7 +171,7 @@ describe("settings: version, audit, history, outbox in one transaction", () => {
       },
     });
     t.c.registry.register(bad);
-    const r = await t.c.executor.execute("test.boom.run", {}, { actor: { userId: DEV_USER, via: "api", connectionId: null, automationId: null, scopes: [], ip: null, userAgent: null }, requestId: "r-boom-0001" }).catch((e) => e);
+    const r = await t.c.executor.execute("test.boom.run", {}, { actor: { userId: DEV_USER, via: "api", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: null }, requestId: "r-boom-0001" }).catch((e) => e);
     expect(r).toMatchObject({ code: "internal_error" });
     expect((await t.c.db.db.execute(sql`select 1 from system_settings where key = ${key}`)).rows).toHaveLength(0);
     expect(await t.c.db.db.select().from(outbox).where(eq(outbox.aggregateId, key))).toHaveLength(0);
@@ -184,11 +184,11 @@ describe("settings: version, audit, history, outbox in one transaction", () => {
     const { z } = await import("zod");
     t.c.registry.register(
       defineCommand({
-        name: "test.undeclared.run", summary: "t", permission: "t:x", aiAllowed: true, input: z.object({}), http: { method: "POST", path: "/test/undeclared" },
+        name: "test.undeclared.run", summary: "t", permission: "system:setting:write", aiAllowed: true, input: z.object({}), http: { method: "POST", path: "/test/undeclared" },
         handler: async (ctx) => { await ctx.emit("system.setting.changed", { payload: { key: "k", version: 1 } }); },
       }),
     );
-    const err = await t.c.executor.execute("test.undeclared.run", {}, { actor: { userId: DEV_USER, via: "api", connectionId: null, automationId: null, scopes: [], ip: null, userAgent: null }, requestId: "r-undecl-001" }).catch((e) => e);
+    const err = await t.c.executor.execute("test.undeclared.run", {}, { actor: { userId: DEV_USER, via: "api", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: null }, requestId: "r-undecl-001" }).catch((e) => e);
     expect(err).toMatchObject({ code: "internal_error" });
   });
 });

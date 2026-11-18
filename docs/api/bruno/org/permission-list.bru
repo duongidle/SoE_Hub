@@ -1,0 +1,20 @@
+meta {
+  name: org.permission.list
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/org/members/{{id}}/permissions
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Quyền bổ sung đang có của một người.
+  Quyền: `org:member:read`.
+}

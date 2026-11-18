@@ -1,0 +1,20 @@
+meta {
+  name: guest.data_type.list
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/guest/data-types
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Loại dữ liệu cấp được cho Guest (module sở hữu dữ liệu tự đăng ký; Deals có từ Stage 4).
+  Quyền: `guest:grant:manage`.
+}

@@ -1,0 +1,20 @@
+meta {
+  name: org.member.history
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/org/members/{{id}}/history
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Lịch sử vị trí trong cây của một người (valid_from → valid_to).
+  Quyền: `org:member:read`.
+}

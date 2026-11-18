@@ -11,7 +11,7 @@ get {
 }
 
 headers {
-  X-Dev-Actor: {{devActor}}
+  Authorization: Bearer {{token}}
 }
 
 assert {
@@ -19,5 +19,5 @@ assert {
 }
 
 docs {
-  Trả tác nhân đang gọi. Dev: lấy từ header X-Dev-Actor (sẽ thay bằng đăng nhập ở Stage 1).
+  Trả tác nhân đang gọi (người dùng, kênh, scope của token).
 }

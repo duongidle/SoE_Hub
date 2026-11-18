@@ -1,0 +1,30 @@
+meta {
+  name: notification.list
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/notifications
+  body: none
+  auth: none
+}
+
+params:query {
+  ~filter: 
+  ~sort: sort
+  ~fields: fields
+  ~limit: 50
+  ~cursor: cursor
+  ~include_total: false
+  ~unread_only: false
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Thông báo của mình, mới nhất trước.
+  Quyền: `notification:read`.
+}

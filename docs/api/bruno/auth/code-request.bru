@@ -1,0 +1,27 @@
+meta {
+  name: auth.code.request
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/codes
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "nguoi.dung@base.vn",
+    "purpose": "activate"
+  }
+}
+
+docs {
+  Xin mã 6 số để kích hoạt tài khoản (activate) hoặc đặt lại mật khẩu (reset).
+  Công khai (không cần đăng nhập).
+}

@@ -1,5 +1,6 @@
 import { index, integer, jsonb, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { newId } from "./columns";
+import { users } from "./users";
 
 /**
  * Snapshot skeleton (design section 10): a named, read-only copy of a data set at one moment.
@@ -15,7 +16,7 @@ export const snapshots = pgTable(
     tableId: text("table_id"),
     scope: text("scope").notNull().default("global"),
     takenAt: timestamp("taken_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-    takenBy: uuid("taken_by"),
+    takenBy: uuid("taken_by").references(() => users.id),
     rowCount: integer("row_count").notNull().default(0),
     note: text("note"),
   },

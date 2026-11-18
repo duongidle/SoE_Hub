@@ -1,0 +1,28 @@
+meta {
+  name: org.member.lock
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/org/members/{{id}}/lock
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "reason": "reason"
+  }
+}
+
+docs {
+  Khoá tài khoản (xoá khỏi org chart = khoá; dữ liệu giữ nguyên). Mọi phiên và token bị thu hồi.
+  Quyền: `org:member:write`.
+}

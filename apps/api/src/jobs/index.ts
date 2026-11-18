@@ -1,17 +1,20 @@
 import { sql } from "drizzle-orm";
-import { auditMinRetentionDays, getTrashRetentionDays, purgeAuditBefore, purgeIdempotencyKeys, purgeTrash, writeAudit, type Db } from "@soe/db";
+import { SYSTEM_USER_ID, auditMinRetentionDays, getTrashRetentionDays, purgeAuditBefore, purgeIdempotencyKeys, purgeTrash, writeAudit, type Db } from "@soe/db";
 import { BUSINESS_TIMEZONE, type Actor } from "@soe/shared";
 import type { Logger } from "pino";
 import type { Config } from "../config";
+import { purgeSessions } from "../auth/sessions";
+import { scrubExpiredCodes } from "../modules/notification";
 
-/** Account used for audit rows written by the worker. Stage 1 creates this as a real system user. */
-export const SYSTEM_USER_ID = "00000000-0000-7000-8000-000000000000";
+/** The internal system account (a row of `users`, kind `system`, created by migration 0003). */
+export { SYSTEM_USER_ID };
 
 export const systemActor: Actor = {
   userId: SYSTEM_USER_ID,
   via: "worker",
   connectionId: null,
   automationId: null,
+  sessionId: null,
   scopes: [],
   ip: null,
   userAgent: "soe-worker",
@@ -92,6 +95,25 @@ export const jobs: JobDef[] = [
       logger.info({ job: "system-audit-purge", days, cutoff, purged }, "audit log purged");
       // Written after the purge, so this record itself is kept.
       await writeAudit(db, { command: "system.audit.purge", result: "success", actor: systemActor, details: { retention_days: days, cutoff: cutoff.toISOString(), purged } });
+    },
+  },
+  {
+    name: "auth-session-purge",
+    cron: "45 3 * * *",
+    tz: BUSINESS_TIMEZONE,
+    description: "Mỗi đêm xoá phiên đăng nhập đã hết hạn hoặc bị thu hồi quá 30 ngày.",
+    async run({ db, config, logger }) {
+      const n = await purgeSessions(db, config.SESSION_IDLE_DAYS);
+      logger.info({ job: "auth-session-purge", purged: n }, "sessions purged");
+    },
+  },
+  {
+    name: "notification-code-scrub",
+    cron: "5 * * * *",
+    description: "Mỗi giờ xoá mã xác thực khỏi thông báo đã quá 6 giờ (mã chỉ hiện trong 6 giờ).",
+    async run({ db, logger }) {
+      const n = await scrubExpiredCodes(db);
+      logger.info({ job: "notification-code-scrub", scrubbed: n }, "verification codes scrubbed");
     },
   },
 ];

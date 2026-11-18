@@ -1,0 +1,24 @@
+meta {
+  name: guest.grant.list
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/guest/grants
+  body: none
+  auth: none
+}
+
+params:query {
+  ~include_revoked: false
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Dữ liệu đã cấp cho Guest trong cây của mình.
+  Quyền: `guest:grant:manage`.
+}

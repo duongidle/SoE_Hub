@@ -1,0 +1,20 @@
+meta {
+  name: auth.google.callback
+  type: http
+  seq: 31
+}
+
+get {
+  url: {{baseUrl}}/api/auth/callback/google?code=&state=
+  body: none
+  auth: none
+}
+
+params:query {
+  code: 
+  state: 
+}
+
+docs {
+  Google gọi lại sau khi đăng nhập (trình duyệt tự gọi). Không gọi tay; có ở đây để bộ request đủ mọi endpoint.
+}

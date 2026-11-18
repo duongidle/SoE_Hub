@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
+import fastifyCookie from "@fastify/cookie";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
@@ -7,7 +8,7 @@ import scalar from "@scalar/fastify-api-reference";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { sql } from "drizzle-orm";
 import { v7 as uuidv7 } from "uuid";
-import { AppError, ERROR_CODES, HEADERS, type Actor, type ErrorCode } from "@soe/shared";
+import { AppError, ERROR_CODES, HEADERS, isAppError, type Actor, type ErrorCode } from "@soe/shared";
 import { getSetting, writeAudit, type DbHandle } from "@soe/db";
 import type { Logger } from "pino";
 import type { AuthKit } from "../auth";
@@ -17,6 +18,9 @@ import type { Registry } from "../core/registry";
 import { LocalStorageDriver, type StorageDriver } from "../storage";
 import { buildOpenApi } from "./openapi";
 import { registerLocalStorageRoutes } from "./local-storage";
+import { AccessContext, scopeIncludes } from "../auth/access";
+import type { HttpResponder } from "../core/types";
+import { registerGoogleRoutes } from "../modules/auth/google";
 import type { SseHub, SseSignal } from "./sse";
 
 declare module "fastify" {
@@ -67,6 +71,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   app.decorateRequest("actor", null);
+  await app.register(fastifyCookie);
 
   // ---- security headers -------------------------------------------------------------------------
   await app.register(helmet, {
@@ -94,9 +99,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   // ---- identify the actor (pluggable) -----------------------------------------------------------
+  // Session cookie or bearer token (auth/sessions.ts). Cookie writes must carry the CSRF header.
   app.addHook("onRequest", async (req) => {
     const ua = req.headers["user-agent"];
-    req.actor = await auth.resolver.resolve({ headers: req.headers, ip: req.ip, userAgent: typeof ua === "string" ? ua : null });
+    try {
+      req.actor = await auth.resolver.resolve({ method: req.method, headers: req.headers, ip: req.ip, userAgent: typeof ua === "string" ? ua : null });
+    } catch (e) {
+      if (isAppError(e)) {
+        await writeAudit(deps.db.db, { command: "http.authenticate", result: "denied", requestId: req.id, errorCode: e.code, details: { reason: e.message, method: req.method, url: req.url.split("?")[0] } }).catch(() => {});
+      }
+      throw e;
+    }
   });
 
   // ---- rate limit: per actor when known, else per IP --------------------------------------------
@@ -104,7 +117,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     global: true,
     max: config.RATE_LIMIT_MAX,
     timeWindow: config.RATE_LIMIT_WINDOW,
-    keyGenerator: (req) => (req.actor ? `u:${req.actor.userId}` : `ip:${req.ip}`),
+    // Per token when a token is used, else per user, else per IP (design module0 section 7).
+    keyGenerator: (req) => (req.actor?.connectionId ? `t:${req.actor.connectionId}` : req.actor ? `u:${req.actor.userId}` : `ip:${req.ip}`),
     allowList: (req) => req.url === "/health",
     errorResponseBuilder: (_req, ctx) => ({ statusCode: 429, error: "Too Many Requests", message: `Gọi quá nhanh. Thử lại sau ${Math.ceil(ctx.ttl / 1000)} giây.` }),
   });
@@ -167,6 +181,22 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         if (r.replayed) reply.header("idempotent-replayed", "true");
         reply.code(r.status);
         if (r.status === 204) return reply.send();
+        if (op.http.respond) {
+          let raw: { body: string; type: string; filename?: string } | null = null;
+          const res: HttpResponder = {
+            setCookie: (name, value, o) =>
+              void reply.setCookie(name, value, { path: "/", httpOnly: o.httpOnly, sameSite: "lax", secure: config.secureCookies, ...(o.maxAgeSeconds ? { maxAge: o.maxAgeSeconds } : {}) }),
+            clearCookie: (name) => void reply.clearCookie(name, { path: "/" }),
+            sendRaw: (body, type, filename) => void (raw = { body, type, filename }),
+          };
+          const data = op.http.respond(r.result, res);
+          if (raw) {
+            const x = raw as { body: string; type: string; filename?: string };
+            if (x.filename) reply.header("content-disposition", `attachment; filename="${x.filename}"`);
+            return reply.type(x.type).send(x.body);
+          }
+          return { data };
+        }
         if (op.list) {
           const l = r.result as { items: unknown[]; nextCursor: string | null; total?: number };
           return { data: l.items, next_cursor: l.nextCursor, ...(l.total !== undefined ? { total: l.total } : {}) };
@@ -233,9 +263,14 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     });
     res.write(`retry: 3000\n`);
     res.write(`event: ready\ndata: ${JSON.stringify({ user_id: actor.userId })}\n\n`);
+    const canSee = sseFilter(actor);
     const send = (s: SseSignal) => {
       if (topics.length > 0 && !topics.some((t) => s.event === t || s.event.startsWith(`${t}.`))) return;
-      res.write(`id: ${s.id}\nevent: ${s.event}\ndata: ${JSON.stringify(s)}\n\n`);
+      void canSee(s).then((ok) => {
+        if (!ok || res.writableEnded) return;
+        const { audience: _audience, ...pub } = s;
+        res.write(`id: ${s.id}\nevent: ${s.event}\ndata: ${JSON.stringify(pub)}\n\n`);
+      });
     };
     const unsubscribe = deps.sse.subscribe(send);
     const ping = setInterval(() => res.write(`: ping\n\n`), 25_000);
@@ -244,6 +279,42 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       unsubscribe();
     });
   });
+
+  /**
+   * SSE visibility (design module1 section 10): a signal goes only to people allowed to see the object.
+   * Permission and scope answers are cached for 30 seconds per connection, so role changes apply quickly.
+   */
+  function sseFilter(actor: Actor) {
+    let cache: { at: number; access: AccessContext } | null = null;
+    const access = () => {
+      if (!cache || Date.now() - cache.at > 30_000) {
+        // A fresh actor object = a fresh principal cache entry.
+        cache = { at: Date.now(), access: new AccessContext({ ...actor }, deps.db.db, auth.principals) };
+      }
+      return cache.access;
+    };
+    return async (s: SseSignal): Promise<boolean> => {
+      const a = s.audience;
+      if (!a) return false;
+      if (a.users?.includes(actor.userId)) return true;
+      try {
+        const ac = access();
+        const p = await ac.principal();
+        if (!p || p.status !== "active") return false;
+        if (a.permission && (await ac.can(a.permission as never))) return true;
+        if (a.scope) {
+          const scope = await ac.scope(a.scope.kind);
+          if (a.scope.ownerIds.some((id) => scopeIncludes(scope, id))) return true;
+        }
+      } catch (e) {
+        app.log.warn({ err: e }, "sse visibility check failed");
+      }
+      return false;
+    };
+  }
+
+  // ---- Google login (optional) ----------------------------------------------------------------------
+  await registerGoogleRoutes(app as unknown as FastifyInstance, { config, db: deps.db.db });
 
   // ---- local storage driver (dev) -------------------------------------------------------------------
   if (deps.storage instanceof LocalStorageDriver) {

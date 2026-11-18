@@ -1,0 +1,20 @@
+meta {
+  name: guest.grant.mine
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/guest/my-grants
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Guest xem dữ liệu mình đang được cấp.
+  Quyền: `system:whoami`.
+}

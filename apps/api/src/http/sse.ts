@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import type { Logger } from "pino";
+import type { Audience } from "../core/events";
 
 export const SSE_CHANNEL = "soe_sse";
 
@@ -10,6 +11,8 @@ export interface SseSignal {
   aggregate_type: string | null;
   aggregate_id: string | null;
   at: string;
+  /** Who may receive it (computed by the worker from the event definition). Never sent to clients. */
+  audience?: Audience | null;
 }
 
 type Listener = (s: SseSignal) => void;

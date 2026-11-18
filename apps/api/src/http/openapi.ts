@@ -109,7 +109,7 @@ function buildOperation(op: Operation): Json {
       ...errorResponses(op),
     },
   };
-  if (op.permission !== null) result.security = [{ devActor: [] }, { bearerAuth: [] }];
+  if (op.permission !== null) result.security = [{ bearerAuth: [] }, { sessionCookie: [], csrfHeader: [] }];
   return result;
 }
 
@@ -137,9 +137,26 @@ function infraPaths(): Json {
         description: "Giữ kết nối mở. Mỗi sự kiện: `{ id, event, aggregate_type, aggregate_id, at }`. Client nhận tín hiệu rồi tải lại đúng dòng qua API có kiểm tra quyền.",
         tags: ["system"],
         "x-permission": "events:subscribe",
-        security: [{ devActor: [] }, { bearerAuth: [] }],
+        security: [{ bearerAuth: [] }, { sessionCookie: [] }],
         parameters: [{ name: "topics", in: "query", required: false, schema: { type: "string" }, description: "Tiền tố tên sự kiện, ngăn cách bằng dấu phẩy, ví dụ `datahub.row,deal`." }],
         responses: { "200": { description: "Luồng `text/event-stream`.", content: { "text/event-stream": { schema: { type: "string" } } } }, "401": { description: "Chưa đăng nhập.", content: errContent }, "403": { description: "Không có quyền.", content: errContent } },
+      },
+    },
+    "/api/auth/google/start": {
+      get: {
+        operationId: "auth.google.start",
+        summary: "Bắt đầu đăng nhập Google (chuyển hướng sang Google). Chỉ dùng được khi Admin bật `auth.google_enabled`.",
+        tags: ["auth"],
+        responses: { "302": { description: "Chuyển hướng tới trang đăng nhập Google." }, "404": { description: "Đăng nhập Google đang tắt.", content: errContent } },
+      },
+    },
+    "/api/auth/callback/google": {
+      get: {
+        operationId: "auth.google.callback",
+        summary: "Google gọi lại sau khi đăng nhập. Email phải có trong org chart; lần đầu bắt buộc đặt mật khẩu.",
+        tags: ["auth"],
+        parameters: ["code", "state"].map((name) => ({ name, in: "query", required: true, schema: { type: "string" } })),
+        responses: { "302": { description: "Về trang chủ (hoặc trang đặt mật khẩu, hoặc trang đăng nhập kèm lỗi)." } },
       },
     },
     "/api/v1/storage/local/put": {
@@ -182,20 +199,27 @@ export function buildOpenApi(registry: Registry, serverUrl: string): Json {
       version: "0.1.0",
       description:
         "API của SoE Hub, sinh tự động từ command/query registry. JSON `snake_case`. Lỗi: `{ error: { code, message, details } }`. " +
-        "Lệnh ghi hỗ trợ header `Idempotency-Key` và `version` chống ghi đè. Xác thực thật (phiên, token) có ở Stage 1; " +
-        "ở môi trường dev, gửi header `X-Dev-Actor` (uuid) để chọn tác nhân.",
+        "Lệnh ghi hỗ trợ header `Idempotency-Key` và `version` chống ghi đè. Xác thực: token `Authorization: Bearer soe_pat_…` " +
+        "(token cá nhân, Admin đã duyệt) hoặc `soe_svc_…` (tài khoản hệ thống); trên web là cookie phiên `soe_session`, " +
+        "mọi lệnh ghi bằng cookie phải gửi header `X-CSRF-Token` (giá trị của cookie `soe_csrf`).",
     },
     servers: [{ url: serverUrl }],
     tags: [
       { name: "system", description: "Hệ thống, cài đặt, nhật ký." },
       { name: "file", description: "Lưu file và link ký số." },
+      { name: "auth", description: "Đăng nhập, mã kích hoạt / đặt lại mật khẩu, phiên, token, tài khoản hệ thống." },
+      { name: "org", description: "Org chart, vai trò, cây tổ chức, quyền bổ sung." },
+      { name: "notification", description: "Thông báo trong ứng dụng." },
+      { name: "guest", description: "Cấp dữ liệu cho Guest." },
+      { name: "data", description: "Chuyển giao dữ liệu (Admin)." },
     ],
     paths,
     components: {
       schemas: { Error: structuredClone(errorSchema) },
       securitySchemes: {
-        devActor: { type: "apiKey", in: "header", name: "X-Dev-Actor", description: "CHỈ DEV (NODE_ENV != production). Uuid người dùng giả lập. Sẽ bị thay ở Stage 1." },
-        bearerAuth: { type: "http", scheme: "bearer", description: "Dành cho Stage 1: token cá nhân / OAuth. Chưa hoạt động ở Stage 0." },
+        bearerAuth: { type: "http", scheme: "bearer", description: "Token cá nhân `soe_pat_…` (chờ Admin duyệt mới dùng được; quyền = giao của scope và quyền của chủ token) hoặc token tài khoản hệ thống `soe_svc_…`." },
+        sessionCookie: { type: "apiKey", in: "cookie", name: "soe_session", description: "Phiên đăng nhập web (httpOnly). Hết hạn sau 7 ngày không hoạt động, tối đa 30 ngày." },
+        csrfHeader: { type: "apiKey", in: "header", name: "X-CSRF-Token", description: "Bắt buộc cho lệnh ghi qua cookie: giá trị cookie `soe_csrf`." },
       },
     },
   };

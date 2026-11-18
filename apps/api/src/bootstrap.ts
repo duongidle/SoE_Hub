@@ -1,6 +1,7 @@
 import { createDb, type DbHandle } from "@soe/db";
 import type { Logger } from "pino";
 import { createAuthKit, type AuthKit } from "./auth";
+import { installQueryGuard } from "./auth/query-guard";
 import { loadConfig, type Config } from "./config";
 import { OperationExecutor } from "./core/executor";
 import type { EventRegistry } from "./core/events";
@@ -25,14 +26,16 @@ export function createContainer(overrides: Partial<Config> = {}, role = "api"): 
   const config = { ...loadConfig(), ...overrides };
   const logger = createLogger(config, role);
   const db = createDb(config.DATABASE_URL, { max: config.DB_POOL_MAX, applicationName: `soe-${role}` });
+  if (config.queryGuard) installQueryGuard(db.pool);
   const storage = createStorage(config);
+  const auth = createAuthKit(config, db.db);
   const { registry, events } = buildRegistry({ config, storage });
-  const auth = createAuthKit(config);
   const executor = new OperationExecutor({
     db: db.db,
     registry,
     events,
     authorizer: auth.authorizer,
+    principals: auth.principals,
     logger,
     validateOutput: !config.isProduction,
   });

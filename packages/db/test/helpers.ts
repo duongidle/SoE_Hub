@@ -31,4 +31,4 @@ export async function ownerClient(): Promise<pg.Client> {
 
 export const ACTOR_ID = "01900000-0000-7000-8000-000000000001";
 export const actorRef: ActorRef = { userId: ACTOR_ID, via: "api", connectionId: null, automationId: null };
-export const actor: Actor = { ...actorRef, scopes: [], ip: "127.0.0.1", userAgent: "vitest" };
+export const actor: Actor = { ...actorRef, sessionId: null, scopes: [], ip: "127.0.0.1", userAgent: "vitest" };

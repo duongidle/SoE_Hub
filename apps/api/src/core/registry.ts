@@ -24,7 +24,7 @@ function define<I extends z.ZodType, O, P extends string | null>(kind: Operation
     aiAllowed: d.aiAllowed,
     audit: d.audit ?? (kind === "command" ? "write" : "none"),
     emits: d.emits ?? [],
-    http: { method: d.http.method, path: d.http.path, status: d.http.status ?? 200 },
+    http: { method: d.http.method, path: d.http.path, status: d.http.status ?? 200, respond: d.http.respond },
     list: d.list ?? false,
     handler: d.handler as Operation["handler"],
   };

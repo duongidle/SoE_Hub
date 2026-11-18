@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ERROR_CODES } from "@soe/shared";
 import { buildOpenApi } from "../src/http/openapi";
-import { makeApp, type TestApp } from "./helpers";
+import { devHeaders, makeApp, type TestApp } from "./helpers";
 
 let t: TestApp;
 beforeAll(async () => {
@@ -51,14 +51,14 @@ describe("OpenAPI 3.1 generated from the registry", () => {
   });
 
   it("is served at /api/openapi.json and /api/docs renders the reference page", async () => {
-    const j = await t.app.inject({ method: "GET", url: "/api/openapi.json" });
+    const j = await t.app.inject({ method: "GET", url: "/api/openapi.json", headers: devHeaders() });
     expect(j.statusCode).toBe(200);
     expect(j.json().openapi).toBe("3.1.0");
-    const docs = await t.app.inject({ method: "GET", url: "/api/docs/" });
+    const docs = await t.app.inject({ method: "GET", url: "/api/docs/", headers: devHeaders() });
     expect(docs.statusCode).toBe(200);
     expect(docs.headers["content-type"]).toContain("text/html");
     expect(docs.body).toContain("Scalar");
-    const js = await t.app.inject({ method: "GET", url: "/api/docs/js/scalar.js" });
+    const js = await t.app.inject({ method: "GET", url: "/api/docs/js/scalar.js", headers: devHeaders() });
     expect(js.statusCode).toBe(200);
   });
 });

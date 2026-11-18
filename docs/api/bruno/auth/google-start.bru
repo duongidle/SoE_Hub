@@ -1,0 +1,16 @@
+meta {
+  name: auth.google.start
+  type: http
+  seq: 30
+}
+
+get {
+  url: {{baseUrl}}/api/auth/google/start
+  body: none
+  auth: none
+}
+
+docs {
+  Chuyển hướng sang Google. Chỉ hoạt động khi Admin bật `auth.google_enabled` và server có GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET.
+  Nên mở bằng trình duyệt; Bruno chỉ thấy phản hồi 302.
+}

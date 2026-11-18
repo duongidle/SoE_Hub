@@ -1,0 +1,30 @@
+meta {
+  name: data.transfer.execute
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/admin/transfer
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "from_user_id": "{{from_user_id}}",
+    "to_user_id": "{{to_user_id}}",
+    "personal_columns": "keep"
+  }
+}
+
+docs {
+  Admin chuyển giao dữ liệu (một giao dịch), ghi nhật ký từng đối tượng, rồi khoá tài khoản nguồn.
+  Quyền: `data:transfer`.
+}

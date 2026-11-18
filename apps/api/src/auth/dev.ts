@@ -1,23 +1,22 @@
 import { ActorSchema, HEADERS, type Actor } from "@soe/shared";
-import type { ActorResolver, AuthDecision, Authorizer, AuthTarget, RequestInfo } from "../core/types";
+import type { ActorResolver, RequestInfo } from "../core/types";
 
 /**
  * =====================================================================================================
- *  TEMPORARY, DEVELOPMENT ONLY.  Replaced by Module 1 (Stage 1).
+ *  TESTS ONLY (NODE_ENV=test). Never active in development or production (see `auth/index.ts`).
  *
- *  Stage 0 has no users, sessions or permission rules. For local work and tests only, the actor comes from
- *  the `X-Dev-Actor` header (a user uuid; default `DEV_ACTOR_ID`) and optional `X-Dev-Scopes` (comma list).
- *  This file is wired in only when NODE_ENV !== "production" (see `auth/index.ts`).
- *  It must never be reachable in production: there the resolver returns no actor and every call that
- *  needs an actor is refused.
+ *  Lets a test act as a user with the `X-Dev-Actor` header (a users.id) instead of logging in. The user must exist
+ *  and is checked by the REAL authorizer (roles, status). `X-Dev-Scopes` behaves like token scopes (intersection),
+ *  to exercise the denied path. Requests without the header go to the real resolver (cookie / bearer).
  * =====================================================================================================
  */
-export class DevActorResolver implements ActorResolver {
-  constructor(private readonly defaultActorId: string) {}
+export class TestActorResolver implements ActorResolver {
+  constructor(private readonly real: ActorResolver) {}
 
-  resolve(req: RequestInfo): Actor | null {
+  async resolve(req: RequestInfo): Promise<Actor | null> {
     const raw = req.headers[HEADERS.devActor];
-    const userId = (Array.isArray(raw) ? raw[0] : raw) ?? this.defaultActorId;
+    const userId = Array.isArray(raw) ? raw[0] : raw;
+    if (!userId) return this.real.resolve(req);
     const scopesRaw = req.headers[HEADERS.devScopes];
     const scopesStr = Array.isArray(scopesRaw) ? scopesRaw[0] : scopesRaw;
     const parsed = ActorSchema.safeParse({
@@ -28,18 +27,5 @@ export class DevActorResolver implements ActorResolver {
       userAgent: req.userAgent,
     });
     return parsed.success ? parsed.data : null;
-  }
-}
-
-/**
- * Dev authorizer: an actor with no scopes may do anything; an actor with scopes may only use permissions
- * listed in its scopes (`*` = all). The scopes header lets tests exercise the "denied" path.
- */
-export class DevAuthorizer implements Authorizer {
-  authorize(actor: Actor, target: AuthTarget): AuthDecision {
-    if (actor.scopes.length === 0 || actor.scopes.includes("*") || actor.scopes.includes(target.permission)) {
-      return { allowed: true };
-    }
-    return { allowed: false, reason: `Thiếu quyền "${target.permission}".` };
   }
 }

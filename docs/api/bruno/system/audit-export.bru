@@ -1,0 +1,25 @@
+meta {
+  name: system.audit.export
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/system/audit-log/export
+  body: none
+  auth: none
+}
+
+params:query {
+  ~filter: 
+  ~sort: sort
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Xuất nhật ký hệ thống ra file CSV (theo bộ lọc, tối đa 50.000 dòng). Việc xuất được ghi log.
+  Quyền: `system:audit:read`.
+}

@@ -7,10 +7,8 @@ const sse = new SseHub(c.config.DATABASE_URL, c.logger);
 await sse.start();
 const app = await buildApp({ ...c, sse });
 
-if (c.auth.mode === "dev") {
-  c.logger.warn("DEV AUTH ĐANG BẬT: tác nhân lấy từ header X-Dev-Actor. Chỉ dùng khi phát triển (NODE_ENV != production).");
-} else {
-  c.logger.warn("Chưa có đăng nhập (Stage 1): mọi thao tác cần tác nhân đều bị từ chối. Chỉ /health và system.ping hoạt động.");
+if (c.auth.mode === "test") {
+  c.logger.warn("TEST AUTH ĐANG BẬT: chấp nhận header X-Dev-Actor. Chỉ dùng khi chạy test (NODE_ENV=test).");
 }
 
 const shutdown = async (signal: string) => {

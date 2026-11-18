@@ -2,14 +2,23 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { enqueueOutbox, newId, outbox, systemSettings } from "@soe/db";
 import { backoffSeconds, dispatchOutboxOnce, type Subscriber } from "../src/core/outbox-dispatcher";
-import { sseFanout } from "../src/core/subscribers";
+import { createSseFanout } from "../src/core/subscribers";
 import { jobs, HEARTBEAT_KEY } from "../src/jobs";
 import { SseHub, type SseSignal } from "../src/http/sse";
 import { makeApp, type TestApp } from "./helpers";
 
 let t: TestApp;
+let sseFanout: ReturnType<typeof createSseFanout>;
+const SSE_USER = "01900000-0000-7000-8000-0000000000aa";
 beforeAll(async () => {
   t = await makeApp();
+  const { z } = await import("zod");
+  // Test events: one visible to SSE_USER, one with no audience (never signalled).
+  t.c.events.register(
+    { name: "test.sse.signaled", version: 1, description: "test", schema: z.unknown(), audience: () => ({ users: [SSE_USER] }) },
+    { name: "test.other.happened", version: 1, description: "test", schema: z.unknown(), audience: () => ({ users: [SSE_USER] }) },
+  );
+  sseFanout = createSseFanout(t.c.events);
 });
 afterAll(async () => {
   await t.close();
@@ -104,7 +113,8 @@ describe("SSE fanout (worker -> NOTIFY -> api)", () => {
       await new Promise((r) => setTimeout(r, 300));
       expect(got).toHaveLength(1);
       expect(got[0]).toMatchObject({ event: "test.sse.signaled", aggregate_id: aggId, aggregate_type: "thing" });
-      expect(Object.keys(got[0]!).sort()).toEqual(["aggregate_id", "aggregate_type", "at", "event", "id"]);
+      expect(Object.keys(got[0]!).sort()).toEqual(["aggregate_id", "aggregate_type", "at", "audience", "event", "id"]);
+      expect(got[0]!.audience).toEqual({ users: [SSE_USER] });
     } finally {
       await hub.stop();
     }

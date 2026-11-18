@@ -17,15 +17,20 @@ export interface UpdateOptions {
   actor: ActorRef | null;
   /** When set, a row_history entry is written in the same transaction. */
   historyTableId?: string;
+  /**
+   * Extra condition applied to every query on the row: the data-scope condition for tables with an owner
+   * (Module 1 requires every query on owned data to carry it).
+   */
+  where?: SQL;
 }
 
 type Row = Record<string, unknown> & { id: string; version: number };
 
-async function currentState(ex: Executor, table: StandardTable, id: string) {
+async function currentState(ex: Executor, table: StandardTable, id: string, extra?: SQL) {
   const rows = await ex
     .select({ id: table.id, version: table.version, deletedAt: table.deletedAt })
     .from(table)
-    .where(eq(table.id, id))
+    .where(and(eq(table.id, id), extra) as SQL)
     .limit(1);
   return rows[0] as { id: string; version: number; deletedAt: Date | null } | undefined;
 }
@@ -37,7 +42,7 @@ async function applyUpdate(
 ): Promise<Row> {
   const deletedFilter = o.deleted === "exclude" ? isNull(table.deletedAt) : isNotNull(table.deletedAt);
   const before = o.historyTableId
-    ? ((await ex.select().from(table).where(eq(table.id, o.id)).limit(1))[0] as Row | undefined)
+    ? ((await ex.select().from(table).where(and(eq(table.id, o.id), o.where) as SQL).limit(1))[0] as Row | undefined)
     : undefined;
 
   const updated = (await ex
@@ -48,12 +53,12 @@ async function applyUpdate(
       updatedAt: sql`now()`,
       updatedBy: o.actor?.userId ?? null,
     } as never)
-    .where(and(eq(table.id, o.id), eq(table.version, o.expectedVersion), deletedFilter) as SQL)
+    .where(and(eq(table.id, o.id), eq(table.version, o.expectedVersion), deletedFilter, o.where) as SQL)
     .returning()) as Row[];
 
   const row = updated[0];
   if (!row) {
-    const cur = await currentState(ex, table, o.id);
+    const cur = await currentState(ex, table, o.id, o.where);
     const wrongDeletedState = cur && (o.deleted === "exclude" ? cur.deletedAt !== null : cur.deletedAt === null);
     if (!cur || wrongDeletedState) throw new AppError("not_found");
     throw new AppError("conflict", undefined, { current_version: cur.version, sent_version: o.expectedVersion });
@@ -144,7 +149,8 @@ export async function purgeTrash(ex: Executor, retentionDays: number, now = new 
     if (t.neverHardDelete) continue;
     if (t.beforePurge) await t.beforePurge(ex, cutoff);
     const res = await ex.execute(
-      sql`DELETE FROM ${sql.identifier(t.name)} WHERE deleted_at IS NOT NULL AND deleted_at < ${cutoff}`,
+      // `/*scope:system*/`: a deliberate system-wide delete (see the query guard in apps/api/src/auth/query-guard.ts).
+      sql`DELETE FROM ${sql.identifier(t.name)} WHERE /*scope:system*/ deleted_at IS NOT NULL AND deleted_at < ${cutoff}`,
     );
     results.push({ table: t.name, purged: res.rowCount ?? 0 });
   }

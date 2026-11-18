@@ -1,0 +1,25 @@
+meta {
+  name: auth.token.revoke
+  type: http
+  seq: 15
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/auth/tokens/{{id}}
+  body: none
+  auth: none
+}
+
+params:query {
+  ~reason: reason
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Thu hồi một token (chủ token hoặc Admin).
+  Quyền: `auth:self`.
+}

@@ -1,0 +1,31 @@
+meta {
+  name: auth.login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "nguoi.dung@base.vn",
+    "password": "mat-khau-cua-ban"
+  }
+}
+
+docs {
+  Đăng nhập bằng email + mật khẩu. Đặt cookie phiên (httpOnly) và cookie CSRF.
+  Công khai (không cần đăng nhập).
+}
+
+script:post-response {
+  if (res.status === 200) { bru.setVar("csrf", res.body.data.csrf_token); }
+}

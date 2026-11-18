@@ -1,5 +1,6 @@
 import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { newId } from "./columns";
+import { users } from "./users";
 
 /**
  * Append-only audit log (design section 9.2).
@@ -11,7 +12,7 @@ export const auditLog = pgTable(
     id: uuid("id").primaryKey().$defaultFn(newId),
     at: timestamp("at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     requestId: text("request_id"),
-    actorUserId: uuid("actor_user_id"),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
     via: text("via"),
     connectionId: uuid("connection_id"),
     automationId: uuid("automation_id"),

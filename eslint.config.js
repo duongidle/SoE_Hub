@@ -24,7 +24,7 @@ export default tseslint.config(
   },
   {
     // CLI entry points may print.
-    files: ["**/scripts/**", "**/migrate-cli.ts", "test/**", "**/*.config.*"],
+    files: ["**/scripts/**", "**/migrate-cli.ts", "apps/api/src/cli.ts", "test/**", "**/*.config.*"],
     rules: { "no-console": "off" },
   },
 );

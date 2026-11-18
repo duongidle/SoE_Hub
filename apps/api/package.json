@@ -11,11 +11,15 @@
     "build": "tsup",
     "typecheck": "tsc -p tsconfig.json",
     "openapi": "tsx src/scripts/print-openapi.ts",
-    "docs:openapi": "tsx src/scripts/print-openapi.ts --out ../../docs/api/openapi.json"
+    "docs:openapi": "tsx src/scripts/print-openapi.ts --out ../../docs/api/openapi.json",
+    "cli": "tsx --env-file-if-exists=../../.env src/cli.ts",
+    "start:cli": "node dist/cli.js",
+    "docs:bruno": "tsx src/scripts/bruno-gen.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1171.0",
     "@aws-sdk/s3-request-presigner": "3.1171.0",
+    "@fastify/cookie": "11.1.5",
     "@fastify/helmet": "13.2.0",
     "@fastify/rate-limit": "11.2.2",
     "@fastify/static": "10.1.11",
@@ -24,8 +28,10 @@
     "@soe/formula": "workspace:*",
     "@soe/metrics": "workspace:*",
     "@soe/shared": "workspace:*",
+    "arctic": "3.7.0",
     "drizzle-orm": "0.45.4",
     "fastify": "5.12.8",
+    "hash-wasm": "4.13.0",
     "pg": "8.23.1",
     "pg-boss": "12.38.2",
     "pino": "10.4.0",

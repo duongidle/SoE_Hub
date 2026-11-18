@@ -19,9 +19,9 @@ params:query {
 }
 
 headers {
-  X-Dev-Actor: {{devActor}}
+  Authorization: Bearer {{token}}
 }
 
 docs {
-  Nhật ký hệ thống, phân trang keyset. Stage 1 giới hạn chỉ Admin xem.
+  Nhật ký hệ thống, phân trang keyset. Chỉ Admin xem (quyền system:audit:read).
 }

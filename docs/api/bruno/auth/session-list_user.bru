@@ -1,0 +1,20 @@
+meta {
+  name: auth.session.list_user
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/users/{{user_id}}/sessions
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Admin xem các phiên đang hoạt động của một người.
+  Quyền: `auth:session:manage`.
+}

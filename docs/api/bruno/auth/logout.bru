@@ -1,0 +1,21 @@
+meta {
+  name: auth.logout
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/logout
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Đăng xuất thiết bị đang dùng.
+  Quyền: `auth:self`.
+}

@@ -1,6 +1,7 @@
 import { date, index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { newId } from "./columns";
+import { users } from "./users";
 
 /**
  * Generic period lock (design section 11). A lock covers `[period_start, period_end]` (inclusive dates)
@@ -17,9 +18,9 @@ export const periodLocks = pgTable(
     periodStart: date("period_start", { mode: "string" }).notNull(),
     periodEnd: date("period_end", { mode: "string" }).notNull(),
     lockedAt: timestamp("locked_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-    lockedBy: uuid("locked_by"),
+    lockedBy: uuid("locked_by").references(() => users.id),
     unlockedAt: timestamp("unlocked_at", { withTimezone: true, mode: "date" }),
-    unlockedBy: uuid("unlocked_by"),
+    unlockedBy: uuid("unlocked_by").references(() => users.id),
     unlockReason: text("unlock_reason"),
     version: integer("version").notNull().default(1),
   },

@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type { Actor } from "@soe/shared";
-import type { Executor } from "@soe/db";
+import type { Db, Executor } from "@soe/db";
+import type { AccessContext } from "../auth/access";
 import type { Logger } from "pino";
 
 export type AuditMode =
@@ -17,6 +18,9 @@ export interface HttpBinding {
   path: string;
   /** Success status. Default 200. */
   status?: 200 | 201 | 202 | 204;
+  /** Turns the handler result into the HTTP response (for example: set cookies, strip secrets). Returns the `data`. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  respond?: (result: any, res: HttpResponder) => unknown;
 }
 
 export interface EmitInput {
@@ -40,8 +44,23 @@ export interface HandlerCtx<A = Actor> {
   log: Logger;
   /** Writes an event to the outbox in the same transaction. Only events declared in `emits`. Commands only. */
   emit(event: string, input: EmitInput): Promise<void>;
-  /** Sets the object and details recorded in the audit log for this call. */
+  /** Sets the object and details recorded in the audit log for this call (also on failure). */
   audit(target: AuditTarget): void;
+  /** Permissions, roles and data scopes of the actor (design module1 section 10). */
+  access: AccessContext;
+  /**
+   * Plain database handle OUTSIDE the command transaction. Only for writes that must persist even when the command
+   * fails afterwards (failed-login counter, wrong-code attempts). Never use it for the command's own data.
+   */
+  outside: Db;
+}
+
+/** Lets an operation adjust the HTTP response (cookies, file download). Ignored by other channels. */
+export interface HttpResponder {
+  setCookie(name: string, value: string, opts: { maxAgeSeconds?: number; httpOnly: boolean }): void;
+  clearCookie(name: string): void;
+  /** Sends a raw body instead of `{ data }`. */
+  sendRaw(body: string, contentType: string, filename?: string): void;
 }
 
 /** Result of a list query. REST maps it to `{ data, next_cursor, total }`. */
@@ -87,7 +106,7 @@ export interface Operation {
   aiAllowed: boolean;
   audit: AuditMode;
   emits: string[];
-  http: Required<HttpBinding>;
+  http: Required<Omit<HttpBinding, "respond">> & Pick<HttpBinding, "respond">;
   list: boolean;
   handler: (ctx: HandlerCtx<Actor | null>, input: unknown) => Promise<unknown>;
 }
@@ -99,7 +118,7 @@ export interface AuthTarget {
   permission: string;
 }
 
-export type AuthDecision = { allowed: true } | { allowed: false; reason: string };
+export type AuthDecision = { allowed: true } | { allowed: false; reason: string; code?: "unauthenticated" | "forbidden" | "password_setup_required" };
 
 /**
  * Pluggable permission check. Stage 1 (Module 1) provides the real engine
@@ -110,6 +129,7 @@ export interface Authorizer {
 }
 
 export interface RequestInfo {
+  method?: string;
   headers: Record<string, string | string[] | undefined>;
   ip: string;
   userAgent: string | null;

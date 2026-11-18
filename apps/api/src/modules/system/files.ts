@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AppError } from "@soe/shared";
 import { files, newId, softDelete, type Executor } from "@soe/db";
 import type { Config } from "../../config";
+import { ownedBy } from "../../auth/access";
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { StorageDriver } from "../../storage/types";
 
@@ -28,10 +29,11 @@ export function sanitizeFilename(name: string): string {
 }
 
 export function fileOperations(cfg: Config, storage: StorageDriver) {
-  // Until Stage 1 a file can only be used by the person who uploaded it. Module 1 adds sharing through permissions.
+  // A file is private to its owner (design module1 section 4.3). Files attached to an object (a deal, an article)
+  // become readable by whoever can read that object: the owning module adds that rule when it attaches files.
   async function loadOwned(ctx: { db: Executor; actor: { userId: string } }, id: string) {
-    const [row] = await ctx.db.select().from(files).where(and(eq(files.id, id), isNull(files.deletedAt))).limit(1);
-    if (!row || row.ownerId !== ctx.actor.userId) throw new AppError("not_found", "Không tìm thấy file.");
+    const [row] = await ctx.db.select().from(files).where(and(eq(files.id, id), ownedBy(files.ownerId, ctx.actor.userId), isNull(files.deletedAt))).limit(1);
+    if (!row) throw new AppError("not_found", "Không tìm thấy file.");
     return row;
   }
 
@@ -58,7 +60,7 @@ export function fileOperations(cfg: Config, storage: StorageDriver) {
         const [used] = await ctx.db
           .select({ total: sql<number>`coalesce(sum(${files.sizeBytes}), 0)::float8` })
           .from(files)
-          .where(and(eq(files.ownerId, ctx.actor.userId), isNull(files.deletedAt)));
+          .where(and(ownedBy(files.ownerId, ctx.actor.userId), isNull(files.deletedAt)));
         if ((used?.total ?? 0) + i.size_bytes > cfg.FILE_USER_QUOTA_BYTES) {
           throw new AppError("quota_exceeded", "Vượt hạn mức lưu trữ của tài khoản.", { quota_bytes: cfg.FILE_USER_QUOTA_BYTES });
         }
@@ -102,7 +104,7 @@ export function fileOperations(cfg: Config, storage: StorageDriver) {
         const [upd] = await ctx.db
           .update(files)
           .set({ status: "ready", version: sql`${files.version} + 1`, updatedAt: sql`now()`, updatedBy: ctx.actor.userId })
-          .where(eq(files.id, row.id))
+          .where(and(eq(files.id, row.id), ownedBy(files.ownerId, ctx.actor.userId)))
           .returning();
         ctx.audit({ type: "file", id: row.id });
         await ctx.emit("file.file.uploaded", { aggregateType: "file", aggregateId: row.id, payload: { file_id: row.id, size_bytes: row.sizeBytes } });
@@ -144,6 +146,7 @@ export function fileOperations(cfg: Config, storage: StorageDriver) {
           expectedVersion: i.version,
           actor: { userId: ctx.actor.userId, via: ctx.actor.via, connectionId: ctx.actor.connectionId, automationId: ctx.actor.automationId },
           historyTableId: "files",
+          where: ownedBy(files.ownerId, ctx.actor.userId),
         });
         ctx.audit({ type: "file", id: i.id });
         await ctx.emit("file.file.deleted", { aggregateType: "file", aggregateId: i.id, payload: { file_id: i.id } });

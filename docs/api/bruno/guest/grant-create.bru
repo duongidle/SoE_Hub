@@ -1,0 +1,35 @@
+meta {
+  name: guest.grant.create
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/guest/grants
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "guest_user_id": "{{guest_user_id}}",
+    "data_type": "data_type",
+    "scope_leader_id": "{{scope_leader_id}}",
+    "channels": [
+      "web"
+    ],
+    "expires_at": "2027-01-01T00:00:00+07:00",
+    "note": "note"
+  }
+}
+
+docs {
+  Manager cấp một phần dữ liệu trong cây của mình cho một Guest.
+  Quyền: `guest:grant:manage`.
+}

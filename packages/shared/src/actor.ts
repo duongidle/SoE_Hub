@@ -6,13 +6,17 @@ export type Via = (typeof VIA_VALUES)[number];
 
 /**
  * Who runs a command (design section 3.4).
- * `userId` is a plain uuid without a foreign key until Stage 1 adds the users table.
+ * `userId` is a row of `users` (a person, a service account, or the internal system account).
+ * `connectionId` is the bearer token (personal or service) or, from Stage 5, the AI connection used.
+ * `scopes` are the token scopes; for a token the real permissions are the intersection with the owner's permissions.
  */
 export const ActorSchema = z.object({
   userId: z.uuid(),
   via: z.enum(VIA_VALUES),
   connectionId: z.uuid().nullable().default(null),
   automationId: z.uuid().nullable().default(null),
+  /** Login session behind a web request (null for tokens, the worker and server commands). */
+  sessionId: z.uuid().nullable().default(null),
   scopes: z.array(z.string()).default([]),
   ip: z.string().nullable().default(null),
   userAgent: z.string().nullable().default(null),

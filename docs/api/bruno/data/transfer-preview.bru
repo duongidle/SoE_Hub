@@ -1,0 +1,25 @@
+meta {
+  name: data.transfer.preview
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/transfer/preview
+  body: none
+  auth: none
+}
+
+params:query {
+  from_user_id: {{from_user_id}}
+  to_user_id: {{to_user_id}}
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Admin xem trước danh sách dữ liệu sẽ chuyển từ tài khoản nguồn sang tài khoản đích.
+  Quyền: `data:transfer`.
+}

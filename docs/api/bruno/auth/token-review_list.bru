@@ -1,0 +1,24 @@
+meta {
+  name: auth.token.review_list
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/api/v1/admin/tokens
+  body: none
+  auth: none
+}
+
+params:query {
+  ~status: pending
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Admin: danh sách token cá nhân (mặc định đang chờ duyệt).
+  Quyền: `auth:token:approve`.
+}

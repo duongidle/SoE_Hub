@@ -1,0 +1,20 @@
+meta {
+  name: org.member.get
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/org/members/{{id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Xem một người trong org chart.
+  Quyền: `org:member:read`.
+}

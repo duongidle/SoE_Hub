@@ -20,7 +20,9 @@
     "db:generate": "pnpm --filter @soe/db generate",
     "db:migrate": "pnpm --filter @soe/db migrate",
     "db:setup": "bash scripts/db-setup.sh",
-    "docs:openapi": "pnpm --filter @soe/api docs:openapi"
+    "docs:openapi": "pnpm --filter @soe/api docs:openapi",
+    "docs:bruno": "pnpm --filter @soe/api docs:bruno",
+    "cli": "pnpm --filter @soe/api --silent cli"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

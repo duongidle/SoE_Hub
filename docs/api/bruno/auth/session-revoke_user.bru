@@ -1,0 +1,21 @@
+meta {
+  name: auth.session.revoke_user
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/v1/admin/users/{{user_id}}/sessions/revoke
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Admin thu hồi mọi phiên đăng nhập của một người.
+  Quyền: `auth:session:manage`.
+}

@@ -10,6 +10,8 @@ import {
   type Executor,
 } from "@soe/db";
 import type { Logger } from "pino";
+import { AccessContext, type PrincipalLoader } from "../auth/access";
+import { maskAuditDetails } from "./audit-privacy";
 import type { EventRegistry } from "./events";
 import type { Registry } from "./registry";
 import type { AuditTarget, Authorizer, HandlerCtx, Operation } from "./types";
@@ -32,6 +34,7 @@ export interface ExecutorDeps {
   registry: Registry;
   events: EventRegistry;
   authorizer: Authorizer;
+  principals: PrincipalLoader;
   logger: Logger;
   /** Validate handler results against `output` (on in dev and tests, off in production). */
   validateOutput: boolean;
@@ -64,18 +67,21 @@ export class OperationExecutor {
 
     await this.checkAccess(op, opts);
 
-    const key = opts.idempotencyKey ?? null;
+    // Public operations (login, codes) never use Idempotency-Key: there is no owner to scope the key to, and the
+    // stored result could hold a session secret.
+    const key = op.permission === null ? null : (opts.idempotencyKey ?? null);
     if (key !== null && !IDEMPOTENCY_KEY_RE.test(key)) {
       throw new AppError("idempotency_key_invalid", "Idempotency-Key phải dài 8-200 ký tự in được.");
     }
 
     const log = logger.child({ op: op.name, requestId: opts.requestId });
+    const state = { target: null as AuditTarget | null };
     try {
       return op.kind === "command"
-        ? await this.runCommand(op, input, opts, key, log)
-        : await this.runQuery(op, input, opts, log);
+        ? await this.runCommand(op, input, opts, key, log, state)
+        : await this.runQuery(op, input, opts, log, state);
     } catch (err) {
-      await this.auditFailure(op, opts, err);
+      await this.auditFailure(op, opts, err, state.target);
       throw err instanceof Error && !isAppError(err) ? this.wrapUnexpected(err, log) : err;
     }
   }
@@ -87,14 +93,14 @@ export class OperationExecutor {
 
   private async checkAccess(op: Operation, opts: ExecuteOptions): Promise<void> {
     if (op.permission === null) return;
-    const deny = async (code: "unauthenticated" | "forbidden" | "ai_not_allowed", reason: string): Promise<never> => {
+    const deny = async (code: "unauthenticated" | "forbidden" | "ai_not_allowed" | "password_setup_required", reason: string): Promise<never> => {
       await this.safeAudit({ command: op.name, result: "denied", actor: opts.actor, requestId: opts.requestId, errorCode: code, details: { reason, permission: op.permission } });
       throw new AppError(code, code === "unauthenticated" ? undefined : reason);
     };
     if (!opts.actor) return deny("unauthenticated", "Chưa xác định được người dùng.");
     if (!op.aiAllowed && opts.actor.via === "mcp") return deny("ai_not_allowed", "Thao tác này không cho phép AI gọi.");
     const decision = await this.deps.authorizer.authorize(opts.actor, { name: op.name, kind: op.kind, permission: op.permission });
-    if (!decision.allowed) return deny("forbidden", decision.reason);
+    if (!decision.allowed) return deny(decision.code ?? "forbidden", decision.reason);
   }
 
   private makeCtx(op: Operation, opts: ExecuteOptions, ex: Executor, log: Logger, state: { target: AuditTarget | null }, canEmit: boolean): HandlerCtx<Actor | null> {
@@ -104,6 +110,8 @@ export class OperationExecutor {
       requestId: opts.requestId,
       db: ex,
       log,
+      access: new AccessContext(opts.actor, ex, this.deps.principals),
+      outside: this.deps.db,
       audit: (t) => {
         state.target = t;
       },
@@ -127,29 +135,28 @@ export class OperationExecutor {
   }
 
   private checkOutput(op: Operation, result: unknown): void {
-    if (!this.deps.validateOutput || !op.output) return;
+    // With an HTTP `respond` hook, `output` documents the HTTP data, not the raw handler result.
+    if (!this.deps.validateOutput || !op.output || op.http.respond) return;
     const schema = op.list ? z.array(op.output) : op.output;
     const target = op.list ? (result as { items: unknown[] }).items : result;
     const r = schema.safeParse(target);
     if (!r.success) throw new Error(`${op.name}: kết quả không khớp output schema: ${JSON.stringify(formatIssues(r.error))}`);
   }
 
-  private async runQuery(op: Operation, input: unknown, opts: ExecuteOptions, log: Logger): Promise<ExecuteResult> {
-    const state = { target: null as AuditTarget | null };
+  private async runQuery(op: Operation, input: unknown, opts: ExecuteOptions, log: Logger, state: { target: AuditTarget | null }): Promise<ExecuteResult> {
     const ctx = this.makeCtx(op, opts, this.deps.db, log, state, false);
     const result = await op.handler(ctx, input);
     this.checkOutput(op, result);
     if (op.audit === "always") {
       await writeAudit(this.deps.db, {
         command: op.name, result: "success", actor: opts.actor, requestId: opts.requestId,
-        targetType: state.target?.type, targetId: state.target?.id, details: state.target?.details,
+        targetType: state.target?.type, targetId: state.target?.id, details: maskAuditDetails(state.target?.type, state.target?.details),
       });
     }
     return { result, status: op.http.status, replayed: false };
   }
 
-  private async runCommand(op: Operation, input: unknown, opts: ExecuteOptions, key: string | null, log: Logger): Promise<ExecuteResult> {
-    const state = { target: null as AuditTarget | null };
+  private async runCommand(op: Operation, input: unknown, opts: ExecuteOptions, key: string | null, log: Logger, state: { target: AuditTarget | null }): Promise<ExecuteResult> {
     return this.deps.db.transaction(async (tx) => {
       let idemId: string | null = null;
       if (key !== null) {
@@ -168,7 +175,7 @@ export class OperationExecutor {
       if (op.audit !== "none") {
         await writeAudit(tx, {
           command: op.name, result: "success", actor: opts.actor, requestId: opts.requestId,
-          targetType: state.target?.type, targetId: state.target?.id, details: state.target?.details,
+          targetType: state.target?.type, targetId: state.target?.id, details: maskAuditDetails(state.target?.type, state.target?.details),
         });
       }
       if (idemId) await finishIdempotent(tx, idemId, op.http.status, result);
@@ -176,14 +183,18 @@ export class OperationExecutor {
     });
   }
 
-  private async auditFailure(op: Operation, opts: ExecuteOptions, err: unknown): Promise<void> {
+  private async auditFailure(op: Operation, opts: ExecuteOptions, err: unknown, target: AuditTarget | null): Promise<void> {
     // Failed commands are audited (their transaction rolled back, so use a separate connection).
     // Failed queries and rejected idempotency replays are not: they changed nothing.
     if (op.kind !== "command") return;
     const code = isAppError(err) ? err.code : "internal_error";
     await this.safeAudit({
       command: op.name, result: "error", actor: opts.actor, requestId: opts.requestId, errorCode: code,
-      details: isAppError(err) ? { message: err.message, details: err.details } : { message: "unexpected error" },
+      targetType: target?.type, targetId: target?.id,
+      details: {
+        ...(isAppError(err) ? { message: err.message, details: err.details } : { message: "unexpected error" }),
+        ...(target?.details !== undefined ? { target: maskAuditDetails(target.type, target.details) } : {}),
+      },
     });
   }
 

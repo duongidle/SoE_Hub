@@ -7,3 +7,7 @@ export * from "./period-locks";
 export * from "./snapshots";
 export * from "./files";
 export * from "./settings";
+export * from "./users";
+export * from "./auth";
+export * from "./notifications";
+export * from "./grants";

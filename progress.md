@@ -22,9 +22,11 @@ Stage 1 (Module 1), kế hoạch:
 5. Test: ma trận quyền, luồng mã, khoá, phiên, CSRF, token, lịch sử org, chuyển giao, SSE, truy vấn có phạm vi. Sửa test Stage 0 theo auth thật.
 6. Web: các trang mục 11. Bruno + `pnpm docs:openapi`. Ghi "Quyết định khi code" Module 1.
 
+Đã xong: mục 1–4 (schema + migration 0003, quyền, auth core, các module, CLI, Bruno sinh bằng `pnpm docs:bruno`). Test Stage 0 đã chuyển sang auth thật, 90 pass.
+
 ## Bước tiếp theo
 
-- Mục 1: viết schema ở `packages/db/src/schema/{users,auth,notifications,grants}.ts`, rồi `pnpm db:generate`, sửa SQL sinh ra để thêm dòng hệ thống và khoá ngoại.
+- Mục 5: viết test Stage 1 ở `apps/api/test/` (`auth.test.ts`, `org.test.ts`, `permissions.test.ts`, `tokens.test.ts`, `stage1-misc.test.ts`) với helper tạo cây mẫu + đăng nhập trong `test/helpers.ts`. Chưa test thật luồng tạo người qua web cookie (lần chạy tay trước bị lỗi 500 ở `org.member.create`, cần xem lại bằng test).
 
 ## Câu hỏi còn mở
 

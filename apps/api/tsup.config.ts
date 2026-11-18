@@ -5,6 +5,8 @@ export default defineConfig({
   entry: {
     server: "src/server.ts",
     worker: "src/worker.ts",
+    // Server commands: admin:create, auth:reset-code.
+    cli: "src/cli.ts",
     // Migration runner (schema owner). Reads SQL files from MIGRATIONS_DIR.
     migrate: "../../packages/db/src/migrate-cli.ts",
   },

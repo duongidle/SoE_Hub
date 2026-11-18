@@ -1,0 +1,20 @@
+meta {
+  name: system.audit.get
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/system/audit-log/{{id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Chi tiết một dòng nhật ký hệ thống.
+  Quyền: `system:audit:read`.
+}

@@ -46,6 +46,15 @@ export default async function setup() {
       happened_at timestamptz,
       done boolean NOT NULL DEFAULT false
     )`);
+  // Accounts used by the Stage 0 tests through the test-only X-Dev-Actor header (they go through the real authorizer).
+  await owner.query(`
+    INSERT INTO users (id, kind, email, full_name, roles, status) VALUES
+      ('01900000-0000-7000-8000-000000000001', 'person', 'actor0001@base.vn', 'Test Admin 0001', '{admin}', 'active'),
+      ('01900000-0000-7000-8000-0000000000aa', 'person', 'dev@base.vn', 'Test Admin', '{admin}', 'active'),
+      ('01900000-0000-7000-8000-0000000000bb', 'person', 'devb@base.vn', 'Test Admin B', '{admin}', 'active'),
+      ('01900000-0000-7000-8000-0000000000f1', 'person', 'owner@base.vn', 'Test Owner', '{user}', 'active'),
+      ('01900000-0000-7000-8000-0000000000f2', 'person', 'other@base.vn', 'Test Other', '{user}', 'active')
+    ON CONFLICT (id) DO NOTHING`);
   await owner.end();
 
   process.env.TEST_DATABASE_URL = appUrl.toString();

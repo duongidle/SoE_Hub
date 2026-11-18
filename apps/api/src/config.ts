@@ -21,8 +21,16 @@ const EnvSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(300),
   RATE_LIMIT_WINDOW: z.string().default("1 minute"),
 
-  /** Dev-only actor, ignored when NODE_ENV=production. */
+  /** Test-only actor (X-Dev-Actor header). Used only when NODE_ENV=test; never in development or production. */
   DEV_ACTOR_ID: z.string().default("01900000-0000-7000-8000-000000000001"),
+
+  /** Secret for CSRF tokens, verification-code hashes and encrypting codes in the outbox. 32+ chars in production. */
+  AUTH_SECRET: z.string().min(16).default("dev-only-auth-secret-change-me-please"),
+  SESSION_IDLE_DAYS: z.coerce.number().int().min(1).default(7),
+  SESSION_ABSOLUTE_DAYS: z.coerce.number().int().min(1).default(30),
+  /** Google login (optional, also needs the setting auth.google_enabled). */
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
 
   TRASH_RETENTION_DAYS: z.coerce.number().int().min(1).default(7),
 
@@ -53,8 +61,12 @@ const EnvSchema = z.object({
 
 export type Config = z.infer<typeof EnvSchema> & {
   isProduction: boolean;
-  /** True only outside production. Production never enables the temporary dev actor. */
+  /** True only in tests (NODE_ENV=test): the X-Dev-Actor header is accepted. Never in development or production. */
   devAuthEnabled: boolean;
+  /** Cookies get the Secure flag (production, or PUBLIC_URL on https). */
+  secureCookies: boolean;
+  /** Refuse unscoped queries on owned tables (on outside production). */
+  queryGuard: boolean;
   allowedFileTypes: string[];
 };
 
@@ -71,13 +83,18 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (isProduction && c.STORAGE_DRIVER === "local" && c.STORAGE_SIGNING_SECRET === "dev-only-signing-secret-change-me") {
     throw new Error("STORAGE_SIGNING_SECRET phải được đặt trong production.");
   }
+  if (isProduction && (c.AUTH_SECRET.startsWith("dev-only") || c.AUTH_SECRET.length < 32)) {
+    throw new Error("AUTH_SECRET phải được đặt trong production (ngẫu nhiên, từ 32 ký tự).");
+  }
   if (c.STORAGE_DRIVER === "s3" && (!c.S3_BUCKET || !c.S3_ACCESS_KEY_ID || !c.S3_SECRET_ACCESS_KEY)) {
     throw new Error("STORAGE_DRIVER=s3 cần S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY.");
   }
   return {
     ...c,
     isProduction,
-    devAuthEnabled: !isProduction,
+    devAuthEnabled: c.NODE_ENV === "test",
+    secureCookies: isProduction || c.PUBLIC_URL.startsWith("https://"),
+    queryGuard: !isProduction,
     allowedFileTypes: c.FILE_ALLOWED_TYPES.split(",").map((s) => s.trim()).filter(Boolean),
   };
 }

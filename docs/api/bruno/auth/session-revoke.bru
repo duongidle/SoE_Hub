@@ -1,0 +1,21 @@
+meta {
+  name: auth.session.revoke
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/auth/sessions/{{id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Đăng xuất một thiết bị của mình.
+  Quyền: `auth:self`.
+}

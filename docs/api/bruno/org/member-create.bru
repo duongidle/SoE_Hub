@@ -1,0 +1,37 @@
+meta {
+  name: org.member.create
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/org/members
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "email": "nguoi.dung@base.vn",
+    "full_name": "full_name",
+    "title": "title",
+    "phone": "phone",
+    "roles": [
+      "admin"
+    ],
+    "guest_preset": "sale",
+    "manager_id": "{{manager_id}}",
+    "leader_id": "{{leader_id}}"
+  }
+}
+
+docs {
+  Thêm một người vào org chart (trạng thái Chưa kích hoạt). Đây là cách duy nhất để có tài khoản.
+  Quyền: `org:member:write`.
+}

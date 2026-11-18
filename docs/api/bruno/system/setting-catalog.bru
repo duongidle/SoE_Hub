@@ -1,0 +1,20 @@
+meta {
+  name: system.setting.catalog
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/system/settings-catalog
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh mục cài đặt hệ thống đã biết: tên, mô tả, giá trị mặc định.
+  Quyền: `system:setting:read`.
+}

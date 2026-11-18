@@ -29,7 +29,7 @@ for (const job of jobs) {
   c.logger.info({ job: job.name, cron: job.cron }, "job scheduled");
 }
 
-const dispatcher = startOutboxDispatcher(c.db.db, defaultSubscribers, c.logger, c.config.WORKER_OUTBOX_POLL_MS);
+const dispatcher = startOutboxDispatcher(c.db.db, defaultSubscribers(c.events, c.config.AUTH_SECRET), c.logger, c.config.WORKER_OUTBOX_POLL_MS);
 c.logger.info("worker started");
 
 const shutdown = async (signal: string) => {

@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { files, outbox, purgeTrash } from "@soe/db";
 import type { LocalStorageDriver } from "../src/storage";
 import { registerTrashTables } from "../src/modules";
+import { systemScope } from "../src/auth/access";
 import { DEV_USER, devHeaders, makeApp, type TestApp } from "./helpers";
 
 let t: TestApp;
@@ -107,13 +108,14 @@ describe("file storage with signed URLs (local driver)", () => {
     const del = await t.app.inject({ method: "DELETE", url: `/api/v1/files/${file.id}?version=2`, headers: devHeaders() });
     expect(del.statusCode).toBe(200);
 
-    const [row] = await t.c.db.db.select().from(files).where(eq(files.id, file.id));
+    // Owned table: test reads go through the scope marker too (the query guard is on in tests).
+    const [row] = await t.c.db.db.select().from(files).where(and(systemScope(), eq(files.id, file.id)));
     expect(row!.deletedAt).not.toBeNull();
     expect(await t.c.storage.stat(row!.storageKey)).not.toBeNull(); // still restorable
 
-    await t.c.db.db.execute(sql`UPDATE files SET deleted_at = now() - interval '8 days' WHERE id = ${file.id}`);
+    await t.c.db.db.execute(sql`UPDATE files SET deleted_at = now() - interval '8 days' WHERE /*scope:system*/ id = ${file.id}`);
     await purgeTrash(t.c.db.db, 7);
-    expect(await t.c.db.db.select().from(files).where(eq(files.id, file.id))).toHaveLength(0);
+    expect(await t.c.db.db.select().from(files).where(and(systemScope(), eq(files.id, file.id)))).toHaveLength(0);
     expect(await t.c.storage.stat(row!.storageKey)).toBeNull();
   });
 });

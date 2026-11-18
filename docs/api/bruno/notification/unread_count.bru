@@ -1,0 +1,20 @@
+meta {
+  name: notification.unread_count
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/notifications/unread-count
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Số thông báo chưa đọc (cho chuông).
+  Quyền: `notification:read`.
+}

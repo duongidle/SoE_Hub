@@ -1,0 +1,37 @@
+meta {
+  name: org.member.update
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/org/members/{{id}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "version": 1,
+    "full_name": "full_name",
+    "title": "title",
+    "phone": "phone",
+    "roles": [
+      "admin"
+    ],
+    "guest_preset": "sale",
+    "manager_id": "{{manager_id}}",
+    "leader_id": "{{leader_id}}"
+  }
+}
+
+docs {
+  Sửa thông tin, vai trò và vị trí trong cây của một người.
+  Quyền: `org:member:write`.
+}

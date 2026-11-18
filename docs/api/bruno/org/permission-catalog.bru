@@ -1,0 +1,20 @@
+meta {
+  name: org.permission.catalog
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/org/permissions/catalog
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh mục quyền bổ sung: quyền nào, ai được cấp, cấp cho vai trò nào.
+  Quyền: `org:member:read`.
+}

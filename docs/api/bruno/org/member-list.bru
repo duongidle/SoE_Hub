@@ -1,0 +1,29 @@
+meta {
+  name: org.member.list
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/org/members
+  body: none
+  auth: none
+}
+
+params:query {
+  ~filter: 
+  ~sort: sort
+  ~fields: fields
+  ~limit: 50
+  ~cursor: cursor
+  ~include_total: false
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh sách org chart (theo phạm vi: Admin thấy tất cả, người khác thấy cây của mình).
+  Quyền: `org:member:read`.
+}
