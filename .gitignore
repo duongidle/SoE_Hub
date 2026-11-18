@@ -1,0 +1,19 @@
+# Dữ liệu thật của Base — không bao giờ commit
+examples/
+
+# Secret
+.env
+.env.*
+!.env.example
+
+# Node / build
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
