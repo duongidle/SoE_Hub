@@ -59,6 +59,18 @@ export const datahubEvents: EventDef[] = [
     audience: async (p: { table_id: string }, db) => ({ users: await tableAudience(db, p.table_id) }),
   },
   {
+    name: "datahub.reconcile.mismatch",
+    version: 1,
+    description: "Job đối soát hằng đêm thấy ô công thức khác kết quả tính lại cả cột (bug của tính theo phần). Chỉ để tạo thông báo cho Admin; không có SSE, không chứa giá trị.",
+    schema: z.object({
+      at: z.string(),
+      cells: z.number().int(),
+      checked_columns: z.number().int(),
+      columns: z.array(z.object({ table_id: z.uuid(), column_key: z.string(), column_name: z.string(), cells: z.number().int() })),
+      recipient_ids: z.array(z.uuid()),
+    }),
+  },
+  {
     name: "datahub.share.changed",
     version: 1,
     description: "Chia sẻ datahub hoặc bảng được thêm, đổi quyền hoặc gỡ.",

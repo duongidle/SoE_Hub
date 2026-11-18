@@ -87,6 +87,8 @@ export const dhColumns = pgTable(
     calcVolatile: text("calc_volatile"),
     /** Highest change sequence (`dh_change_seq`) this column has fully incorporated (design module2 section 6.7). */
     calcSeq: bigint("calc_seq", { mode: "number" }).notNull().default(0),
+    /** When the nightly reconciliation last recomputed this column and compared it with the stored values (design module2 section 6.7). */
+    reconciledAt: timestamp("reconciled_at", { withTimezone: true, mode: "date" }),
   },
   (t) => [
     uniqueIndex("dh_columns_key_uq").on(t.tableId, t.key),

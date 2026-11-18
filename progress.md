@@ -42,7 +42,7 @@ Kế hoạch Stage 2:
   - [x] 2. Tính theo phần: liên kết/lookup/rollup, gom nhóm theo khoá cũ/mới, chuỗi phụ thuộc, ngưỡng 20% (`partial.ts` ghi hàng đợi trong giao dịch ghi; `recalc.ts` đọc hàng đợi; test `datahub-partial.test.ts`). Sửa 1 dòng nguồn, 6 cột phụ thuộc: worker 51 ms (trước 3,94 s)
   - [x] 3. Sự kiện `cũ → mới` chia lô 500, SSE dùng chung; worker song song (cài đặt; test `datahub-events.test.ts`; trang Cài đặt Admin đã tự có ô chỉnh vì đọc từ catalog)
   - [x] 4. Số thứ tự thay đổi, `consistent_after`/`consistent`, cờ `stale`, "đang tính" theo ô (`consistency.ts`, `rows-read.ts`, `row-ops.ts`; test `datahub-consistency.test.ts`; OpenAPI + Bruno cập nhật)
-  - [ ] 5. Test so sánh ngẫu nhiên, job đối soát hằng đêm, test tốc độ, OpenAPI/Bruno, quyết định khi code
+  - [~] 5. Test so sánh ngẫu nhiên (xong, commit riêng), job đối soát hằng đêm (xong: `reconcile.ts`, migration `0008`, test `datahub-reconcile.test.ts`); còn: test tốc độ, quyết định khi code (mục "Stage 2B+"), chạy `pnpm test` 2 lần, lint/typecheck/build
 - 2C – Giao diện grid, view kiểu Lark tự lưu, trình soạn công thức, chia sẻ/thùng rác/giới hạn.
 - 2D – Import/export, import công thức, load test 100k dòng, e2e cả stage.
 

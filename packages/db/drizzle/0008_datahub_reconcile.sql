@@ -1,0 +1,1 @@
+ALTER TABLE "dh_columns" ADD COLUMN "reconciled_at" timestamp with time zone;

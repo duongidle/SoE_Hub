@@ -19,9 +19,11 @@ registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.max
 export { datahubEvents };
 export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations];
 export { datahubJobs as exportJobs, sqlViewSubscriber } from "./export-views";
+export { reconcileColumns } from "./reconcile";
 export { formulaSubscriber, markVolatilePending, processPendingColumns, resetRunningColumns, startRecalcLoop } from "./recalc";
 import { datahubJobs as exportJobs } from "./export-views";
 import { markVolatilePending } from "./recalc";
+import { reconcileColumns } from "./reconcile";
 import type { JobDef } from "../../jobs";
 
 /** Scheduled work of the Datahub: automatic indexes, SQL views, and the TODAY() / NOW() columns (design module2 section 6.5). */
@@ -44,6 +46,16 @@ export const datahubJobs: JobDef[] = [
     async run({ db, logger }) {
       const n = await markVolatilePending(db);
       logger.info({ job: "datahub-formula-now", columns: n }, "NOW() columns queued");
+    },
+  },
+  {
+    name: "datahub-reconcile",
+    cron: "45 3 * * *",
+    tz: "Asia/Ho_Chi_Minh",
+    description: "Mỗi đêm tính lại cả cột cho một phần các cột công thức (luân phiên, tối đa 1.000.000 dòng) và so với giá trị đang lưu. Lệch thì ghi giá trị đúng, ghi log và báo Admin.",
+    async run({ db, logger }) {
+      const r = await reconcileColumns(db, { log: logger });
+      logger.info({ job: "datahub-reconcile", columns: r.columns, rows: r.rows, mismatched_columns: r.mismatches.length }, "reconciliation done");
     },
   },
 ];

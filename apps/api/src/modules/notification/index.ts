@@ -11,7 +11,7 @@ import type { ListOutput } from "../../core/types";
 import { CODE_TTL_HOURS } from "../auth/codes";
 
 /** Notification types created in Stage 1. Module 6 adds more. */
-export const NOTIFICATION_TYPES = { authCode: "auth.code" } as const;
+export const NOTIFICATION_TYPES = { authCode: "auth.code", datahubReconcile: "datahub.reconcile" } as const;
 
 const CODE_MASK = "••••••";
 
@@ -43,7 +43,21 @@ const codeRequested: Notifier = (ev, { secret }) => {
   }));
 };
 
-export const notifiers: Record<string, Notifier> = { "auth.code.requested": codeRequested };
+/** Nightly reconciliation found stored values that a full recomputation does not give (design module2 section 6.7). Column names only, never values. */
+const reconcileMismatch: Notifier = (ev) => {
+  const p = ev.payload as { cells: number; columns: { table_id: string; column_key: string; column_name: string; cells: number }[]; recipient_ids: string[] };
+  const list = p.columns.slice(0, 10).map((c) => `"${c.column_name}" (${c.cells} ô)`).join(", ");
+  const more = p.columns.length > 10 ? ` và ${p.columns.length - 10} cột khác` : "";
+  return p.recipient_ids.map((userId) => ({
+    userId,
+    type: NOTIFICATION_TYPES.datahubReconcile,
+    title: "Đối soát Datahub phát hiện ô tính sai",
+    body: `${p.cells} ô công thức khác kết quả tính lại cả cột, ở ${p.columns.length} cột: ${list}${more}. Giá trị đã được sửa lại cho đúng. Cần tìm nguyên nhân gốc.`,
+    data: { cells: p.cells, columns: p.columns },
+  }));
+};
+
+export const notifiers: Record<string, Notifier> = { "auth.code.requested": codeRequested, "datahub.reconcile.mismatch": reconcileMismatch };
 
 /**
  * Outbox subscriber: creates one notification per recipient (idempotent by `source_event_id`), then queues a
