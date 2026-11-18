@@ -14,8 +14,9 @@ export function inferType(n: Node, typeOfRef: (n: Node) => FType): FType {
       return n.v === "" ? "blank" : "text";
     case "bool":
       return "boolean";
-    case "err":
     case "empty":
+      return "blank";
+    case "err":
       return "unknown";
     case "ref":
     case "key":

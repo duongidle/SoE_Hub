@@ -68,7 +68,7 @@ Các bước của 2B (Sonnet đánh dấu khi xong, commit sau mỗi bước):
 - [x] 2. Thư viện hàm 113 hàm (`src/functions/*.ts`, danh mục `catalog.ts`) + điều kiện kiểu Excel (`criteria.ts`); `pnpm vitest run packages/formula` = 26 test pass
 - [x] 3. Kiểu cột formula/relation/lookup/rollup (`column-types.ts`, `computed.ts`: lưu, kiểm tra cùng chủ/vòng lặp/ngưỡng 20.000); migration `0006_formula_columns` (cột `calc_*`, bảng `dh_formula_deps`)
 - [x] 4. Tính lại: cùng dòng trong lúc lưu (`row-formulas.ts`, gọi từ `rows.ts`); khác bảng qua worker (`recalc.ts`: `formulaSubscriber`, `processPendingColumns`, vòng lặp trong `worker.ts`); `TODAY()`/`NOW()` + chạy bù (`markVolatilePending`); không log; sự kiện `datahub.formula.recalculated`. Test: `apps/api/test/datahub-formulas.test.ts` (22 test pass)
-- [ ] 5. Gom nhóm SQL đã viết (`buildPlan` trong `recalc.ts`); còn thiếu: test tương đương SQL-gom-nhóm với duyệt từng dòng (cùng kết quả), test tốc độ 100k × 100k (`apps/api/test/datahub-formulas-perf.test.ts`, seed bằng SQL như `datahub-perf.test.ts`), ghi số đo
+- [x] 5. Gom nhóm SQL (`buildPlan` trong `recalc.ts`): test tương đương với duyệt từng dòng (`datahub-formulas-grouped.test.ts`) và test tốc độ 100k × 100k (`datahub-formulas-perf.test.ts`): SUMIFS 1,76 s; COUNTIFS 2 điều kiện 2,33 s; XLOOKUP 2,08 s; AVERAGEIFS 1,97 s; MAXIFS ngày 2,34 s; SUMIFS/COUNTIFS gộp 2,52 s (cả cột 100.000 dòng, nạp 2 × 100.000 dòng bằng SQL mất 4,7 s); sửa một dòng nguồn → 6 cột phụ thuộc tính lại 3,95 s
 - [ ] 6. Golden test với công thức file mẫu (máy không có file thì bỏ qua)
 - [ ] 7. API xem trước công thức + danh mục hàm; OpenAPI, Bruno, README, quyết định khi code
 

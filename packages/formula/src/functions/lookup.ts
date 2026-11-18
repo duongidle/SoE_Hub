@@ -1,7 +1,7 @@
 import { equalityKey, hasWildcard, wildcardToRegex } from "../criteria";
 import type { FnDef } from "../context";
 import { compareValues, err, FError, flatten, isArray, isBlank, materialize, toArray, toBool, toNumber, type FType, type Scalar, type Value } from "../types";
-import { ensureArray } from "./util";
+import { ensureArray, sameOrMixed } from "./util";
 
 const scalarOf = (v: Value): Scalar => {
   const x = materialize(v);
@@ -49,7 +49,7 @@ export const lookupFns: FnDef[] = [
   {
     name: "XLOOKUP", group: "Tra cứu", syntax: "XLOOKUP(giá_trị_tìm, cột_tìm, cột_kết_quả, [nếu_không_thấy], [kiểu_khớp], [hướng_tìm])",
     description: "Tìm giá trị trong một cột rồi lấy giá trị cùng dòng ở cột khác. Kiểu khớp: 0 đúng (mặc định), -1 đúng hoặc nhỏ hơn gần nhất, 1 đúng hoặc lớn hơn gần nhất, 2 dùng ký tự đại diện * ?. Hướng tìm: 1 từ đầu (mặc định), -1 từ cuối.",
-    example: "XLOOKUP([Mã KH], [Khách hàng].[Mã], [Khách hàng].[Tên], \"Chưa có\")", exampleResult: "Công ty A", min: 3, max: 6, returns: returnsOf(2),
+    example: "XLOOKUP([Mã KH], [Khách hàng].[Mã], [Khách hàng].[Tên], \"Chưa có\")", exampleResult: "Công ty A", min: 3, max: 6, returns: (t) => (t[3] === undefined ? (t[2] ?? "unknown") : sameOrMixed([t[2] ?? "unknown", t[3]])),
     impl: (a) => {
       const needle = scalarOf(a[0]!);
       const hay = ensureArray(a[1]!, "Cột tìm");
