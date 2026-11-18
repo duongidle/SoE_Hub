@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SHARE_PERMISSION_LABELS } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal } from "@/components/ui/form";
@@ -46,7 +46,7 @@ export function DatahubPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Link to="/datahub" className="inline-flex min-h-9 items-center gap-1 text-sm text-muted-foreground hover:text-foreground" aria-label="Về danh sách datahub">
+        <Link to="/datahub" className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground sm:min-h-9 hover:text-foreground" aria-label="Về danh sách datahub">
           <ArrowLeft size={16} aria-hidden /> Datahub
         </Link>
         <h1 className="min-w-0 text-xl font-semibold [overflow-wrap:anywhere] sm:text-2xl">{dh.name}</h1>
@@ -74,8 +74,13 @@ function TableTabs({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) 
   const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "rename"; t: TableBrief } | { kind: "delete"; t: TableBrief } | null>(null);
   const qc = useQueryClient();
   const nav = useNavigate();
+  // Positions are plain numbers (not renumbered by the server): rewrite them as 0..n-1 in the new order.
   const move = useMutation({
-    mutationFn: ({ t, to }: { t: TableBrief; to: number }) => updateTable(t.id, { position: to }),
+    mutationFn: async ({ t, to }: { t: TableBrief; to: number }) => {
+      const order = dh.tables.filter((x) => x.id !== t.id);
+      order.splice(to, 0, t);
+      await Promise.all(order.map((x, i) => (x.position === i ? null : updateTable(x.id, { position: i }))));
+    },
     onSettled: () => void qc.invalidateQueries({ queryKey: dhKeys.datahub(dh.id) }),
     onError: () => notify.error("Không đổi được thứ tự bảng. Thử lại."),
   });
@@ -87,11 +92,11 @@ function TableTabs({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) 
           const on = t.id === currentId;
           return (
             <div key={t.id} className={cn("flex shrink-0 items-center border-b-2", on ? "border-primary" : "border-transparent")}>
-              <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: dh.id, tableId: t.id }} role="tab" aria-selected={on} className={cn("max-w-48 truncate px-3 py-2 text-sm", on ? "font-medium" : "text-muted-foreground hover:text-foreground")} title={t.name}>
+              <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: dh.id, tableId: t.id }} role="tab" aria-selected={on} className={cn("max-w-48 truncate px-3 py-3 text-sm sm:py-2", on ? "font-medium" : "text-muted-foreground hover:text-foreground")} title={t.name}>
                 {t.name}
               </Link>
               {owner && on && (
-                <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn bảng ${t.name}`} className="!min-h-8 !px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
+                <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn bảng ${t.name}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
                   <MenuItem onSelect={() => setDialog({ kind: "rename", t })}><Pencil size={16} aria-hidden /> Đổi tên bảng</MenuItem>
                   <MenuItem disabled={i === 0} onSelect={() => move.mutate({ t, to: i - 1 })}><ChevronLeft size={16} aria-hidden /> Chuyển sang trái</MenuItem>
                   <MenuItem disabled={i === dh.tables.length - 1} onSelect={() => move.mutate({ t, to: i + 1 })}><ChevronRight size={16} aria-hidden /> Chuyển sang phải</MenuItem>
@@ -154,16 +159,23 @@ function TableTabs({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) 
 function TableNameDialog({ title, submit, initial = "", save, onClose }: { title: string; submit: string; initial?: string; save: (name: string) => Promise<void>; onClose: () => void }) {
   const [name, setName] = useState(initial);
   const [touched, setTouched] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
   const m = useMutation({ mutationFn: () => save(name.trim()), onSuccess: onClose });
   const err = touched ? nameError(name) : null;
+  // A refused save returns the focus to the field that caused it.
+  useEffect(() => {
+    if (m.error) input.current?.focus();
+  }, [m.error]);
   return (
     <Modal title={title} open onClose={onClose} dirty={name !== initial && !m.isPending}>
-      <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); setTouched(true); if (!nameError(name)) m.mutate(); }}>
+      <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); setTouched(true); if (nameError(name)) input.current?.focus(); else m.mutate(); }}>
         <Field label="Tên bảng *" hint="Tối đa 100 ký tự, không chứa dấu [ hoặc ]. Không trùng với bảng khác trong datahub này.">
-          <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setTouched(true)} aria-invalid={!!err} autoFocus autoComplete="off" />
+          <Input ref={input} value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setTouched(true)} aria-invalid={!!err || !!m.error} aria-describedby="table-name-error" autoFocus autoComplete="off" />
         </Field>
-        {err && <p role="alert" className="-mt-3 text-xs text-bad">{err}</p>}
-        <ErrorText error={m.error} />
+        <div id="table-name-error" className="-mt-3 flex flex-col gap-2">
+          {err && <p role="alert" className="text-xs text-bad">{err}</p>}
+          <ErrorText error={m.error} />
+        </div>
         <div className="flex flex-wrap justify-between gap-2">
           <Button variant="secondary" onClick={onClose}>Huỷ</Button>
           <Button type="submit" loading={m.isPending}>{submit}</Button>

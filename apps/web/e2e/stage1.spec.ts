@@ -89,7 +89,7 @@ test("Admin thêm Manager, Leader, User và hai tài khoản phụ vào org char
   await admin.addMember({ email: email("user"), name: nameOf("user"), role: "User", manager: nameOf("manager"), leader: nameOf("leader") });
   await admin.addMember({ email: email("lock"), name: nameOf("lock"), role: "User", manager: nameOf("manager"), leader: nameOf("leader") });
   await admin.addMember({ email: email("user2"), name: nameOf("user2"), role: "User", manager: nameOf("manager"), leader: nameOf("leader") });
-  await admin.page.getByRole("button", { name: "Dạng cây" }).click();
+  await admin.page.getByRole("tab", { name: "Dạng cây" }).click();
   await expect(admin.page.getByText(`Cây của ${nameOf("manager")}`)).toBeVisible();
   await admin.shot("04-org-tree");
 });
@@ -194,7 +194,7 @@ test("token cá nhân: tạo -> chờ duyệt -> Admin duyệt -> dùng được
   await admin.shot("10-token-approval");
   await row.getByRole("button", { name: "Duyệt" }).click();
   await expect(row).toBeHidden(); // the pending tab no longer lists it
-  await admin.page.getByRole("button", { name: "Đang dùng" }).click();
+  await admin.page.getByRole("tab", { name: "Đang dùng" }).click();
   await expect(admin.page.getByRole("row", { name: new RegExp(`Claude Code ${p}`) })).toBeVisible();
 
   const ok = await request.get(`${API}/api/v1/system/whoami`, { headers: { authorization: `Bearer ${token}` } });

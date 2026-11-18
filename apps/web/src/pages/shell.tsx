@@ -101,6 +101,9 @@ export function Shell() {
   const wide = shown.startsWith("/datahub/");
   return (
     <div className={wide ? "flex h-dvh flex-col" : "min-h-dvh"}>
+      <a href="#noi-dung" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[80] focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:shadow-md">
+        Bỏ qua, tới nội dung
+      </a>
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2 sm:px-6">
           <Link to="/" className="text-lg font-semibold text-primary">SoE Hub</Link>
@@ -136,7 +139,7 @@ export function Shell() {
           </nav>
         )}
       </header>
-      <main className={wide ? "mx-auto flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : <Outlet />}</main>
+      <main id="noi-dung" tabIndex={-1} className={wide ? "mx-auto flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : <Outlet />}</main>
     </div>
   );
 }

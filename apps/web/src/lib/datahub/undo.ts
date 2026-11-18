@@ -1,6 +1,8 @@
 /** One thing the person did that can be taken back. `undo` and `redo` talk to the server; they throw when the server refuses (for example a cell changed meanwhile). */
 export interface UndoEntry {
   label: string;
+  /** Cells or rows the step touched (for messages such as "Đã điền 2 ô"). */
+  count?: number;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
 }

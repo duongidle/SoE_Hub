@@ -142,13 +142,15 @@ export class TableSession {
         this.store.patch(res.results.map((r) => r.row).filter((r): r is Row => !!r));
       }
     };
-    return { label, undo: () => apply(reverse), redo: () => apply(forward) };
+    const count = forward.reduce((n, f) => n + Object.keys(f.data).length, 0);
+    return { label, count, undo: () => apply(reverse), redo: () => apply(forward) };
   }
 
-  async edit(edits: CellEdit[], label?: string): Promise<boolean> {
+  /** Writes cells and records the undo step. Returns the number of cells that really changed. */
+  async edit(edits: CellEdit[], label?: string): Promise<number> {
     const e = await this.doEdits(edits, label);
     if (e) this.undo.push(e);
-    return !!e;
+    return e?.count ?? 0;
   }
 
   // ------------------------------------------------------------------------------------------------ create and delete

@@ -17,7 +17,7 @@ export function Button({ className, variant = "primary", loading, disabled, chil
       type="button"
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn("inline-flex min-h-9 items-center justify-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-transform duration-100 ease-out active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100", styles, className)}
+      className={cn("inline-flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-transform duration-100 ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:min-h-9", styles, className)}
       {...props}
     >
       {loading && <Loader2 size={16} aria-hidden className="animate-spin motion-reduce:animate-none" />}
@@ -27,7 +27,7 @@ export function Button({ className, variant = "primary", loading, disabled, chil
 }
 
 export function Input({ className, ...props }: React.ComponentProps<"input">) {
-  return <input className={cn("min-h-9 w-full rounded-md border border-border bg-card px-3 py-1.5 text-base sm:text-sm outline-none focus:ring-2 focus:ring-primary/30", className)} {...props} />;
+  return <input className={cn("min-h-11 w-full rounded-md border border-border bg-card px-3 py-1.5 text-base outline-none focus:ring-2 focus:ring-primary/30 sm:min-h-9 sm:text-sm", className)} {...props} />;
 }
 
 /** Text input for a date and time in the Vietnamese format `dd/mm/yyyy` or `dd/mm/yyyy hh:mm` (24h). */
@@ -42,7 +42,7 @@ export function DateTimeInput({ value, onChange, ...props }: Omit<React.Componen
 }
 
 export function Select({ className, ...props }: React.ComponentProps<"select">) {
-  return <select className={cn("min-h-9 w-full rounded-md border border-border bg-card px-2 py-1.5 text-base sm:text-sm", className)} {...props} />;
+  return <select className={cn("min-h-11 w-full rounded-md border border-border bg-card px-2 py-1.5 text-base sm:min-h-9 sm:text-sm", className)} {...props} />;
 }
 
 export function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
@@ -151,9 +151,9 @@ export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onClose
 
 export function Tabs<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { value: T; label: string }[] }) {
   return (
-    <div className="mb-4 flex gap-1 overflow-x-auto border-b border-border">
+    <div role="tablist" className="mb-4 flex gap-1 overflow-x-auto border-b border-border">
       {items.map((i) => (
-        <button key={i.value} type="button" onClick={() => onChange(i.value)} className={cn("whitespace-nowrap border-b-2 px-3 py-2 text-sm", value === i.value ? "border-primary font-medium" : "border-transparent text-muted-foreground")}>
+        <button key={i.value} type="button" role="tab" aria-selected={value === i.value} onClick={() => onChange(i.value)} className={cn("whitespace-nowrap border-b-2 px-3 py-3 text-sm sm:py-2", value === i.value ? "border-primary font-medium" : "border-transparent text-muted-foreground")}>
           {i.label}
         </button>
       ))}

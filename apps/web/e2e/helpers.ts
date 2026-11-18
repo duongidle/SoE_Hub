@@ -6,8 +6,8 @@ import { expect, type Browser, type BrowserContext, type Page } from "@playwrigh
 const run = promisify(execFile);
 
 export const VIEWPORTS = {
-  desktop: { width: 1440, height: 900 },
-  phone: { width: 390, height: 844 },
+  desktop: { width: 1280, height: 800 },
+  phone: { width: 375, height: 812 },
 } as const;
 export type ProjectName = keyof typeof VIEWPORTS;
 

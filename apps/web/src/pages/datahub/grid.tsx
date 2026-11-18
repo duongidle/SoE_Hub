@@ -1,5 +1,6 @@
 import { CompactSelection, DataEditor, GridCellKind, type DataEditorRef, type GridCell, type GridColumn, type GridSelection, type Item, type Rectangle, type Theme } from "@glideapps/glide-data-grid";
 import "@glideapps/glide-data-grid/dist/index.css";
+import { formatCount, formatNumber } from "@soe/shared";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { notify } from "@/components/ui/toast";
 import { cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
@@ -7,9 +8,10 @@ import { planPaste } from "@/lib/datahub/paste";
 import type { CellEdit, TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
 import { FONT_STACK, fontsReady, token } from "@/lib/theme";
-import { soeRenderer, type SoeCell } from "./grid-cells";
+import { isInsidePopup, soeRenderer, type SoeCell } from "./grid-cells";
 
 const ROW_HEIGHT = 36;
+const MARKER_WIDTH = 56;
 const NUMERIC = new Set(["number", "currency", "percent", "auto_number", "row_id"]);
 
 function defaultWidth(col: Column): number {
@@ -43,7 +45,7 @@ function gridTheme(): Partial<Theme> {
     accentFg: token("--primary-foreground"),
     accentLight: token("--selected"),
     textDark: token("--foreground"),
-    textMedium: token("--muted-foreground"),
+    textMedium: token("--primary"),
     textLight: token("--muted-foreground"),
     textHeader: token("--foreground"),
     textHeaderSelected: token("--primary-foreground"),
@@ -77,6 +79,8 @@ interface Tip {
   x: number;
   y: number;
   text: string;
+  /** Version of the rows when the tip was made. */
+  v: number;
 }
 
 export interface GridApi {
@@ -177,8 +181,10 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
     [columns, store, level, canWrite, ctx, labels, labelVersion],
   );
 
-  // ---- redraw what is on screen when rows or names change ---------------------------------------------------------
+  // A tip describes a cell as it was when the pointer arrived; any change of the rows makes it stale (it is then not shown).
   const version = store.version;
+
+  // ---- redraw what is on screen when rows or names change ---------------------------------------------------------
   useEffect(() => {
     const g = ref.current;
     const v = visible.current;
@@ -271,8 +277,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
           if (e) entries.push(e);
         }
         session.push(entries, "Dán dữ liệu");
-        const cells = plan.changes.length;
-        notify.ok(`Đã dán ${cells.toLocaleString("vi-VN")} ô${created ? `, thêm ${created.toLocaleString("vi-VN")} dòng` : ""}${plan.skipped ? `. Bỏ qua ${plan.skipped} ô ở cột do hệ thống tính` : ""}`);
+        notify.ok(`Đã dán ${formatNumber(plan.changes.length)} ô${created ? `, thêm ${formatCount(created, "dòng")}` : ""}${plan.skipped ? `. Bỏ qua ${formatNumber(plan.skipped)} ô ở cột do hệ thống tính` : ""}`);
       });
       return false;
     },
@@ -310,8 +315,8 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
         }
       }
       void run(async () => {
-        const ok = await session.edit(edits, "Điền xuống");
-        if (ok) notify.ok(`Đã điền ${edits.length.toLocaleString("vi-VN")} ô${skipped ? `. Bỏ qua ${skipped} ô` : ""}`);
+        const n = await session.edit(edits, "Điền xuống");
+        if (n) notify.ok(`Đã điền ${formatNumber(n)} ô${skipped ? `. Bỏ qua ${formatNumber(skipped)} ô` : ""}`);
       });
     },
     [canWrite, store, columns, level, ctx, peopleByName, run, session],
@@ -398,7 +403,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
           if (c.measureText(full).width > w) text = full.length > 600 ? `${full.slice(0, 600)}…` : full;
         }
       }
-      setTip(text ? { x: args.bounds.x + Math.min(args.bounds.width, 240) / 2, y: args.bounds.y + args.bounds.height + 4, text } : null);
+      setTip(text ? { x: args.bounds.x + Math.min(args.bounds.width, 240) / 2, y: args.bounds.y + args.bounds.height + 4, text, v: store.version } : null);
     },
     [columns, store, ctx, widths],
   );
@@ -426,7 +431,8 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
 
   const rowsCount = store.count;
   return (
-    <div className="relative min-h-0 flex-1" onMouseLeave={() => setTip(null)}>
+    // data-* : the layout the browser tests use to find a cell on the canvas.
+    <div className="relative min-h-0 flex-1" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-marker-width={MARKER_WIDTH}>
       {theme && (
         <DataEditor
           ref={ref}
@@ -439,7 +445,8 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
           headerHeight={ROW_HEIGHT}
           getCellContent={getCellContent}
           customRenderers={[soeRenderer]}
-          rowMarkers={{ kind: "both", width: 56 }}
+          isOutsideClick={(e) => !isInsidePopup(e)}
+          rowMarkers={{ kind: "both", width: MARKER_WIDTH }}
           rowSelectionMode="multi"
           gridSelection={selection}
           onGridSelectionChange={onGridSelectionChange}
@@ -449,6 +456,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
           onDelete={onDelete}
           fillHandle={canWrite}
           onFillPattern={onFillPattern}
+          keybindings={{ downFill: true }}
           getCellsForSelection
           onColumnResize={(c, w) => setWidths((s) => ({ ...s, [c.id ?? ""]: Math.max(70, Math.min(600, Math.round(w))) }))}
           onItemHovered={onItemHovered}
@@ -470,7 +478,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
           }}
         />
       )}
-      {tip && (
+      {tip && tip.v === version && (
         <div role="tooltip" className="pointer-events-none fixed z-[70] max-w-xs -translate-x-1/2 rounded-md bg-foreground px-2 py-1 text-xs text-background shadow-md [overflow-wrap:anywhere]" style={{ left: tip.x, top: tip.y }}>
           {tip.text}
         </div>

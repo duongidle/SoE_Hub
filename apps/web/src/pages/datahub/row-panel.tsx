@@ -57,7 +57,7 @@ export function RowPanel({ session, rowId, level, onClose }: { session: TableSes
           </div>
           <div role="tablist" aria-label="Chi tiết dòng" className="flex gap-1 border-b border-border px-4">
             {(["data", "history"] as const).map((t) => (
-              <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("border-b-2 px-3 py-2 text-sm", tab === t ? "border-primary font-medium" : "border-transparent text-muted-foreground")}>
+              <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("border-b-2 px-3 py-3 text-sm sm:py-2", tab === t ? "border-primary font-medium" : "border-transparent text-muted-foreground")}>
                 {t === "data" ? "Dữ liệu" : "Lịch sử thay đổi"}
               </button>
             ))}
@@ -135,14 +135,14 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
     const shown = err ? `${err}. ${ERROR_HELP[err] ?? ""}` : displayText(col, row, ctx);
     const pend = row.pending?.includes(col.key);
     control = (
-      <div id={id} role="textbox" aria-readonly="true" tabIndex={0} className={cn("min-h-9 rounded-md border border-border bg-muted px-3 py-1.5 text-sm [overflow-wrap:anywhere]", err && "text-bad", typeof value === "number" && "text-right")}>
+      <div id={id} role="textbox" aria-label={col.name} aria-readonly="true" tabIndex={0} className={cn("min-h-11 rounded-md sm:min-h-9 border border-border bg-muted px-3 py-1.5 text-sm [overflow-wrap:anywhere]", err && "text-bad", typeof value === "number" && "text-right")}>
         {shown}
         {pend && <span className="ml-2 text-xs text-muted-foreground">Đang tính lại...</span>}
       </div>
     );
   } else if (type === "checkbox") {
     control = (
-      <label className="flex min-h-9 items-center gap-2 text-sm">
+      <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-9">
         <input id={id} type="checkbox" className="h-5 w-5" checked={value === true} onChange={(e) => void save(e.target.checked)} />
         {value === true ? "Có" : "Không"}
       </label>
@@ -161,7 +161,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
         {optionsOf(col).map((o) => {
           const on = ids.includes(o.id);
           return (
-            <button key={o.id} type="button" aria-pressed={on} onClick={() => void save((on ? ids.filter((x) => x !== o.id) : [...ids, o.id]).filter(Boolean).length ? (on ? ids.filter((x) => x !== o.id) : [...ids, o.id]) : null)} className={cn("min-h-9 rounded-md border px-2 py-1 text-sm", on ? "border-primary" : "border-border")}>
+            <button key={o.id} type="button" aria-pressed={on} onClick={() => void save((on ? ids.filter((x) => x !== o.id) : [...ids, o.id]).filter(Boolean).length ? (on ? ids.filter((x) => x !== o.id) : [...ids, o.id]) : null)} className={cn("min-h-11 rounded-md border px-2 py-1 text-sm sm:min-h-9", on ? "border-primary" : "border-border")}>
               <OptionChip option={o} />
               {on && <span className="sr-only"> (đã chọn)</span>}
             </button>
@@ -185,7 +185,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
       </div>
     );
   } else if (type === "long_text") {
-    control = <Textarea id={id} rows={4} value={text} onFocus={() => setDraft(stored)} onChange={(e) => setText(e.target.value)} onBlur={commitText} aria-invalid={!!error} />;
+    control = <Textarea id={id} rows={4} value={text} onFocus={() => setDraft((d) => d ?? stored)} onChange={(e) => setText(e.target.value)} onBlur={commitText} aria-invalid={!!error} />;
   } else {
     const numeric = ["number", "currency", "percent"].includes(type);
     control = (
@@ -197,7 +197,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
         autoComplete="off"
         className={cn(numeric && "text-right")}
         placeholder={type === "date" ? "dd/mm/yyyy" : type === "datetime" ? "dd/mm/yyyy hh:mm" : type === "percent" ? "12,5%" : undefined}
-        onFocus={() => setDraft(stored)}
+        onFocus={() => setDraft((d) => d ?? stored)}
         onChange={(e) => setText(e.target.value)}
         onBlur={commitText}
         onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}

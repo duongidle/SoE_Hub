@@ -17,7 +17,7 @@ export function Menu({ trigger, children, align = "end" }: { trigger: React.Reac
 }
 
 export function MenuItem({ className, danger, ...props }: React.ComponentProps<typeof D.Item> & { danger?: boolean }) {
-  return <D.Item className={cn("flex min-h-9 cursor-default select-none items-center gap-2 rounded px-2 py-1.5 outline-none data-[disabled]:opacity-50 data-[highlighted]:bg-muted", danger && "text-bad", className)} {...props} />;
+  return <D.Item className={cn("flex min-h-11 cursor-default sm:min-h-9 select-none items-center gap-2 rounded px-2 py-1.5 outline-none data-[disabled]:opacity-50 data-[highlighted]:bg-muted", danger && "text-bad", className)} {...props} />;
 }
 
 export const MenuSeparator = () => <D.Separator className="my-1 h-px bg-border" />;

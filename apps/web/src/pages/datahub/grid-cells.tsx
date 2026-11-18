@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { GridCellKind, type CustomCell, type CustomRenderer, type ProvideEditorComponent } from "@glideapps/glide-data-grid";
 import type { SelectOption } from "@/lib/datahub/types";
 import { optionColor, token } from "@/lib/theme";
@@ -39,9 +40,18 @@ function star(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) 
   ctx.closePath();
 }
 
-const Overlay: React.FC<{ children: React.ReactNode; target: { height: number } }> = ({ children, target }) => (
-  <div style={{ position: "absolute", left: 0, top: target.height + 2, zIndex: 5 }}>{children}</div>
-);
+/**
+ * The grid clips its own overlay to the height of the cell, so a list of options is drawn in a portal on the page, beside the cell
+ * (below it, or above when there is no room). `isOutsideClick` of the grid ignores clicks inside it (see `isInsidePopup`).
+ */
+export const POPUP_ATTR = "data-soe-popup";
+export const isInsidePopup = (e: Event) => (e.target instanceof Element ? e.target.closest(`[${POPUP_ATTR}]`) !== null : false);
+
+const Overlay: React.FC<{ children: React.ReactNode; target: { x: number; y: number; width: number; height: number } }> = ({ children, target }) => {
+  const below = target.y + target.height + 320 < window.innerHeight || target.y < 320;
+  const style: React.CSSProperties = { position: "fixed", zIndex: 60, left: Math.max(8, Math.min(target.x, window.innerWidth - 300)), ...(below ? { top: target.y + target.height + 2 } : { bottom: window.innerHeight - target.y + 2 }) };
+  return createPortal(<div {...{ [POPUP_ATTR]: "" }} style={style}>{children}</div>, document.body);
+};
 
 const SelectEditor: ProvideEditorComponent<SoeCell> = ({ value, onChange, onFinishedEditing, target }) => {
   const d = value.data as Extract<SoeData, { t: "select" }>;

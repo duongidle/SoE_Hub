@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { DhNameSchema, formatCount, formatRelative, SHARE_PERMISSION_LABELS } from "@soe/shared";
 import { Database, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Tabs, Textarea } from "@/components/ui/form";
 import { Menu, MenuItem } from "@/components/ui/dropdown";
@@ -129,6 +129,7 @@ function NameDialog({ title, submit, dh, onClose }: { title: string; submit: str
   const [name, setName] = useState(dh?.name ?? "");
   const [description, setDescription] = useState(dh?.description ?? "");
   const [touched, setTouched] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
   const clientError = touched ? nameError(name) : null;
   const m = useMutation({
     mutationFn: () => (dh ? updateDatahub(dh.id, { name: name.trim(), description: description.trim() || null, version: dh.version }) : createDatahub(name.trim(), description.trim())),
@@ -139,6 +140,10 @@ function NameDialog({ title, submit, dh, onClose }: { title: string; submit: str
       onClose();
     },
   });
+  // A refused save (for example a name already taken) returns the focus to the name field.
+  useEffect(() => {
+    if (m.error) input.current?.focus();
+  }, [m.error]);
   const dirty = name !== (dh?.name ?? "") || description !== (dh?.description ?? "");
   return (
     <Modal title={title} open onClose={onClose} dirty={dirty && !m.isPending}>
@@ -147,14 +152,16 @@ function NameDialog({ title, submit, dh, onClose }: { title: string; submit: str
         onSubmit={(e) => {
           e.preventDefault();
           setTouched(true);
-          if (nameError(name)) return;
+          if (nameError(name)) return input.current?.focus();
           m.mutate();
         }}
       >
         <Field label="Tên *" hint="Tối đa 100 ký tự, không chứa dấu [ hoặc ]. Không trùng với datahub khác của bạn.">
-          <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setTouched(true)} aria-invalid={!!clientError} maxLength={200} autoFocus autoComplete="off" />
+          <Input ref={input} value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setTouched(true)} aria-invalid={!!clientError || !!m.error} aria-describedby="dh-name-error" maxLength={200} autoFocus autoComplete="off" />
         </Field>
-        {clientError && <p role="alert" className="-mt-3 text-xs text-bad">{clientError}</p>}
+        <div id="dh-name-error" className="-mt-3">
+          {clientError && <p role="alert" className="text-xs text-bad">{clientError}</p>}
+        </div>
         <Field label="Mô tả">
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} maxLength={1000} />
         </Field>

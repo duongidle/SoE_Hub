@@ -56,7 +56,7 @@ export function SelectPicker({ options, value, multi, onChange, onDone, onCancel
         {shown.map((o, i) => {
           const on = value.includes(o.id);
           return (
-            <button key={o.id} type="button" role="option" aria-selected={on} onClick={() => pick(o.id)} onMouseMove={() => setActive(i)} className={cn("flex min-h-9 items-center gap-2 rounded px-2 py-1 text-left", i === active && "bg-muted")}>
+            <button key={o.id} type="button" role="option" aria-selected={on} onClick={() => pick(o.id)} onMouseMove={() => setActive(i)} className={cn("flex min-h-11 items-center gap-2 rounded px-2 py-1 text-left sm:min-h-9", i === active && "bg-muted")}>
               <span className="flex h-4 w-4 shrink-0 items-center justify-center">{on && <Check size={16} aria-hidden />}</span>
               <OptionChip option={o} />
             </button>
@@ -64,8 +64,8 @@ export function SelectPicker({ options, value, multi, onChange, onDone, onCancel
         })}
       </div>
       <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2">
-        <button type="button" className="min-h-9 rounded px-2 text-muted-foreground hover:bg-muted" onClick={() => onDone([])}>Xoá lựa chọn</button>
-        {multi && <button type="button" className="min-h-9 rounded bg-primary px-3 text-primary-foreground" onClick={() => onDone(value)}>Xong</button>}
+        <button type="button" className="min-h-11 rounded px-2 text-muted-foreground hover:bg-muted sm:min-h-9" onClick={() => onDone([])}>Xoá lựa chọn</button>
+        {multi && <button type="button" className="min-h-11 rounded bg-primary px-3 text-primary-foreground sm:min-h-9" onClick={() => onDone(value)}>Xong</button>}
       </div>
     </div>
   );
@@ -108,14 +108,14 @@ export function PersonPicker({ value, valueName, onDone, onCancel, autoFocus = t
       <div role="listbox" aria-label="Người" className="contain-scroll mt-2 flex max-h-56 flex-col gap-0.5 overflow-y-auto">
         {q.trim() && !busy && list.length === 0 && <p className="px-2 py-3 text-muted-foreground">Không tìm thấy ai.</p>}
         {list.map((p, i) => (
-          <button key={p.id} type="button" role="option" aria-selected={p.id === value} onClick={() => onDone(p)} onMouseMove={() => setActive(i)} className={cn("flex min-h-9 flex-col items-start rounded px-2 py-1 text-left", i === active && "bg-muted")}>
+          <button key={p.id} type="button" role="option" aria-selected={p.id === value} onClick={() => onDone(p)} onMouseMove={() => setActive(i)} className={cn("flex min-h-11 flex-col items-start justify-center rounded px-2 py-1 text-left sm:min-h-9", i === active && "bg-muted")}>
             <span className="[overflow-wrap:anywhere]">{p.full_name}</span>
             {p.email && <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{p.email}</span>}
           </button>
         ))}
       </div>
       <div className="mt-2 border-t border-border pt-2">
-        <button type="button" className="min-h-9 rounded px-2 text-muted-foreground hover:bg-muted" onClick={() => onDone(null)}>Bỏ chọn</button>
+        <button type="button" className="min-h-11 rounded px-2 text-muted-foreground hover:bg-muted sm:min-h-9" onClick={() => onDone(null)}>Bỏ chọn</button>
       </div>
     </div>
   );
@@ -126,11 +126,11 @@ export function RatingPicker({ value, max, onPick }: { value: number | null; max
   return (
     <div role="radiogroup" aria-label="Đánh giá" className="flex items-center gap-1 rounded-md border border-border bg-card p-1 shadow-md">
       {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-        <button key={n} type="button" role="radio" aria-checked={value === n} aria-label={`${n} sao`} onClick={() => onPick(n)} className="flex h-9 w-9 items-center justify-center rounded hover:bg-muted">
+        <button key={n} type="button" role="radio" aria-checked={value === n} aria-label={`${n} sao`} onClick={() => onPick(n)} className="flex h-11 w-11 items-center justify-center rounded hover:bg-muted sm:h-9 sm:w-9">
           <Star size={20} aria-hidden className={n <= (value ?? 0) ? "fill-warn text-warn" : "text-muted-foreground"} />
         </button>
       ))}
-      <button type="button" className="min-h-9 rounded px-2 text-sm text-muted-foreground hover:bg-muted" onClick={() => onPick(null)}>Xoá</button>
+      <button type="button" className="min-h-11 rounded px-2 text-sm text-muted-foreground hover:bg-muted sm:min-h-9" onClick={() => onPick(null)}>Xoá</button>
     </div>
   );
 }
