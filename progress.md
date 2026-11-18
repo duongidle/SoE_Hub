@@ -4,7 +4,8 @@ Cập nhật: 18/11/2026
 
 ## Giai đoạn hiện tại
 
-Thiết kế (chưa code).
+- Thiết kế: Module 0 đã chốt; đang chuẩn bị Module 1.
+- Code: Stage 0 **được phép bắt đầu** (Module 0 đã chốt), chưa bắt đầu.
 
 ## Đã xong
 
@@ -19,7 +20,8 @@ Thiết kế (chưa code).
 
 ## Việc tiếp theo
 
-1. Module 1 → Module 2 (Datahub) → Module 3 (Metric & Dashboard) → Module 4 (Deal) → Module 5 (Kết nối AI).
+1. Thiết kế Module 1 → Module 2 (Datahub) → Module 3 (Metric & Dashboard) → Module 4 (Deal) → Module 5 (Kết nối AI).
+2. Code Stage 0 khi Dương muốn bắt đầu (song song với thiết kế Module 1). Thứ tự stage: xem `CLAUDE.md` mục "Stage code".
 
 ## Câu hỏi còn mở
 

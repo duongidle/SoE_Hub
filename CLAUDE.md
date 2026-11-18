@@ -16,13 +16,36 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 
 ## Quy trình làm việc
 
-1. **Chưa code khi Dương chưa bảo code.** Không tạo scaffold, package, file code nào khi chưa có lệnh.
-2. **Thiết kế từng module theo vòng:** Claude phân tích và đề xuất trong chat → Dương phản biện → chốt → Claude ghi `design/moduleX-<ten>.md`. Chỉ ghi file khi module đã chốt. Ghi trạng thái `Đã chốt` và ngày ở đầu file.
-3. **Engine trước, giao diện sau.** Giao diện bản đầu chỉ cần đủ dùng, đủ xem; có một giai đoạn làm đẹp riêng về sau.
-4. **Phản biện thật.** Ý tưởng hay giả định yếu thì nói thẳng, kèm lý do và phương án tốt hơn. Không đồng ý cho xong.
-5. **Sau mỗi bước nhỏ hoàn thành:** cập nhật `progress.md` (đã xong gì, đang làm gì, việc tiếp theo, câu hỏi còn mở), rồi **commit**.
-6. **Push và merge chỉ làm khi Dương yêu cầu.** Làm việc trên nhánh `dev` (hoặc nhánh tính năng tách từ `dev`); `main` chỉ nhận merge khi Dương bảo.
-7. Một quyết định thiết kế mới được chốt trong chat thì ghi vào đúng file thiết kế của module đó, và vào mục "Quy định đã chốt" bên dưới nếu nó ảnh hưởng nhiều module.
+### Bắt đầu mỗi phiên
+
+**Đọc `CLAUDE.md` và `progress.md` trước khi làm bất cứ việc gì**, đặc biệt trước khi code. Khi code một stage, đọc thêm file thiết kế của module thuộc stage đó. Không cần đọc lại phiên cũ.
+
+### Thiết kế
+
+1. **Thiết kế từng module theo vòng:** Claude phân tích và đề xuất trong chat → Dương phản biện → chốt → Claude ghi `design/moduleX-<ten>.md`, kèm trạng thái `Đã chốt` và ngày ở đầu file.
+2. **Phản biện thật.** Ý tưởng hay giả định yếu thì nói thẳng, kèm lý do và phương án tốt hơn. Không đồng ý cho xong.
+3. Một quyết định mới được chốt trong chat thì ghi vào đúng file thiết kế của module đó, và vào mục "Quy định đã chốt" bên dưới nếu nó ảnh hưởng nhiều module.
+
+### Code
+
+1. **Chỉ code module đã có file thiết kế `Đã chốt`.** Với module đó, code tự do theo thứ tự stage ở mục "Stage code"; không cần chờ lệnh riêng. Module chưa chốt thiết kế thì không code.
+2. **Engine trước, giao diện sau.** Giao diện của mỗi stage chỉ cần đủ dùng, đủ xem; có stage làm đẹp riêng ở cuối.
+3. **Tự quyết chi tiết nhỏ.** Khi code, các chi tiết nhỏ (đặt tên, cấu trúc file, thư viện phụ, cách xử lý lỗi, giá trị mặc định hợp lý) thì Claude tự phản biện, tự ra quy định và ghi lại vào file thiết kế của module (mục "Quyết định khi code"). Chỉ hỏi Dương khi điều cần hỏi quyết định một chức năng quan trọng, đổi một quy định đã chốt, hoặc chạm dữ liệu thật / thao tác khó hoàn tác.
+4. **Làm liền từ đầu đến cuối.** Không dừng giữa chừng để hỏi những việc nhỏ. Gặp chỗ cần Dương quyết thì ghi vào `progress.md` mục "Câu hỏi còn mở", chọn phương án an toàn tạm thời, làm tiếp phần còn lại, và báo ở cuối.
+5. Mỗi stage chỉ coi là xong khi đạt "Định nghĩa xong" ở mục "Stage code".
+
+### Tiến độ và commit
+
+Mục đích: hết quota giữa chừng thì phiên mới đọc `progress.md` là làm tiếp được ngay, không phải đọc lại phiên cũ.
+
+1. **Cập nhật `progress.md` liên tục, không đợi xong việc lớn:**
+   - Trước khi bắt đầu một việc dài: ghi kế hoạch các bước vào "Đang làm".
+   - Sau mỗi bước nhỏ xong (một file thiết kế, một nhóm chức năng, một bộ test pass): đánh dấu xong, ghi bước tiếp theo.
+   - Khi phiên đã dài hoặc đã làm nhiều việc: cập nhật ngay, không đợi đến cuối.
+2. **"Bước tiếp theo" phải đủ cụ thể để làm tiếp không cần hỏi:** file nào, hàm/chức năng nào, đang dở ở đâu, lệnh test nào đang fail.
+3. **Giữ `progress.md` ngắn** (dưới khoảng 80 dòng) để đọc rẻ: chỉ ghi trạng thái hiện tại, danh sách xong theo stage, bước tiếp theo, câu hỏi còn mở. Lịch sử chi tiết đã có trong git log.
+4. **Commit ngay sau mỗi lần cập nhật `progress.md`**, kèm phần code/thiết kế vừa xong.
+5. **Push và merge chỉ làm khi Dương yêu cầu.** Làm việc trên nhánh `dev` (hoặc nhánh tính năng tách từ `dev`); `main` chỉ nhận merge khi Dương bảo.
 
 Repo: `https://github.com/duongidle/SoE_Hub`.
 
@@ -45,6 +68,49 @@ Repo: `https://github.com/duongidle/SoE_Hub`.
 | — | Automation | Module lõi, **chưa thiết kế, chưa làm**. Kiến trúc phải để sẵn chỗ (Module 0 mục 19) | Hoãn |
 
 Module 0–5 là engine.
+
+## Stage code
+
+Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa vào module trước, nên code được lần lượt. Thiết kế luôn đi trước code ít nhất một module, nghĩa là code Stage N trong lúc thiết kế module N+1.
+
+| Stage | Module | Cần module trước | Nội dung code | Kết quả dùng được |
+|---|---|---|---|---|
+| 0 | M0 | — | Monorepo, Docker dev, Postgres + migration, command/query registry, actor, mã lỗi, audit log, `row_history`, outbox, worker pg-boss, lưu file, SSE, sinh OpenAPI, khung test | Server chạy, có `/health`, `/api/docs`; chưa có chức năng nghiệp vụ |
+| 1 | M1 | 0 | Tài khoản, vai trò, cây tổ chức, đăng nhập (mật khẩu + Google), session, token, engine phân quyền, quên mật khẩu, hộp thông báo tối thiểu (M6 mở rộng sau), trang nhật ký của Admin, chuyển giao dữ liệu | Đăng nhập, quản lý người dùng, admin xem log |
+| 2 | M2 | 1 | Datahub, bảng, kiểu cột, engine công thức, lọc/sắp xếp/view, grid ảo hoá, import/export, thùng rác, lịch sử dòng | Dùng Datahub thay Google Sheet |
+| 3 | M3 | 2 | Engine metric, các loại biểu đồ, dashboard tuỳ chỉnh | Vẽ dashboard từ Datahub |
+| 4 | M4 | 2, 3 | Template Deals, người tham gia, ba loại cột, chính sách com có phiên bản, khoá kỳ, snapshot, forecast, BANT, dashboard Deals mặc định, API cho hệ thống ngoài | **Mốc Engine v1: team SoE chạy thử quản lý deal** |
+| 5 | M5 | 1, 4 | MCP server, OAuth + DCR, token cá nhân, kết nối AI chờ duyệt, scope theo menu, hướng dẫn kết nối, bộ Bruno đầy đủ | Claude/Codex điều khiển được hệ thống |
+| 6 | M6 | 1 | Thông báo đầy đủ, nhắc hẹn, nhắc hạn, quy tắc gửi | |
+| 7 | M7 | 2 | Dynamic Form: builder kéo thả, renderer công khai, lưu nháp, chấm điểm, JSON import/export | |
+| 8 | M8 | 1, 6 | Engine đăng → kiểm tra → duyệt → xuất bản; Knowledge; AI Hub | |
+| 9 | M9 | 6, 7 | Onboarding: lộ trình, checklist, bài test, theo dõi, template mẫu | |
+| 10 | M10 | 4, 6 | Workspace giao việc | |
+| 11 | M11 | các module trên | Cài đặt còn lại, feedback | |
+| 12 | — | tất cả | Làm đẹp giao diện | |
+| — | Automation | 0, 2, 6 | Chưa thiết kế | |
+
+**Định nghĩa xong của mỗi stage:**
+1. Chức năng đúng theo file thiết kế; mọi lệch hoặc bổ sung đã ghi vào mục "Quyết định khi code" của file đó.
+2. Test unit và test phân quyền của stage đều pass; test của các stage trước không bị hỏng.
+3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`.
+4. Có giao diện tối thiểu để dùng và kiểm tra bằng mắt.
+5. `progress.md` đã cập nhật, đã commit.
+
+REST API được sinh từ registry ngay từ Stage 0, nên mỗi stage tự có API của nó; Stage 5 chỉ thêm MCP và phần quản lý kết nối AI.
+
+## Kết nối AI với SoE Hub (thiết kế, chi tiết ở Module 5)
+
+SoE Hub cung cấp sẵn bộ công cụ cho AI qua MCP. AI không cần mở trình duyệt hay viết script; server trả kết quả đã tính sẵn nên tốn ít token. AI chỉ làm được những gì kết nối đó được cấp quyền, và không bao giờ chạm được Onboarding.
+
+Cài một lần:
+
+- **Claude Desktop / claude.ai:** Settings → Connectors → Add custom connector → dán `https://<domain>/mcp`. Trình duyệt mở trang đăng nhập SoE Hub → đăng nhập → bấm cho phép → chờ admin duyệt kết nối.
+- **Claude Code:** lấy token trong Cài đặt của SoE Hub, rồi chạy:
+  `claude mcp add --transport http soe-hub https://<domain>/mcp --header "Authorization: Bearer <token>"`
+- **Codex:** `codex mcp add soe-hub --url https://<domain>/mcp --bearer-token-env-var SOE_HUB_TOKEN` (token đặt trong biến môi trường `SOE_HUB_TOKEN`), hoặc dùng OAuth bằng `codex mcp login soe-hub`.
+
+Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead tháng 12", "deal nào của tớ sắp đến hạn chốt", "winrate quý này của tớ bao nhiêu".
 
 ## Quy định đã chốt (ảnh hưởng nhiều module)
 
