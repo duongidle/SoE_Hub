@@ -4,7 +4,7 @@ Cập nhật: 19/11/2026
 
 ## Giai đoạn hiện tại
 
-- Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11, mục 7 Thanh toán còn là khung). **Module 5, 6: bản nháp vòng 1 xong** (`design/module5-ket-noi-ai.md`, `design/module6-thong-bao.md`, 19/11), chờ Dương phản biện. **Module 7: bản nháp vòng 1 xong** (`design/module7-dynamic-form.md`, 19/11). Câu hỏi ở mục cuối mỗi file.
+- Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11, mục 7 Thanh toán còn là khung). **Module 5, 6: bản nháp vòng 1 xong** (`design/module5-ket-noi-ai.md`, `design/module6-thong-bao.md`, 19/11), chờ Dương phản biện. **Module 7 đã chốt** (19/11; CLAUDE.md, Module 0, 4 đã ghi thay đổi; Module 2 mục 11 chưa ghi giới hạn 150 cột vì Sonnet đang sửa file đó, ghi khi rảnh). Câu hỏi ở mục cuối mỗi file.
 - Code: Stage 0 và Stage 1 xong. Stage 2: 2A xong và đã rà soát; **2B và 2B+ code xong, chờ Opus rà soát**; 2C, 2D chưa làm.
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
@@ -92,7 +92,7 @@ Việc kế: 2C dùng `datahub.formula.preview` và `datahub.formula.functions` 
 - 2B+: ngân sách đối soát 1.000.000 dòng/đêm và thời gian chờ mặc định 5 s là giá trị tự chọn (ghi ở "Quyết định khi code"); Dương chỉnh nếu cần. `row.create|update|restore` trả `seq` ngay trong đối tượng dòng.
 
 - 2B: Dương đã đồng ý (b), (c), (d); (a) thay bằng mục 6.7 (2B+). 2D phải cảnh báo `LEFT(ngày,2)` khi import (324 công thức trong file mẫu dựa vào chữ hiển thị `MM/yyyy`).
-- Module 5 (mục 11), Module 6 (mục 12), Module 7 (mục 13; Dương đã chốt 3 điểm: form một bảng, bản nháp + xuất bản, 150 cột cho bảng có form): câu hỏi còn lại ở mục cuối mỗi file, chờ Dương trả lời rồi chốt. Chốt xong: cập nhật CLAUDE.md (bảng module, mục AI, "Định nghĩa xong", bảng Stage code) theo mục "Thay đổi so với quy định đã chốt" của từng file.
+- Module 5 (mục 11), Module 6 (mục 12): câu hỏi ở mục cuối mỗi file, chờ Dương trả lời rồi chốt. Chốt xong: cập nhật CLAUDE.md (bảng module, mục AI, "Định nghĩa xong", bảng Stage code) theo mục "Thay đổi so với quy định đã chốt" của từng file.
 - Module 4: bảng Thanh toán (mục 7) chờ Dương bàn với Manager (nguồn tiền về, com POD theo hợp đồng hay tiền về, nguồn Level BC/Performance BC, thu hồi com, com POD Express và Data).
 - `docker-compose.yml` chưa chạy thử (máy dev không có Docker): phải chạy thử trên VPS trước khi dùng thật. Biến `AUTH_SECRET` giờ bắt buộc trong compose.
 - Đăng nhập Google chưa thử với Google thật; cần tạo Google Cloud client (xem `design/ha-tang.md` mục 4) rồi thử một lần trước khi bật.

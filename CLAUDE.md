@@ -61,7 +61,7 @@ Repo: `https://github.com/duongidle/SoE_Hub`.
 | 4   | `module4-quan-ly-deal.md`            | Template Deals, người tham gia, chính sách/com, forecast, BANT                       | Đã chốt    |
 | 5   | `module5-ket-noi-ai.md`              | REST, MCP, quản lý kết nối AI                                                        | Chưa       |
 | 6   | `module6-thong-bao.md`               | Thông báo, nhắc hẹn, nhắc hạn                                                        | Chưa       |
-| 7   | `module7-dynamic-form.md`            | Form kéo thả, bài test, khảo sát                                                     | Chưa       |
+| 7   | `module7-dynamic-form.md`            | Form kéo thả, bài test, khảo sát                                                     | Đã chốt    |
 | 8   | `module8-knowledge-aihub.md`         | Knowledge, AI Hub, engine đăng → kiểm tra → duyệt                                    | Chưa       |
 | 9   | `module9-onboarding.md`              | Lộ trình onboard, checklist, bài test                                                | Chưa       |
 | 10  | `module10-workspace.md`              | Giao việc                                                                            | Chưa       |
@@ -83,7 +83,7 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 | 4     | M4         | 2, 3             | Template Deals (bốn lớp cột), người tham gia, chính sách com có phiên bản, khoá kỳ, snapshot, forecast, BANT, dashboard Deals mặc định, API cho hệ thống ngoài                                            | **Mốc Engine v1: team SoE chạy thử quản lý deal**                   |            |
 | 5     | M5         | 1, 4             | MCP server, OAuth + DCR, token cá nhân, kết nối AI chờ duyệt, scope theo menu, hướng dẫn kết nối, bộ Bruno đầy đủ                                                                                        | Claude/Codex điều khiển được hệ thống                               |            |
 | 6     | M6         | 1                | Thông báo đầy đủ, nhắc hẹn, nhắc hạn, quy tắc gửi                                                                                                                                                        |                                                                     |            |
-| 7     | M7         | 2                | Dynamic Form: builder kéo thả, renderer công khai, lưu nháp, chấm điểm, JSON import/export                                                                                                               |                                                                     |            |
+| 7     | M7         | 2, 3, 5, 6       | Dynamic Form: builder kéo thả, renderer công khai, lưu nháp, chấm điểm, nguồn dữ liệu, JSON import/export                                                                                                               |                                                                     |            |
 | 8     | M8         | 1, 6             | Engine đăng → kiểm tra → duyệt → xuất bản; Knowledge; AI Hub                                                                                                                                             |                                                                     |            |
 | 9     | M9         | 6, 7             | Onboarding: lộ trình, checklist, bài test, theo dõi, template mẫu                                                                                                                                        |                                                                     |            |
 | 10    | M10        | 4, 6             | Workspace giao việc                                                                                                                                                                                      |                                                                     |            |
@@ -203,6 +203,7 @@ Giới hạn khi dùng skill trong dự án này:
 ### Form và ô nhập
 
 - Mỗi ô có nhãn hiện rõ (không dùng placeholder làm nhãn); ô bắt buộc có dấu `*`; ô phức tạp có dòng gợi ý bên dưới.
+- **Chọn thay vì gõ:** chỗ nào chọn thứ hệ thống đã biết (datahub, bảng, cột, trường của nguồn dữ liệu, câu hỏi, lựa chọn, toán tử, người, team) thì phải có danh sách tự sinh, đầy đủ để chọn; không bắt gõ tay. Gõ tay chỉ là cách phụ và luôn có gợi ý khi gõ. Thứ đã chọn bị xoá hay đổi tên thì báo rõ, không để chuỗi chết (Dương chốt 19/11/2026).
 - Kiểm tra khi rời ô, không kiểm tra theo từng phím. Lỗi hiện ngay dưới ô, nói rõ sai gì và sửa thế nào ("Email phải có đuôi @base.vn"), không chỉ "Không hợp lệ".
 - Gửi thất bại thì giữ nguyên dữ liệu đã nhập và đưa focus về ô lỗi đầu tiên.
 - Dùng đúng loại ô để điện thoại bật đúng bàn phím: `type="email"`, `inputmode="numeric"` cho mã, `inputmode="decimal"` cho số tiền; `autocomplete` đúng cho đăng nhập; cho phép dán và trình quản lý mật khẩu; ô mật khẩu có nút hiện/ẩn.
@@ -322,7 +323,7 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 - **Tính lại theo phần** (Module 2 mục 6.7): nguồn đổi thì chỉ tính lại dòng bị ảnh hưởng (tra ngược ô Liên kết bằng index GIN, gom nhóm theo khoá cũ/mới); mỗi lần tính lại phát sự kiện `dòng, cột, cũ → mới`; mỗi lần ghi có số thứ tự thay đổi để người đọc (API, MCP, Automation) đợi tính xong rồi mới đọc.
 - View theo kiểu Lark Base, **tự lưu** mọi thay đổi (lọc, sắp xếp nhiều cấp, nhóm, ẩn/cố định cột, độ rộng). Người được chia sẻ đổi view chung thì lưu thành bản riêng của họ. Sắp xếp theo thứ tự lựa chọn và theo cột công thức (nền cho sắp deal theo BANT).
 - Chia sẻ cả datahub hoặc từng bảng; quyền Xem hoặc Sửa dữ liệu; chỉ chủ sửa cấu trúc. Ngoại lệ: ô **Liên kết dòng** chỉ chủ ghi được (người được chia sẻ không xem được bảng đích). Người được chia sẻ thấy giá trị cột công thức, **không thấy nội dung công thức**.
-- Cột mỗi bảng mặc định 70, trần 200, Admin chỉnh.
+- Cột mỗi bảng mặc định 70, trần 200, Admin chỉnh. Bảng có form ghi vào: 150 (cài đặt `form.table_max_columns`), không vượt trần 200 (Module 7 mục 1.1a).
 - Import từ Google Sheet/Excel là chức năng bắt buộc; có tuỳ chọn import công thức (dịch được thì thành cột công thức, không thì nhập giá trị và báo lý do).
 - Dashboard ghép nhiều bảng: khoá không khớp thì báo rõ số dòng ghép được, không vẽ biểu đồ rỗng; ưu tiên cột liên kết (relation/lookup).
 - Xoá mềm, khôi phục trong 7 ngày (admin chỉnh được).

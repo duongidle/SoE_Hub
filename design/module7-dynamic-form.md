@@ -1,6 +1,6 @@
 # Module 7 — Dynamic Form
 
-> Trạng thái: **Bản nháp vòng 1, chờ Dương phản biện** · 19/11/2026
+> Trạng thái: **Đã chốt** · 19/11/2026 (sau nhiều vòng phản biện trong ngày, xem mục 13)
 > Phụ thuộc: [Module 0](module0-nen-tang.md) (registry, actor, file, endpoint công khai), [Module 1](module1-tai-khoan-phan-quyen.md) (chủ sở hữu, đối tượng chia sẻ), [Module 2](module2-datahub.md) (bảng, kiểu cột, kiểm tra giá trị, lịch sử dòng), [Module 3](module3-metric-dashboard.md) (biểu đồ tóm tắt phản hồi), [Module 4](module4-quan-ly-deal.md) (Form không ghi vào Quản lý Deal), [Module 5](module5-ket-noi-ai.md) (menu Form, tool `form_get`, `form_save`, `form_responses`), [Module 6](module6-thong-bao.md) (loại thông báo của Form).
 > Để module sau: gắn bài test vào lộ trình, ai chấm bài của nhân sự onboard, số lần thi lại theo lộ trình (Module 9).
 
@@ -239,6 +239,28 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 - **Server không tin giá trị của câu khoá do trình duyệt gửi lên.** Với nguồn Datahub, trình duyệt gửi mã kết quả đã chọn; server đọc lại đúng dòng đó (vẫn trong điều kiện của nguồn) và tự điền các câu khoá; mã không thuộc kết quả hợp lệ thì từ chối. Với API nội bộ và API bên ngoài, server chạy lại nguồn với cùng tham số và lấy kết quả có cùng mã (chủ chỉ ra trường làm mã khi cấu hình nguồn); không có trường mã thì câu chỉ khoá trên giao diện và trình soạn ghi rõ điều đó.
 - Có cột hệ thống tuỳ chọn **Mã kết quả đã chọn** để sau này đối chiếu phản hồi với dòng nguồn.
 
+### 2.8 Danh sách tự sinh ở mọi chỗ chọn
+
+*Dương chốt 19/11/2026.* Chỗ nào chọn thứ hệ thống đã biết thì phải có **danh sách tự sinh, đầy đủ** để chọn, không bắt gõ tay. Gõ tay chỉ là cách phụ, và khi gõ luôn có gợi ý (như trình soạn công thức của Module 2).
+
+| Chỗ chọn | Danh sách lấy từ |
+|---|---|
+| Nối câu hỏi với cột (2.3a) | Cột chưa nối của bảng đích, đúng kiểu |
+| Bảng đích, bảng nguồn | Datahub và bảng của chủ form (đã loại "Quản lý Deal", bảng được chia sẻ, bảng gộp) |
+| Trường của nguồn Datahub: cột hiển thị, cột điều kiện, cột sắp xếp, trường chèn vào khối, trường tự điền | Mọi cột của bảng nguồn, kèm kiểu và biểu tượng kiểu |
+| Trường của API nội bộ: tham số, trường kết quả | Schema của query trong registry (tên, kiểu, mô tả) |
+| Trường của API bên ngoài | Bấm **"Gọi thử"** với giá trị mẫu: server gọi API, đọc JSON trả về, tự tìm danh sách kết quả và liệt kê mọi trường (cả trường lồng nhau, dạng `khach_hang.ten`), tự đoán kiểu (số, ngày, link, ảnh); chủ sửa kiểu nếu đoán sai. Danh sách được lưu cùng cấu hình; API đổi cấu trúc thì "Gọi thử" lại |
+| Toán tử của điều kiện | Chỉ các toán tử hợp với kiểu của cột hoặc câu hỏi (ngày có `trong khoảng`, chữ có `chứa`…) |
+| Giá trị so sánh của điều kiện, biến thể theo giá trị | Lựa chọn của cột hoặc câu hỏi (kèm màu); cột chữ thì gợi ý các giá trị đang có trong bảng |
+| Câu hỏi làm tham số, câu hiện theo điều kiện, câu tự điền | Mọi câu hỏi của form, theo thứ tự trên form, kèm số trang |
+| Chèn trường vào chữ (`{…}`) | Gõ `{` thì hiện danh sách: trường của các nguồn trên form, câu trả lời, số kết quả |
+| Người được điền form | Người, team, vai trò trong org chart; Guest theo mục 3.1 |
+| Người chấm bài | Người có quyền dùng form |
+| API nội bộ cho form (Admin) | Mọi query trong registry còn được phép, kèm mô tả |
+
+- Danh sách dài thì có ô tìm (không dấu, không phân biệt hoa thường) và nhóm theo loại.
+- Thứ đã chọn mà sau đó bị xoá hoặc đổi tên (cột, trường, câu hỏi) thì hiện tên mới, hoặc báo đỏ "Cột đã bị xoá" và chặn xuất bản; không bao giờ để chuỗi chết lặng lẽ.
+
 ## 3. Chia sẻ và người điền
 
 ### 3.1 Ba cách mở form
@@ -246,8 +268,8 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 | Cách | Ai điền | Đăng nhập |
 |---|---|---|
 | **Công khai** | Ai có link | Không |
-| **Mọi tài khoản** | Mọi người dùng SoE Hub (không gồm Guest, xem mục 13) | Có |
-| **Chọn người** | Người, team, vai trò được chọn | Có |
+| **Mọi tài khoản** | Mọi người dùng SoE Hub, **không gồm Guest** | Có |
+| **Chọn người** | Người, team, vai trò được chọn; chọn được **từng Guest** hoặc **mọi Guest mẫu Sale** (*Dương chốt 19/11/2026*), ví dụ để sale dùng form tra cứu khách hàng | Có |
 
 - Link dạng `https://<domain>/f/<mã ngẫu nhiên 10 ký tự>`, không đoán được. Chủ **đổi link** được (link cũ chết ngay).
 - Form nội bộ tự ghi người điền vào cột hệ thống Người tạo của dòng. Form công khai: Người tạo là tài khoản hệ thống "Form công khai".
@@ -409,10 +431,8 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 | Endpoint không cần đăng nhập chỉ gồm đăng nhập, quên mật khẩu, OAuth, form công khai (Module 0 mục 16) | Giữ nguyên, nhưng "form công khai" nay gồm cả lời gọi nguồn dữ liệu của form đó; server SoE Hub gọi ra API bên ngoài thay người dùng form | Module 0 |
 | Cột mỗi bảng mặc định 70, trần 200 (Module 2 mục 11) | Bảng có form: **150** (cài đặt `form.table_max_columns`), trần 200 giữ nguyên (mục 1.1a) | Module 2, CLAUDE.md |
 
-## 13. Câu hỏi cho Dương
+## 13. Quyết định của Dương
 
-Đã chốt 19/11/2026: một form ghi vào tối đa một bảng, mỗi câu hỏi một cột (1.1, 2.3a); 150 cột cho bảng có form (1.1a); bản nháp và xuất bản, phiên bản không sinh cột mới (2.2); ràng buộc cột và điền sẵn qua link (2.3b); nhóm câu theo điều kiện (2.4); component Nguồn dữ liệu (2.5), hiển thị kết quả kể cả biến thể theo giá trị (2.6), tự điền từ kết quả (2.7); datahub "Quản lý Deal" không làm đích, không làm nguồn (1.1); chống spam không captcha (5.3); form thường nộp được qua API (5.1); thẻ số, biểu đồ trên kết quả chưa làm.
+Đã chốt 19/11/2026: một form ghi vào tối đa một bảng, mỗi câu hỏi một cột (1.1, 2.3a); 150 cột cho bảng có form (1.1a); bản nháp và xuất bản, phiên bản không sinh cột mới (2.2); ràng buộc cột và điền sẵn qua link (2.3b); nhóm câu theo điều kiện (2.4); component Nguồn dữ liệu (2.5), hiển thị kết quả kể cả biến thể theo giá trị (2.6), tự điền từ kết quả (2.7); datahub "Quản lý Deal" không làm đích, không làm nguồn (1.1); chống spam không captcha (5.3); form thường nộp được qua API (5.1); thẻ số, biểu đồ trên kết quả chưa làm.; Guest dùng form nội bộ khi được chọn đích danh (3.1); danh sách tự sinh ở mọi chỗ chọn (2.8).
 
-Còn:
-
-1. **Guest có điền, có dùng được form nội bộ không?** Ví dụ sale (Guest mẫu Sale) dùng form tra cứu khách hàng. Đề xuất: "Mọi tài khoản" không gồm Guest; "Chọn người" được chọn Guest cụ thể hoặc "mọi Guest mẫu Sale". Nếu không cho thì sale chỉ dùng được form công khai.
+Phần nối với Module 5 (menu Form, tool MCP) và Module 6 (loại thông báo) theo bản nháp của hai module đó; đổi theo khi chúng được chốt.

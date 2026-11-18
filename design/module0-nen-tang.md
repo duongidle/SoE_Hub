@@ -3,6 +3,7 @@
 > Trạng thái: **Đã chốt** · 18/11/2026
 > Phạm vi: kiến trúc, tech stack, quy ước dữ liệu và API, lịch sử/audit, khoá kỳ, sự kiện, job, file, bảo mật nền, hiệu năng, tài liệu API.
 > Hạ tầng triển khai: xem [ha-tang.md](ha-tang.md).
+> Đổi bởi [Module 7](module7-dynamic-form.md) mục 12 (chốt 19/11/2026): actor có thêm `via = form`; endpoint công khai của form gồm cả lời gọi nguồn dữ liệu của form, server gọi ra API bên ngoài thay người dùng form.
 
 Module này là nền móng cho mọi module khác. Nó định nghĩa những gì mọi module phải dùng chung, để sau này thêm module mới (kể cả **Automation**, chưa thiết kế) mà không phải sửa lại lõi.
 
