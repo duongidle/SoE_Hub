@@ -197,7 +197,7 @@ Toán tử: `eq`, `neq`, `in`, `nin`, `gt`, `gte`, `lt`, `lte`, `between`, `cont
   3. Người nhận kiểm tra đúng người rồi chuyển mã cho user qua kênh riêng (gặp trực tiếp, chat).
   4. User nhập mã + mật khẩu mới.
 
-  Mã có 6 số, dùng một lần, hết hạn sau 30 phút. Mỗi email tối đa 3 yêu cầu/giờ. Thông báo ghi rõ "Dương Trần yêu cầu đặt lại mật khẩu lúc …", để người nhận biết khi có người giả mạo. Tài khoản admin quên mật khẩu thì gửi cho admin khác; nếu chỉ có một admin thì đặt lại bằng lệnh trên server.
+  Mã có 6 số, dùng một lần, hết hạn sau **6 giờ** (cập nhật theo Module 1 mục 6.4; bản đầu ghi 30 phút). Mỗi email tối đa 3 yêu cầu/giờ. Thông báo ghi rõ "Dương Trần yêu cầu đặt lại mật khẩu lúc …", để người nhận biết khi có người giả mạo. Tài khoản admin quên mật khẩu thì gửi cho admin khác; nếu chỉ có một admin thì đặt lại bằng lệnh trên server.
 - **Không bắt buộc 2FA.**
 - Session lưu trong database, cookie `httpOnly` + `Secure` + `SameSite=Lax`. Đổi mật khẩu thì đăng xuất mọi phiên khác.
 - Các loại token: token cá nhân (API, Claude Code, Codex), OAuth access token (connector Claude Desktop, claude.ai, ChatGPT), token tài khoản hệ thống.
@@ -339,3 +339,88 @@ Không thêm code Automation nào cho đến khi module đó được thiết k�
 - Vai trò, cây tổ chức, cấp dữ liệu cho Guest → Module 1.
 - Scope và trang quản lý kết nối AI → Module 5.
 - Kênh thông báo (trong ứng dụng, SSE; email nếu cần sau này) → Module 6.
+
+---
+
+## Quyết định khi code
+
+Ghi trong lúc code Stage 0 (18/11/2026). Các phần đã chốt ở trên không đổi; mục này chỉ thêm chi tiết và ghi lệch.
+
+### Phiên bản và công cụ
+- Phiên bản chọn: TypeScript 5.9 (TS 7 quá mới, `typescript-eslint` chưa hỗ trợ), ESLint 9, Zod 4, Fastify 5, Drizzle 0.45, pg-boss 12, Vitest 5, pnpm 12, Vite 8. `engines: node >= 22`, chạy tốt trên Node 24.
+- Gói workspace đặt tên `@soe/*` và xuất thẳng mã TypeScript (`exports → src/index.ts`). Chạy dev bằng `tsx`, production gói bằng `tsup` thành bundle tự chứa cho `server`, `worker`, `migrate` (image không cần `node_modules`).
+- Import trong code không có đuôi `.ts`; `tsconfig` dùng `moduleResolution: Bundler`.
+- Docker chưa cài trên máy dev nên `docker-compose.yml`, `Dockerfile`, `Caddyfile` chưa chạy thử. Đã chạy thử bản bundle bằng `node dist/*.js` với `NODE_ENV=production`.
+- Dev dùng PostgreSQL 17 cài bằng Homebrew (không dùng Docker dev như bảng Stage 0 trong `CLAUDE.md`). Test tự tạo lại database `soe_hub_test` mỗi lần chạy.
+
+### Registry và thực thi
+- Registry và executor nằm ở `apps/api/src/core`. Module khai báo thao tác ở `apps/api/src/modules/<module>/` rồi thêm vào `modules/index.ts`.
+- Tên thao tác dạng `<module>.<đối tượng>.<động từ>` (2 đến 4 phần, chữ thường). Tên sự kiện: 3 đến 4 phần.
+- Mỗi thao tác khai báo thêm `http: { method, path }`. Query dùng GET; command không dùng GET. Đầu vào gom từ path + query (GET, DELETE) hoặc path + query + body JSON (các phương thức khác); path thắng khi trùng tên.
+- `permission: null` nghĩa là công khai (không cần actor). Còn lại bắt buộc có actor.
+- `onboarding.*` luôn phải `aiAllowed: false`; vi phạm thì lỗi ngay lúc khai báo.
+- Kênh `mcp` gọi thao tác `aiAllowed: false` bị từ chối `ai_not_allowed` (MCP làm ở Stage 5, quy tắc đã có sẵn trong executor).
+- Executor là cửa duy nhất để chạy thao tác: tìm → kiểm tra đầu vào (Zod) → actor/quyền → kiểm tra AI → chạy (command trong một giao dịch) → sự kiện outbox → audit → kết quả idempotent. Kết quả được kiểm tra theo `output` ở dev/test, tắt ở production.
+- Audit: command thành công ghi trong cùng giao dịch; bị từ chối quyền (kể cả chưa đăng nhập) và command lỗi ghi bằng kết nối riêng (vì giao dịch đã rollback); query chỉ ghi khi khai báo `audit: "always"` (đọc nhạy cảm: nhật ký, link tải file). Lỗi dữ liệu đầu vào không ghi audit (chỉ ghi log pino).
+- Sự kiện phải khai báo trong danh mục (`EventRegistry`, có Zod schema và `version`) và trong `emits` của command; phát sự kiện chưa khai báo là lỗi lập trình.
+
+### Actor và phân quyền (tạm thời)
+- Hai giao diện cắm được: `ActorResolver` (từ request ra actor) và `Authorizer` (`authorize(actor, {name, kind, permission})`). Stage 1 thay cả hai.
+- Bản tạm `apps/api/src/auth/dev.ts`: chỉ bật khi `NODE_ENV !== "production"`. Actor lấy từ header `X-Dev-Actor` (mặc định `DEV_ACTOR_ID`); `X-Dev-Scopes` giới hạn quyền để thử luồng từ chối.
+- Production: `NoActorResolver` + `DenyAllAuthorizer`. Mọi thao tác cần actor trả `401 unauthenticated`. Chỉ `/health` và `system.ping` dùng được. Có test cho việc này.
+- Cột `*_by`, `actor_user_id`, `owner_id`… là `uuid` thường, **chưa có khoá ngoại**. Stage 1 thêm bảng `users` và khoá ngoại (cần xử lý dòng của tài khoản hệ thống). Worker dùng `SYSTEM_USER_ID = 00000000-0000-7000-8000-000000000000`; Stage 1 phải tạo tài khoản hệ thống này.
+- Chuỗi quyền đang dùng: `system:whoami`, `system:setting:read|write`, `system:audit:read`, `file:read|write`, `docs:read`, `events:subscribe`. Module 1 gán chúng vào vai trò (ví dụ `system:audit:read` chỉ Admin).
+- `/api/docs` và `/api/openapi.json` đòi quyền `docs:read` (đúng ý "phải đăng nhập mới xem"). Hệ quả: production chưa xem được tài liệu cho đến Stage 1.
+
+### Dữ liệu và migration
+- ID là UUIDv7 sinh ở ứng dụng (PostgreSQL 17 chưa có hàm này).
+- Chỉ bảng nghiệp vụ có đủ cột chuẩn (`files`, `system_settings`). Bảng hạ tầng (`audit_log`, `row_history`, `outbox`, `idempotency_keys`, `period_locks`, `snapshots`) chỉ có cột cần thiết.
+- Hai migration: `0000_init` (Drizzle sinh từ schema) và `0001_platform_setup` (viết tay: extension `pg_trgm`, `unaccent`; hàm `soe_unaccent()` IMMUTABLE để đánh index; vai trò `soe_app`; phân quyền; trigger append-only).
+- Hai vai trò: chủ schema chạy migration; `soe_app` cho api và worker (không đổi được schema). Mật khẩu `soe_app` đặt bởi script migrate từ `APP_DB_PASSWORD`, không nằm trong git.
+- Append-only hai lớp cho `audit_log`, `row_history`, `snapshots`, `snapshot_rows`: (1) `soe_app` bị thu `UPDATE/DELETE/TRUNCATE`; (2) trigger chặn mọi vai trò kể cả chủ schema. Dọn nhật ký quá hạn (thiết kế nói giữ tối thiểu 2 năm) phải do DBA tắt trigger có chủ đích; chưa có job tự xoá.
+- `pg-boss` giữ bảng riêng trong schema `pgboss`, schema này do `soe_app` sở hữu (để pg-boss tự tạo bảng cho hàng đợi). Hệ quả: `soe_app` có quyền DDL trong schema đó nhưng không có quyền gì để đổi `public`.
+- Bảng `system_settings` (khoá → JSON, có `version`) lưu cài đặt hệ thống, ví dụ `trash.retention_days`.
+
+### Mã lỗi và định dạng
+- Danh sách mã lỗi và mã HTTP ở `packages/shared/src/errors.ts`: `validation_error` 400, `invalid_filter` 400, `idempotency_key_invalid` 400, `unauthenticated` 401, `forbidden` 403, `ai_not_allowed` 403, `not_found` 404, `conflict` 409 (lệch `version`), `payload_too_large` 413, `unsupported_media_type` 415, `idempotency_key_reuse` 422, `quota_exceeded` 422, `period_locked` 423, `rate_limited` 429, `internal_error` 500, `unavailable` 503.
+- Mọi lỗi đều là `{ error: { code, message, details?, request_id } }`, kể cả lỗi của Fastify (JSON hỏng, sai Content-Type, quá giới hạn tốc độ). API chỉ nhận body `application/json`.
+- Mỗi phản hồi có header `X-Request-Id` (nhận lại id của client nếu hợp lệ). Log pino che `authorization`, `cookie`.
+
+### Idempotency và phiên bản
+- `Idempotency-Key` dùng được cho **mọi command** (không chỉ lệnh tạo), 8 đến 200 ký tự in được, giữ 24 giờ, riêng theo từng người dùng. Khoá được giữ trong chính giao dịch của command: hai yêu cầu song song cùng khoá chỉ chạy handler một lần. Cùng khoá mà nội dung khác → `422 idempotency_key_reuse`. Command lỗi không lưu kết quả nên gửi lại được. Job `system-idempotency-purge` dọn mỗi giờ.
+- `version`: helper `versionedUpdate` (`UPDATE … WHERE version = ?`). Lệch → `409 conflict` kèm `current_version`. Với cài đặt: tạo mới không gửi `version`, sửa bắt buộc gửi.
+
+### Bộ lọc và phân trang
+- Mỗi bảng khai báo `FieldMap` (tên cột API → kiểu + biểu thức SQL). Cột lạ, toán tử không hợp kiểu, giá trị sai kiểu đều trả `invalid_filter`. Giá trị luôn là tham số bind. Giới hạn: lồng tối đa 5 cấp, 50 điều kiện, danh sách `in` tối đa 500 giá trị.
+- `contains` / `starts_with`: `soe_unaccent(lower(cột)) LIKE soe_unaccent(lower(giá trị))`, có escape `%` `_`. `eq` trên chữ phân biệt hoa thường.
+- Toán tử ngày tương đối tính theo giờ Việt Nam. Tuần bắt đầu thứ Hai. Quý theo năm dương lịch (năm tài chính tuỳ chỉnh để Stage 4). `last_n_days n` gồm cả hôm nay (n ngày); `next_n_days n` từ hôm nay.
+- Keyset: khoá sắp xếp được đọc về dạng chữ (`::text`) để con trỏ không mất độ chính xác micro giây của timestamp. ASC xếp NULL cuối, DESC xếp NULL đầu. `id` luôn là khoá phụ cuối. Con trỏ là chuỗi base64url, gắn với đúng kiểu sắp xếp đã dùng; đổi `sort` giữa chừng thì lỗi. Mặc định `limit` 50, tối đa 500. `total` chỉ tính khi gửi `include_total=true` (đếm tốn trên bảng lớn).
+
+### Outbox, worker, SSE
+- Dispatcher thăm dò mỗi 1 giây (`WORKER_OUTBOX_POLL_MS`), lấy lô bằng `FOR UPDATE SKIP LOCKED` nên chạy nhiều worker được. Giao **ít nhất một lần**; handler phải idempotent. Cột `delivered_to` ghi các bên nghe đã nhận, nên thử lại chỉ chạy bên chưa nhận. Thử lại theo lũy thừa 2 giây (tối đa 15 phút); quá 8 lần thì `status = dead` để xem.
+- Bốn job pg-boss: `system-heartbeat` (mỗi phút, job mẫu, ghi `worker.last_heartbeat` để `/health` báo tình trạng worker), `system-trash-purge` (3:00 giờ Việt Nam), `system-idempotency-purge` (mỗi giờ), `system-outbox-cleanup` (xoá sự kiện đã xử lý quá 14 ngày; sự kiện `dead` được giữ). Job lỗi thử lại 3 lần có backoff.
+- SSE: `/api/v1/events?topics=a,b`. Chỉ gửi **tín hiệu** (`id`, tên sự kiện, loại và id đối tượng, thời điểm), không gửi dữ liệu; client tải lại qua query có kiểm tra quyền. Đường đi: outbox → worker (`sse.fanout`) → `pg_notify` → mọi tiến trình api đang `LISTEN` → kết nối SSE. Chưa hỗ trợ `Last-Event-ID` (client tải lại sau khi kết nối lại). Hiện mọi người đã xác thực nhận mọi tín hiệu theo chủ đề; Stage 1 phải lọc theo quyền xem đối tượng.
+
+### Thùng rác, khoá kỳ, snapshot
+- Bảng có thùng rác đăng ký bằng `registerTrashTable({ name, neverHardDelete?, beforePurge? })`. Bảng đánh dấu `neverHardDelete` (deal ở Stage 4) không bao giờ bị purge. Số ngày giữ lấy từ cài đặt `trash.retention_days`, nếu không có thì `TRASH_RETENTION_DAYS` (mặc định 7). Với `files`, purge xoá cả file trên kho lưu trữ trước.
+- Khoá kỳ: bảng `period_locks` (khoá theo `table_id` + `scope` + khoảng ngày, gồm cả hai đầu). `assertPeriodOpen` nhận mọi ngày liên quan (giá trị cũ và mới của cột kỳ) nên chặn cả việc dời dòng ra hoặc vào kỳ đã khoá. Lỗi `423 period_locked`. `Date` được đọc theo giờ Việt Nam. `lockPeriod` / `unlockPeriod` ghi audit; mở lại bắt buộc có lý do. Stage 0 chưa có command nào gọi chúng (quyền Manager thuộc Module 1/4).
+- Snapshot: bảng `snapshots` + `snapshot_rows` và helper `createSnapshot`; chỉ cho ghi thêm.
+
+### File
+- Luồng ký số: `file.upload.init` (tạo bản ghi `pending` + link PUT, hạn 10 phút) → client PUT → `file.upload.complete` (kiểm tra có file và đúng dung lượng) → `file.download.url` (link hạn 5 phút, có audit). Driver `s3` dùng presigned URL; driver `local` (dev) ký HMAC và phục vụ qua `/api/v1/storage/local/put|get`.
+- Giới hạn: `FILE_MAX_BYTES` (25 MB), `FILE_USER_QUOTA_BYTES` (2 GB mỗi người), danh sách loại cho phép `FILE_ALLOWED_TYPES`. Tên file được làm sạch (bỏ đường dẫn, ký tự điều khiển).
+- Cho đến Stage 1, file chỉ chủ sở hữu (người tải lên) dùng được. Chia sẻ theo quyền do Module 1 quyết.
+
+### Bảo mật nền và vận hành
+- `@fastify/helmet` với CSP chặt (nới riêng cho trang `/api/docs`), HSTS chỉ bật ở production, `X-Robots-Tag: noindex`, `Cache-Control: no-store` cho `/api` và `/health`.
+- Giới hạn tốc độ: mặc định 300 yêu cầu/phút theo người dùng (hoặc theo IP khi chưa biết người dùng); `/health` không bị giới hạn. Chưa phân biệt theo token (Stage 1/5).
+- CSRF token chưa làm vì chưa có xác thực bằng cookie (Stage 1).
+- Biến môi trường để trống được coi là chưa đặt. Production dùng driver `local` mà không đặt `STORAGE_SIGNING_SECRET` thì không khởi động.
+- Production: api phục vụ luôn web tĩnh (`WEB_DIST_DIR`); Caddy chỉ làm TLS và chuyển tiếp (`flush_interval -1` cho SSE).
+- Docker Compose: `postgres`, `migrate` (chạy một lần với quyền chủ schema), `api`, `worker`, `caddy`. MinIO không có trong compose; dùng Cloudflare R2 hoặc tự thêm.
+
+### Ngoài phạm vi Stage 0 (có chủ ý)
+- Không có `users`, vai trò, đăng nhập, phiên, token, cây tổ chức, luật phân quyền (Module 1).
+- Không có `packages/formula`, `packages/metrics` ngoài chỗ trống đã nối vào workspace.
+- Không có mã Automation; chỉ có chỗ cho `via = automation` và `automationId` trong actor.
+- Thao tác hàng loạt (`batch`) và upsert `source` + `external_id` (mục 7) chưa có vì chưa có bảng nghiệp vụ; khung (giao dịch, idempotency, version) đã sẵn.

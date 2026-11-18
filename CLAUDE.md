@@ -54,7 +54,7 @@ Repo: `https://github.com/duongidle/SoE_Hub`.
 | # | File | Nội dung | Trạng thái |
 |---|---|---|---|
 | 0 | `module0-nen-tang.md` + `ha-tang.md` | Kiến trúc, stack, quy ước, audit, khoá kỳ, sự kiện, hạ tầng | Đã chốt |
-| 1 | `module1-tai-khoan-phan-quyen.md` | Tài khoản, vai trò, cây tổ chức, cấp dữ liệu, token | Chưa |
+| 1 | `module1-tai-khoan-phan-quyen.md` | Tài khoản, vai trò, cây tổ chức, cấp dữ liệu, token | Đã chốt |
 | 2 | `module2-datahub.md` | Lưu trữ, kiểu cột, công thức, lịch sử, import/export | Chưa |
 | 3 | `module3-metric-dashboard.md` | Định nghĩa chỉ số, biểu đồ | Chưa |
 | 4 | `module4-quan-ly-deal.md` | Template Deals, người tham gia, chính sách/com, forecast, BANT | Chưa |
@@ -131,8 +131,10 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 - Quyền bổ sung: Admin hoặc Manager cấp thêm một quyền trong danh sách cho phép cho một người cụ thể. Không có công cụ tự tạo vai trò.
 - Guest mặc định không có quyền gì. Manager cấp từng phần dữ liệu (ví dụ bộ phận Data đọc Deals qua API/export, chỉ cột hệ thống + cột chung). Guest không bao giờ thấy cột cá nhân. Sale chỉ được cấp Knowledge.
 - Tài khoản theo **danh sách org chart** (email, vai trò, thông tin cá nhân, vị trí trong cây) trong Cài đặt; không có thao tác "tạo tài khoản". Email trong danh sách đăng ký/đăng nhập thì nhận đúng vai trò. Chỉ email đuôi **@base.vn** được đăng ký (kiểm tra ở server). Tuỳ chọn của Admin (mặc định tắt): email @base.vn ngoài danh sách thì thành Guest "Sale" (chỉ đọc Knowledge).
-- Đăng nhập Google lần đầu bắt buộc đặt mật khẩu, sau đó đăng nhập được bằng email + mật khẩu.
-- Quên mật khẩu: không dùng email; mã xác thực gửi qua thông báo trong ứng dụng cho leader trực tiếp, manager và admin.
+- **Đăng ký lần đầu và quên mật khẩu dùng chung luồng mã:** không dùng email; mã 6 số gửi qua thông báo trong ứng dụng cho leader trực tiếp, manager và admin; người dùng tự liên hệ xin mã; mã hiệu lực 6 giờ.
+- Google là phương án phụ, **mặc định tắt** (hệ thống sẽ được bàn giao, hạn chế phụ thuộc Google). Khi bật: bỏ qua bước xin mã; đăng nhập Google lần đầu bắt buộc đặt mật khẩu.
+- Mật khẩu tối thiểu 6 ký tự, không bắt buộc ký tự đặc biệt; chặn mật khẩu phổ biến; sai 5 lần khoá 15 phút.
+- Admin **xem được** Quản lý Deal của mọi cây (chỉ đọc) để rà dữ liệu. Datahub riêng thì Admin cũng không xem; nhật ký Admin không ghi giá trị của dòng datahub.
 - Không bắt buộc 2FA.
 - Chuyển giao dữ liệu (Admin): chọn tài khoản nguồn và đích; deal đã đóng giữ nguyên người cũ.
 
