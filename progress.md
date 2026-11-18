@@ -13,6 +13,7 @@ Cập nhật: 18/11/2026
 3. Ghi nhớ cho các phần sau của Stage 2:
    - 2B: golden test được đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (Dương cho phép), không commit dữ liệu lấy từ file, máy không có file thì test tự bỏ qua.
    - 2C: làm cả công cụ **Tìm dòng trùng** (Module 2 mục 7a).
+   - 2C: làm cả ô **Lọc theo thời gian** (Module 2 mục 5.4, bổ sung 18/11): lưu trong `config.time_filter` của view, server dịch sang `between`/toán tử ngày; không cần đổi schema.
    - Bảng gộp thuộc Stage 3 (Module 3 mục 4), không làm ở Stage 2.
 4. **Module 4 đang chờ Dương chốt bản nháp.** Chốt xong: đổi trạng thái file thành `Đã chốt`, cập nhật bảng module và "Quy định đã chốt" trong CLAUDE.md (mục 18 của file: template Admin + Manager, bốn lớp cột, datahub "Quản lý Deal" được tạo bảng và được bảo vệ, Deals/Probation KPI theo phạm vi deal). Khi code Stage 4 làm mục 19 (đối chiếu Module 2).
 5. Golden test 2B đã làm (đọc file mẫu, 3.322 công thức); số liệu và hai điểm lạ của file mẫu ở `design/module2-datahub.md` mục 2B.

@@ -277,6 +277,34 @@ Bốn cột B, A, N, T, mỗi cột: `Có bằng chứng` / `Chưa rõ` / `Âm`.
 - Snapshot tự động 00:05 ngày đầu mỗi quý cho deal đang mở; Manager chụp thêm được.
 - Cuối quý so với snapshot đầu quý: mỗi deal trong snapshot rơi vào Won trong quý, trượt sang quý sau, Lost/Disqualified, hoặc vẫn mở. Độ chính xác = doanh thu Won thực tế ÷ forecast lúc chụp.
 
+## 11a. Lọc theo thời gian
+
+Mọi bảng đều có ô Thời gian của Module 2 mục 5.4. Quản lý Deal có thêm một **thanh chọn kỳ dùng chung** ở đầu trang.
+
+- Đổi kỳ ở một chỗ thì Deals, Index, Probation KPI và dashboard cùng theo. Mặc định là **Quý này**.
+- Một bảng có thể tách khỏi kỳ chung ("Không theo kỳ chung") và giữ khoảng riêng. Lựa chọn này tự lưu vào view.
+- Kỳ chỉ thu hẹp dữ liệu, không bao giờ mở rộng quyền xem.
+
+**Deals: chọn cách hiểu "deal thuộc kỳ"**
+
+| Cách | Điều kiện |
+|---|---|
+| **Liên quan đến kỳ** (mặc định) | Start date ≤ cuối kỳ, và deal đang mở hoặc Closing date ≥ đầu kỳ. Gồm deal nhận trong kỳ, deal đóng trong kỳ và deal còn chạy trong kỳ |
+| Nhận trong kỳ | Start date trong kỳ |
+| Đóng trong kỳ | Deal đã đóng, Closing date trong kỳ |
+| Dự kiến chốt trong kỳ | Deal đang mở, Closing date trong kỳ (giống forecast) |
+
+**Các bảng khác**
+
+| Bảng | Lọc theo |
+|---|---|
+| Index | Cột Thời gian (dòng tháng) |
+| Probation KPI | Năm chứa kỳ |
+| Bảng tự tạo | Cột ngày người dùng chọn cho kỳ chung, hoặc không theo |
+| Dashboard | Kỳ chung là khoảng thời gian trong bộ lọc chung của dashboard. Biểu đồ có kỳ riêng (ví dụ xu hướng 12 tháng) chọn "bỏ qua bộ lọc chung" (Module 3 mục 8) |
+
+Thẻ KPI theo kỳ: chọn quý thì hiện KPI quý; chọn năm thì hiện KPI năm; chọn tháng thì hiện tiến độ của quý chứa tháng đó (KPI chỉ commit theo năm và quý).
+
 ## 12. Khoá kỳ
 
 Cột kỳ của Deals là **Closing date** (theo tháng). Manager khoá kỳ cho cây mình. Kỳ đã khoá: không sửa Doanh thu, Status, Closing date, Loại deal, người tham gia và tỉ lệ của deal đóng trong kỳ. Cột tuỳ chỉnh, ghi chú, BANT vẫn sửa được. Kỳ com của bảng Thanh toán tính riêng (mục 7).

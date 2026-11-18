@@ -95,6 +95,23 @@ Bảng cũng nhớ view cuối cùng mỗi người đã mở.
 
 Ví dụ view "Ưu tiên hôm nay" của Deals: lọc deal đang theo dõi, sắp theo `Mức ưu tiên (BANT)` (thứ tự lựa chọn) rồi theo `Hạn việc tiếp theo` (tăng dần, ô trống cuối).
 
+### 5.4 Lọc theo thời gian
+
+Bổ sung ngày 18/11/2026 theo yêu cầu của Dương, làm ở phần 2C.
+
+- Mỗi bảng có ô **Thời gian** cố định trên thanh công cụ, cạnh nút Lọc. Không cần mở hộp lọc điều kiện.
+- Chọn cột ngày để lọc: mọi cột Ngày, Ngày giờ, kể cả Ngày tạo, Ngày sửa. Mặc định là cột ngày đầu tiên của bảng. Bảng không có cột ngày thì ẩn ô này.
+- Chọn được nhiều cột ngày cùng lúc, nghĩa là "một trong các cột rơi vào khoảng". Ví dụ ngày nhận **hoặc** ngày chốt.
+- Khoảng có sẵn: Hôm nay, Tuần này, Tuần trước, Tháng này, Tháng trước, Quý này, Quý trước, Năm nay, Năm trước, N ngày qua, Từ ngày – đến ngày.
+- Chọn được một kỳ cụ thể (tháng, quý hoặc năm), có nút ‹ › để lùi hoặc tiến một kỳ.
+- Khoảng tương đối tự trôi theo ngày hiện tại ("Tháng này" sang tháng sau là tháng mới). Kỳ cụ thể đứng yên.
+- Kết hợp **và** với bộ lọc điều kiện. Khoảng đang lọc hiện thành chip trên đầu bảng, bấm × để bỏ. Số dòng và dòng tổng của nhóm tính theo khoảng đang lọc.
+- Tự lưu vào view như mọi thiết lập khác (mục 5.2), trong `config.time_filter`.
+- Server dịch thành cú pháp lọc của Module 0: `between` và toán tử ngày tương đối, theo giờ Việt Nam, tuần bắt đầu thứ Hai, quý theo cài đặt năm tài chính.
+- API và MCP gửi `time_filter` cùng `filter`, hoặc dùng thẳng toán tử ngày trong `filter`.
+- Cột ngày hay bị lọc được tự tạo index như mục 3.
+- Dashboard đã có khoảng thời gian trong bộ lọc chung (Module 3 mục 8). Quản lý Deal có thanh chọn kỳ dùng chung (Module 4 mục 11a).
+
 ## 6. Công thức
 
 ### 6.1 Cú pháp
