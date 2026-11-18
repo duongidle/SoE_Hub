@@ -47,6 +47,22 @@ Kế hoạch Stage 2:
 
 - 396 test pass; test tốc độ 100.000 dòng (`datahub-perf.test.ts`): trước index 23–81 ms, sau index tự động 3–44 ms, trang keyset 2,7 ms; nạp 100.000 dòng 3,4 s. 4 lỗi test phụ thuộc thứ tự đã sửa.
 
+## Đang làm: Stage 2C (giao diện Datahub), Sonnet code (bắt đầu 19/11)
+
+Kế hoạch 2C (4 phần, mỗi phần commit riêng):
+- **2C-1** (đang làm): trang danh sách datahub, trang datahub (tab bảng), grid ảo hoá, sửa ô, chi tiết dòng + lịch sử, SSE, ô "đang tính".
+- 2C-2: thanh công cụ view (tab view, lọc lồng nhau, ô Thời gian mục 5.4, sắp xếp nhiều cấp, nhóm + dòng tổng, ẩn/cố định/kéo thứ tự/độ rộng cột, chiều cao dòng, tô màu theo điều kiện), tự lưu theo bảng mục 5.2.
+- 2C-3: quản lý cột (thêm/sửa/xoá, kiểu, thuộc tính, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện công thức mẫu.
+- 2C-4: Tìm dòng trùng (mục 7a, API + giao diện), chia sẻ, thùng rác, cài đặt giới hạn Admin; kiểm thử giao diện cả 2C theo "Định nghĩa xong" điểm 5.
+
+Các bước 2C-1 (đánh dấu khi xong):
+- [ ] 1. Thư viện (Glide, fontsource), định dạng vi-VN dùng chung, thành phần ui còn thiếu
+- [ ] 2. Trang danh sách datahub + trang datahub (tab bảng) + menu + URL
+- [ ] 3. Grid ảo hoá đọc keyset, hiển thị mọi kiểu cột, "đang tính", lỗi công thức
+- [ ] 4. Sửa ô, thêm/xoá dòng, dán vùng, điền xuống, sửa hàng loạt, hoàn tác/làm lại
+- [ ] 5. Chi tiết dòng + lịch sử, SSE
+- [ ] 6. Test (vitest, e2e), kiểm thử giao diện, quyết định khi code
+
 ## Bước tiếp theo
 
 **Opus rà soát 2B+** (diff từ commit `49d3b7b` trở đi), rồi chờ Dương bảo làm **2C** (giao diện grid: dùng `pending` theo ô, `consistency`, SSE `datahub.formula.recalculated`; view tự lưu; trình soạn công thức; Tìm dòng trùng; chia sẻ/thùng rác/giới hạn). Lệnh test nhanh: `pnpm exec vitest run apps/api/test/datahub-partial apps/api/test/datahub-events apps/api/test/datahub-consistency apps/api/test/datahub-reconcile`.
