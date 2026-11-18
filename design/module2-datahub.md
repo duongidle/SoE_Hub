@@ -447,3 +447,40 @@ Phạm vi 2B: engine công thức (`packages/formula`), các cột `formula`, `r
 **Đo tốc độ** (`apps/api/test/datahub-formulas-perf.test.ts`, 100.000 dòng nguồn x 100.000 dòng đích, máy dev)
 - Tính lại cả cột 100.000 dòng: SUMIFS 1,76 s, COUNTIFS hai điều kiện 2,33 s, XLOOKUP 2,08 s, AVERAGEIFS 1,97 s, MAXIFS trên ngày 2,34 s, SUMIFS/COUNTIFS gộp 2,52 s. Sửa một dòng nguồn thì 6 cột phụ thuộc tính lại trong 3,95 s.
 
+
+### Stage 2B+ (tính lại theo phần, sự kiện, đợi tính xong, đối soát)
+
+Làm theo mục 6.7. Ghi lại chi tiết khi code; không đổi quy định đã chốt.
+
+**Hàng đợi và tính theo phần** (`change-queue.ts`, `partial.ts`, `recalc.ts`; migration `0007`)
+- Một bảng `dh_change_queue` cho cả hệ thống, một dòng mỗi lần ghi cho mỗi cột bị ảnh hưởng. `mode`: `rows` (dòng của chính bảng), `linked` (dòng của bảng đích Liên kết, tra ngược bằng index GIN rồi mới ra dòng của bảng này), `keys` (khoá nhóm cũ và mới của dòng nguồn), `full` (cả cột). Ghi vào hàng đợi nằm **trong giao dịch ghi dòng**, nên ghi đã commit thì chắc chắn có mục trong hàng đợi.
+- `touchColumns` khoá các cột theo thứ tự id rồi đặt `pending` + `calc_requested_at`; nhờ vậy mục ghi trong lúc cột đang chạy không bao giờ mất (cột chạy xong thấy `calc_requested_at` mới hơn mốc nhận việc thì quay lại `pending`).
+- Worker nhận **cả đợt** của một cột, tính chỉ các dòng được nêu, rồi trong MỘT giao dịch: xoá đúng các mục đã đọc, nhả cột, ghi `calc_seq`, xếp mục cho cột đọc cột này (chuỗi, mang theo `cũ → mới`) và phát sự kiện `done`. Vượt `PARTIAL_MAX_RATIO` = 20% số dòng của bảng, hoặc có mục `full`, hoặc quá `CHAIN_LIMIT` = 5.000 thay đổi thì tính cả cột.
+- Nhóm khoá chỉ theo cột kiểu chữ/số/ngày (`keyFamily`); khoá kiểu khác (lựa chọn, ngày giờ, checkbox) tính cả cột. Hàm SQL `soe_eqk` là bản SQL của `equalityKey`.
+- Công thức chỉ đọc cột cùng dòng vẫn do API tính trong giao dịch ghi (như 2B), không qua hàng đợi.
+
+**Sự kiện và song song**
+- `datahub.formula.recalculated`: `pending` (khi đánh dấu), `changed` (mỗi lô tối đa `EVENT_ROWS` = 500 phần tử `row_id, column, old, new`; giá trị hoặc `{error: "#DIV/0!"}`; ô không đổi thì không có phần tử), `done` (tổng số dòng đổi, không có danh sách vì danh sách đã đi qua các sự kiện `changed`). Lô `changed` được ghi vào outbox trong **cùng giao dịch** với lô ghi giá trị. Không có sự kiện "tải lại cả bảng".
+- SSE dùng chung sự kiện này nhưng chỉ phát **tín hiệu** (không có giá trị, như mọi tín hiệu SSE: `core/subscribers.ts`); người nghe cần giá trị (Automation) đọc outbox. Người nhận SSE = người nhìn thấy bảng.
+- Song song: `processPendingColumns` chạy `datahub.recalc_parallel` làn (mặc định 2, 1–4, Admin chỉnh trong Cài đặt hệ thống; trang Cài đặt đọc từ catalog nên không cần giao diện riêng). Một làn chỉ nhận cột mà các cột nó đọc đã `ready` (`claimNext`), nên chuỗi A→B giữ thứ tự dù nhiều làn.
+
+**Số thứ tự thay đổi và đợi tính xong** (`consistency.ts`, `rows-read.ts`, `row-ops.ts`)
+- Sequence `dh_change_seq`. Mọi lệnh ghi dòng trả **`seq`**: `row.create|update|restore` (trường `seq` cạnh các trường của dòng), `row.delete` và `row.upsert` (`seq`), `row.batch` (`seq` ở ngoài và trong từng phần tử `results`; cả lô một số). `calc_seq` của cột (`calc.seq` trong API cột) = số cao nhất cột đã tính tới.
+- **"Xong tới số S"** của một cột tính toán = không còn mục hàng đợi `seq <= S` ở cột đó **và ở mọi cột nó đọc, kể cả gián tiếp** (đệ quy qua `dh_formula_deps`; chuỗi A→B: mục của B chỉ xuất hiện lúc A xong, nên chỉ xét B thì sai). Cột `pending`/`running` mà không có mục nào (làm mới `TODAY()`/`NOW()`) tính là chưa xong với mọi S. Lấy hàng đợi làm nguồn sự thật thay vì so `calc_seq >= S`, vì cột không bị lần ghi S đụng tới thì `calc_seq` không bao giờ lên tới S.
+- `datahub.row.list` và `datahub.row.get` nhận `consistent_after=<số>` và `consistent=true` (= `currentChangeSeq` lúc gọi; cả hai thì lấy số lớn hơn). Đợi bằng vòng hỏi cách 25 ms tăng dần tới 250 ms. **Thời gian chờ tối đa mặc định 5.000 ms**, cài đặt `datahub.consistent_wait_ms` (0–60.000, Admin chỉnh). Hết giờ thì vẫn trả giá trị hiện có.
+- Kết quả có `consistency: { seq, stale, columns }` chỉ khi người gọi xin tuỳ chọn: ở danh sách là trường cạnh `data`/`next_cursor` (cơ chế `listExtra` của registry, có trong OpenAPI), ở `row.get` là trường của dòng. `columns` là mã các cột chưa xong. Quyền không đổi: người không đọc được bảng nhận `not_found` dù có dùng tuỳ chọn; mã cột trả ra chứ không phải công thức.
+- **"Đang tính" theo ô**: mỗi dòng trả về có trường `pending` (mảng mã cột) khi có ô đang tính; không có thì không có trường. Cách tính: cột có mục `full`, cột đang làm mới không có mục, hoặc cột có cột nguồn đang chờ → **mọi dòng** của trang (chưa biết dòng nào đổi); còn lại chỉ các dòng mà hàng đợi nêu (`rows`) hoặc suy ra được (`linked` qua GIN giới hạn trong các dòng của trang, `keys` qua `soe_eqk` giới hạn trong các dòng của trang). Khi có `fields=`, chỉ xét các cột được chọn. Mỗi lần đọc thêm 1–2 truy vấn nhẹ trên `dh_columns`/`dh_change_queue`.
+- Ghi bằng các kênh khác không qua `applyRowOps` (import, chuyển giao, khôi phục thùng rác theo bảng) đánh dấu cột bằng `markPending` (mục `full` với số mới) nên cũng được đợi bằng `consistent=true`, nhưng không trả `seq` (không có lệnh ghi dòng nào để trả).
+
+**Đối soát hằng đêm** (`reconcile.ts`, job `datahub-reconcile` 03:45 giờ Việt Nam; migration `0008` thêm `dh_columns.reconciled_at`)
+- Lấy các cột tính toán **đang nghỉ** (`ready`, không có mục hàng đợi, không `TODAY()`/`NOW()` vì chúng đổi hợp lệ theo giờ), thứ tự `reconciled_at` cũ nhất trước (chưa từng đối soát = đầu tiên), tới khi hết **ngân sách 1.000.000 dòng** (tổng số dòng của bảng chứa cột; cột đầu tiên luôn được lấy dù lớn hơn ngân sách). Nhận việc giống worker rồi gọi `recalcColumn` tính **cả cột**; số ô `recalcColumn` phải ghi đổi = số ô lệch. Ghi đúng giá trị là lúc đó đã xong (không đổi `version`, không lịch sử).
+- Nếu trong lúc đối soát cột bị ghi (`calc_requested_at` sau mốc nhận việc) thì **không phán xét** (giá trị vẫn được sửa vì tính từ dữ liệu hiện tại, nhưng chênh lệch có thể do lần ghi đó).
+- Lệch: `logger.error`, một bản ghi audit `datahub.reconcile` (mã bảng, mã cột, số ô; không giá trị) và sự kiện `datahub.reconcile.mismatch` → thông báo trong ứng dụng cho **mọi Admin** đang hoạt động (số ô, tên cột; không giá trị, không tên bảng, không công thức). Kết quả tính lại của cột đó đi tiếp theo đường thường (sự kiện `changed`, cột phụ thuộc).
+
+**Test và số đo**
+- `datahub-partial.test.ts` (chỉ dòng bị ảnh hưởng được tính: làm hỏng tay một ô ở dòng không liên quan, nó phải còn hỏng), `datahub-partial-equivalence.test.ts` (2.500 lần sửa ngẫu nhiên, tính theo phần giống hệt tính cả cột; đổi bằng biến `DH_EQUIV_EDITS`), `datahub-events.test.ts`, `datahub-consistency.test.ts`, `datahub-reconcile.test.ts`, `datahub-queue.test.ts`.
+- Sửa một dòng nguồn (đổi cả khoá, số tiền, loại, ngày) ở bảng 100.000 dòng, 6 cột phụ thuộc: ghi 9 ms, worker tính lại 6 cột **43 ms** (trước 2B+: 3,95 s), giao hết sự kiện 0,05 s. Tính lại cả cột 100.000 x 100.000: 2,1–2,7 s mỗi hàm.
+
+**Lệch hoặc bổ sung so với thiết kế**
+- Thiết kế nói "mỗi cột nhớ đã tính tới số nào" và đợi theo đó; làm thêm điều kiện đệ quy qua cột nguồn và lấy hàng đợi làm nguồn sự thật (giải thích ở trên). Không đổi hành vi thiết kế mô tả.
+- `row.create|update|restore` trả `seq` ngay trong đối tượng dòng (không bọc thêm lớp) để các client cũ không vỡ.
