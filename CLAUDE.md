@@ -319,6 +319,7 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 - Tên datahub không trùng (theo chủ), tên bảng không trùng (trong datahub), tên cột không trùng (trong bảng); không phân biệt hoa thường; không chứa `[` `]`.
 - Giá trị công thức luôn được tính sẵn và **lưu trong database** (không tính lúc mở bảng); export chứa giá trị, XLSX kèm sheet liệt kê công thức.
 - **Thay đổi do công thức tạo ra không sinh log:** ghi do tính lại không tạo lịch sử dòng, không vào audit log, không đổi `version` và "Ngày sửa". Lịch sử và nhật ký chỉ ghi dữ liệu do người, API, form, hệ thống ngoài nhập vào. Áp dụng cho mọi bảng chạy trên engine Datahub, kể cả Deals.
+- **Tính lại theo phần** (Module 2 mục 6.7): nguồn đổi thì chỉ tính lại dòng bị ảnh hưởng (tra ngược ô Liên kết bằng index GIN, gom nhóm theo khoá cũ/mới); mỗi lần tính lại phát sự kiện `dòng, cột, cũ → mới`; mỗi lần ghi có số thứ tự thay đổi để người đọc (API, MCP, Automation) đợi tính xong rồi mới đọc.
 - View theo kiểu Lark Base, **tự lưu** mọi thay đổi (lọc, sắp xếp nhiều cấp, nhóm, ẩn/cố định cột, độ rộng). Người được chia sẻ đổi view chung thì lưu thành bản riêng của họ. Sắp xếp theo thứ tự lựa chọn và theo cột công thức (nền cho sắp deal theo BANT).
 - Chia sẻ cả datahub hoặc từng bảng; quyền Xem hoặc Sửa dữ liệu; chỉ chủ sửa cấu trúc. Ngoại lệ: ô **Liên kết dòng** chỉ chủ ghi được (người được chia sẻ không xem được bảng đích). Người được chia sẻ thấy giá trị cột công thức, **không thấy nội dung công thức**.
 - Cột mỗi bảng mặc định 70, trần 200, Admin chỉnh.

@@ -315,6 +315,9 @@ Automation là module lõi sẽ làm sau. Module 0 chuẩn bị sẵn:
 - **Action:** mọi command trong registry (mục 3.3), gọi theo tên với input có schema.
 - **Actor:** `via = automation`, kèm id của automation, để audit và phân quyền như mọi kênh khác.
 - **Điều kiện:** dùng chung engine công thức (`packages/formula`) và cú pháp lọc (mục 6.3).
+- **Thay đổi do công thức:** nghe sự kiện tính lại kèm `dòng, cột, cũ → mới` (Module 2 mục 6.7), không bao giờ thiếu danh sách dòng.
+- **Không đọc số cũ:** trước khi xét điều kiện trên cột tính toán, đợi cột đó tính tới số thứ tự thay đổi của sự kiện kích hoạt (Module 2 mục 6.7), có giới hạn thời gian chờ.
+- **Yêu cầu khi thiết kế Automation (chưa làm):** chống vòng lặp (A kích hoạt B kích hoạt A) bằng độ sâu chuỗi trong actor và giới hạn số lần chạy; giới hạn tải khi một Automation ghi nhiều dòng (mỗi lần ghi kéo theo tính lại).
 
 Không thêm code Automation nào cho đến khi module đó được thiết kế.
 

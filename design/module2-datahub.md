@@ -188,6 +188,37 @@ Ghi chú về hàm theo thời gian:
 - Hàm tra cứu và tổng hợp có điều kiện bằng (`XLOOKUP`, `SUMIFS`, `COUNTIFS`… với điều kiện `=`) được dịch thành **một câu SQL gom nhóm cho cả cột**, không lặp từng dòng. Mục tiêu: 100.000 × 100.000 dòng tính xong trong vài giây.
 - Điều kiện không dịch được sang SQL (regex, so sánh chuỗi phức tạp) chỉ dùng được khi bảng nguồn ≤ 20.000 dòng. Vượt ngưỡng thì báo lúc lưu công thức.
 
+### 6.7 Tính lại theo phần, nhật ký thay đổi, đợi tính xong
+
+*Chốt 18/11/2026, thay quyết định "tính lại cả cột khi nguồn đổi" của 2B. Lý do: chuẩn bị cho Automation (đọc đúng dòng đổi, không đọc số cũ) và để sửa một dòng nguồn không phải tính lại 100.000 dòng.*
+
+**Tính lại theo phần.** Khi nguồn đổi, worker chỉ tính lại những dòng có thể bị ảnh hưởng:
+
+| Loại phụ thuộc | Cách tìm dòng bị ảnh hưởng |
+|---|---|
+| Công thức chỉ dùng cột cùng dòng | Như 2B: tính ngay trong lúc lưu dòng |
+| Liên kết, lookup, rollup | Tra ngược bằng **index GIN trên `dh_rows`** cho từng cột Liên kết (chỉ trên dòng của bảng đó, tạo khi thêm cột, bỏ khi xoá cột). Không có bảng nối riêng: ô Liên kết trong `dh_rows` là nguồn duy nhất |
+| Hàm gom nhóm điều kiện bằng (`SUMIFS`, `COUNTIFS`, `XLOOKUP`…), phía dòng hiện tại là một cột | Lấy **khoá cũ và khoá mới** của các dòng nguồn vừa đổi (kể cả thêm, xoá, khôi phục); chỉ tính lại các nhóm đó và chỉ cập nhật dòng có khoá thuộc các nhóm đó |
+| Chuỗi phụ thuộc (B đọc A) | Danh sách thay đổi của A là đầu vào thay đổi của B |
+| Điều kiện có toán tử/ký tự đại diện, phía dòng hiện tại là biểu thức, duyệt từng dòng, tạo/sửa công thức, `TODAY()`/`NOW()`, đổi kiểu cột, import lớn | Tính cả cột |
+
+- Phần bị ảnh hưởng vượt khoảng 20% số dòng của bảng thì tính cả cột (rẻ hơn).
+- Hàm tổng cả cột không điều kiện tính một lần nhưng mọi dòng đổi theo; con số chung của cả bảng nên đặt ở Metric (Module 3). Thư viện công thức mẫu (2C) hướng dẫn tạo cột trung gian `[Mã]&"-"&[Năm]` thay cho biểu thức ở phía dòng hiện tại.
+- Thay đổi chờ tính được **cộng dồn** vào một hàng đợi (một bảng dùng chung cho cả hệ thống, tính xong thì xoá); một cột chỉ chạy một lần cho cả đợt.
+- Worker tính **song song** nhiều cột độc lập (mặc định 2, Admin chỉnh trong cài đặt, tối đa 4); cột phụ thuộc nhau vẫn theo thứ tự.
+- Ô có giá trị không đổi thì không ghi và không phát sự kiện, dù tính theo phần hay cả cột.
+
+**Nhật ký thay đổi.** Mỗi lần tính lại phát sự kiện kèm danh sách `dòng, cột, giá trị cũ → mới` (giá trị hoặc mã lỗi). Nhiều dòng thì chia thành nhiều sự kiện, mỗi sự kiện tối đa 500 dòng; không có trường hợp "tải lại cả bảng" không kèm danh sách. Đây là sự kiện cho bên nghe (Automation, SSE, cột phụ thuộc), **không** phải lịch sử dòng: luật "thay đổi do công thức không sinh log" giữ nguyên. SSE của grid dùng chung nguồn này.
+
+**Đợi tính xong.** Mỗi lần ghi dữ liệu nguồn nhận một **số thứ tự thay đổi** tăng dần trên toàn hệ thống (trả về trong kết quả ghi). Mỗi cột tính toán nhớ đã tính tới số nào. Ai cần số chắc chắn mới thì đợi tới số đó rồi mới đọc, có giới hạn thời gian chờ:
+- API/MCP đọc dòng: tuỳ chọn `consistent_after=<số>` (hoặc `consistent=true` = số mới nhất lúc gọi); hết thời gian chờ thì trả giá trị hiện có kèm cờ `stale` và các cột chưa xong.
+- Automation (sau này) đợi các cột nó đọc tính xong trước khi xét điều kiện.
+- Trạng thái "đang tính" hiện được **theo ô**: dòng nằm trong hàng đợi của cột đó.
+
+**Lưới an toàn.**
+- Test so sánh: nhiều nghìn lần sửa ngẫu nhiên, sau mỗi lần kết quả tính theo phần phải giống hệt tính cả cột.
+- Job đối soát hằng đêm: tính lại cả cột cho một phần các bảng, so với giá trị đang lưu. Lệch thì ghi giá trị đúng và **báo lỗi cho Admin** (số ô lệch, cột nào). Lệch là bug phải sửa tận gốc; job không dùng để che bug.
+
 ## 7. Sửa dữ liệu
 
 - Sửa ngay trên ô, di chuyển bằng bàn phím như bảng tính.
@@ -402,9 +433,9 @@ Phạm vi 2B: engine công thức (`packages/formula`), các cột `formula`, `r
 - `datahub.column.create|update` nhận `config.formula` (công thức), `config.result_type` (tuỳ chọn); `GET table` và cột trả `config.formula` (có `=`), `calc`.
 
 **Lệch hoặc bổ sung so với thiết kế**
-- Thiết kế nói "ô đang chờ hiện biểu tượng đang tính": làm ở mức **cột** (`calc.status`), không theo ô.
+- Thiết kế nói "ô đang chờ hiện biểu tượng đang tính": làm ở mức **cột** (`calc.status`), không theo ô. Mục 6.7 chuyển sang theo ô (bước 2B+).
 - Thiết kế nói "hàm khoảng 100": 106 hàm. `VLOOKUP`, `INDEX`, `MATCH` theo cột, không theo vùng ô.
-- Cột tính toán tính lại **cả cột** khi nguồn đổi (có gộp), không tính riêng những dòng bị ảnh hưởng. Đủ nhanh ở 100.000 dòng (số đo bên dưới); nếu sau này cần thì thêm tính theo dòng.
+- Cột tính toán tính lại **cả cột** khi nguồn đổi (có gộp), không tính riêng những dòng bị ảnh hưởng. Đủ nhanh ở 100.000 dòng (số đo bên dưới); nếu sau này cần thì thêm tính theo dòng. **Đã thay bằng mục 6.7 (chốt 18/11/2026), làm ở bước 2B+.**
 - Không có lệch nào với quy định đã chốt trong CLAUDE.md.
 
 **Golden test** (`apps/api/test/formula-golden.test.ts`, đọc thẳng file mẫu, bỏ qua khi máy không có file)

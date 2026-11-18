@@ -37,6 +37,12 @@ Cập nhật: 18/11/2026
 Kế hoạch Stage 2:
 - **2A – Lưu trữ và API lõi** (xong, đã rà soát).
 - **2B – Engine công thức, cột tính toán, tính lại, golden test** (code xong, chờ Opus rà soát).
+- **2B+ – Tính lại theo phần, nhật ký thay đổi, đợi tính xong** (Module 2 mục 6.7, Dương chốt 18/11; đang làm). Các bước (Sonnet đánh dấu, commit sau mỗi bước):
+  - [ ] 1. Index GIN cho cột Liên kết + tra ngược; hàng đợi thay đổi dùng chung, cộng dồn
+  - [ ] 2. Tính theo phần: liên kết/lookup/rollup, gom nhóm theo khoá cũ/mới, chuỗi phụ thuộc, ngưỡng 20%
+  - [ ] 3. Sự kiện `cũ → mới` chia lô 500, SSE dùng chung; worker song song (cài đặt)
+  - [ ] 4. Số thứ tự thay đổi, `consistent_after`/`consistent`, cờ `stale`, "đang tính" theo ô
+  - [ ] 5. Test so sánh ngẫu nhiên, job đối soát hằng đêm, test tốc độ, OpenAPI/Bruno, quyết định khi code
 - 2C – Giao diện grid, view kiểu Lark tự lưu, trình soạn công thức, chia sẻ/thùng rác/giới hạn.
 - 2D – Import/export, import công thức, load test 100k dòng, e2e cả stage.
 
@@ -63,7 +69,7 @@ Việc kế: **Opus rà soát 2B**, rồi chờ Dương bảo làm 2C (giao di�
 
 ## Câu hỏi còn mở
 
-- 2B: Dương đã đồng ý (b) chỉ chủ ghi ô Liên kết, (c) ẩn nội dung công thức với người được chia sẻ, (d) hai nhánh khác kiểu thành chữ. Còn (a) tính lại cả cột: Opus đã phân tích ảnh hưởng tới Automation, chờ Dương chốt. (e) 2D phải cảnh báo `LEFT(ngày,2)` khi import (324 công thức trong file mẫu dựa vào chữ hiển thị `MM/yyyy`).
+- 2B: Dương đã đồng ý (b), (c), (d); (a) thay bằng mục 6.7 (2B+). 2D phải cảnh báo `LEFT(ngày,2)` khi import (324 công thức trong file mẫu dựa vào chữ hiển thị `MM/yyyy`).
 - Module 4 (vòng 2): cột cơ bản chọn từ sheet Deals (mục 4.1); cột mặc định của Manager/Leader (4.2); sheet Index gốc cộng POD Express hai lần (4.6); bảng Probation KPI (6); bảng Thanh toán chờ Dương bàn với Manager (7). Dữ liệu BPM/Dataset đã ghi ở `examples/bpm-dataset-soe.md`.
 - `docker-compose.yml` chưa chạy thử (máy dev không có Docker): phải chạy thử trên VPS trước khi dùng thật. Biến `AUTH_SECRET` giờ bắt buộc trong compose.
 - Đăng nhập Google chưa thử với Google thật; cần tạo Google Cloud client (xem `design/ha-tang.md` mục 4) rồi thử một lần trước khi bật.
