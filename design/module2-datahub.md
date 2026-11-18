@@ -160,6 +160,9 @@ Ghi chú về hàm theo thời gian:
 - Lọc theo ngày tương đối ("tháng này", "30 ngày qua", "quá hạn") **không** dùng giá trị lưu sẵn mà tính ngay lúc truy vấn, nên luôn đúng theo giờ hiện tại. Phần lớn nhu cầu kiểu "deal nào quá hạn" nên dùng bộ lọc, không cần cột công thức `TODAY()`.
 - Server khởi động lại sau khi bỏ lỡ lịch 00:05 thì job chạy bù ngay khi worker lên.
 
+- Mỗi lần tính lại, giá trị mới được **ghi đè vào database**. Ô có giá trị không đổi thì bỏ qua, không ghi.
+- Ghi do tính lại **không** tạo bản ghi trong lịch sử dòng, không ghi nhật ký, không đổi `version` và "Ngày sửa" của dòng. Lịch sử chỉ ghi dữ liệu do người, API hay form nhập vào, vì giá trị công thức luôn tính lại được từ dữ liệu đó. Nếu không làm vậy, riêng cột `TODAY()` trên 10.000 deal sẽ sinh 10.000 bản lịch sử mỗi ngày.
+- Bảng đang mở vẫn nhận tín hiệu SSE khi ô công thức đổi giá trị.
 - Vòng lặp (A dùng B, B dùng A) bị chặn ngay khi lưu công thức.
 - Lỗi hiện giống Excel: `#DIV/0!`, `#N/A`, `#VALUE!`, `#REF!` (cột/bảng bị xoá), `#CYCLE!`, `#PERM!`.
 
