@@ -71,7 +71,38 @@ Khách mua POD và PS là **hai deal**, liên kết với nhau. Cách này khớ
 - Đổi kiểu cột template: theo luồng đổi kiểu của Module 2 (xem trước, báo giá trị không chuyển được).
 - Template dùng chung cả hệ thống (hiện chỉ có một team SoE). Mọi lần sửa ghi nhật ký và báo cho mọi Manager. Khi có cây thứ hai cần template khác thì thêm phạm vi theo cây.
 
-### 3.2 Thuộc tính của một cột template
+### 3.2 Cột template và cột riêng phải luôn phân biệt được
+
+Manager, Leader, Admin cũng có cột riêng như mọi người. Không phải cột nào họ tạo cũng vào template.
+
+- **Thêm cột thì mặc định là cột riêng** (lớp Tuỳ chỉnh), với cả Manager. Muốn đưa vào template phải chọn rõ "Thêm vào template", chọn lớp (Cơ bản / Theo vai trò / Theo team), rồi xác nhận ở màn hình xem trước: "Cột này sẽ hiện cho 18 người".
+- **Đưa cột riêng vào template** ("Đưa vào template") được: hệ thống chép định nghĩa cột (tên, kiểu, công thức, lựa chọn) thành cột template. Cột cách lưu "giá trị chung" thì hỏi có chép giá trị người đó đã nhập sang không. Cột riêng cũ bị ẩn, không mất.
+- **Nhìn là biết:** tiêu đề cột template có nhãn lớp (`Mẫu`, `Mẫu · Manager`, `Mẫu · Team Khuê`), cột riêng có nhãn `Riêng`. Menu của cột và ngăn sửa cột ghi rõ "Sửa ở đây áp dụng cho N người" hoặc "Chỉ mình bạn thấy".
+- Trình sửa template là một trang riêng, liệt kê mọi cột template theo lớp. Không sửa template "lẫn" trong lúc đang làm việc trên bảng.
+
+### 3.3 Cột mặc định là cột thường được sinh sẵn
+
+Cột mặc định không có logic viết cứng trong code. Nó là cột thường của engine, chỉ khác là được template sinh sẵn.
+
+- Mọi cột tính toán (`%Com team`, `% Com cá nhân`, `Com`, `Nhóm dịch vụ`, `Mức ưu tiên (BANT)`, `Com của team`, `Com của deal`, các cột của Index và Probation KPI) đều là **cột công thức** viết bằng engine công thức. Sau này đổi cách tính chỉ cần sửa công thức, không cần sửa code.
+- Phần engine phải có thì làm thành **hàm công thức**, không làm thành cột đặc biệt:
+  - Hàm theo người xem: `ME()`, `MY_ROLE()` (vai trò của người xem trong deal), `MY_REVENUE_SHARE()`, `MY_COM_SHARE()`, `TEAM_COM_SHARE()`.
+  - Hàm tra chính sách com: `POLICY_RATE(...)`, `POLICY(...)`, theo phiên bản hiệu lực tại một ngày.
+- Chỉ ba loại cột không phải công thức, vì là dữ liệu gốc của hệ thống: Mã deal (số tự tăng), Người tham gia (danh sách và tỉ lệ do Manager chia), các cột chuẩn (ngày tạo, người sửa…).
+
+**Ai sửa công thức và kiểu của cột mặc định**
+
+| Người sửa | Phạm vi áp dụng | Sửa được |
+|---|---|---|
+| Admin, Manager | Mọi người dùng template đó | Công thức, kiểu, lựa chọn, định dạng, quyền sửa |
+| Leader | **Chỉ team của Leader đó** (bản sửa riêng của team đè lên template) | Công thức, kiểu kết quả và định dạng của **cột công thức**; lựa chọn, định dạng của cột nhập tay |
+| User | — | Không sửa được công thức hay kiểu. Chỉ đổi hiển thị trong view của mình (ẩn, độ rộng, thứ tự) |
+
+- Leader không đổi được kiểu của cột nhập tay kiểu "giá trị chung". Lý do: giá trị đó là của chung một deal, Manager và Admin cũng nhìn cùng giá trị. Nếu mỗi team một kiểu thì dữ liệu chung bị vỡ.
+- Bản sửa của Leader hiện nhãn `Team sửa`. Manager xem được danh sách mọi bản sửa của các team, và bấm "Về template" được.
+- Mọi lần sửa công thức, kiểu của cột mặc định đều có lịch sử. Worker tính lại cả cột (Module 2 mục 6.5).
+
+### 3.4 Thuộc tính của một cột template
 
 | Thuộc tính | Lựa chọn |
 |---|---|
@@ -339,7 +370,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 
 - Menu Quản lý Deal: Deals, Index, Probation KPI, bảng tự tạo, Dashboard; Manager thấy thêm bảng của Manager và mục Quản lý (phân deal, chính sách com, khoá kỳ, snapshot, nhập lịch sử).
 - Deals: grid Module 2, view hệ thống (Ưu tiên hôm nay, Đang mở, Cần chấm lại), ngăn chi tiết deal (người tham gia, BANT, lịch sử).
-- Trình sửa template: bốn lớp, thuộc tính cột, xem trước ảnh hưởng ("áp dụng cho 18 người").
+- Trình sửa template (trang riêng): bốn lớp, thuộc tính cột, xem trước ảnh hưởng ("áp dụng cho 18 người"), danh sách bản sửa của các team. Nhãn `Mẫu` / `Riêng` / `Team sửa` trên tiêu đề cột.
 - Datahub: datahub "Quản lý Deal" hiện trong danh sách với biểu tượng khoá.
 
 ## 17. Kiểm thử
@@ -358,6 +389,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 | Ba loại cột: hệ thống / chung / cá nhân | **Bốn lớp**: Cơ bản, Theo vai trò (Admin, Manager), Theo team (Leader), Tuỳ chỉnh. "Cột chung Manager đẩy cho cả cây" = cột template kiểu "giá trị chung" | Module 1, Module 2 mục 3, CLAUDE.md |
 | Brief: datahub Deals không cho tạo thêm bảng | Datahub "Quản lý Deal" **được tạo thêm bảng**; datahub, bảng và cột mặc định được bảo vệ | Module 2 |
 | Datahub là của riêng, Leader/Manager không xem | Giữ nguyên cho bảng tự tạo và Index. **Ngoại lệ:** Deals và Probation KPI theo phạm vi deal (Leader xem team, Manager xem cây) | Module 1 mục 4 |
+| Cột hệ thống của Deals là cột cố định trong code | Cột mặc định là **cột thường do template sinh sẵn**; cột tính toán là công thức, Admin/Manager sửa cho mọi người, Leader sửa cho team, User không sửa (mục 3.3) | Module 2, CLAUDE.md |
 | Golden test so số với Excel (Module 0 mục 21) | So với script tham chiếu trên `Raw PODPS` (mục 17) | Module 0, Stage 2B |
 
 ## 19. Kiểm tra với Module 2 khi code Stage 4
@@ -368,5 +400,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 2. Một **bảng hệ thống dùng chung** (Deals, Probation KPI) xuất hiện trong datahub của từng người, đã áp phạm vi.
 3. Cột theo **lớp template** và hai cách lưu giá trị (chung mỗi deal / mỗi người một giá trị), khớp với "ba nguồn cột" của Module 2 mục 3.
 4. Công thức **theo người xem** (`% Com cá nhân`, `Com`, đếm deal mình là Leading), tính sẵn và lưu theo người.
+7. Cột mặc định là cột thường do template sinh sẵn (mục 3.3): mọi cột tính toán là cột công thức; engine có các hàm theo người xem (`ME`, `MY_ROLE`, `MY_REVENUE_SHARE`, `MY_COM_SHARE`, `TEAM_COM_SHARE`) và hàm tra chính sách (`POLICY_RATE`, `POLICY`).
+8. Bản sửa riêng của team (Leader) đè lên định nghĩa cột template; cột riêng được "Đưa vào template".
 5. Cột liên kết, lookup, rollup và công thức từ bảng riêng (Index, Thanh toán, bảng tự tạo) sang Deals, Probation KPI; luật "cùng chủ" của công thức phải coi các bảng này là của chủ datahub.
 6. Giới hạn bảng và cột áp đúng cho datahub "Quản lý Deal".
