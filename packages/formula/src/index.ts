@@ -1,3 +1,12 @@
-// Placeholder for the formula engine (parser + evaluator), implemented in Stage 2 (Module 2).
-// Runs on both server and browser, so it must stay free of Node-only imports.
-export const FORMULA_PACKAGE_READY = true as const;
+export * from "./types";
+export * from "./ast";
+export { parseFormula } from "./parser";
+export { evaluate, scalarize } from "./evaluator";
+export { NOT_FOUND, type EvalContext, type GroupPlan, type RowInfo, type FnDef } from "./context";
+export { inferType } from "./infer";
+export { collectDeps, validateCalls, findGroupable, type FormulaDeps, type GroupableCall, type GroupAgg, type Issue } from "./analyze";
+export { toStoredFormula, toDisplayFormula, parseStored, type RefTarget, type StoreResult } from "./refs";
+export { FUNCTION_CATALOG, type FunctionInfo } from "./catalog";
+export { ALL_FUNCTIONS, getFunction, formatText } from "./functions";
+export { buildMatcher, isPlainEquality, equalityKey } from "./criteria";
+export * from "./dates";

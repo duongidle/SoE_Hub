@@ -78,7 +78,7 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 | ----- | ---------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------- |
 | 0     | M0         | —                | Monorepo, Docker dev, Postgres + migration, command/query registry, actor, mã lỗi, audit log, `row_history`, outbox, worker pg-boss, lưu file, SSE, sinh OpenAPI, khung test                             | Server chạy, có `/health`, `/api/docs`; chưa có chức năng nghiệp vụ | Đã xong    |
 | 1     | M1         | 0                | Tài khoản, vai trò, cây tổ chức, đăng nhập (mật khẩu + Google), session, token, engine phân quyền, quên mật khẩu, hộp thông báo tối thiểu (M6 mở rộng sau), trang nhật ký của Admin, chuyển giao dữ liệu | Đăng nhập, quản lý người dùng, admin xem log                        | Đã xong    |
-| 2     | M2         | 1                | Datahub, bảng, kiểu cột, engine công thức, lọc/sắp xếp/view, grid ảo hoá, import/export, thùng rác, lịch sử dòng                                                                                         | Dùng Datahub thay Google Sheet                                      |            |
+| 2     | M2         | 1                | Datahub, bảng, kiểu cột, engine công thức, lọc/sắp xếp/view, grid ảo hoá, import/export, thùng rác, lịch sử dòng                                                                                         | Dùng Datahub thay Google Sheet/Lark Base                            |            |
 | 3     | M3         | 2                | Engine metric, các loại biểu đồ, dashboard tuỳ chỉnh                                                                                                                                                     | Vẽ dashboard từ Datahub                                             |            |
 | 4     | M4         | 2, 3             | Template Deals, người tham gia, ba loại cột, chính sách com có phiên bản, khoá kỳ, snapshot, forecast, BANT, dashboard Deals mặc định, API cho hệ thống ngoài                                            | **Mốc Engine v1: team SoE chạy thử quản lý deal**                   |            |
 | 5     | M5         | 1, 4             | MCP server, OAuth + DCR, token cá nhân, kết nối AI chờ duyệt, scope theo menu, hướng dẫn kết nối, bộ Bruno đầy đủ                                                                                        | Claude/Codex điều khiển được hệ thống                               |            |
@@ -161,14 +161,14 @@ Không chép skill vào repo (repo public, skill có giấy phép riêng). Muố
 
 **Dùng skill nào, lúc nào:**
 
-| Skill             | Khi nào                                                    | Phần bắt buộc làm                                                                                                    |
-| ----------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `ui-ux-pro-max`   | Mọi trang, mọi thành phần                                  | Trước khi báo xong: rà `references/quick-reference.md` mục 1–3 và 8 (accessibility, tương tác, hiệu năng, form)      |
-| `ui-styling`      | Dựng thành phần shadcn/Tailwind                            | Theo mẫu thành phần và theming của skill, nhưng màu/font lấy theo quy định bên dưới                                  |
-| `break-ui`        | Mỗi màn hình có dữ liệu, trước khi báo xong                | Đủ quy trình: lập bảng mọi giá trị hiển thị → bộ dữ liệu xấu nhất → nút chuyển dữ liệu (chỉ ở dev) → báo lỗi → sửa   |
-| `mobile-native`   | Trang dùng trên điện thoại (form công khai, onboarding…)   | Rà bảng "Never Ship" và phần "Baseline"                                                                              |
-| `impeccable`      | Rà soát và Stage 12                                         | Chạy `audit` cho màn mới; `harden` (lỗi, dữ liệu biên), `clarify` (wording) khi rà; `polish` ở Stage 12              |
-| `emil-design-eng` | Khi làm chuyển động, hiệu ứng bấm, popover, toast           | Dùng khung quyết định "có nên animate không" trước khi viết hiệu ứng                                                 |
+| Skill             | Khi nào                                                  | Phần bắt buộc làm                                                                                                  |
+| ----------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `ui-ux-pro-max`   | Mọi trang, mọi thành phần                                | Trước khi báo xong: rà `references/quick-reference.md` mục 1–3 và 8 (accessibility, tương tác, hiệu năng, form)    |
+| `ui-styling`      | Dựng thành phần shadcn/Tailwind                          | Theo mẫu thành phần và theming của skill, nhưng màu/font lấy theo quy định bên dưới                                |
+| `break-ui`        | Mỗi màn hình có dữ liệu, trước khi báo xong              | Đủ quy trình: lập bảng mọi giá trị hiển thị → bộ dữ liệu xấu nhất → nút chuyển dữ liệu (chỉ ở dev) → báo lỗi → sửa |
+| `mobile-native`   | Trang dùng trên điện thoại (form công khai, onboarding…) | Rà bảng "Never Ship" và phần "Baseline"                                                                            |
+| `impeccable`      | Rà soát và Stage 12                                      | Chạy `audit` cho màn mới; `harden` (lỗi, dữ liệu biên), `clarify` (wording) khi rà; `polish` ở Stage 12            |
+| `emil-design-eng` | Khi làm chuyển động, hiệu ứng bấm, popover, toast        | Dùng khung quyết định "có nên animate không" trước khi viết hiệu ứng                                               |
 
 Giới hạn khi dùng skill trong dự án này:
 

@@ -64,12 +64,12 @@ Các bước của 2A (đánh dấu khi xong):
 ## Bước tiếp theo
 
 Các bước của 2B (Sonnet đánh dấu khi xong, commit sau mỗi bước):
-- [ ] 1. `packages/formula`: parser, AST, đổi tên ↔ mã, suy kiểu kết quả, mã lỗi (chạy cả trình duyệt và Node)
-- [ ] 2. Thư viện hàm (Module 2 mục 6.2) + điều kiện kiểu Excel, test từng hàm
-- [ ] 3. Kiểu cột formula, relation, lookup, rollup; kiểm tra khi lưu (cùng chủ, vòng lặp, `#REF!`, ngưỡng 20.000)
-- [ ] 4. Tính lại: cùng dòng trong lúc lưu; khác bảng qua worker; cả cột khi tạo/sửa (tiến độ); `TODAY()` 00:05, `NOW()` mỗi giờ, chạy bù; không sinh log; SSE
-- [ ] 5. Dịch tra cứu/tổng hợp điều kiện bằng sang SQL gom nhóm; test tốc độ 100k × 100k
-- [ ] 6. Golden test với công thức sheet Index của file mẫu (máy không có file thì bỏ qua)
+- [x] 1. `packages/formula`: lexer/parser (`src/parser.ts`), AST, tham chiếu tên ↔ mã (`src/refs.ts`: lưu dạng `{c_xxx}` / `{<uuid bảng>.c_xxx}`), suy kiểu (`infer.ts`), lỗi Excel (`types.ts`), phân tích phụ thuộc và lời gọi gom nhóm được (`analyze.ts`)
+- [x] 2. Thư viện hàm 113 hàm (`src/functions/*.ts`, danh mục `catalog.ts`) + điều kiện kiểu Excel (`criteria.ts`); `pnpm vitest run packages/formula` = 26 test pass
+- [ ] 3. Kiểu cột formula, relation, lookup, rollup (bỏ `available: false` ở `apps/api/src/modules/datahub/column-types.ts`); migration `0006` (cột `calc_*` của `dh_columns`, bảng `dh_formula_deps`); kiểm tra khi lưu (cùng chủ, vòng lặp, `#REF!`, ngưỡng 20.000)
+- [ ] 4. Tính lại: cùng dòng trong lúc lưu (`row-ops.ts`/`rows.ts`); khác bảng qua worker; cả cột khi tạo/sửa (tiến độ); `TODAY()` 00:05, `NOW()` mỗi giờ, chạy bù; không sinh log; SSE
+- [ ] 5. Gom nhóm SQL cho tra cứu/tổng hợp điều kiện bằng; test tốc độ 100k × 100k
+- [ ] 6. Golden test với công thức file mẫu (máy không có file thì bỏ qua)
 - [ ] 7. API xem trước công thức + danh mục hàm; OpenAPI, Bruno, README, quyết định khi code
 
 ## Câu hỏi còn mở
