@@ -253,6 +253,8 @@ export const columnOperations = [
         await ctx.db.execute(sql`UPDATE dh_columns SET config = jsonb_set(config, '{seq}', to_jsonb(${start - 1 + (c.rows[0] as { n: number }).n}::int)) WHERE ${acc.scope()} AND id = ${id}::uuid`);
       }
       if (i.unique) await ensureUnique(ctx, acc, { key, name: i.name });
+      // Reverse lookup of links ("which rows link to row X") uses this index; there is no link table (design module2 section 6.7).
+      if (i.type === "relation") await ctx.db.execute(sql`SELECT soe_dh_ensure_index(${acc.tableId}::uuid, ${key}, 'rel')`);
       if (prepared && isComputedType(i.type)) await saveComputed(ctx, acc, id, prepared);
       ctx.audit({ type: "datahub_column", id, details: { table_id: acc.tableId, name: i.name, type: i.type } });
       await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_created");

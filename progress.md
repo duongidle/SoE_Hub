@@ -38,7 +38,7 @@ Kế hoạch Stage 2:
 - **2A – Lưu trữ và API lõi** (xong, đã rà soát).
 - **2B – Engine công thức, cột tính toán, tính lại, golden test** (code xong, chờ Opus rà soát).
 - **2B+ – Tính lại theo phần, nhật ký thay đổi, đợi tính xong** (Module 2 mục 6.7, Dương chốt 18/11; đang làm). Các bước (Sonnet đánh dấu, commit sau mỗi bước):
-  - [ ] 1. Index GIN cho cột Liên kết + tra ngược; hàng đợi thay đổi dùng chung, cộng dồn
+  - [x] 1. Index GIN cho cột Liên kết + tra ngược; hàng đợi thay đổi dùng chung, cộng dồn (migration `0007`, `change-queue.ts`, test `datahub-queue.test.ts`; chưa nối vào đường ghi, bước 2 nối)
   - [ ] 2. Tính theo phần: liên kết/lookup/rollup, gom nhóm theo khoá cũ/mới, chuỗi phụ thuộc, ngưỡng 20%
   - [ ] 3. Sự kiện `cũ → mới` chia lô 500, SSE dùng chung; worker song song (cài đặt)
   - [ ] 4. Số thứ tự thay đổi, `consistent_after`/`consistent`, cờ `stale`, "đang tính" theo ô
@@ -53,6 +53,8 @@ Kế hoạch Stage 2:
 - 396 test pass; test tốc độ 100.000 dòng (`datahub-perf.test.ts`): trước index 23–81 ms, sau index tự động 3–44 ms, trang keyset 2,7 ms; nạp 100.000 dòng 3,4 s. 4 lỗi test phụ thuộc thứ tự đã sửa.
 
 ## Bước tiếp theo
+
+**2B+ đang làm (Sonnet):** bước 2 = `apps/api/src/modules/datahub/change-queue.ts` đã có `enqueue/readQueue/deleteQueue/linkedRows`; việc kế: file mới `partial.ts` (phân tích phụ thuộc, `recordChanges` gọi trong `applyRowOps`/`restoreRows`), sửa `recalc.ts` (claim đọc hàng đợi, tính theo hàng/khoá, chuỗi), bỏ xử lý `datahub.row.*` trong `formulaSubscriber`. Test: `pnpm exec vitest run apps/api/test/datahub-formulas apps/api/test/datahub-queue`.
 
 2B xong cả 7 bước (mỗi bước một commit trên `dev`): 1-2 `packages/formula` (parser, 106 hàm); 3-4 cột formula/relation/lookup/rollup + tính lại (`apps/api/src/modules/datahub/computed.ts`, `recalc.ts`, `row-formulas.ts`, migration `0006`); 5 gom nhóm SQL + test tốc độ; 6 golden test; 7 API `datahub.formula.functions|preview`, OpenAPI, Bruno, README, quyết định khi code (`design/module2-datahub.md` mục 2B).
 

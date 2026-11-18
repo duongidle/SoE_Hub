@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { bigint, bigserial, boolean, check, index, integer, jsonb, pgSequence, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { newId, standardColumns } from "./columns";
 import { users } from "./users";
 
@@ -85,6 +85,8 @@ export const dhColumns = pgTable(
     calcRequestedAt: timestamp("calc_requested_at", { withTimezone: true, mode: "date" }),
     /** `today` | `now` when the formula uses TODAY() / NOW(); null otherwise. */
     calcVolatile: text("calc_volatile"),
+    /** Highest change sequence (`dh_change_seq`) this column has fully incorporated (design module2 section 6.7). */
+    calcSeq: bigint("calc_seq", { mode: "number" }).notNull().default(0),
   },
   (t) => [
     uniqueIndex("dh_columns_key_uq").on(t.tableId, t.key),
@@ -253,4 +255,34 @@ export const dhIndexRequests = pgTable(
     rowsAtRequest: bigint("rows_at_request", { mode: "number" }),
   },
   (t) => [primaryKey({ columns: [t.tableId, t.columnKey, t.kind] })],
+);
+
+/** Global, monotonic number of source data writes (design module2 section 6.7). Returned by every write; readers wait for it. */
+export const dhChangeSeq = pgSequence("dh_change_seq", { startWith: 1, increment: 1 });
+
+/**
+ * The shared change queue (design module2 section 6.7): one table for the whole system. Every write of source data
+ * adds what it may have changed for each computed column that depends on it; the worker takes a column's whole burst
+ * at once, recomputes only the affected rows, then deletes what it took. `mode`:
+ * - `rows`: `row_ids` are rows of the column's own table to recompute;
+ * - `linked`: `row_ids` are rows of the linked (target) table of a lookup/rollup; the own rows that link to them are found
+ *   with the GIN index of the relation column (`?|`);
+ * - `keys`: `keys` = `{cols: [own column keys], tuples: [[raw key values]...]}`, the group keys (old and new) of changed
+ *   source rows; own rows whose key columns equal a tuple are recomputed;
+ * - `full`: recompute the whole column.
+ */
+export const dhChangeQueue = pgTable(
+  "dh_change_queue",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    columnId: uuid("column_id")
+      .notNull()
+      .references(() => dhColumns.id, { onDelete: "cascade" }),
+    seq: bigint("seq", { mode: "number" }).notNull(),
+    mode: text("mode").notNull(),
+    rowIds: uuid("row_ids").array(),
+    keys: jsonb("keys"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("dh_change_queue_col_idx").on(t.columnId, t.id), index("dh_change_queue_seq_idx").on(t.seq), check("dh_change_queue_mode_chk", sql`${t.mode} IN ('rows', 'linked', 'keys', 'full')`)],
 );
