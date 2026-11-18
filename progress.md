@@ -22,11 +22,11 @@ Stage 1 (Module 1), kế hoạch:
 5. Test: ma trận quyền, luồng mã, khoá, phiên, CSRF, token, lịch sử org, chuyển giao, SSE, truy vấn có phạm vi. Sửa test Stage 0 theo auth thật.
 6. Web: các trang mục 11. Bruno + `pnpm docs:openapi`. Ghi "Quyết định khi code" Module 1.
 
-Đã xong: mục 1–4 (schema + migration 0003, quyền, auth core, các module, CLI, Bruno sinh bằng `pnpm docs:bruno`). Test Stage 0 đã chuyển sang auth thật, 90 pass.
+Đã xong: mục 1–5. Test: 293 pass (ma trận quyền 152 ca, mã, khoá, phiên, CSRF, token, org lịch sử, chuyển giao, SSE, truy vấn có phạm vi, nhật ký, cấp dữ liệu Guest).
 
 ## Bước tiếp theo
 
-- Mục 5: viết test Stage 1 ở `apps/api/test/` (`auth.test.ts`, `org.test.ts`, `permissions.test.ts`, `tokens.test.ts`, `stage1-misc.test.ts`) với helper tạo cây mẫu + đăng nhập trong `test/helpers.ts`. Chưa test thật luồng tạo người qua web cookie (lần chạy tay trước bị lỗi 500 ở `org.member.create`, cần xem lại bằng test).
+- Mục 6: web `apps/web` (đăng nhập/đăng ký/quên/đổi/đặt mật khẩu, org chart bảng + cây, quyền bổ sung, cấp dữ liệu, thiết bị, token, duyệt token, tài khoản hệ thống, nhật ký, chuyển giao, chuông + hộp thông báo, cài đặt). Sau đó chạy thật api + worker + web, đi hết luồng bằng Playwright (desktop + điện thoại), ghi kết quả vào đây. Rồi "Quyết định khi code" Module 1, README.
 
 ## Câu hỏi còn mở
 

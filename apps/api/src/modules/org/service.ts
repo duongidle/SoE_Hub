@@ -89,7 +89,8 @@ export async function writePlacement(ex: Executor, userId: string, p: Placement,
   const cur = await currentMembership(ex, userId);
   if ((cur?.managerId ?? null) === p.managerId && (cur?.leaderId ?? null) === p.leaderId) return false;
   // Same instant for close and open, so the history has no gap and no overlap.
-  const [{ now }] = (await ex.execute(sql`SELECT now() AS now`)).rows as [{ now: Date }];
+  const [{ now: raw }] = (await ex.execute(sql`SELECT now()::text AS now`)).rows as [{ now: string }];
+  const now = new Date(raw);
   if (cur) await ex.update(orgMemberships).set({ validTo: now }).where(eq(orgMemberships.id, cur.id));
   if (p.managerId) {
     await ex.insert(orgMemberships).values({ userId, managerId: p.managerId, leaderId: p.leaderId, validFrom: now, createdBy: by });
