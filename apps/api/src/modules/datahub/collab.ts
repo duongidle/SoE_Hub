@@ -1,11 +1,12 @@
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { AppError, DH_COLUMN_CEILING, FilterSchema, permissionsFor, SHARE_PERMISSIONS, SortItemSchema } from "@soe/shared";
+import { AppError, DH_COLUMN_CEILING, FilterSchema, permissionsFor, SHARE_PERMISSIONS, SortItemSchema, TimeFilterSchema } from "@soe/shared";
 import { compileFilter, getTrashRetentionDays, newId, type Executor } from "@soe/db";
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { HandlerCtx } from "../../core/types";
 import { loadDatahubAccess, loadTableAccess, type TableAccess } from "./access";
 import { getLimits } from "./limits";
+import { GROUP_FNS } from "./rows-groups";
 import { Id, Ts } from "./shared";
 import { TableSchema } from "./table-schema";
 
@@ -27,6 +28,10 @@ const ViewConfigSchema = z
     order: z.array(z.string().max(100)).max(300),
     row_height: z.enum(["short", "medium", "tall"]),
     colors: z.array(z.strictObject({ filter: FilterSchema, color: z.string().max(20) })).max(20),
+    /** Ô Thời gian (mục 5.4): cột ngày và khoảng; server dịch sang ngày theo giờ Việt Nam lúc đọc. */
+    time_filter: TimeFilterSchema,
+    /** Dòng tổng của nhóm: cột → loại tổng (count, sum, avg, min, max). */
+    group_aggs: z.record(z.string().max(100), z.enum(GROUP_FNS)),
   })
   .partial();
 
@@ -60,6 +65,9 @@ function checkConfigAgainst(schema: TableSchema, cfg: ViewConfig): void {
   if (cfg.filter) compileFilter(schema.normalizeFilter(cfg.filter), fields);
   cfg.colors?.forEach((c) => compileFilter(schema.normalizeFilter(c.filter), fields));
   cfg.sort?.forEach((s) => schema.fieldFor(s.field));
+  cfg.group?.forEach((g) => schema.fieldFor(g.field));
+  Object.keys(cfg.group_aggs ?? {}).forEach((k) => schema.fieldFor(k));
+  cfg.time_filter?.columns.forEach((c) => schema.fieldFor(c));
 }
 
 /** Merges an autosave patch into a config: a key set to `null` is removed. */

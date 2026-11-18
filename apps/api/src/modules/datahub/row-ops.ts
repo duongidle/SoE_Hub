@@ -1,10 +1,11 @@
 import { z } from "zod";
-import { DH_BATCH_MAX, filterParam, MAX_PAGE_LIMIT } from "@soe/shared";
+import { AppError, DH_BATCH_MAX, filterParam, jsonParam, MAX_PAGE_LIMIT, TimeFilterSchema } from "@soe/shared";
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { ListOutput } from "../../core/types";
 import { loadTableAccess } from "./access";
 import { applyRowOps, restoreRows, type RowOp } from "./rows";
 import { getRow, listRows, rowHistory } from "./rows-read";
+import { GROUP_FNS, listGroups, MAX_GROUP_LEVELS } from "./rows-groups";
 import { Id, ROW_EVENTS, Ts } from "./shared";
 import { TableSchema } from "./table-schema";
 
@@ -74,6 +75,9 @@ export const rowOperations = [
       search: z.string().max(200).optional(),
       limit: z.coerce.number().int().min(1).max(MAX_PAGE_LIMIT).default(50),
       cursor: z.string().max(2000).optional(),
+      time_filter: jsonParam(TimeFilterSchema).describe("Lọc theo thời gian (ô Thời gian của bảng): `{columns:[cột ngày], range:{kind:\"preset\",preset:\"this_month\"}}`. Kết hợp VÀ với `filter`."),
+      offset: z.coerce.number().int().min(0).max(10_000_000).optional().describe("Đọc cửa sổ tại vị trí này thay cho `cursor` (nhảy tới vị trí xa). Dòng đầu là 0."),
+      reverse: z.enum(["true", "false"]).default("false").transform((v) => v === "true").describe("Với `offset`: đếm từ cuối danh sách; trang vẫn trả đúng thứ tự thường."),
       include_total: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
       labels: Labels,
       ...consistentParams,
@@ -84,7 +88,44 @@ export const rowOperations = [
     handler: async (ctx, i): Promise<ListOutput> => {
       const acc = await loadTableAccess(ctx, i.table_id);
       const schema = await TableSchema.load(ctx.db, acc);
-      return listRows(ctx.db, acc, schema, { filter: i.filter, sort: i.sort, fields: i.fields, search: i.search, limit: i.limit, cursor: i.cursor, includeTotal: i.include_total, labels: i.labels, consistentAfter: i.consistent_after, consistent: i.consistent });
+      return listRows(ctx.db, acc, schema, { filter: i.filter, sort: i.sort, fields: i.fields, search: i.search, limit: i.limit, cursor: i.cursor, includeTotal: i.include_total, timeFilter: i.time_filter, offset: i.offset, reverse: i.reverse, labels: i.labels, consistentAfter: i.consistent_after, consistent: i.consistent });
+    },
+  }),
+
+  defineQuery({
+    name: "datahub.row.groups",
+    summary: "Các nhóm của bảng theo một đến ba cột, kèm số dòng và dòng tổng của mỗi nhóm.",
+    description:
+      "Dùng cùng `filter`, `time_filter`, `search` với `datahub.row.list`; số dòng của mỗi nhóm đúng bằng số dòng `datahub.row.list` trả khi lọc thêm khoá nhóm. " +
+      "`group`: `[{\"field\":\"Giai đoạn\",\"dir\":\"asc\"}]` (tối đa 3 cột; không nhóm theo cột Nhiều lựa chọn, Văn bản dài, Ngày giờ). " +
+      "`aggs`: `{\"Doanh thu\":\"sum\"}` với sum, avg, min, max, count. Kết quả theo thứ tự hiển thị: nhóm, rồi các nhóm con của nó. Mỗi cấp tối đa 1.000 nhóm (`truncated`). Nhóm ô trống xếp cuối.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({
+      table_id: Id,
+      filter: filterParam,
+      time_filter: jsonParam(TimeFilterSchema),
+      search: z.string().max(200).optional(),
+      group: jsonParam(z.array(z.object({ field: z.string().min(1).max(100), dir: z.enum(["asc", "desc"]).optional() })).min(1).max(MAX_GROUP_LEVELS)),
+      aggs: jsonParam(z.record(z.string().max(100), z.enum(GROUP_FNS))),
+    }),
+    output: z.object({
+      groups: z.array(
+        z.object({
+          depth: z.number().int(),
+          path: z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).describe("Giá trị khoá của các nhóm từ cấp đầu tới cấp này (null = ô trống)."),
+          count: z.number().int(),
+          aggs: z.record(z.string(), z.union([z.number(), z.string(), z.null()])),
+        }),
+      ),
+      truncated: z.boolean(),
+    }),
+    http: { method: "GET", path: "/tables/:table_id/row-groups" },
+    handler: async (ctx, i) => {
+      if (!i.group) throw new AppError("validation_error", "Thiếu `group`: cột để nhóm.");
+      const acc = await loadTableAccess(ctx, i.table_id);
+      const schema = await TableSchema.load(ctx.db, acc);
+      return listGroups(ctx.db, acc, schema, { filter: i.filter, timeFilter: i.time_filter, search: i.search, group: i.group, aggs: i.aggs });
     },
   }),
 

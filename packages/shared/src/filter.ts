@@ -98,6 +98,20 @@ export const filterParam = z.preprocess((v) => {
   return v;
 }, FilterSchema.optional());
 
+/** A JSON value sent in the query string (a string) or as an object: parsed, then checked by `schema`. */
+export function jsonParam<T extends z.ZodType>(schema: T) {
+  return z.preprocess((v) => {
+    if (typeof v === "string") {
+      try {
+        return JSON.parse(v);
+      } catch {
+        return v;
+      }
+    }
+    return v;
+  }, schema.optional()) as unknown as z.ZodOptional<T>;
+}
+
 export const listParamsShape = {
   filter: filterParam.describe("Bộ lọc dạng JSON (mục 6.3 của thiết kế)."),
   sort: z.string().max(300).optional().describe("Ví dụ: created_at:desc,id:asc"),

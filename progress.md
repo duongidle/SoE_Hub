@@ -5,11 +5,12 @@ Cập nhật: 19/11/2026
 ## Giai đoạn hiện tại
 
 - Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11, mục 7 Thanh toán còn là khung). **Module 5, 6: bản nháp vòng 1 xong** (`design/module5-ket-noi-ai.md`, `design/module6-thong-bao.md`, 19/11), chờ Dương phản biện. **Module 7 đã chốt** (19/11; CLAUDE.md, Module 0, 4 đã ghi thay đổi; Module 2 mục 11 chưa ghi giới hạn 150 cột vì Sonnet đang sửa file đó, ghi khi rảnh). Câu hỏi ở mục cuối mỗi file.
-- Code: Stage 0 và Stage 1 xong. Stage 2: 2A xong và đã rà soát; **2B, 2B+ và 2C-1 code xong, chờ Opus rà soát**; 2C-2..4, 2D chưa làm.
+- Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1 xong và Opus đã rà soát (19/11); **2C-2 đang làm dở (Sonnet, hết quota giữa chừng)**; 2C-3, 2C-4, 2D chưa làm. Dương yêu cầu: làm xong 2B+ và 2C rồi push lên `main` và báo.
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
-1. 2A đã rà soát, đã push `main` + `dev`. **2B, 2B+ (19/11) và 2C-1 (19/11) code xong, chờ Opus rà soát.** Nếu phiên bị ngắt: xem `git status`, `git log`.
+1. 2A đã push `main` + `dev`. 2B+ Opus đã rà soát (19/11): đạt, `pnpm lint`/`typecheck`/`test` 511 pass. 2C-1 Opus đã rà soát: đạt, còn 3 việc chuyển sang phần sau: (a) kéo thanh cuộn xuống cuối bảng 100.000 dòng mất 5,8 s, yêu cầu nhảy tới vị trí bất kỳ < 1 s (đọc thẳng cửa sổ quanh vị trí, đúng cả khi lọc/sắp/nhóm) — giao trong 2C-2; (b) cột Liên kết, Đính kèm sửa được — 2C-3; (c) `impeccable audit` cho grid — 2C-2.
+2. **2C-2 đang dở (19/11, Sonnet hết quota).** Phần đã có, CHƯA chạy test, commit dạng WIP `2C-2 (dở)`: `packages/shared/src/time-filter.ts` + test, `apps/api/src/modules/datahub/time-filter.ts`, `rows-groups.ts` (nhóm + dòng tổng), sửa `rows-read.ts`, `row-ops.ts`, `collab.ts`, `limits.ts`, `index.ts`, `packages/db/src/query/keyset.ts`, `packages/shared/src/filter.ts`, test `datahub-view-query.test.ts`, `datahub-perf.test.ts`. Chưa có giao diện thanh công cụ. Phiên sau: đọc diff commit WIP, chạy `pnpm typecheck` và `pnpm exec vitest run packages/shared apps/api/test/datahub-view-query apps/api/test/datahub-perf`, sửa cho pass, rồi làm tiếp đủ việc 2C-2 (mục "Đang làm" bên dưới, kèm (a), (c) ở điểm 1). Sau đó 2C-3, 2C-4, rồi Opus rà soát và push `main` theo yêu cầu của Dương.
 3. Ghi nhớ cho các phần sau của Stage 2:
    - 2B: golden test được đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (Dương cho phép), không commit dữ liệu lấy từ file, máy không có file thì test tự bỏ qua.
    - 2C: làm cả công cụ **Tìm dòng trùng** (Module 2 mục 7a).
@@ -24,14 +25,14 @@ Cập nhật: 19/11/2026
 - **Stage 0 xong**: monorepo, schema + migration, registry, audit append-only, lịch sử dòng, outbox, worker pg-boss, SSE, file, OpenAPI, Docker/compose/Caddy.
 - **Stage 1 xong**: API và web của tài khoản, org chart, vai trò, phiên, mã kích hoạt, token, thông báo, nhật ký, chuyển giao, cài đặt (302 test, e2e 16 luồng x 2 bề ngang, 10 lỗi tìm thấy đã sửa). Chưa thử: chuyển cả cây bằng giao diện, đăng nhập Google, `docker-compose.yml`. Quyết định ở `design/module1-tai-khoan-phan-quyen.md`.
 - **2A xong** (đã rà soát): schema, kiểu cột, API cấu trúc và dòng, SSE, chuyển giao, view SQL, index tự động; 100.000 dòng đọc 3–44 ms, trang keyset 2,7 ms.
-- **2B xong** (chờ rà soát): công thức (106 hàm), cột công thức/liên kết/lookup/rollup, tính lại, golden test 3.322 công thức (3.321 khớp Excel). Chi tiết ở `design/module2-datahub.md` mục 2B.
-- **2B+ xong** (chờ rà soát): tính lại theo phần, sự kiện `dòng, cột, cũ → mới`, `seq` và đợi tính xong, `pending` theo ô, đối soát hằng đêm; sửa 1 dòng nguồn ở bảng 100.000 dòng, 6 cột phụ thuộc: ghi 9 ms, worker 43 ms. Chi tiết mục 2B+.
-- **2C-1 xong** (chờ rà soát, 19/11): xem bên dưới và `design/module2-datahub.md` mục "Stage 2C-1".
+- **2B xong** (đã rà soát): công thức (106 hàm), cột công thức/liên kết/lookup/rollup, tính lại, golden test 3.322 công thức (3.321 khớp Excel). Chi tiết ở `design/module2-datahub.md` mục 2B.
+- **2B+ xong** (đã rà soát): tính lại theo phần, sự kiện `dòng, cột, cũ → mới`, `seq` và đợi tính xong, `pending` theo ô, đối soát hằng đêm; sửa 1 dòng nguồn ở bảng 100.000 dòng, 6 cột phụ thuộc: ghi 9 ms, worker 43 ms. Chi tiết mục 2B+.
+- **2C-1 xong** (đã rà soát, 19/11): xem bên dưới và `design/module2-datahub.md` mục "Stage 2C-1".
 
 ## Đang làm: Stage 2C (giao diện Datahub), Sonnet code
 
 - **2C-1 xong**: danh sách datahub, trang datahub (tab bảng, URL gửi được), grid Glide ảo hoá đọc keyset (100.000 dòng cuộn 60 fps), mọi kiểu cột, ô "đang tính", sửa ô/dán/điền xuống/sửa hàng loạt/xoá + Hoàn tác/hoàn tác-làm lại, khung chi tiết dòng + lịch sử, SSE; API mới `datahub.people.lookup`, `datahub.relation.labels`, `datahub.row.restore_batch`.
-- 2C-2: thanh công cụ view (tab view, lọc lồng nhau, ô Thời gian mục 5.4, sắp xếp nhiều cấp, nhóm + dòng tổng, ẩn/cố định/kéo thứ tự/độ rộng cột, chiều cao dòng, tô màu theo điều kiện), tự lưu theo mục 5.2.
+- **2C-2 (đang dở, xem điều phối điểm 2)**: sửa nhảy cuộn < 1 s; thanh công cụ view (tab view, lọc lồng nhau, ô Thời gian mục 5.4, sắp xếp nhiều cấp, nhóm + dòng tổng, ẩn/cố định/kéo thứ tự/độ rộng cột, chiều cao dòng, tô màu theo điều kiện), tự lưu theo mục 5.2.
 - 2C-3: quản lý cột (thêm/sửa/xoá, kiểu, thuộc tính, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện công thức mẫu; ô chọn dòng đích cho cột Liên kết.
 - 2C-4: Tìm dòng trùng (mục 7a), chia sẻ, thùng rác, cài đặt giới hạn Admin; kiểm thử giao diện cả 2C theo "Định nghĩa xong" điểm 5.
 - 2D: import/export, import công thức, load test 100k dòng, e2e cả stage.
@@ -44,7 +45,7 @@ Cập nhật: 19/11/2026
 
 ## Bước tiếp theo
 
-**Opus rà soát 2C-1** (diff từ commit `127e791` trở đi, trừ các commit thiết kế) và 2B+ (từ `49d3b7b`), rồi giao **2C-2**: dùng `data-slot="view-tools"` trong `apps/web/src/pages/datahub/table-view.tsx` làm thanh công cụ view; `TableSession` (`apps/web/src/lib/datahub/session.ts`) nhận `query` (`filter`, `sort`, `search`) khi tạo, đổi view thì tạo phiên mới; lưu view qua `datahub.view.update` (API đã có), đọc `datahub.view.list`. Chạy test nhanh: `pnpm exec vitest run apps/web packages/shared apps/api/test/datahub-lookup`; giao diện: `pnpm test:e2e stage2c1`.
+**Làm tiếp 2C-2** từ commit WIP (điều phối điểm 2): dùng `data-slot="view-tools"` trong `apps/web/src/pages/datahub/table-view.tsx` làm thanh công cụ view; `TableSession` (`apps/web/src/lib/datahub/session.ts`) nhận `query` (`filter`, `sort`, `search`) khi tạo, đổi view thì tạo phiên mới; lưu view qua `datahub.view.update` (API đã có), đọc `datahub.view.list`. Chạy test nhanh: `pnpm exec vitest run apps/web packages/shared apps/api/test/datahub-lookup`; giao diện: `pnpm test:e2e stage2c1`.
 
 ## Câu hỏi còn mở
 

@@ -30,6 +30,13 @@ export interface ListPageParams {
   select?: string | null;
   limit?: number;
   cursor?: string | null;
+  /**
+   * Window read: skip this many rows of the (filtered, sorted) list instead of following a cursor. For a jump to a far
+   * position (the person drags the scroll bar). With `reverse` the count starts from the END of the list.
+   */
+  offset?: number;
+  /** Reads the list from its end: every direction and null placement is flipped, and the page comes back in normal order. */
+  reverse?: boolean;
   includeTotal?: boolean;
 }
 
@@ -131,8 +138,10 @@ export async function listPage<T = Record<string, unknown>>(ex: Executor, p: Lis
   const signature = sort.map((s) => `${s.field}:${s.dir}:${nullsFirstOf(s) ? "f" : "l"}`).join(",");
 
   const sortExprs = sort.map((s) => p.fields[s.field]!.sortExpr ?? exprOf(p.fields[s.field]!));
-  const dirs = sort.map((s) => s.dir);
-  const nullsFirst = sort.map(nullsFirstOf);
+  const windowed = p.offset !== undefined;
+  const flip = windowed && !!p.reverse;
+  const dirs = sort.map((s) => (flip ? (s.dir === "asc" ? "desc" : "asc") : s.dir) as "asc" | "desc");
+  const nullsFirst = sort.map(nullsFirstOf).map((f) => (flip ? !f : f));
 
   const filterSql = compileFilter(p.filter, p.fields);
   const where: SQL[] = [];
@@ -142,7 +151,7 @@ export async function listPage<T = Record<string, unknown>>(ex: Executor, p: Lis
   const baseWhereSql = where.length ? sql`WHERE ${sql.join(where, sql` AND `)}` : sql``;
 
   const keysetWhere = [...where];
-  if (p.cursor) {
+  if (p.cursor && !windowed) {
     const c = decodeCursor(p.cursor);
     if (c.s !== signature || c.k.length !== sort.length) {
       throw new AppError("invalid_filter", "Con trỏ không khớp với cách sắp xếp hiện tại.");
@@ -155,15 +164,17 @@ export async function listPage<T = Record<string, unknown>>(ex: Executor, p: Lis
   const keyList = sortExprs.map((e, i) => sql`(${e})::text AS ${sql.identifier(`__k${i}`)}`);
   const orderBy = sortExprs.map((e, i) => sql`${e} ${dirs[i] === "asc" ? sql`ASC` : sql`DESC`} ${nullsFirst[i] ? sql`NULLS FIRST` : sql`NULLS LAST`}`);
 
-  const query = sql`SELECT ${sql.join([...selectList, ...(p.extraSelect ?? []), ...keyList], sql`, `)} FROM ${p.from} ${whereSql} ORDER BY ${sql.join(orderBy, sql`, `)} LIMIT ${limit + 1}`;
+  const query = sql`SELECT ${sql.join([...selectList, ...(p.extraSelect ?? []), ...keyList], sql`, `)} FROM ${p.from} ${whereSql} ORDER BY ${sql.join(orderBy, sql`, `)} LIMIT ${limit + 1}${windowed ? sql` OFFSET ${Math.max(0, Math.floor(p.offset!))}` : sql``}`;
   const res = await ex.execute(query);
   const rows = res.rows as Record<string, unknown>[];
 
   const hasMore = rows.length > limit;
-  const page = hasMore ? rows.slice(0, limit) : rows;
+  let page = hasMore ? rows.slice(0, limit) : rows;
+  if (flip) page = [...page].reverse();
 
   let nextCursor: string | null = null;
-  if (hasMore) {
+  // A reversed window has no cursor: the client asks for the next window by position.
+  if (hasMore && !flip) {
     const last = page[page.length - 1]!;
     nextCursor = encodeCursor({ s: signature, k: sort.map((_, i) => (last[`__k${i}`] as string | null) ?? null) });
   }

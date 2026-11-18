@@ -12,6 +12,7 @@ import { exposeErrors } from "./cell-values";
 import { pendingCells, wantedSeq, waitConsistent, type Consistency } from "./consistency";
 import { readSetting } from "../system/settings-catalog";
 import { DH_SETTINGS } from "./limits";
+import { andFilter, timeFilterNode } from "./time-filter";
 
 export interface RowQuery {
   filter?: FilterNode;
@@ -23,6 +24,12 @@ export interface RowQuery {
   /** Table-wide text search: every word must appear in some text cell (accent and case insensitive). */
   search?: string;
   labels?: boolean;
+  /** Time filter of the table (design module2 section 5.4), combined with `filter` by AND. */
+  timeFilter?: unknown;
+  /** Window read: skip this many rows instead of following `cursor` (a jump to a far position). */
+  offset?: number;
+  /** With `offset`: count from the END of the list (the page still comes back in normal order). */
+  reverse?: boolean;
   /** Wait until the computed columns have incorporated this change sequence (design module2 section 6.7). */
   consistentAfter?: number;
   /** Wait for the newest change sequence at the time of the call. */
@@ -78,7 +85,7 @@ function shape(items: Record<string, unknown>[], schema: TableSchema, labels: bo
 /** Lists live rows: filter DSL, multi-level sort (option order, nulls first/last), keyset pages, `fields=`. */
 export async function listRows(db: Executor, access: TableAccess, schema: TableSchema, q: RowQuery): Promise<ListOutput<Shaped>> {
   const consistency = await awaitConsistency(db, access.tableId, q);
-  const filter = schema.normalizeFilter(q.filter);
+  const filter = schema.normalizeFilter(andFilter(q.filter, q.timeFilter ? await timeFilterNode(db, schema, q.timeFilter) : undefined));
   const sortItems = schema.normalizeSort(q.sort);
   const sel = schema.parseSelect(q.fields);
   const where: SQL[] = [access.scope(), sql`deleted_at IS NULL`];
@@ -96,6 +103,8 @@ export async function listRows(db: Executor, access: TableAccess, schema: TableS
     extraSelect: [dataSelect(schema, sel)],
     limit: q.limit,
     cursor: q.cursor,
+    offset: q.offset,
+    reverse: q.reverse,
     includeTotal: q.includeTotal,
   });
   // Best effort: never let index bookkeeping break a read.

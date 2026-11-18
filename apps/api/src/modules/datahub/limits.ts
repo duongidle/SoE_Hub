@@ -41,6 +41,13 @@ export const DH_SETTINGS = {
     schema: z.number().int().min(0).max(60000),
     default: 5000,
   } satisfies SettingDef<number>,
+  fiscalStartMonth: {
+    key: "datahub.fiscal_start_month",
+    label: "Tháng bắt đầu năm tài chính",
+    description: "Quý và năm của ô Thời gian trong Datahub tính từ tháng này (1 = năm dương lịch, quý bắt đầu tháng 1, 4, 7, 10). Năm tài chính mang số năm của tháng bắt đầu.",
+    schema: z.number().int().min(1).max(12),
+    default: 1,
+  } satisfies SettingDef<number>,
 } as const;
 
 export interface DhLimits {

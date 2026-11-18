@@ -118,3 +118,36 @@ describe(`100k rows: filter + sort + first page`, () => {
     expect(per).toBeLessThan(300);
   }, 60_000);
 });
+
+describe("100k rows: jump to any position (window read, design module2 section 5.1 / decisions of 2C-2)", () => {
+  // The grid asks for a window of 200 rows at the position the person dragged to; the second half is read from the end.
+  const cases: [string, Record<string, unknown>][] = [
+    ["default order", {}],
+    ["sort Doanh thu desc", { sort: "Doanh thu:desc" }],
+    ["sort Mức (option order) then Hạn asc nulls last", { sort: "Mức,Hạn:asc:last" }],
+    ["filter(Mức in P1,P2) + sort Hạn", { filter: JSON.stringify({ field: "Mức", op: "in", value: ["P1", "P2"] }), sort: "Hạn" }],
+    ["filter(Khách hàng contains 'thuan') + sort Doanh thu desc", { filter: JSON.stringify({ field: "Khách hàng", op: "contains", value: "thuan" }), sort: "Doanh thu:desc" }],
+  ];
+  for (const [label, base] of cases) {
+    it(`${label}: the last rows and the middle in under 1 s`, async () => {
+      const total = (await owner("datahub.row.list", { table_id: x.tableId, ...base, limit: 1, include_total: "true" })).total as number;
+      const read = async (name: string, input: Record<string, unknown>) => {
+        const ms: number[] = [];
+        let items = 0;
+        for (let i = 0; i < 3; i++) {
+          const s = performance.now();
+          items = (await owner("datahub.row.list", { table_id: x.tableId, ...base, limit: 200, ...input })).items.length;
+          ms.push(performance.now() - s);
+        }
+        ms.sort((p, q) => p - q);
+        console.warn(`[perf] jump ${label} / ${name}: median ${ms[1]!.toFixed(0)} ms (total ${total})`);
+        expect(items).toBeGreaterThan(0);
+        expect(ms[1]!).toBeLessThan(1000);
+      };
+      await read("middle, offset", { offset: Math.floor(total / 2) });
+      await read("near the end, offset", { offset: total - 200 });
+      await read("near the end, from the end", { offset: 0, reverse: "true" });
+      await read("80%, from the end", { offset: Math.floor(total * 0.2) - 200, reverse: "true" });
+    }, 60_000);
+  }
+});
