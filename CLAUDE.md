@@ -97,7 +97,7 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 2. Test unit và test phân quyền của stage đều pass; test của các stage trước không bị hỏng.
 3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`.
 4. Có giao diện tối thiểu để dùng, đạt mục "Chuẩn giao diện".
-5. **Đã kiểm thử giao diện thực tế** (với stage có giao diện): chạy api + worker + web thật, mở trên trình duyệt thật (Playwright có chụp màn hình, hoặc Claude in Chrome), đi hết các luồng chính của stage với từng vai trò liên quan, kiểm tra không có lỗi console/network, kiểm tra ở bề ngang desktop (1280px) và điện thoại (375px; bắt buộc với trang công khai như form), dò hết danh sách kiểm tra ở mục "Chuẩn giao diện", và thử dữ liệu xấu nhất (tên rất dài, số rất lớn, danh sách rỗng, 10.000 dòng). Lỗi tìm thấy phải sửa xong mới coi là xong. Ghi kết quả kiểm thử (luồng đã đi, lỗi đã sửa) vào `progress.md`.
+5. **Đã kiểm thử giao diện thực tế** (với stage có giao diện): chạy api + worker + web thật, mở trên trình duyệt thật (Playwright có chụp màn hình, hoặc Claude in Chrome), đi hết các luồng chính của stage với từng vai trò liên quan, kiểm tra không có lỗi console/network, kiểm tra ở bề ngang desktop (1280px) và điện thoại (375px; bắt buộc với trang công khai như form), dò hết danh sách kiểm tra ở mục "Chuẩn giao diện", chạy phần bắt buộc của từng skill trong bảng "Dùng skill nào, lúc nào", và thử dữ liệu xấu nhất theo quy trình `break-ui` (tên rất dài, số rất lớn, danh sách rỗng, 10.000 dòng). Lỗi tìm thấy phải sửa xong mới coi là xong. Ghi kết quả kiểm thử (luồng đã đi, lỗi đã sửa) vào `progress.md`.
 6. `progress.md` đã cập nhật, đã commit.
 
 ## Phân vai khi code
@@ -134,9 +134,47 @@ REST API được sinh từ registry ngay từ Stage 0, nên mỗi stage tự c�
 
 ## Chuẩn giao diện
 
-Theo `promt.md` mục 17: trực quan, dễ thao tác là ưu tiên; font thống nhất, tương phản, sizing chuẩn production; wording gọn, không giọng AI. Áp dụng cho mọi stage có giao diện, không đợi Stage 12. Mục này đã tổng hợp từ các skill giao diện (`ui-ux-pro-max`, `impeccable`, `emil-design-eng`, `break-ui`, `mobile-native`, `ui-styling`) nên **không cần cài skill nào**; máy nào có thì đọc thêm khi cần, nhưng quy định ở đây là chuẩn.
+Theo `promt.md` mục 17: trực quan, dễ thao tác là ưu tiên; font thống nhất, tương phản, sizing chuẩn production; wording gọn, không giọng AI. Áp dụng cho mọi stage có giao diện, không đợi Stage 12.
 
 SoE Hub là công cụ làm việc (bảng, dashboard, form): ưu tiên dễ quét, nhất quán, quen tay. Không trang trí lạ mắt. Chỉ Knowledge, AI Hub và form công khai được đầu tư thẩm mỹ nhiều hơn ở Stage 12.
+
+Mục này gồm hai phần: **quy định** từ mục "Hệ thống thiết kế" trở xuống (luôn áp dụng), và **bộ skill giao diện** để làm và kiểm thử theo quy trình của chúng. Hai bên mâu thuẫn thì quy định trong `CLAUDE.md` thắng.
+
+### Bộ skill giao diện (bắt buộc cài)
+
+Agent nào làm hoặc rà soát giao diện (Sonnet code, Opus kiểm soát) phải có đủ 6 skill dưới đây. Đầu phiên, kiểm tra `~/.claude/skills/<tên>/SKILL.md`; thiếu skill nào thì chạy lệnh cài bên dưới trước khi làm giao diện. Lệnh cài đúng phiên bản đã dùng cho dự án, chỉ cài skill còn thiếu, không ghi đè skill đã có. Cài xong thì đọc thẳng file `SKILL.md` là dùng được ngay; lệnh gọi skill (`/tên-skill`) chỉ có từ phiên sau. Máy không có mạng hoặc cài lỗi thì ghi vào `progress.md`, làm theo quy định trong file này, và báo Opus.
+
+```bash
+set -e
+DEST="${DEST:-$HOME/.claude/skills}"; TMP="$(mktemp -d)"; mkdir -p "$DEST"
+get() { git init -q "$TMP/$3" && git -C "$TMP/$3" fetch -q --depth 1 "https://github.com/$1" "$2" && git -C "$TMP/$3" checkout -q FETCH_HEAD; }
+get emilkowalski/skills                  c8a79627b59d72d764d6ab6f2c87c09a48169833 emil
+get pbakaus/impeccable                   687bc381bc9091bf252c0a05303640561014a425 imp
+get nextlevelbuilder/ui-ux-pro-max-skill 0da327f37b436c173ce51177678b65ca92e6f3f7 uux
+for s in emil-design-eng break-ui mobile-native; do [ -d "$DEST/$s" ] || cp -R "$TMP/emil/skills/$s" "$DEST/"; done
+[ -d "$DEST/impeccable" ] || cp -R "$TMP/imp/.claude/skills/impeccable" "$DEST/"
+for s in ui-ux-pro-max ui-styling; do [ -d "$DEST/$s" ] || cp -R "$TMP/uux/.claude/skills/$s" "$DEST/"; done
+rm -rf "$TMP"
+```
+
+Không chép skill vào repo (repo public, skill có giấy phép riêng). Muốn nâng phiên bản thì Opus đổi mã commit ở trên, đọc lại thay đổi của skill, rồi commit `CLAUDE.md`.
+
+**Dùng skill nào, lúc nào:**
+
+| Skill             | Khi nào                                                    | Phần bắt buộc làm                                                                                                    |
+| ----------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `ui-ux-pro-max`   | Mọi trang, mọi thành phần                                  | Trước khi báo xong: rà `references/quick-reference.md` mục 1–3 và 8 (accessibility, tương tác, hiệu năng, form)      |
+| `ui-styling`      | Dựng thành phần shadcn/Tailwind                            | Theo mẫu thành phần và theming của skill, nhưng màu/font lấy theo quy định bên dưới                                  |
+| `break-ui`        | Mỗi màn hình có dữ liệu, trước khi báo xong                | Đủ quy trình: lập bảng mọi giá trị hiển thị → bộ dữ liệu xấu nhất → nút chuyển dữ liệu (chỉ ở dev) → báo lỗi → sửa   |
+| `mobile-native`   | Trang dùng trên điện thoại (form công khai, onboarding…)   | Rà bảng "Never Ship" và phần "Baseline"                                                                              |
+| `impeccable`      | Rà soát và Stage 12                                         | Chạy `audit` cho màn mới; `harden` (lỗi, dữ liệu biên), `clarify` (wording) khi rà; `polish` ở Stage 12              |
+| `emil-design-eng` | Khi làm chuyển động, hiệu ứng bấm, popover, toast           | Dùng khung quyết định "có nên animate không" trước khi viết hiệu ứng                                                 |
+
+Giới hạn khi dùng skill trong dự án này:
+
+- Không chạy lệnh skill tạo file thiết kế riêng trong repo (`ui-ux-pro-max --persist`, `impeccable init` / `document` tạo `PRODUCT.md`, `DESIGN.md`) và không bật hook của `impeccable`, trừ khi Opus quyết. Token thiết kế chỉ nằm ở `apps/web/src/index.css`.
+- Gợi ý của skill về màu, font, phong cách chỉ là tham khảo; đã chốt ở đây thì theo đây (ví dụ font Be Vietnam Pro + chữ số Roboto).
+- Không đưa dữ liệu thật trong `examples/` vào câu truy vấn hay bộ dữ liệu thử của skill.
 
 ### Hệ thống thiết kế
 
