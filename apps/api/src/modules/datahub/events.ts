@@ -11,6 +11,8 @@ const rowPayload = z.object({
   row_ids: z.array(z.uuid()).max(500),
   /** Keys of the columns whose values changed (lets Stage 2B recalculate only what depends on them). */
   columns: z.array(z.string()),
+  /** Change sequence of the write (design module2 section 6.7). */
+  seq: z.number().int().optional(),
 });
 
 const rowEvent = (name: string, description: string): EventDef => ({
@@ -40,16 +42,19 @@ export const datahubEvents: EventDef[] = [
   {
     name: "datahub.formula.recalculated",
     version: 1,
-    description: "Một cột công thức, lookup hoặc rollup đang chờ tính (state=pending) hoặc đã tính xong (state=done). Bảng đang mở tải lại các ô; cột phụ thuộc được tính tiếp.",
+    description: "Cột công thức, lookup hoặc rollup đang chờ tính (pending), có ô đổi giá trị (changed, kèm danh sách dòng, cột, giá trị cũ → mới, tối đa 500 dòng mỗi sự kiện) hoặc đã tính xong (done). Là sự kiện cho bên nghe (SSE, Automation, cột phụ thuộc), không phải lịch sử dòng.",
     schema: z.object({
       table_id: z.uuid(),
       /** Keys of the computed columns. */
       columns: z.array(z.string()),
-      state: z.enum(["pending", "done"]),
-      /** Rows whose stored value changed (state=done). */
+      /** `pending` (column waiting), `changed` (a batch of cells changed: `changes`), `done` (the column is finished: `changed_rows` in all). */
+      state: z.enum(["pending", "changed", "done"]),
+      /** Rows whose stored value changed: in a `changed` event the rows of that event (at most 500), in `done` the total. */
       changed_rows: z.number().int(),
-      /** Ids of those rows, or null when there are more than 500 (reload the whole table). */
-      row_ids: z.array(z.uuid()).nullable(),
+      /** At most 500 cells per event; a computed column that changed more is announced by several events. Error values are `{error: "#DIV/0!"}`. */
+      changes: z.array(z.object({ row_id: z.uuid(), column: z.string(), old: z.unknown(), new: z.unknown() })).max(500),
+      /** Change sequence the column has incorporated up to (design module2 section 6.7). */
+      seq: z.number().int().nullable().optional(),
     }),
     audience: async (p: { table_id: string }, db) => ({ users: await tableAudience(db, p.table_id) }),
   },

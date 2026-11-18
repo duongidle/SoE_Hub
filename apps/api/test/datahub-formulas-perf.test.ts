@@ -4,6 +4,7 @@ import { as, drainOutbox, unlimit } from "./dh-helpers";
 import { makeApp, type TestApp } from "./helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { processPendingColumns } from "../src/modules/datahub";
+import { processIndexRequests } from "../src/modules/datahub/export-views";
 
 /**
  * Performance of formulas over big tables (design module2 section 6.6): 100,000 x 100,000 rows. Every aggregate or
@@ -80,14 +81,24 @@ describe("100,000 x 100,000: one grouped SQL query per column", () => {
 
   it("a change in the source table recomputes the dependent columns once, with unchanged values skipped", async () => {
     const row = (await owner("datahub.row.list", { table_id: src.id, limit: 1 })).items[0] as { id: string; version: number };
-    const skey = (await owner("datahub.table.get", { table_id: src.id })).columns.find((c: { name: string }) => c.name === "Số tiền").key;
+    const scols = (await owner("datahub.table.get", { table_id: src.id })).columns as { name: string; key: string }[];
+    const sk = (n: string) => scols.find((c) => c.name === n)!.key;
     const before = Number((await admin.query(`SELECT count(*) FROM row_history WHERE table_id = $1`, [dst.id])).rows[0].count);
-    await owner("datahub.row.update", { table_id: src.id, row_id: row.id, data: { [skey]: 123 }, version: row.version });
+    // The nightly/minute job has built the equality-key indexes the columns asked for (they are requested when a column is computed).
+    const idx = await processIndexRequests(t.c.db.db);
+    console.warn(`[perf] automatic indexes built before the edit: ${JSON.stringify(idx)}`);
+    await drainOutbox(t); // deliver what the earlier full recomputations announced; the timing below is the edit alone
+    const w = performance.now();
+    await owner("datahub.row.update", { table_id: src.id, row_id: row.id, data: { [sk("Số tiền")]: 123, [sk("Mã deal")]: "D77777", [sk("Loại")]: "B", [sk("Ngày")]: "2026-12-31" }, version: row.version });
+    const write = performance.now() - w;
     const s = performance.now();
+    const n = await processPendingColumns(t.c.db.db);
+    const recalc = performance.now() - s;
     await drainOutbox(t);
     const ms = performance.now() - s;
-    console.warn(`[perf] one source row edited -> dependent columns recomputed in the worker: ${(ms / 1000).toFixed(2)} s`);
+    console.warn(`[perf] one source row edited (key, amount, type and date: all 6 dependent columns affected): the write ${write.toFixed(0)} ms (includes queueing), the worker recomputed ${n} column(s) in ${recalc.toFixed(0)} ms, everything delivered in ${(ms / 1000).toFixed(2)} s`);
+    expect(recalc).toBeLessThan(1000);
     expect(Number((await admin.query(`SELECT count(*) FROM row_history WHERE table_id = $1`, [dst.id])).rows[0].count)).toBe(before);
-    expect(ms).toBeLessThan(120_000);
+    expect(ms).toBeLessThan(1500);
   }, 180_000);
 });

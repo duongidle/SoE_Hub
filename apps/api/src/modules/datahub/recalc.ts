@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import {
   equalityKey,
   evaluate,
@@ -15,7 +15,12 @@ import {
   type Scalar,
   type Value,
 } from "@soe/formula";
-import { enqueueOutbox, type Db, type Executor } from "@soe/db";
+import { DH_AUTO_INDEX_MIN_ROWS } from "@soe/shared";
+import { enqueueOutbox, newId, type Db, type Executor } from "@soe/db";
+import { readSetting } from "../system/settings-catalog";
+import { DH_SETTINGS } from "./limits";
+import { deleteQueue, enqueue, linkedRows, nextChangeSeq, readQueue, type KeyTuples, type QueuedRow } from "./change-queue";
+import { recordChanges, requestDependentsFull, CHAIN_LIMIT, keyFamily, type RowChange } from "./partial";
 import type { Logger } from "pino";
 import type { Subscriber } from "../../core/outbox-dispatcher";
 import { applyOutcome, cellValue, effectiveType, errKey, isComputedType, resultTypeOf, valueToStored, type ResultType, type StoreOutcome } from "./cell-values";
@@ -27,47 +32,40 @@ import type { LoadedRow } from "./column-source";
 type Raw = Record<string, unknown>;
 export const FORMULA_EVENT = "datahub.formula.recalculated";
 const BATCH = 2000;
+/** A change event lists at most this many rows (design module2 section 6.7). */
+export const EVENT_ROWS = 500;
+/** More affected rows than this share of the table: recomputing the whole column is cheaper (design module2 section 6.7). */
+export const PARTIAL_MAX_RATIO = 0.2;
 
 // ================================================================================================
 // marking columns for recalculation
 // ================================================================================================
 
-/** Columns waiting for the worker (design module2 section 6.5). Cheap and idempotent: a column is recomputed whole. */
+/**
+ * Asks for the whole column to be recomputed (creating or editing a formula, structure changes, TODAY()/NOW()...). It is
+ * an entry like any other in the change queue (mode `full`), so it accumulates with the partial changes of the same burst.
+ */
 export async function markPending(db: Executor, columnIds: string[]): Promise<void> {
   if (columnIds.length === 0) return;
-  const res = await db.execute(sql`UPDATE dh_columns SET calc_status = 'pending', calc_requested_at = clock_timestamp()
-    WHERE /*scope:system*/ deleted_at IS NULL AND id = ANY(${`{${columnIds.join(",")}}`}::uuid[]) RETURNING table_id, key`);
+  const alive = await db.execute(sql`SELECT id, table_id, key FROM dh_columns WHERE /*scope:system*/ deleted_at IS NULL AND id = ANY(${`{${columnIds.join(",")}}`}::uuid[])`);
+  const rows = alive.rows as Raw[];
+  if (rows.length === 0) return;
+  const seq = await nextChangeSeq(db);
+  await enqueue(db, rows.map((r) => ({ columnId: r.id as string, seq, mode: "full" as const })));
   const byTable = new Map<string, string[]>();
-  for (const r of res.rows as Raw[]) byTable.set(r.table_id as string, [...(byTable.get(r.table_id as string) ?? []), r.key as string]);
+  for (const r of rows) byTable.set(r.table_id as string, [...(byTable.get(r.table_id as string) ?? []), r.key as string]);
   for (const [tableId, columns] of byTable) {
-    await enqueueOutbox(db, { event: FORMULA_EVENT, aggregateType: "datahub_table", aggregateId: tableId, payload: { table_id: tableId, columns, state: "pending", changed_rows: 0, row_ids: null } });
+    await enqueueOutbox(db, { event: FORMULA_EVENT, aggregateType: "datahub_table", aggregateId: tableId, payload: { table_id: tableId, columns, state: "pending", changes: [], changed_rows: 0, seq } });
   }
 }
 
 const ids = (rows: unknown[]) => (rows as { id: string }[]).map((r) => r.id);
-
-/** Computed columns that depend on the given columns of a table (any kind of dependency). */
-async function dependentsOf(db: Executor, tableId: string, keys: string[], opts: { skipApiComputed?: boolean } = {}): Promise<string[]> {
-  if (keys.length === 0) return [];
-  const res = await db.execute(sql`SELECT DISTINCT c.id FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id
-    WHERE /*scope:system*/ c.deleted_at IS NULL AND f.src_table_id = ${tableId}::uuid AND f.src_key = ANY(${`{${keys.join(",")}}`}::text[])
-    ${opts.skipApiComputed ? sql`AND NOT (c.type = 'formula' AND c.table_id = ${tableId}::uuid AND NOT EXISTS (SELECT 1 FROM dh_formula_deps r WHERE r.column_id = c.id AND r.kind = 'range'))` : sql``}`);
-  return ids(res.rows);
-}
 
 /** Computed columns that read ANY column of the given tables. */
 async function readersOfTables(db: Executor, tableIds: string[]): Promise<string[]> {
   if (tableIds.length === 0) return [];
   const res = await db.execute(sql`SELECT DISTINCT c.id FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id
     WHERE /*scope:system*/ c.deleted_at IS NULL AND f.src_table_id = ANY(${`{${tableIds.join(",")}}`}::uuid[])`);
-  return ids(res.rows);
-}
-
-/** The columns of a table that the API cannot compute alone (they read other tables or linked rows). */
-async function workerColumnsOf(db: Executor, tableIds: string[]): Promise<string[]> {
-  const res = await db.execute(sql`SELECT c.id FROM dh_columns c
-    WHERE /*scope:system*/ c.table_id = ANY(${`{${tableIds.join(",")}}`}::uuid[]) AND c.deleted_at IS NULL
-      AND (c.type IN ('lookup', 'rollup') OR (c.type = 'formula' AND EXISTS (SELECT 1 FROM dh_formula_deps r WHERE r.column_id = c.id AND r.kind = 'range')))`);
   return ids(res.rows);
 }
 
@@ -82,31 +80,21 @@ async function tablesOfDatahub(db: Executor, datahubId: string): Promise<string[
 }
 
 /**
- * Outbox listener: finds the computed columns a change affects and marks them pending (the recalculation loop does the
- * work). Same-row formulas were already computed by the API in the writing transaction and are skipped here.
+ * Outbox listener for STRUCTURE changes (column or table deleted/restored, type changed, owner changed): the computed
+ * columns that read them recompute whole. Changes to rows do not come through here: the write itself queues what it
+ * changed (design module2 section 6.7), in its own transaction, with the old values it knows.
  */
 export const formulaSubscriber: Subscriber = {
   name: "datahub.formula",
-  match: (e) => e.startsWith("datahub.row.") || e === "datahub.structure.changed" || e === FORMULA_EVENT,
+  match: (e) => e === "datahub.structure.changed",
   async handle(ev, db) {
-    const p = ev.payload as { table_id?: string; datahub_id?: string; columns?: string[]; change?: string; state?: string; changed_rows?: number };
+    const p = ev.payload as { table_id?: string; datahub_id?: string; change?: string };
     const marks = new Set<string>();
-    if (ev.event === FORMULA_EVENT) {
-      if (p.state === "done" && (p.changed_rows ?? 0) > 0 && p.table_id) (await dependentsOf(db, p.table_id, p.columns ?? [])).forEach((x) => marks.add(x));
-    } else if (ev.event === "datahub.structure.changed") {
-      const change = p.change ?? "";
-      const tableIds = p.table_id ? [p.table_id] : p.datahub_id ? await tablesOfDatahub(db, p.datahub_id) : [];
-      if (["column_deleted", "column_restored", "column_type_changed", "table_deleted", "table_restored", "datahub_deleted", "datahub_restored", "owner_changed"].includes(change)) {
-        (await readersOfTables(db, tableIds)).forEach((x) => marks.add(x));
-        if (["column_restored", "table_restored", "datahub_restored", "owner_changed", "column_type_changed"].includes(change)) (await computedColumnsOf(db, tableIds)).forEach((x) => marks.add(x));
-      }
-    } else if (p.table_id) {
-      const kind = ev.event.slice("datahub.row.".length);
-      (await dependentsOf(db, p.table_id, p.columns ?? [], { skipApiComputed: true })).forEach((x) => marks.add(x));
-      if (kind !== "updated") {
-        (await readersOfTables(db, [p.table_id])).forEach((x) => marks.add(x));
-        (await workerColumnsOf(db, [p.table_id])).forEach((x) => marks.add(x));
-      }
+    const change = p.change ?? "";
+    const tableIds = p.table_id ? [p.table_id] : p.datahub_id ? await tablesOfDatahub(db, p.datahub_id) : [];
+    if (["column_deleted", "column_restored", "column_type_changed", "table_deleted", "table_restored", "datahub_deleted", "datahub_restored", "owner_changed"].includes(change)) {
+      (await readersOfTables(db, tableIds)).forEach((x) => marks.add(x));
+      if (["column_restored", "table_restored", "datahub_restored", "owner_changed", "column_type_changed"].includes(change)) (await computedColumnsOf(db, tableIds)).forEach((x) => marks.add(x));
     }
     await markPending(db, [...marks]);
   },
@@ -205,8 +193,21 @@ function numExpr(col: { key: string; type: string; config: Record<string, unknow
 
 const stubRow = (data: Record<string, Stored>): LoadedRow => ({ id: "", rowNo: 0, version: 0, data, createdAt: new Date(0), createdBy: null, updatedAt: new Date(0), updatedBy: null });
 
-/** Answers every row of the table at once from one grouped SQL query (design module2 section 6.6). */
-async function buildPlan(db: Executor, ix: OwnerIndex, g: GroupableCall): Promise<GroupPlan> {
+/** Equality key of a source column as SQL (`soe_eqk`, migration 0007), or null when the column cannot be filtered that way. */
+function sourceKeyExpr(col: { key: string; type: string; config: Record<string, unknown> }): SQL | null {
+  const k = assertColumnKey(col.key);
+  const f = keyFamily(col);
+  if (f === "plain") return sql.raw(`soe_eqk(data->'${k}')`);
+  if (f === "date") return sql.raw(`soe_eqk(to_jsonb(CASE WHEN jsonb_typeof(data->'${k}') = 'string' AND data->>'${k}' ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN (soe_date(data->>'${k}') - DATE '1899-12-30') END))`);
+  return null;
+}
+
+/**
+ * Answers the rows of the table from one grouped SQL query (design module2 section 6.6). With `restrict` (per key
+ * position: the JSON key values the rows being recomputed look up), only the source rows that may belong to those groups
+ * are read (design module2 section 6.7); a group is always complete, extra rows only fill groups nobody asks for.
+ */
+async function buildPlan(db: Executor, ix: OwnerIndex, g: GroupableCall, restrict: string[][] | null = null): Promise<GroupPlan> {
   const keyCols = g.keyColumns.map((k) => ix.column(g.table, k)!);
   const keyOf = (rawKeys: unknown[]): string | null => {
     const parts: string[] = [];
@@ -224,7 +225,12 @@ async function buildPlan(db: Executor, ix: OwnerIndex, g: GroupableCall): Promis
     return parts.join(SEP);
   };
   const keySelect = keyCols.map((c, i) => sql.raw(`data->'${assertColumnKey(c.key)}' AS k${i}`));
-  const where = sql`/*scope:system*/ table_id = ${g.table}::uuid AND deleted_at IS NULL`;
+  let where = sql`/*scope:system*/ table_id = ${g.table}::uuid AND deleted_at IS NULL`;
+  if (restrict) {
+    keyCols.forEach((c, i) => {
+      where = sql`${where} AND ${sourceKeyExpr(c)!} = ANY(ARRAY(SELECT soe_eqk(x::jsonb) FROM unnest(${`{${restrict[i]!.map((v) => `"${v.replace(/(["\\])/g, "\\$1")}"`).join(",")}}`}::text[]) x))`;
+    });
+  }
   const target = g.target ? ix.column(g.table, g.target)! : null;
   const map = new Map<string, Acc>();
 
@@ -329,13 +335,26 @@ async function loadScanColumn(db: Executor, ix: OwnerIndex, tableId: string, key
 
 // ---- formula column --------------------------------------------------------------------------------------
 
-export interface RecalcResult {
-  changedRows: number;
-  changedRowIds: string[] | null;
-  total: number;
+/** One cell of a computed column as the change feed shows it: the value, or `{error: code}`. */
+type Cell = unknown;
+const cellOf = (value: unknown, error: unknown): Cell => (error ? { error } : (value ?? null));
+
+export interface CellChange {
+  rowId: string;
+  oldValue: unknown;
+  oldError: unknown;
+  newValue: unknown;
+  newError: unknown;
 }
 
-const rowIdLimit = 500;
+/** What one recomputation of a column did. `rows` is null when there were too many changes to keep a list. */
+export interface RecalcResult {
+  changedRows: number;
+  total: number;
+  partial: boolean;
+  /** Rows whose stored value changed, as source changes for the columns that read this one. Null = over `CHAIN_LIMIT`. */
+  rows: RowChange[] | null;
+}
 
 async function writePatches(db: Executor, tableId: string, key: string, patches: { id: string; patch: Record<string, unknown> }[]): Promise<void> {
   if (patches.length === 0) return;
@@ -346,13 +365,56 @@ async function writePatches(db: Executor, tableId: string, key: string, patches:
     WHERE /*scope:system*/ r.table_id = ${tableId}::uuid AND r.id = v.id`);
 }
 
+/** Collects what a recomputation changed: the change feed (events of at most 500 rows) and the source changes for dependants. */
+class Changes {
+  count = 0;
+  private rows: RowChange[] | null = [];
+  constructor(
+    private readonly job: Job,
+    private readonly seq: number,
+  ) {}
+
+  /** Writes a batch of patches and, in the SAME transaction, its change events (design module2 section 6.7). */
+  async commit(db: Db, batch: { row: LoadedRow; data: Record<string, Stored>; patch: Record<string, unknown> }[]): Promise<void> {
+    if (batch.length === 0) return;
+    const col = this.job.col;
+    const ek = errKey(col.key);
+    await db.transaction(async (tx) => {
+      await writePatches(tx, this.job.tableId, col.key, batch.map((b) => ({ id: b.row.id, patch: b.patch })));
+      // One statement for all the events of the batch (at most 500 cells each).
+      const events: { id: string; payload: unknown }[] = [];
+      for (let i = 0; i < batch.length; i += EVENT_ROWS) {
+        const part = batch.slice(i, i + EVENT_ROWS);
+        const changes = part.map((b) => ({ row_id: b.row.id, column: col.key, old: cellOf(b.row.data[col.key], (b.row.data as Raw)[ek]), new: cellOf(b.data[col.key], (b.data as Raw)[ek]) }));
+        events.push({ id: newId(), payload: { table_id: this.job.tableId, columns: [col.key], state: "changed", changes, changed_rows: part.length, seq: this.seq } });
+      }
+      await tx.execute(sql`INSERT INTO outbox (id, event, aggregate_type, aggregate_id, payload)
+        SELECT v.id, ${FORMULA_EVENT}, 'datahub_table', ${this.job.tableId}, v.payload FROM jsonb_to_recordset(${JSON.stringify(events)}::jsonb) AS v(id uuid, payload jsonb)`);
+    });
+    this.count += batch.length;
+    if (this.rows) {
+      for (const b of batch) this.rows.push({ rowId: b.row.id, kind: "update", old: b.row.data, new: b.data });
+      if (this.rows.length > CHAIN_LIMIT) this.rows = null;
+    }
+  }
+
+  get changes(): RowChange[] | null {
+    return this.rows;
+  }
+}
+
 /** What a formula needs to run over the rows of a table: plans for grouped calls, scanned columns, and a context that follows `setRow`. */
 export interface FormulaEnv {
   ctx: EvalContext;
   setRow(row: LoadedRow): void;
 }
 
-export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: string, ast: Node | null, now: Date): Promise<FormulaEnv> {
+/**
+ * `rows` = the rows about to be computed (a partial recomputation, or the 5-row preview). Each grouped call then reads only
+ * the source rows of the groups those rows look up, instead of grouping the whole source table (design module2 section 6.7).
+ * Without `rows` the plans cover the whole table (the full-column recomputation).
+ */
+export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: string, ast: Node | null, now: Date, rows?: LoadedRow[]): Promise<FormulaEnv> {
   // Columns of this table as engine columns (the row loader needs the full DhColumn shape).
   const full = await db.execute(sql`SELECT * FROM dh_columns WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL`);
   const colsByKey = new Map((full.rows as Raw[]).map(columnFromDb).map((c) => [c.key, c]));
@@ -378,6 +440,36 @@ export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: str
     return null;
   };
 
+  let current: LoadedRow = stubRow({});
+  const cellOfRow = (key: string) => {
+    const c = colsByKey.get(key);
+    if (!c) throw new FError("#REF!", "Cột được tham chiếu đã bị xoá.");
+    return cellValue(c, current);
+  };
+  const rowInfo = () => ({ id: current.id, rowNo: current.rowNo, createdAt: cellValue({ type: "created_time", key: "_", config: {} } as DhColumn, current) as number, modifiedAt: cellValue({ type: "modified_time", key: "_", config: {} } as DhColumn, current) as number });
+
+  /** The JSON key values of each position of a call that these rows look up; null when the call cannot be restricted. */
+  const restrictFor = (g: GroupableCall): string[][] | null => {
+    if (!rows || g.keyColumns.length === 0) return null;
+    if (!g.keyColumns.every((k) => sourceKeyExpr(ix.column(g.table, k) as never))) return null;
+    const probe: EvalContext = { now, cell: cellOfRow, range: () => { throw new FError("#REF!"); }, rowInfo };
+    const sets = g.keyNodes.map(() => new Set<string>());
+    const saved = current;
+    try {
+      for (const r of rows) {
+        current = r;
+        for (let i = 0; i < g.keyNodes.length; i++) {
+          const v = evaluate(g.keyNodes[i]!, probe);
+          if (v instanceof FError || Array.isArray(v) || (typeof v === "number" && !Number.isFinite(v))) return null;
+          sets[i]!.add(JSON.stringify(v));
+        }
+      }
+    } finally {
+      current = saved;
+    }
+    return sets.map((x) => [...x]);
+  };
+
   // Plans for grouped calls whose references are all usable.
   const plans = new Map<number, GroupPlan>();
   let scanNodes: Extract<Node, { t: "key" }>[] = [];
@@ -387,7 +479,10 @@ export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: str
     for (const g of grouped) {
       const bad = problems.has(g.table) || [...g.keyColumns, ...(g.target ? [g.target] : [])].some((k) => refError(g.table, k));
       if (bad) continue;
-      plans.set(g.nodeId, await buildPlan(db, ix, g));
+      // The groups of this call are found (source side) and its rows are found by key (this side) with the equality-key index.
+      for (const k of g.keyColumns) await requestEqkIndex(db, g.table, k, ix.tableById.get(g.table)?.rowCount ?? 0);
+      for (const n of g.keyNodes) if (n.t === "key" && n.table === null) await requestEqkIndex(db, tableId, n.key, ix.tableById.get(tableId)?.rowCount ?? 0);
+      plans.set(g.nodeId, await buildPlan(db, ix, g, restrictFor(g)));
     }
   }
   // Columns read by scans (and by the fallback of grouped calls on small tables), loaded once.
@@ -408,15 +503,10 @@ export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: str
     scan.set(w, await loadScanColumn(db, ix, t, k));
   }
 
-  let current: LoadedRow = stubRow({});
   const ctx: EvalContext = {
     now,
     plans,
-    cell: (key) => {
-      const c = colsByKey.get(key);
-      if (!c) throw new FError("#REF!", "Cột được tham chiếu đã bị xoá.");
-      return cellValue(c, current);
-    },
+    cell: cellOfRow,
     range: (table, key) => {
       const bad = refError(table, key);
       if (bad) throw bad;
@@ -425,48 +515,69 @@ export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: str
       if (loaded instanceof FError) throw loaded;
       return new RangeValue(table, key, () => loaded);
     },
-    rowInfo: () => ({ id: current.id, rowNo: current.rowNo, createdAt: cellValue({ type: "created_time", key: "_", config: {} } as DhColumn, current) as number, modifiedAt: cellValue({ type: "modified_time", key: "_", config: {} } as DhColumn, current) as number }),
+    rowInfo,
   };
   return { ctx, setRow: (r) => { current = r; } };
 }
 
-async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: number) => Promise<void>): Promise<RecalcResult> {
+// ---- which rows -------------------------------------------------------------------------------------------
+
+/** `ids` null = the whole column. */
+interface Scope {
+  ids: string[] | null;
+}
+
+const ROW_SELECT = sql.raw("id, row_no, version, data, created_at, created_by, updated_at, updated_by");
+
+/** The rows of a table to compute, in batches: all of them (paged by row number) or the given ids. */
+async function* rowBatches(db: Executor, tableId: string, scope: Scope): AsyncGenerator<LoadedRow[]> {
+  if (scope.ids) {
+    for (let i = 0; i < scope.ids.length; i += BATCH) {
+      const res = await db.execute(sql`SELECT ${ROW_SELECT} FROM dh_rows WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL
+        AND id = ANY(${`{${scope.ids.slice(i, i + BATCH).join(",")}}`}::uuid[]) ORDER BY row_no`);
+      const rows = (res.rows as Raw[]).map(rowFromDb);
+      if (rows.length) yield rows;
+    }
+    return;
+  }
+  let last = 0;
+  for (;;) {
+    const res = await db.execute(sql`SELECT ${ROW_SELECT} FROM dh_rows
+      WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL AND row_no > ${last}::int ORDER BY row_no LIMIT ${BATCH}`);
+    const rows = (res.rows as Raw[]).map(rowFromDb);
+    if (rows.length === 0) return;
+    yield rows;
+    last = rows[rows.length - 1]!.rowNo;
+    if (rows.length < BATCH) return;
+  }
+}
+
+const patchOf = (col: DhColumn, out: StoreOutcome): Record<string, unknown> => (out.kind === "value" ? { [col.key]: out.value } : out.kind === "error" ? { [errKey(col.key)]: out.code } : {});
+
+async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes): Promise<number> {
   const col = job.col;
   const ix = await OwnerIndex.load(db, job.ownerId);
   const parsed = typeof col.config.expr === "string" ? parseFormula(col.config.expr) : null;
   const resultType = resultTypeOf(col);
   const ast: Node | null = parsed && parsed.ok ? parsed.ast : null;
-  const env = await buildFormulaEnv(db, ix, job.tableId, ast, now);
+  // A full recomputation builds its plans once for the whole table; a partial one per batch, for just those rows.
+  const whole = scope.ids === null ? await buildFormulaEnv(db, ix, job.tableId, ast, now) : null;
 
-  let last = 0;
   let total = 0;
-  let changed = 0;
-  const changedIds: string[] = [];
-  for (;;) {
-    const res = await db.execute(sql`SELECT id, row_no, version, data, created_at, created_by, updated_at, updated_by FROM dh_rows
-      WHERE /*scope:system*/ table_id = ${job.tableId}::uuid AND deleted_at IS NULL AND row_no > ${last}::int ORDER BY row_no LIMIT ${BATCH}`);
-    const rows = (res.rows as Raw[]).map(rowFromDb);
-    if (rows.length === 0) break;
-    const patches: { id: string; patch: Record<string, unknown> }[] = [];
+  for await (const rows of rowBatches(db, job.tableId, scope)) {
+    const env = whole ?? (await buildFormulaEnv(db, ix, job.tableId, ast, now, rows));
+    const batch: { row: LoadedRow; data: Record<string, Stored>; patch: Record<string, unknown> }[] = [];
     for (const row of rows) {
       env.setRow(row);
-      let out: StoreOutcome;
-      if (!ast) out = { kind: "error", code: "#NAME?" };
-      else out = valueToStored(resultType, evaluate(ast, env.ctx));
+      const out: StoreOutcome = !ast ? { kind: "error", code: "#NAME?" } : valueToStored(resultType, evaluate(ast, env.ctx));
       const data = { ...row.data };
-      if (applyOutcome(data, col, out)) {
-        patches.push({ id: row.id, patch: out.kind === "value" ? { [col.key]: out.value } : out.kind === "error" ? { [errKey(col.key)]: out.code } : {} });
-        changed++;
-        if (changedIds.length < rowIdLimit + 1) changedIds.push(row.id);
-      }
+      if (applyOutcome(data, col, out)) batch.push({ row, data, patch: patchOf(col, out) });
     }
-    await writePatches(db, job.tableId, col.key, patches);
+    await changes.commit(db, batch);
     total += rows.length;
-    last = rows[rows.length - 1]!.rowNo;
     await progress(total);
-    if (rows.length < BATCH) break;
   }
-  return { changedRows: changed, changedRowIds: changedIds.length > rowIdLimit ? null : changedIds, total };
+  return total;
 }
 
 // ---- lookup and rollup ----------------------------------------------------------------------------------------
@@ -496,7 +607,7 @@ function rollup(fn: string, values: Scalar[]): Scalar {
   }
 }
 
-async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<void>): Promise<RecalcResult> {
+async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes): Promise<number> {
   const col = job.col;
   const ix = await OwnerIndex.load(db, job.ownerId);
   const relKey = col.config.relation_key as string;
@@ -510,15 +621,8 @@ async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<
   const fullTarget = targetCol ? (await db.execute(sql`SELECT * FROM dh_columns WHERE /*scope:system*/ id = ${targetCol.id}::uuid`)).rows.map((r) => columnFromDb(r as Raw))[0] : undefined;
   const single = ix.column(job.tableId, relKey)?.config.multiple === false;
 
-  let last = 0;
   let total = 0;
-  let changed = 0;
-  const changedIds: string[] = [];
-  for (;;) {
-    const res = await db.execute(sql`SELECT id, row_no, version, data, created_at, created_by, updated_at, updated_by FROM dh_rows
-      WHERE /*scope:system*/ table_id = ${job.tableId}::uuid AND deleted_at IS NULL AND row_no > ${last}::int ORDER BY row_no LIMIT ${BATCH}`);
-    const rows = (res.rows as Raw[]).map(rowFromDb);
-    if (rows.length === 0) break;
+  for await (const rows of rowBatches(db, job.tableId, scope)) {
     const linkIds = new Set<string>();
     for (const r of rows) {
       const l = r.data[relKey];
@@ -530,7 +634,7 @@ async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<
         WHERE /*scope:system*/ table_id = ${targetTable}::uuid AND deleted_at IS NULL AND id = ANY(${`{${[...linkIds].join(",")}}`}::uuid[])`);
       for (const t of tres.rows as Raw[]) targets.set(t.id as string, cellValue(fullTarget, rowFromDb(t)));
     }
-    const patches: { id: string; patch: Record<string, unknown> }[] = [];
+    const batch: { row: LoadedRow; data: Record<string, Stored>; patch: Record<string, unknown> }[] = [];
     for (const row of rows) {
       let out: StoreOutcome;
       if (fatal) out = { kind: "error", code: fatal.code };
@@ -545,19 +649,64 @@ async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<
         else out = valueToStored("text", values.filter((v) => v !== null && v !== "").map((v) => String(v)).join(", "));
       }
       const data = { ...row.data };
-      if (applyOutcome(data, col, out)) {
-        patches.push({ id: row.id, patch: out.kind === "value" ? { [col.key]: out.value } : out.kind === "error" ? { [errKey(col.key)]: out.code } : {} });
-        changed++;
-        if (changedIds.length < rowIdLimit + 1) changedIds.push(row.id);
-      }
+      if (applyOutcome(data, col, out)) batch.push({ row, data, patch: patchOf(col, out) });
     }
-    await writePatches(db, job.tableId, col.key, patches);
+    await changes.commit(db, batch);
     total += rows.length;
-    last = rows[rows.length - 1]!.rowNo;
     await progress(total);
-    if (rows.length < BATCH) break;
   }
-  return { changedRows: changed, changedRowIds: changedIds.length > rowIdLimit ? null : changedIds, total };
+  return total;
+}
+
+// ================================================================================================
+// resolving what a column's queued changes mean
+// ================================================================================================
+
+/** Asks for the equality-key index of a column (kind `eqk`) when the table is big. Best effort, same budget and job as every automatic index. */
+export async function requestEqkIndex(db: Executor, tableId: string, key: string, rowCount: number): Promise<void> {
+  if (rowCount < DH_AUTO_INDEX_MIN_ROWS) return;
+  await db.execute(sql`INSERT INTO dh_index_requests (table_id, column_key, kind, rows_at_request) VALUES (${tableId}::uuid, ${key}, 'eqk', ${rowCount}) ON CONFLICT DO NOTHING`).catch(() => {});
+}
+
+/** Own rows whose key columns equal one of the queued group keys (the SQL twin of `equalityKey`, `soe_eqk`; candidates only). */
+async function rowsOfKeys(db: Executor, tableId: string, entries: QueuedRow[], rowCount: number): Promise<string[]> {
+  const bySignature = new Map<string, { cols: string[]; tuples: Map<string, unknown[]> }>();
+  for (const e of entries) {
+    const k = e.keys as KeyTuples;
+    const g = bySignature.get(k.cols.join(",")) ?? { cols: k.cols, tuples: new Map() };
+    for (const t of k.tuples) g.tuples.set(JSON.stringify(t), t);
+    bySignature.set(k.cols.join(","), g);
+  }
+  const out = new Set<string>();
+  for (const g of bySignature.values()) {
+    const cols = g.cols.map(assertColumnKey);
+    const sel = sql.join(cols.map((_, j) => sql.raw(`soe_eqk(x->${j}) AS k${j}`)), sql`, `);
+    const exact = sql.raw(cols.map((c, j) => `t.k${j} = soe_eqk(r.data->'${c}')`).join(" AND "));
+    // The first key column is matched with `= ANY(array)` (an index scan on the equality-key index); the full tuple is checked after.
+    const res = await db.execute(sql`WITH t AS (SELECT DISTINCT ${sel} FROM jsonb_array_elements(${JSON.stringify([...g.tuples.values()])}::jsonb) x)
+      SELECT r.id FROM dh_rows r WHERE /*scope:system*/ r.table_id = ${tableId}::uuid AND r.deleted_at IS NULL
+        AND ${sql.raw(`soe_eqk(r.data->'${cols[0]}')`)} = ANY(ARRAY(SELECT k0 FROM t))
+        AND EXISTS (SELECT 1 FROM t WHERE ${exact})`);
+    for (const r of res.rows as { id: string }[]) out.add(r.id);
+    // A big table finds the rows of a group by an index on the equality key.
+    for (const c of cols) await requestEqkIndex(db, tableId, c, rowCount);
+  }
+  return [...out];
+}
+
+/** The rows to recompute for a burst of queued changes, or the whole column (a `full` entry, nothing queued, or too many rows). */
+export async function resolveScope(db: Executor, job: { col: DhColumn; tableId: string }, entries: QueuedRow[], maxRatio: number): Promise<Scope> {
+  if (entries.length === 0 || entries.some((e) => e.mode === "full")) return { ids: null };
+  const rc = await db.execute(sql`SELECT row_count FROM dh_tables WHERE /*scope:system*/ id = ${job.tableId}::uuid`);
+  const rowCount = Number((rc.rows[0] as { row_count: number } | undefined)?.row_count ?? 0);
+  const ids = new Set<string>();
+  for (const e of entries) if (e.mode === "rows") e.rowIds?.forEach((x) => ids.add(x));
+  const linked = entries.filter((e) => e.mode === "linked").flatMap((e) => e.rowIds ?? []);
+  if (linked.length) for (const id of await linkedRows(db, job.tableId, job.col.config.relation_key as string, [...new Set(linked)])) ids.add(id);
+  const keyed = entries.filter((e) => e.mode === "keys");
+  if (keyed.length) for (const id of await rowsOfKeys(db, job.tableId, keyed, rowCount)) ids.add(id);
+  if (maxRatio < 1 && ids.size > rowCount * maxRatio) return { ids: null };
+  return { ids: [...ids] };
 }
 
 // ================================================================================================
@@ -578,49 +727,83 @@ async function claimNext(db: Db): Promise<{ id: string; claimedAt: string } | nu
   return r ? { id: r.id as string, claimedAt: r.claimed_at as string } : null;
 }
 
-/** Recomputes one claimed column and releases it. Safe to call again for the same column. */
-export async function recalcColumn(db: Db, columnId: string, claimedAt: string, now: Date = new Date(), log?: Logger): Promise<RecalcResult> {
+export interface RecalcOptions {
+  /** Share of the table above which a partial recomputation becomes a full one (default `PARTIAL_MAX_RATIO`; 1 = never, used by tests). */
+  maxRatio?: number;
+}
+
+/**
+ * Recomputes one claimed column and releases it. Takes the column's WHOLE burst from the change queue, recomputes only
+ * the rows it names (or the whole column), then in one transaction: deletes what it took, releases the column, queues the
+ * changes for the columns that read this one (the chain) and announces the end. Safe to call again for the same column.
+ */
+export async function recalcColumn(db: Db, columnId: string, claimedAt: string, now: Date = new Date(), log?: Logger, opts: RecalcOptions = {}): Promise<RecalcResult> {
   const job = await loadJob(db, columnId);
-  let result: RecalcResult = { changedRows: 0, changedRowIds: [], total: 0 };
+  const entries = await readQueue(db, columnId);
+  const seq = entries.reduce((m, e) => Math.max(m, e.seq), 0);
+  let result: RecalcResult = { changedRows: 0, total: 0, partial: false, rows: [] };
   try {
     if (job && job.alive && isComputedType(job.col.type)) {
+      const scope = await resolveScope(db, job, entries, opts.maxRatio ?? PARTIAL_MAX_RATIO);
+      if (scope.ids) await db.execute(sql`UPDATE dh_columns SET calc_total = ${scope.ids.length}::int WHERE /*scope:system*/ id = ${columnId}::uuid`);
       const progress = async (done: number) => {
         await db.execute(sql`UPDATE dh_columns SET calc_done = ${done}::int WHERE /*scope:system*/ id = ${columnId}::uuid`);
       };
-      result = job.col.type === "formula" ? await recalcFormula(db, job, now, progress) : await recalcLink(db, job, progress);
+      const changes = new Changes(job, seq);
+      const total = job.col.type === "formula" ? await recalcFormula(db, job, now, progress, scope, changes) : await recalcLink(db, job, progress, scope, changes);
+      result = { changedRows: changes.count, total, partial: scope.ids !== null, rows: changes.changes };
     }
   } catch (e) {
     log?.error({ err: e, column: columnId }, "formula recalculation failed");
-    // Put it back so a fix (or a retry) is possible; the loop does not spin because requested_at moves forward.
+    // Released so a fix (or the next change) can retry; the entries stay. The loop does not spin: only a new request makes it pending.
     await db.execute(sql`UPDATE dh_columns SET calc_status = 'ready', calc_at = now() WHERE /*scope:system*/ id = ${columnId}::uuid`);
     throw e;
   }
-  await db.execute(sql`UPDATE dh_columns SET calc_status = CASE WHEN calc_requested_at > ${claimedAt}::timestamptz THEN 'pending' ELSE 'ready' END,
-      calc_done = ${result.total}::int, calc_total = ${result.total}::int, calc_at = ${now.toISOString()}::timestamptz WHERE /*scope:system*/ id = ${columnId}::uuid`);
-  if (job) {
-    await enqueueOutbox(db, {
+  await db.transaction(async (tx) => {
+    await deleteQueue(tx, entries.map((e) => e.id));
+    await tx.execute(sql`UPDATE dh_columns SET calc_status = CASE WHEN calc_requested_at > ${claimedAt}::timestamptz THEN 'pending' ELSE 'ready' END,
+        calc_done = ${result.total}::int, calc_total = ${result.total}::int, calc_at = ${now.toISOString()}::timestamptz, calc_seq = GREATEST(calc_seq, ${seq}::bigint)
+      WHERE /*scope:system*/ id = ${columnId}::uuid`);
+    if (!job) return;
+    // The chain: the columns that read this one get exactly the rows that changed (old and new values), in this same transaction.
+    if (result.changedRows > 0) {
+      if (result.rows) await recordChanges(tx, job.tableId, result.rows, seq, { includeApiFormulas: true });
+      else await requestDependentsFull(tx, job.tableId, [job.col.key], seq, { includeApiFormulas: true });
+    }
+    await enqueueOutbox(tx, {
       event: FORMULA_EVENT,
       aggregateType: "datahub_table",
       aggregateId: job.tableId,
-      payload: { table_id: job.tableId, columns: [job.col.key], state: "done", changed_rows: result.changedRows, row_ids: result.changedRowIds },
+      payload: { table_id: job.tableId, columns: [job.col.key], state: "done", changes: [], changed_rows: result.changedRows, seq },
     });
-  }
+  });
   return result;
 }
 
-/** Recomputes every pending column (one at a time). Returns how many were processed. */
-export async function processPendingColumns(db: Db, opts: { now?: Date; log?: Logger; max?: number } = {}): Promise<number> {
+/** Recomputes the pending columns, up to `parallel` at a time (independent columns in parallel, a chain in order). Returns how many were processed. */
+export async function processPendingColumns(db: Db, opts: { now?: Date; log?: Logger; max?: number; parallel?: number; maxRatio?: number } = {}): Promise<number> {
   let n = 0;
-  for (;;) {
-    if (opts.max !== undefined && n >= opts.max) break;
-    const next = await claimNext(db);
-    if (!next) break;
-    try {
-      await recalcColumn(db, next.id, next.claimedAt, opts.now ?? new Date(), opts.log);
-    } catch {
-      // Already logged; the column was released. Carry on with the others.
+  const parallel = Math.max(1, Math.min(opts.parallel ?? (await readSetting(db, DH_SETTINGS.recalcParallel)), 4));
+  const lane = async () => {
+    let done = 0;
+    for (;;) {
+      if (opts.max !== undefined && n >= opts.max) break;
+      const next = await claimNext(db);
+      if (!next) break;
+      n++;
+      try {
+        await recalcColumn(db, next.id, next.claimedAt, opts.now ?? new Date(), opts.log, { maxRatio: opts.maxRatio });
+      } catch {
+        // Already logged; the column was released. Carry on with the others.
+      }
+      done++;
     }
-    n++;
+    return done;
+  };
+  // A column whose input another lane is still computing is not claimable yet: go round again until a pass finds nothing.
+  for (;;) {
+    const passes = await Promise.all(Array.from({ length: parallel }, lane));
+    if (passes.reduce((a, b) => a + b, 0) === 0) break;
   }
   return n;
 }
@@ -648,4 +831,3 @@ export function startRecalcLoop(db: Db, log: Logger, intervalMs: number): { stop
     },
   };
 }
-

@@ -48,7 +48,7 @@ BEGIN
     WHEN 'boolean' THEN RETURN 't:' || (v #>> '{}');
     WHEN 'string' THEN
       t := v #>> '{}';
-      n := soe_numtext(t);
+      n := public.soe_numtext(t);  -- schema-qualified: an index build runs with a minimal search_path
       IF n IS NOT NULL THEN RETURN 'n:' || n::text; END IF;
       IF upper(t) IN ('TRUE', 'FALSE') THEN RETURN 't:' || lower(t); END IF;
       RETURN 's:' || lower(t);

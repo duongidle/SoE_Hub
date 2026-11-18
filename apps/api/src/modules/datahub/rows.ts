@@ -10,6 +10,8 @@ import { sourceOf, type CellWrite, type LoadedRow } from "./column-source";
 import { isComputedType } from "./cell-values";
 import { buildSearchText, columnTypeDef } from "./column-types";
 import { pgError } from "./errors";
+import { nextChangeSeq } from "./change-queue";
+import { recordChanges, type RowChange } from "./partial";
 import { RowFormulas } from "./row-formulas";
 import { rowFromDb, toApiRow, type ApiRow, type TableSchema } from "./table-schema";
 import { CellError, type DhColumn, type Stored } from "./types";
@@ -27,6 +29,8 @@ export interface OpResult {
   outcome: "created" | "updated" | "unchanged" | "deleted";
   id: string;
   row: ApiRow | null;
+  /** Change sequence of this write (design module2 section 6.7): wait for it with `consistent_after` before reading computed columns. */
+  seq: number;
 }
 
 type Ctx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId">;
@@ -402,9 +406,17 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   const updated = ids("updated");
   const deleted = ids("deleted");
   const columns = [...changedColumns];
+  // What this write changed, with the OLD and NEW cells known right here, is queued for every computed column that reads the table.
+  const rowChanges: RowChange[] = [
+    ...created.map((id): RowChange => ({ rowId: id, kind: "insert", old: null, new: newData.get(id)! })),
+    ...updated.map((id): RowChange => ({ rowId: id, kind: "update", old: loaded.get(id)!.data, new: newData.get(id)! })),
+    ...deleted.map((id): RowChange => ({ rowId: id, kind: "delete", old: out.get(id)?.data ?? loaded.get(id)!.data, new: null })),
+  ];
+  const seq = await nextChangeSeq(db);
+  if (rowChanges.length) await recordChanges(db, access.tableId, rowChanges, seq);
   ctx.audit({ type: "datahub_row", id: access.tableId, details: { table_id: access.tableId, created: created.length, updated: updated.length, deleted: deleted.length, fields: columns } });
   const emit = async (event: string, rowIds: string[]) => {
-    if (rowIds.length) await ctx.emit(event, { aggregateType: "datahub_table", aggregateId: access.tableId, payload: { table_id: access.tableId, row_ids: rowIds, columns } });
+    if (rowIds.length) await ctx.emit(event, { aggregateType: "datahub_table", aggregateId: access.tableId, payload: { table_id: access.tableId, row_ids: rowIds, columns, seq } });
   };
   await emit("datahub.row.created", created);
   await emit("datahub.row.updated", updated);
@@ -414,7 +426,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     const p = planOf[i]!;
     const oc = outcome.get(p)!;
     const row = out.get(p.id) ?? loaded.get(p.id) ?? null;
-    return { op: o.op, outcome: oc, id: p.id, row: oc === "deleted" || !row ? null : toApiRow(row, schema, opts.labels) };
+    return { op: o.op, outcome: oc, id: p.id, row: oc === "deleted" || !row ? null : toApiRow(row, schema, opts.labels), seq };
   });
 }
 
@@ -430,6 +442,8 @@ export async function restoreRows(ctx: Ctx, access: TableAccess, schema: TableSc
   if (rows.length !== rowIds.length) throw new AppError("not_found", "Có dòng không nằm trong thùng rác (hoặc đã bị xoá hẳn).");
   await ctx.db.execute(sql`UPDATE dh_tables SET row_count = row_count + ${rows.length}::int WHERE /*scope*/ id = ${access.tableId}::uuid`);
   await ctx.db.insert(rowHistory).values(rows.map((r) => ({ tableId: access.tableId, rowId: r.id, version: r.version, op: "restore", changes: [] as FieldChange[], actor: toActorRef(ctx.actor) })));
-  await ctx.emit("datahub.row.restored", { aggregateType: "datahub_table", aggregateId: access.tableId, payload: { table_id: access.tableId, row_ids: rows.map((r) => r.id), columns: [] } });
+  const seq = await nextChangeSeq(ctx.db);
+  await recordChanges(ctx.db, access.tableId, rows.map((r): RowChange => ({ rowId: r.id, kind: "restore", old: null, new: r.data })), seq);
+  await ctx.emit("datahub.row.restored", { aggregateType: "datahub_table", aggregateId: access.tableId, payload: { table_id: access.tableId, row_ids: rows.map((r) => r.id), columns: [], seq } });
   return rows.map((r) => toApiRow(r, schema));
 }

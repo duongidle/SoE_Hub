@@ -27,6 +27,20 @@ export const DH_SETTINGS = {
     schema: z.number().int().min(1).max(DH_COLUMN_CEILING),
     default: DH_LIMIT_DEFAULTS.columns,
   } satisfies SettingDef<number>,
+  recalcParallel: {
+    key: "datahub.recalc_parallel",
+    label: "Số cột công thức tính song song",
+    description: "Worker tính cùng lúc tối đa chừng này cột độc lập (cột phụ thuộc nhau vẫn tính theo thứ tự). Mặc định 2, tối đa 4.",
+    schema: z.number().int().min(1).max(4),
+    default: 2,
+  } satisfies SettingDef<number>,
+  consistentWaitMs: {
+    key: "datahub.consistent_wait_ms",
+    label: "Thời gian đợi tính xong khi đọc (ms)",
+    description: "Đọc dòng với consistent_after / consistent=true: đợi tối đa chừng này mili giây cho các cột công thức tính xong, hết thì trả giá trị hiện có kèm cờ stale.",
+    schema: z.number().int().min(0).max(60000),
+    default: 5000,
+  } satisfies SettingDef<number>,
 } as const;
 
 export interface DhLimits {

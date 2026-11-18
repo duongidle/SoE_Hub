@@ -33,10 +33,10 @@ export async function fails(p: Promise<unknown>): Promise<{ code: string; messag
  * Delivers pending outbox events to the real subscribers (SQL views, SSE fan-out, formula dependants...) and runs the
  * recalculation queue the way the worker does, until both are quiet.
  */
-export async function drainOutbox(t: TestApp, opts: { now?: Date } = {}): Promise<void> {
+export async function drainOutbox(t: TestApp, opts: { now?: Date; maxRatio?: number } = {}): Promise<void> {
   for (let i = 0; i < 40; i++) {
     const n = await dispatchOutboxOnce(t.c.db.db, defaultSubscribers(t.c.events, t.c.config.AUTH_SECRET), t.c.logger, { batchSize: 500 });
-    const m = await processPendingColumns(t.c.db.db, { now: opts.now });
+    const m = await processPendingColumns(t.c.db.db, { now: opts.now, maxRatio: opts.maxRatio });
     if (n === 0 && m === 0) return;
   }
 }

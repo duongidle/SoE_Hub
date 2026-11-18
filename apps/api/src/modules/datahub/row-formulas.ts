@@ -5,7 +5,7 @@ import type { DhColumn, Stored } from "./types";
 
 const parseCache = new Map<string, Node | null>();
 
-function parsedExpr(expr: string): Node | null {
+export function parsedExpr(expr: string): Node | null {
   let ast = parseCache.get(expr);
   if (ast === undefined) {
     const r = parseFormula(expr);

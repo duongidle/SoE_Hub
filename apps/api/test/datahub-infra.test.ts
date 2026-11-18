@@ -271,6 +271,11 @@ describe("auto index (Module 0 section 6.2)", () => {
     const db = await ownerClient();
     try {
       const k = (n: string) => x.cols[n]!.key;
+      // Requests left by other test files (formula columns over 100k tables ask for equality-key indexes) are not this test's business.
+      for (;;) {
+        const r0 = await processIndexRequests(t.c.db.db);
+        if (r0.done + r0.skipped + r0.failed === 0) break;
+      }
       // Small table: using a column creates no request.
       await owner("datahub.row.list", { table_id: x.tableId, filter: JSON.stringify({ field: "Số", op: "gt", value: 1 }) });
       expect((await db.query(`SELECT count(*)::int AS n FROM dh_index_requests WHERE table_id = $1`, [x.tableId])).rows[0].n).toBe(0);

@@ -14,7 +14,7 @@ import "./transfer";
 // (design module1 section 10). Every table that holds datahub data must go through the scoped query helpers.
 registerPrivateAuditTarget("datahub_row");
 for (const t of ["dh_datahubs", "dh_tables", "dh_columns", "dh_rows", "dh_views", "dh_view_overrides", "dh_table_state", "dh_shares", "dh_formula_deps"]) registerOwnedTable(t);
-registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.maxColumns);
+registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.maxColumns, DH_SETTINGS.recalcParallel, DH_SETTINGS.consistentWaitMs);
 
 export { datahubEvents };
 export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations];

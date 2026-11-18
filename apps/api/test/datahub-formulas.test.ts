@@ -284,7 +284,7 @@ describe("formulas across tables and datahubs (worker)", () => {
     const r = await mkRow(deals.id, { "Mã KH": "KH2", "Doanh thu": 1, "Trạng thái": "Won" });
     expect(r.data[name.key]).toBeUndefined(); // not there yet
     const pending = (await a("datahub.table.get", { table_id: deals.id })).columns.find((c: { name: string }) => c.name === "Tên KH");
-    expect(pending.calc.status).toBe("ready"); // marked only once the event is delivered
+    expect(pending.calc.status).toBe("pending"); // queued in the writing transaction (design 6.7)
     await drainOutbox(t);
     expect((await a("datahub.row.get", { table_id: deals.id, row_id: r.id })).data[name.key]).toBe("Công ty B");
   });

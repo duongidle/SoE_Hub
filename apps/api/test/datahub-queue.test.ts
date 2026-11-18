@@ -73,6 +73,7 @@ describe("the shared change queue accumulates and is consumed per column", () =>
     const x = await makeTable(a, { columns: [{ name: "A", type: "number" }] });
     const col = await a("datahub.column.create", { table_id: x.tableId, name: "F", type: "formula", config: { formula: "=[A]*2" } });
     const db = t.c.db.db;
+    await q(`DELETE FROM dh_change_queue WHERE column_id = $1`, [col.id]); // the creation queued a full recompute
     await q(`UPDATE dh_columns SET calc_status = 'ready' WHERE id = $1`, [col.id]);
     const s1 = await nextChangeSeq(db);
     const s2 = await nextChangeSeq(db);

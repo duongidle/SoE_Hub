@@ -104,7 +104,7 @@ export const formulaOperations = [
 
         const res = await ctx.db.execute(sql`SELECT id, row_no, version, data, created_at, created_by, updated_at, updated_by FROM dh_rows
           WHERE ${acc.scope()} AND deleted_at IS NULL ORDER BY row_no LIMIT 5`);
-        const env = await buildFormulaEnv(ctx.db, ix, acc.tableId, compiled.ast, new Date());
+        const env = await buildFormulaEnv(ctx.db, ix, acc.tableId, compiled.ast, new Date(), (res.rows as Record<string, unknown>[]).map(rowFromDb));
         const rows = (res.rows as Record<string, unknown>[]).map((r) => {
           const row = rowFromDb(r);
           env.setRow(row);
