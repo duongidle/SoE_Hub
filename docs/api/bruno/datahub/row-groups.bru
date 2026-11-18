@@ -1,0 +1,28 @@
+meta {
+  name: datahub.row.groups
+  type: http
+  seq: 48
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/row-groups
+  body: none
+  auth: none
+}
+
+params:query {
+  ~filter: 
+  ~time_filter: [object Object]
+  ~search: search
+  ~group: [object Object]
+  ~aggs: [object Object]
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Các nhóm của bảng theo một đến ba cột, kèm số dòng và dòng tổng của mỗi nhóm.
+  Quyền: `datahub:datahub:use`.
+}
