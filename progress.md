@@ -25,9 +25,25 @@ Cập nhật: 18/11/2026
 - Lỗi đã sửa: (1) `GET /org/members` trả `roles` là chuỗi, trang Org chart sập; (2) `GET /system/settings` trả `value` là chuỗi JSON, nút bật/tắt cài đặt không phản ánh; (3) trang bảo vệ vẫn dựng và gọi API (401) trong lúc router chuyển trang; (4) đăng xuất làm trang cũ gọi lại API bằng phiên đã chết; (5) ô số của cài đặt bị kiểm tra bằng thông báo của trình duyệt (tiếng Anh) thay vì tiếng Việt. (6) nhật ký bị ngập dòng `auth.me` chưa đăng nhập; (7) dòng ẩn danh thiếu kênh/IP/email; (8) bảng nhật ký bị cắt trên điện thoại (nay dạng thẻ); (9) ô ngày hiện mm/dd/yyyy (nay dd/mm/yyyy); (10) test đổi mật khẩu vai trò `soe_app` của database dev (nay vai trò riêng). Có test hồi quy cho (1), (2), (6), (7), (10).
 - Chưa kiểm thử giao diện: chuyển cả cây (`/admin/trees/:id/transfer`, có test API), đăng nhập Google (cần Google Cloud thật), `docker-compose.yml` (máy dev không có Docker).
 
+## Đang làm: Stage 2 (Module 2 – Datahub), do Sonnet code, Opus rà soát
+
+Kế hoạch Stage 2:
+- **2A – Lưu trữ và API lõi** (đang làm, nhánh `dev`).
+- 2B – Engine công thức, cột tính toán (formula, relation/lookup/rollup), tính lại, golden test.
+- 2C – Giao diện grid, view kiểu Lark tự lưu, trình soạn công thức, chia sẻ/thùng rác/giới hạn.
+- 2D – Import/export, import công thức, load test 100k dòng, e2e cả stage.
+
+Các bước của 2A (đánh dấu khi xong):
+- [ ] 1. Schema + migration (datahub, bảng, cột, dòng, view, chia sẻ, giới hạn riêng, hàm SQL cho index và view xuất)
+- [ ] 2. Tên, kiểu cột (registry cắm được), ColumnSource, truy cập/chia sẻ
+- [ ] 3. API cấu trúc: datahub, bảng, cột, đổi kiểu (xem trước), view, chia sẻ, giới hạn
+- [ ] 4. API dòng: CRUD, batch, upsert, lọc, sắp xếp, keyset, gộp ô, lịch sử, thùng rác
+- [ ] 5. SSE, chuyển giao, view SQL `dh_views`, tự tạo index, thiết lập quyền/cài đặt
+- [ ] 6. Test, OpenAPI, Bruno, README, quyết định khi code
+
 ## Bước tiếp theo
 
-- Stage 2 (Module 2 – Datahub), chờ Opus giao việc.
+- Làm bước 1 của 2A: `packages/db/src/schema/datahub.ts` + migration `0004`.
 
 ## Câu hỏi còn mở
 
