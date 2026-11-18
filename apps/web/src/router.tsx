@@ -1,8 +1,6 @@
-import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from "@tanstack/react-router";
 import { AuditLogPage, ServiceAccountsPage, SettingsPage, TokenApprovalPage, TransferPage } from "@/pages/admin";
 import { AccountPage, NotificationsPage, TokensPage } from "@/pages/account";
-import { DatahubPage } from "@/pages/datahub/detail";
-import { DatahubListPage } from "@/pages/datahub/list";
 import { CodeFlowPage, LoginPage, SetPasswordPage } from "@/pages/auth";
 import { GuestGrantsPage } from "@/pages/guest";
 import { Home } from "@/pages/home";
@@ -17,6 +15,10 @@ const rootRoute = createRootRoute({
 });
 const r = <P extends string>(path: P, component: () => React.ReactNode) => createRoute({ getParentRoute: () => rootRoute, path, component });
 
+// The Datahub screens (grid library included) load when first opened, not with the login page.
+const lazyPage = <P extends string>(path: P, load: () => Promise<Record<string, unknown>>, exportName: string) =>
+  createRoute({ getParentRoute: () => rootRoute, path, component: lazyRouteComponent(load as never, exportName as never) });
+
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
     r("/", Home),
@@ -25,9 +27,9 @@ export const router = createRouter({
     r("/dang-ky", () => <CodeFlowPage purpose="activate" />),
     r("/quen-mat-khau", () => <CodeFlowPage purpose="reset" />),
     r("/dat-mat-khau", SetPasswordPage),
-    r("/datahub", DatahubListPage),
-    r("/datahub/$datahubId", DatahubPage),
-    r("/datahub/$datahubId/$tableId", DatahubPage),
+    lazyPage("/datahub", () => import("@/pages/datahub/list"), "DatahubListPage"),
+    lazyPage("/datahub/$datahubId", () => import("@/pages/datahub/detail"), "DatahubPage"),
+    lazyPage("/datahub/$datahubId/$tableId", () => import("@/pages/datahub/detail"), "DatahubPage"),
     r("/to-chuc", OrgPage),
     r("/tai-khoan", AccountPage),
     r("/tai-khoan/token", TokensPage),

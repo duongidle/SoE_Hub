@@ -78,13 +78,13 @@ export class RowsStore {
   }
 
   /** Loads the next page. Resolves when it is in. One request at a time. */
-  loadMore(): Promise<void> {
+  loadMore(pageSize: number = PAGE): Promise<void> {
     if (this.done) return Promise.resolve();
     if (this.inflight) return this.inflight;
     const first = this.cursor === null && this.rows.length === 0;
     this.inflight = (async () => {
       try {
-        const page = await fetchRows(this.tableId, { ...this.query, limit: first ? 100 : PAGE, cursor: this.cursor, includeTotal: first });
+        const page = await fetchRows(this.tableId, { ...this.query, limit: first ? 100 : pageSize, cursor: this.cursor, includeTotal: first });
         if (this.disposed) return;
         const known = new Set(this.rows.map((r) => r.id));
         this.rows.push(...page.data.filter((r) => !known.has(r.id)));
@@ -114,7 +114,8 @@ export class RowsStore {
   /** Loads pages until row `index` (plus a screenful of margin) is in. */
   async ensure(index: number): Promise<void> {
     const want = index + 60;
-    while (!this.done && this.rows.length < want && !this.disposed) await this.loadMore();
+    // Far from what is loaded (the person dragged the scroll bar): the biggest pages the API allows, fewer round trips.
+    while (!this.done && this.rows.length < want && !this.disposed) await this.loadMore(want - this.rows.length > 1000 ? 500 : PAGE);
   }
 
   /** Replaces rows we already have with newer copies (by id). Rows we do not hold are ignored. */

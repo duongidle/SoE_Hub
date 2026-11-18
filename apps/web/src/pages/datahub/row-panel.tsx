@@ -69,6 +69,7 @@ export function RowPanel({ session, rowId, level, onClose }: { session: TableSes
               <div className="flex flex-col gap-4">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-10" />)}</div>
             ) : tab === "data" ? (
               <div className="flex flex-col gap-4">
+                {level === "view" && <p className="rounded-md bg-muted px-3 py-2 text-sm">Bạn chỉ có quyền xem bảng này.</p>}
                 {session.table.columns.map((c) => (
                   <Field key={c.id} col={c} row={row} level={level} session={session} ctx={ctx} />
                 ))}
@@ -85,7 +86,9 @@ export function RowPanel({ session, rowId, level, onClose }: { session: TableSes
 }
 
 function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level: Level; session: TableSession; ctx: CellCtx }) {
-  const reason = level === "view" ? "Bạn chỉ có quyền xem bảng này." : readOnlyReason(col, level);
+  // Why this field cannot be typed into. A person who may only view gets one notice at the top of the panel, not one per field.
+  const viewOnly = level === "view";
+  const reason = viewOnly ? null : readOnlyReason(col, level);
   const type = typeOf(col);
   const value = cellValue(col, row);
   const err = cellError(col, value);
@@ -131,7 +134,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
   const errorText = error ? <span role="alert" className="text-xs text-bad">{error}</span> : null;
 
   let control: React.ReactNode;
-  if (reason || type === "relation" || type === "attachment") {
+  if (viewOnly || reason || type === "relation" || type === "attachment") {
     const shown = err ? `${err}. ${ERROR_HELP[err] ?? ""}` : displayText(col, row, ctx);
     const pend = row.pending?.includes(col.key);
     control = (
@@ -210,8 +213,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
     <div className="flex flex-col gap-1">
       {label}
       {control}
-      {reason && (type !== "relation" && type !== "attachment") ? <span className="text-xs text-muted-foreground">{reason}</span> : hint}
-      {(type === "relation" || type === "attachment") && reason && <span className="text-xs text-muted-foreground">{level === "view" ? "Bạn chỉ có quyền xem bảng này." : reason}</span>}
+      {reason ? <span className="text-xs text-muted-foreground">{reason}</span> : hint}
       {errorText}
     </div>
   );

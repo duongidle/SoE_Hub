@@ -22,7 +22,8 @@ describe("datahub.people.lookup", () => {
     expect(byId.map((p: { id: string }) => p.id).sort()).toEqual([org.userA1.id, org.userA2.id].sort());
     expect(byId[0]).toHaveProperty("full_name");
     const first = (await owner("datahub.people.lookup", { ids: org.userA2.id }))[0] as { full_name: string };
-    const byName = await owner("datahub.people.lookup", { q: first.full_name.slice(0, 4).toUpperCase() });
+    // The test database is shared with other test files, so search by the whole name (upper case) to stay inside the 20 results.
+    const byName = await owner("datahub.people.lookup", { q: first.full_name.toUpperCase(), limit: 50 });
     expect(byName.some((p: { id: string }) => p.id === org.userA2.id)).toBe(true);
     expect(await owner("datahub.people.lookup", {})).toEqual([]);
     expect((await fails(owner("datahub.people.lookup", { ids: "không-phải-uuid" }))).code).toBe("validation_error");

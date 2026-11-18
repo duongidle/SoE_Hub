@@ -21,8 +21,8 @@ export function readOnlyReason(col: Column, level: Level): string | null {
   if (col.type === "auto_number") return "Số tự tăng do hệ thống điền.";
   if (SYSTEM_TYPES.has(col.type)) return "Cột hệ thống, không sửa được.";
   if (col.type === "relation" && level !== "owner") return "Chỉ chủ datahub được sửa cột liên kết.";
-  if (col.type === "relation") return "Cột liên kết sửa trong khung chi tiết dòng.";
-  if (col.type === "attachment") return "Đính kèm sửa trong khung chi tiết dòng.";
+  if (col.type === "relation") return "Chưa sửa được cột liên kết ở màn hình này.";
+  if (col.type === "attachment") return "Chưa sửa được cột đính kèm ở màn hình này.";
   return null;
 }
 
