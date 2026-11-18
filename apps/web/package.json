@@ -22,9 +22,12 @@
     "@tanstack/react-router": "1.170.46",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
+    "lodash": "4.17.21",
     "lucide-react": "1.75.0",
+    "marked": "4.3.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "react-responsive-carousel": "3.2.23",
     "sonner": "2.0.8",
     "tailwind-merge": "3.7.0"
   },

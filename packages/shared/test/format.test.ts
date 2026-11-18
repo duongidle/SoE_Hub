@@ -51,6 +51,10 @@ describe("dates", () => {
     expect(formatDate("2026-11-18T16:59:00Z")).toBe("18/11/2026");
     expect(formatDate("2026-11-18T17:00:00Z")).toBe("19/11/2026");
   });
+  it("reads the Postgres text form of a timestamp", () => {
+    expect(formatDateTime("2026-11-19 05:14:52.697576+07")).toBe("19/11/2026 05:14");
+    expect(formatDateTime("2026-11-18 22:14:52+00")).toBe("19/11/2026 05:14");
+  });
   it("uses a dash for empty or invalid", () => {
     expect(formatDate(null)).toBe("—");
     expect(formatDateTime("abc")).toBe("—");

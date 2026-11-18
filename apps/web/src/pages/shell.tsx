@@ -11,6 +11,7 @@ const PUBLIC_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
 /** Menu items. A user sees an item only when the permission list returned by the API contains its permission. */
 const NAV: { to: string; label: string; permission: string | null }[] = [
   { to: "/", label: "Tổng quan", permission: null },
+  { to: "/datahub", label: "Datahub", permission: "datahub:datahub:use" },
   { to: "/to-chuc", label: "Org chart", permission: "org:member:read" },
   { to: "/cap-du-lieu", label: "Cấp dữ liệu Guest", permission: "guest:grant:manage" },
   { to: "/quan-tri/token", label: "Duyệt token", permission: "auth:token:approve" },
@@ -22,6 +23,7 @@ const NAV: { to: string; label: string; permission: string | null }[] = [
 
 /** Pages that need a permission when opened by URL (same permissions the API checks). */
 const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
+  { prefix: "/datahub", permission: "datahub:datahub:use" },
   { prefix: "/to-chuc", permission: "org:member:read" },
   { prefix: "/cap-du-lieu", permission: "guest:grant:manage" },
   { prefix: "/quan-tri/token", permission: "auth:token:approve" },
@@ -66,7 +68,7 @@ export function Shell() {
   // Signed out: only the public pages render. Everything else waits for the redirect above.
   if (!me) {
     return (
-      <div className="min-h-screen px-4 py-6">
+      <div className="min-h-dvh px-4 py-6">
         <div className="mx-auto mb-2 max-w-md text-center text-lg font-semibold text-primary">SoE Hub</div>
         {isPublic(path) && isPublic(shown) ? <Outlet /> : null}
       </div>
@@ -74,7 +76,7 @@ export function Shell() {
   }
   if (me.must_set_password) {
     return (
-      <div className="min-h-screen px-4 py-6">
+      <div className="min-h-dvh px-4 py-6">
         <div className="mx-auto mb-2 max-w-md text-center text-lg font-semibold text-primary">SoE Hub</div>
         {path === "/dat-mat-khau" && shown === "/dat-mat-khau" ? <Outlet /> : null}
       </div>
@@ -95,8 +97,10 @@ export function Shell() {
     }
   };
 
+  // An open table fills the window (the grid scrolls inside it); other pages are a centered column.
+  const wide = shown.startsWith("/datahub/");
   return (
-    <div className="min-h-screen">
+    <div className={wide ? "flex h-dvh flex-col" : "min-h-dvh"}>
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2 sm:px-6">
           <Link to="/" className="text-lg font-semibold text-primary">SoE Hub</Link>
@@ -132,7 +136,7 @@ export function Shell() {
           </nav>
         )}
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{denied ? <Forbidden /> : <Outlet />}</main>
+      <main className={wide ? "mx-auto flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : <Outlet />}</main>
     </div>
   );
 }

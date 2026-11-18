@@ -46,6 +46,17 @@ export function can(me: Me | null | undefined, permission: string): boolean {
   return !!me?.permissions.includes(permission);
 }
 
+/** A signal from the live stream: the event name and the id of the object it is about (a table id for datahub events). Never data. */
+export interface LiveSignal {
+  event: string;
+  aggregate_id: string | null;
+}
+
+/** Screens that need the raw signals (an open table) listen here instead of opening a second stream. */
+export const liveBus = new EventTarget();
+
+const DATAHUB_SIGNALS = ["datahub.row.created", "datahub.row.updated", "datahub.row.deleted", "datahub.row.restored", "datahub.formula.recalculated", "datahub.structure.changed", "datahub.share.changed"];
+
 /** Listens to the SSE stream and refreshes the matching queries (signals only, never data). */
 export function useLiveUpdates(enabled: boolean) {
   const qc = useQueryClient();
@@ -62,6 +73,18 @@ export function useLiveUpdates(enabled: boolean) {
     on("auth.token.decided", [["admin-tokens"], ["tokens"]]);
     on("guest.grant.changed", [["grants"]]);
     on("system.setting.changed", [["settings"]]);
+    on("datahub.structure.changed", [["datahubs"], ["datahub"], ["dh-table"], ["dh-limits"]]);
+    on("datahub.share.changed", [["datahubs"], ["datahub"], ["dh-table"]]);
+    for (const name of DATAHUB_SIGNALS) {
+      es.addEventListener(name, (ev) => {
+        try {
+          const d = JSON.parse((ev as MessageEvent<string>).data) as LiveSignal;
+          liveBus.dispatchEvent(new CustomEvent<LiveSignal>("signal", { detail: { event: name, aggregate_id: d.aggregate_id } }));
+        } catch {
+          /* a signal we cannot read is ignored */
+        }
+      });
+    }
     return () => es.close();
   }, [enabled, qc]);
 }

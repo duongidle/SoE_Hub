@@ -79,6 +79,16 @@
   /* Selected cell / row in a data grid, and the "calculating" mark. */
   --selected: oklch(0.93 0.03 260);
   --calc: oklch(0.55 0.1 260);
+  /* Background of a select-option chip; the text on it is always --foreground. */
+  --opt-gray: oklch(0.92 0.005 260);
+  --opt-blue: oklch(0.9 0.05 250);
+  --opt-green: oklch(0.9 0.07 150);
+  --opt-orange: oklch(0.92 0.07 70);
+  --opt-red: oklch(0.9 0.06 25);
+  --opt-purple: oklch(0.9 0.05 305);
+  --opt-yellow: oklch(0.94 0.08 100);
+  --opt-teal: oklch(0.9 0.05 195);
+  --opt-pink: oklch(0.92 0.05 350);
 }
 
 html {

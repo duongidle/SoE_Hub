@@ -1,6 +1,8 @@
 import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { AuditLogPage, ServiceAccountsPage, SettingsPage, TokenApprovalPage, TransferPage } from "@/pages/admin";
 import { AccountPage, NotificationsPage, TokensPage } from "@/pages/account";
+import { DatahubPage } from "@/pages/datahub/detail";
+import { DatahubListPage } from "@/pages/datahub/list";
 import { CodeFlowPage, LoginPage, SetPasswordPage } from "@/pages/auth";
 import { GuestGrantsPage } from "@/pages/guest";
 import { Home } from "@/pages/home";
@@ -23,6 +25,9 @@ export const router = createRouter({
     r("/dang-ky", () => <CodeFlowPage purpose="activate" />),
     r("/quen-mat-khau", () => <CodeFlowPage purpose="reset" />),
     r("/dat-mat-khau", SetPasswordPage),
+    r("/datahub", DatahubListPage),
+    r("/datahub/$datahubId", DatahubPage),
+    r("/datahub/$datahubId/$tableId", DatahubPage),
     r("/to-chuc", OrgPage),
     r("/tai-khoan", AccountPage),
     r("/tai-khoan/token", TokensPage),

@@ -1,0 +1,275 @@
+import * as Dialog from "@radix-ui/react-dialog";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { formatDateTime, formatRelative } from "@soe/shared";
+import { ArrowRight, X } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Button, Input, Select, Textarea } from "@/components/ui/form";
+import { Skeleton } from "@/components/ui/skeleton";
+import { notify } from "@/components/ui/toast";
+import { ErrorState } from "@/components/ui/states";
+import { Tip } from "@/components/ui/tooltip";
+import { fetchRowsByIds, getHistory } from "@/lib/datahub/api";
+import { cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
+import type { TableSession } from "@/lib/datahub/session";
+import type { Column, Level, Row } from "@/lib/datahub/types";
+import { cn } from "@/lib/utils";
+import { OptionChip, PersonPicker, RatingPicker } from "./pickers";
+
+const OP_LABEL: Record<string, string> = { create: "Tạo dòng", update: "Sửa", delete: "Xoá vào thùng rác", restore: "Khôi phục", upsert: "Cập nhật" };
+const VIA_LABEL: Record<string, string> = { web: "", api: "qua API", mcp: "qua AI", form: "qua form", import: "qua import", automation: "tự động", system: "hệ thống" };
+
+function useLabels(session: TableSession) {
+  const [, set] = useState(0);
+  useEffect(() => session.labels.subscribe(() => set((v) => v + 1)), [session]);
+  return session.labels;
+}
+
+/**
+ * All columns of one row, editable by the same rules as the grid, and the history of changes. Opened from the grid
+ * (Shift + Space, the "Chi tiết dòng" button). Each field saves when the person leaves it.
+ */
+export function RowPanel({ session, rowId, level, onClose }: { session: TableSession; rowId: string; level: Level; onClose: () => void }) {
+  const store = session.store;
+  useSyncExternalStore(store.subscribe, store.getVersion);
+  const labels = useLabels(session);
+  const row = store.get(rowId);
+  const [tab, setTab] = useState<"data" | "history">("data");
+  const [loadError, setLoadError] = useState<unknown>(null);
+
+  useEffect(() => {
+    if (store.get(rowId)) return;
+    fetchRowsByIds(session.table.id, [rowId])
+      .then((r) => (r[0] ? store.adopt(r[0]) : setLoadError(new Error("Dòng này đã bị xoá hoặc bạn không còn quyền xem."))))
+      .catch(setLoadError);
+  }, [rowId, session, store]);
+
+  const ctx: CellCtx = { people: labels.people, linked: labels.linked };
+  return (
+    <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-card shadow-lg sm:rounded-l-xl">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+            <Dialog.Title className="text-lg font-semibold">{row?.row_no ? `Dòng #${row.row_no}` : "Chi tiết dòng"}</Dialog.Title>
+            <Button variant="ghost" onClick={onClose} aria-label="Đóng" className="!px-2">
+              <X size={20} aria-hidden />
+            </Button>
+          </div>
+          <div role="tablist" aria-label="Chi tiết dòng" className="flex gap-1 border-b border-border px-4">
+            {(["data", "history"] as const).map((t) => (
+              <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("border-b-2 px-3 py-2 text-sm", tab === t ? "border-primary font-medium" : "border-transparent text-muted-foreground")}>
+                {t === "data" ? "Dữ liệu" : "Lịch sử thay đổi"}
+              </button>
+            ))}
+          </div>
+          <div className="contain-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {loadError ? (
+              <ErrorState error={loadError} title="Không mở được dòng" />
+            ) : !row ? (
+              <div className="flex flex-col gap-4">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-10" />)}</div>
+            ) : tab === "data" ? (
+              <div className="flex flex-col gap-4">
+                {session.table.columns.map((c) => (
+                  <Field key={c.id} col={c} row={row} level={level} session={session} ctx={ctx} />
+                ))}
+                {session.table.columns.length === 0 && <p className="text-muted-foreground">Bảng chưa có cột nào.</p>}
+              </div>
+            ) : (
+              <History session={session} rowId={rowId} ctx={ctx} />
+            )}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level: Level; session: TableSession; ctx: CellCtx }) {
+  const reason = level === "view" ? "Bạn chỉ có quyền xem bảng này." : readOnlyReason(col, level);
+  const type = typeOf(col);
+  const value = cellValue(col, row);
+  const err = cellError(col, value);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [person, setPerson] = useState(false);
+  const stored = editText(col, row);
+  // While the person types, `draft` holds their text; otherwise the field follows the stored value (another person, a recalculation).
+  const [draft, setDraft] = useState<string | null>(null);
+  const text = draft ?? stored;
+  const setText = setDraft;
+
+  const save = async (v: unknown) => {
+    setBusy(true);
+    try {
+      await session.edit([{ rowId: row.id, key: col.key, value: v }], `Sửa ô "${col.name}"`);
+      setError(null);
+    } catch (e) {
+      const m = await session.explain(e);
+      setError(m);
+      notify.error(m);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const commitText = () => {
+    if (text === stored) return setDraft(null);
+    const p = parseCellText(col, text, new Map([...session.labels.people].map(([id, n]) => [nameKey(n), id] as const)));
+    if (!p.ok) return setError(p.message);
+    setError(null);
+    setDraft(null);
+    void save(p.value);
+  };
+
+  const id = `f-${col.id}`;
+  const label = (
+    <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-sm font-medium">
+      <span className="[overflow-wrap:anywhere]">{col.name}{col.required && <span className="text-bad" aria-label="bắt buộc"> *</span>}</span>
+      {busy && <span className="text-xs font-normal text-muted-foreground">Đang lưu...</span>}
+    </label>
+  );
+  const hint = col.description ? <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{col.description}</span> : null;
+  const errorText = error ? <span role="alert" className="text-xs text-bad">{error}</span> : null;
+
+  let control: React.ReactNode;
+  if (reason || type === "relation" || type === "attachment") {
+    const shown = err ? `${err}. ${ERROR_HELP[err] ?? ""}` : displayText(col, row, ctx);
+    const pend = row.pending?.includes(col.key);
+    control = (
+      <div id={id} role="textbox" aria-readonly="true" tabIndex={0} className={cn("min-h-9 rounded-md border border-border bg-muted px-3 py-1.5 text-sm [overflow-wrap:anywhere]", err && "text-bad", typeof value === "number" && "text-right")}>
+        {shown}
+        {pend && <span className="ml-2 text-xs text-muted-foreground">Đang tính lại...</span>}
+      </div>
+    );
+  } else if (type === "checkbox") {
+    control = (
+      <label className="flex min-h-9 items-center gap-2 text-sm">
+        <input id={id} type="checkbox" className="h-5 w-5" checked={value === true} onChange={(e) => void save(e.target.checked)} />
+        {value === true ? "Có" : "Không"}
+      </label>
+    );
+  } else if (type === "single_select") {
+    control = (
+      <Select id={id} value={typeof value === "string" ? value : ""} onChange={(e) => void save(e.target.value || null)}>
+        <option value="">—</option>
+        {optionsOf(col).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+      </Select>
+    );
+  } else if (type === "multi_select") {
+    const ids = Array.isArray(value) ? (value as string[]) : [];
+    control = (
+      <div id={id} role="group" aria-label={col.name} className="flex flex-wrap gap-2">
+        {optionsOf(col).map((o) => {
+          const on = ids.includes(o.id);
+          return (
+            <button key={o.id} type="button" aria-pressed={on} onClick={() => void save((on ? ids.filter((x) => x !== o.id) : [...ids, o.id]).filter(Boolean).length ? (on ? ids.filter((x) => x !== o.id) : [...ids, o.id]) : null)} className={cn("min-h-9 rounded-md border px-2 py-1 text-sm", on ? "border-primary" : "border-border")}>
+              <OptionChip option={o} />
+              {on && <span className="sr-only"> (đã chọn)</span>}
+            </button>
+          );
+        })}
+        {optionsOf(col).length === 0 && <span className="text-sm text-muted-foreground">Cột chưa có lựa chọn nào.</span>}
+      </div>
+    );
+  } else if (type === "rating") {
+    control = <RatingPicker value={typeof value === "number" ? value : null} max={col.config.max ?? 5} onPick={(n) => void save(n)} />;
+  } else if (type === "user") {
+    const uid = typeof value === "string" ? value : null;
+    if (uid) session.labels.wantPerson(uid);
+    control = (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <span id={id} className="min-h-9 py-1.5 text-sm [overflow-wrap:anywhere]">{uid ? (ctx.people.get(uid) ?? "…") : "—"}</span>
+          <Button variant="secondary" onClick={() => setPerson((v) => !v)}>{person ? "Đóng" : "Đổi người"}</Button>
+        </div>
+        {person && <PersonPicker value={uid} valueName={uid ? ctx.people.get(uid) : undefined} onCancel={() => setPerson(false)} onDone={(p) => { setPerson(false); if (p) session.labels.learnPerson(p.id, p.full_name); void save(p?.id ?? null); }} />}
+      </div>
+    );
+  } else if (type === "long_text") {
+    control = <Textarea id={id} rows={4} value={text} onFocus={() => setDraft(stored)} onChange={(e) => setText(e.target.value)} onBlur={commitText} aria-invalid={!!error} />;
+  } else {
+    const numeric = ["number", "currency", "percent"].includes(type);
+    control = (
+      <Input
+        id={id}
+        value={text}
+        inputMode={numeric ? "decimal" : type === "phone" ? "tel" : type === "email" ? "email" : type === "url" ? "url" : type === "date" || type === "datetime" ? "numeric" : undefined}
+        type="text"
+        autoComplete="off"
+        className={cn(numeric && "text-right")}
+        placeholder={type === "date" ? "dd/mm/yyyy" : type === "datetime" ? "dd/mm/yyyy hh:mm" : type === "percent" ? "12,5%" : undefined}
+        onFocus={() => setDraft(stored)}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commitText}
+        onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
+        aria-invalid={!!error}
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {label}
+      {control}
+      {reason && (type !== "relation" && type !== "attachment") ? <span className="text-xs text-muted-foreground">{reason}</span> : hint}
+      {(type === "relation" || type === "attachment") && reason && <span className="text-xs text-muted-foreground">{level === "view" ? "Bạn chỉ có quyền xem bảng này." : reason}</span>}
+      {errorText}
+    </div>
+  );
+}
+
+function History({ session, rowId, ctx }: { session: TableSession; rowId: string; ctx: CellCtx }) {
+  const q = useInfiniteQuery({
+    queryKey: ["dh-history", session.table.id, rowId],
+    queryFn: ({ pageParam }) => getHistory(session.table.id, rowId, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.next_cursor,
+    staleTime: 0,
+  });
+  useLabels(session);
+
+  const items = (q.data?.pages ?? []).flatMap((p) => p.items);
+  const hasMore = q.hasNextPage;
+  items.forEach((i) => i.actor?.userId && session.labels.wantPerson(i.actor.userId));
+  const byKey = new Map(session.table.columns.map((c) => [c.key, c]));
+  const show = (key: string, v: unknown): string => {
+    const col = byKey.get(key);
+    if (!col) return v === null || v === undefined ? "—" : String(v);
+    if (Array.isArray(v)) v.forEach((x) => col.type === "relation" && session.labels.wantLinked(col.key, String(x)));
+    return displayText(col, { id: "", data: { [key]: v } }, ctx);
+  };
+
+  if (q.error && items.length === 0) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được lịch sử" />;
+  if (q.isLoading) return <div className="flex flex-col gap-3">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-14" />)}</div>;
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">Dòng này chưa có thay đổi nào.</p>;
+  return (
+    <ol aria-label="Lịch sử thay đổi" className="flex flex-col gap-4">
+      {items.map((h) => {
+        const who = h.actor?.userId ? (ctx.people.get(h.actor.userId) ?? "…") : "Hệ thống";
+        const via = VIA_LABEL[h.actor?.via ?? "web"] ?? "";
+        return (
+          <li key={h.version} className="flex flex-col gap-1 text-sm">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+              <span className="font-medium [overflow-wrap:anywhere]">{who}{via && <span className="font-normal text-muted-foreground"> {via}</span>} · {OP_LABEL[h.op] ?? h.op}</span>
+              <Tip label={formatDateTime(h.at)}><time dateTime={h.at} className="text-xs text-muted-foreground">{formatRelative(h.at)}</time></Tip>
+            </div>
+            {h.changes.map((c) => (
+              <div key={c.field} className="rounded-md bg-muted px-2 py-1">
+                <span className="font-medium [overflow-wrap:anywhere]">{c.field_name ?? "Cột đã xoá"}</span>
+                <div className="flex flex-wrap items-baseline gap-x-2 text-muted-foreground">
+                  <span className="[overflow-wrap:anywhere]">{show(c.field, c.old)}</span>
+                  <ArrowRight size={16} aria-label="đổi thành" className="shrink-0" />
+                  <span className="text-foreground [overflow-wrap:anywhere]">{show(c.field, c.new)}</span>
+                </div>
+              </div>
+            ))}
+          </li>
+        );
+      })}
+      {hasMore && (
+        <li>
+          <Button variant="secondary" loading={q.isFetchingNextPage} onClick={() => void q.fetchNextPage()}>Tải thêm</Button>
+        </li>
+      )}
+    </ol>
+  );
+}

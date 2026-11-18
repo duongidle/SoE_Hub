@@ -67,6 +67,12 @@ function vnParts(d: Date): { day: string; month: string; year: string; hour: str
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** A timestamp as the API sends it: ISO text, or the Postgres text form `2026-11-19 05:14:52.69+07` (space, offset without minutes). */
+function toDate(v: string | Date): Date {
+  if (v instanceof Date) return v;
+  return new Date(v.replace(/^(\d{4}-\d{2}-\d{2}) /, "$1T").replace(/([+-]\d{2})$/, "$1:00").replace(/(\.\d{3})\d+/, "$1"));
+}
+
 /** `dd/mm/yyyy`. A date-only string (`2026-11-18`) is shown as written, with no timezone shift; a timestamp is shown in Vietnam time. */
 export function formatDate(v: string | Date | null | undefined): string {
   if (v === null || v === undefined || v === "") return EMPTY;
@@ -74,7 +80,7 @@ export function formatDate(v: string | Date | null | undefined): string {
     const m = DATE_ONLY.exec(v);
     if (m) return `${m[3]}/${m[2]}/${m[1]}`;
   }
-  const d = v instanceof Date ? v : new Date(v);
+  const d = toDate(v);
   if (Number.isNaN(d.getTime())) return EMPTY;
   const p = vnParts(d);
   return `${p.day}/${p.month}/${p.year}`;
@@ -83,7 +89,7 @@ export function formatDate(v: string | Date | null | undefined): string {
 /** `dd/mm/yyyy HH:mm` in Vietnam time. */
 export function formatDateTime(v: string | Date | null | undefined): string {
   if (v === null || v === undefined || v === "") return EMPTY;
-  const d = v instanceof Date ? v : new Date(v);
+  const d = toDate(v);
   if (Number.isNaN(d.getTime())) return EMPTY;
   const p = vnParts(d);
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
@@ -94,7 +100,7 @@ const DAY = 86_400_000;
 /** "5 phút trước" within 7 days, a date and time after that (and for the future). */
 export function formatRelative(v: string | Date | null | undefined, now: Date = new Date()): string {
   if (v === null || v === undefined || v === "") return EMPTY;
-  const d = v instanceof Date ? v : new Date(v);
+  const d = toDate(v);
   if (Number.isNaN(d.getTime())) return EMPTY;
   const diff = now.getTime() - d.getTime();
   if (diff < -60_000 || diff >= 7 * DAY) return formatDateTime(d);
@@ -119,7 +125,7 @@ export function formatCount(n: number, unit: string): string {
  * A lone group such as `1.234` is a decimal (as in the API); `1,234` is thousands (as in the API). Returns null when it is not a number.
  */
 export function parseLocaleNumber(text: string): number | null {
-  const t = text.trim().replace(/[\s ]/g, "").replace(/₫|đ$/i, "");
+  const t = text.trim().replace(/[\s\u00a0]/g, "").replace(/₫|đ$/i, "");
   if (t === "") return null;
   let s: string;
   if (/^-?\d+$/.test(t)) s = t;

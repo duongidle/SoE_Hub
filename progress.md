@@ -57,8 +57,8 @@ Kế hoạch 2C (4 phần, mỗi phần commit riêng):
 
 Các bước 2C-1 (đánh dấu khi xong):
 - [x] 1. Thư viện (Glide, fontsource, sonner, radix), định dạng vi-VN dùng chung (`packages/shared/src/format.ts`), thành phần ui (skeleton, toast, tooltip, dropdown, states, Modal radix); API mới `datahub.people.lookup`, `datahub.relation.labels`, `datahub.row.restore_batch`
-- [ ] 2. Trang danh sách datahub + trang datahub (tab bảng) + menu + URL
-- [ ] 3. Grid ảo hoá đọc keyset, hiển thị mọi kiểu cột, "đang tính", lỗi công thức
+- [x] 2. Trang danh sách datahub + trang datahub (tab bảng) + menu + URL (code ở `apps/web/src/pages/datahub/` và `apps/web/src/lib/datahub/`)
+- [x] 3. Grid ảo hoá (Glide) đọc keyset, mọi kiểu cột, "đang tính", lỗi công thức (code xong, đang kiểm thử trình duyệt)
 - [ ] 4. Sửa ô, thêm/xoá dòng, dán vùng, điền xuống, sửa hàng loạt, hoàn tác/làm lại
 - [ ] 5. Chi tiết dòng + lịch sử, SSE
 - [ ] 6. Test (vitest, e2e), kiểm thử giao diện, quyết định khi code
