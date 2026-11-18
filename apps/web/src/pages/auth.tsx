@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, ErrorText, Field, Input, Notice } from "@/components/ui/form";
 import { api, fmtTime } from "@/lib/api";
 
+/** Page to open after login: the `next` query value, only if it is a path inside this app. */
+function nextPath(): string {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next && next.startsWith("/") && !next.startsWith("//") && !PUBLIC_AFTER.some((p) => next.startsWith(p)) ? next : "/";
+}
+const PUBLIC_AFTER = ["/dang-nhap", "/dang-ky", "/quen-mat-khau", "/dat-mat-khau"];
+
 function AuthCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mx-auto mt-6 w-full max-w-md">
@@ -29,7 +36,7 @@ export function LoginPage() {
     mutationFn: () => api("POST", "/auth/login", { email, password }),
     onSuccess: async () => {
       await qc.invalidateQueries();
-      await nav({ to: "/" });
+      await nav({ href: nextPath() });
     },
   });
   return (

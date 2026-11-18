@@ -29,9 +29,17 @@ Còn lại:
 5. README: thay phần "Tác nhân tạm thời khi dev" bằng cách bootstrap (`pnpm cli admin:create --email …` → trang Đăng ký → "Tôi đã có mã"), biến `AUTH_SECRET`, `GOOGLE_CLIENT_ID/SECRET` (thêm vào `.env.example` và `docker-compose.yml`, hiện **chưa thêm**), lệnh `docs:bruno`, `cli`; Docker: `docker compose exec api node dist/cli.js admin:create --email …`.
 6. Cuối cùng: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm docs:openapi`, đánh dấu Stage 1 xong.
 
+## Kế hoạch phiên hoàn thiện (Sonnet)
+
+- [x] T1 shell + chặn route + chuông + menu theo quyền (`pages/shell.tsx`)
+- [x] T2 trang Admin (`pages/admin.tsx`) và Guest (`pages/guest.tsx`), route đã khai báo
+- [ ] T4 Playwright `e2e/`, chạy từ DB rỗng, desktop + điện thoại, sửa lỗi tìm thấy
+- [ ] T3 `.env.example`, `docker-compose.yml`, README
+- [ ] T5 "Quyết định khi code" của Module 1, Bruno/OpenAPI, đánh dấu Stage 1 xong
+
 ## Bước tiếp theo
 
-- Làm mục 1 (shell + chặn route) ở `apps/web/src/pages/shell.tsx`, rồi mục 2, rồi mục 3–6 theo thứ tự trên.
+- Làm T4 (xem kế hoạch trên): cài `@playwright/test`, viết `e2e/`, `pnpm test:e2e`.
 
 ## Câu hỏi còn mở
 

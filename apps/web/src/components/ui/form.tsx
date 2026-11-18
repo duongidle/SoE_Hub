@@ -1,4 +1,5 @@
 import type * as React from "react";
+import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function Button({ className, variant = "primary", ...props }: React.ComponentProps<"button"> & { variant?: "primary" | "secondary" | "danger" | "ghost" }) {
@@ -33,9 +34,35 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
+/** Readable Vietnamese text for the generic error codes; specific errors keep the server's own Vietnamese message. */
+const GENERIC_ERRORS: Record<string, string> = {
+  unauthenticated: "Phiên đăng nhập đã hết. Hãy đăng nhập lại.",
+  forbidden: "Bạn không có quyền làm việc này.",
+  ai_not_allowed: "Kết nối AI không được làm việc này.",
+  not_found: "Không tìm thấy dữ liệu.",
+  conflict: "Dữ liệu vừa được người khác sửa. Hãy tải lại trang rồi làm lại.",
+  rate_limited: "Bạn thao tác quá nhanh. Hãy đợi một lúc rồi thử lại.",
+  validation_error: "Dữ liệu chưa hợp lệ.",
+  invalid_filter: "Bộ lọc không hợp lệ.",
+  internal_error: "Hệ thống gặp lỗi. Hãy thử lại sau.",
+  unavailable: "Hệ thống tạm thời chưa sẵn sàng. Hãy thử lại sau.",
+  payload_too_large: "Dữ liệu gửi lên quá lớn.",
+};
+
+export function errorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    const generic = error.code ? GENERIC_ERRORS[error.code] : undefined;
+    const own = error.body?.error.message;
+    if (own && /[\u00C0-\u1EF9]/.test(own)) return own; // already Vietnamese
+    return generic ?? own ?? `Lỗi ${error.status}`;
+  }
+  if (error instanceof TypeError) return "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.";
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function ErrorText({ error }: { error: unknown }) {
   if (!error) return null;
-  const msg = error instanceof Error ? error.message : String(error);
+  const msg = errorMessage(error);
   return <p className="rounded-md bg-bad/10 px-3 py-2 text-sm text-bad" role="alert">{msg}</p>;
 }
 

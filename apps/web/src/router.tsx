@@ -1,12 +1,14 @@
 import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { AuditLogPage, ServiceAccountsPage, SettingsPage, TokenApprovalPage, TransferPage } from "@/pages/admin";
 import { AccountPage, NotificationsPage, TokensPage } from "@/pages/account";
 import { CodeFlowPage, LoginPage, SetPasswordPage } from "@/pages/auth";
+import { GuestGrantsPage } from "@/pages/guest";
 import { Home } from "@/pages/home";
 import { OrgPage } from "@/pages/org";
 import { Shell } from "@/pages/shell";
 import { SystemPage } from "@/pages/system";
 
-// WIP Stage 1: the Shell does not yet gate routes by login, has no bell/menu, and admin pages are not written yet.
+// The Shell gates every route by login and by permission (see pages/shell.tsx).
 const rootRoute = createRootRoute({
   component: Shell,
   notFoundComponent: () => <p className="text-muted-foreground">Không tìm thấy trang này.</p>,
@@ -25,6 +27,12 @@ export const router = createRouter({
     r("/tai-khoan", AccountPage),
     r("/tai-khoan/token", TokensPage),
     r("/thong-bao", NotificationsPage),
+    r("/cap-du-lieu", GuestGrantsPage),
+    r("/quan-tri/token", TokenApprovalPage),
+    r("/quan-tri/tai-khoan-he-thong", ServiceAccountsPage),
+    r("/quan-tri/nhat-ky", AuditLogPage),
+    r("/quan-tri/chuyen-giao", TransferPage),
+    r("/quan-tri/cai-dat", SettingsPage),
   ]),
 });
 
