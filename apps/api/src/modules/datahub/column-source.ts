@@ -2,6 +2,7 @@ import { sql, type SQL } from "drizzle-orm";
 import type { FieldSpec } from "@soe/db";
 import { AppError } from "@soe/shared";
 import { columnTypeDef } from "./column-types";
+import { effectiveType, errKey, isComputedType } from "./cell-values";
 import { assertColumnKey, type DhColumn, type Stored } from "./types";
 
 /** A row as the engine loads it (standard columns + the JSONB cells). */
@@ -45,7 +46,8 @@ export class JsonbSource implements ColumnSource {
   readonly kind = "jsonb" as const;
 
   fieldSpec(col: DhColumn): FieldSpec | null {
-    const def = columnTypeDef(col.type);
+    // A computed column filters, sorts and indexes like the plain type of its result.
+    const def = columnTypeDef(effectiveType(col));
     if (!def.fieldType) return null;
     return {
       type: def.fieldType,
@@ -59,6 +61,8 @@ export class JsonbSource implements ColumnSource {
   readExpr(col: DhColumn): SQL {
     const def = columnTypeDef(col.type);
     if (def.virtual) return sql`to_jsonb(${def.expr(col.key)})`;
+    // The error of a computed cell (`#DIV/0!`) lives under its own key and is shown in place of the value.
+    if (isComputedType(col.type)) return sql.raw(`coalesce(data->'${assertColumnKey(col.key)}', to_jsonb(data->>'${errKey(assertColumnKey(col.key))}'))`);
     return sql.raw(`data->'${assertColumnKey(col.key)}'`);
   }
 

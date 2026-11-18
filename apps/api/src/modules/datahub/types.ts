@@ -20,6 +20,11 @@ export interface DhColumn {
   display: Record<string, unknown>;
   version: number;
   deletedAt: Date | null;
+  /** Recalculation state of a computed column: `ready`, `pending` (waiting for the worker) or `running`. */
+  calcStatus: string;
+  calcDone: number | null;
+  calcTotal: number | null;
+  calcAt: Date | null;
 }
 
 export interface SelectOption {

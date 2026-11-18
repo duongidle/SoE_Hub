@@ -5,6 +5,7 @@ import { sourceOf, type LoadedRow } from "./column-source";
 import { CellError, type DhColumn, type Stored } from "./types";
 import { columnTypeDef, type ColCtx } from "./column-types";
 import type { TableAccess } from "./access";
+import { exposeErrors } from "./cell-values";
 
 type Raw = Record<string, unknown>;
 
@@ -24,6 +25,10 @@ export function columnFromDb(r: Raw): DhColumn {
     display: (r.display as Record<string, unknown>) ?? {},
     version: r.version as number,
     deletedAt: (r.deleted_at as Date | null) ?? null,
+    calcStatus: (r.calc_status as string | undefined) ?? "ready",
+    calcDone: (r.calc_done as number | null | undefined) ?? null,
+    calcTotal: (r.calc_total as number | null | undefined) ?? null,
+    calcAt: (r.calc_at as Date | null | undefined) ?? null,
   };
 }
 
@@ -216,13 +221,14 @@ export interface ApiRow {
 
 /** Row in API shape. `labels=true` turns select option ids into names. */
 export function toApiRow(row: LoadedRow, schema: TableSchema, labels = false): ApiRow {
-  let data: Record<string, unknown> = row.data;
+  let data: Record<string, unknown> = exposeErrors(row.data);
   if (labels) {
+    const plain = data;
     data = {};
-    for (const [k, v] of Object.entries(row.data)) {
+    for (const [k, v] of Object.entries(plain)) {
       const c = schema.tryResolve(k);
       const def = c ? columnTypeDef(c.type) : null;
-      data[k] = c && def?.toLabel ? def.toLabel(v, c) : v;
+      data[k] = c && def?.toLabel ? def.toLabel(v as Stored, c) : v;
     }
   }
   return {

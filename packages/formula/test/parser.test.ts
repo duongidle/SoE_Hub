@@ -113,6 +113,9 @@ describe("type inference", () => {
     expect(typeOf('IF([x]>1,"a","b")', { x: "number" })).toBe("text");
     expect(typeOf('IF([x]>1,"a",0)', { x: "number" })).toBe("mixed");
     expect(typeOf("IFERROR([x]/2,0)", { x: "number" })).toBe("number");
+    expect(typeOf('IFERROR([x]/2,"")', { x: "number" })).toBe("number"); // "" is blank, not a text type
+    expect(typeOf('IF([x]>1,"",TODAY())', { x: "number" })).toBe("date");
+    expect(typeOf('""')).toBe("blank");
     expect(typeOf("MAX([a],[b])", { a: "date", b: "date" })).toBe("date");
     expect(typeOf("XLOOKUP([x], [T1].[a], [T1].[b])", { b: "date" })).toBe("date");
     expect(typeOf("YEAR([d])", { d: "date" })).toBe("number");

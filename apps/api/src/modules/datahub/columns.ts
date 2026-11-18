@@ -9,7 +9,10 @@ import { buildSearchText, columnTypeDef, convertValue, listColumnTypes, newColum
 import { pgError, rethrowNameConflict } from "./errors";
 import { getLimits, quotaExceeded } from "./limits";
 import { emitStructure, Id, STRUCTURE_EVENT } from "./shared";
-import { columnOut, ColumnOut } from "./structure";
+import { columnOut, ColumnOut, indexFor } from "./structure";
+import { isComputedType } from "./cell-values";
+import { OwnerIndex, prepareComputed, type DepRow, type PreparedComputed } from "./computed";
+import { markPending } from "./recalc";
 import { columnFromDb, rowFromDb, TableSchema } from "./table-schema";
 import { CellError, type DhColumn, type SelectOption, type Stored } from "./types";
 
@@ -59,6 +62,29 @@ async function ensureUnique(ctx: Ctx, access: TableAccess, col: { key: string; n
 async function nextPosition(db: Executor, access: TableAccess): Promise<number> {
   const res = await db.execute(sql`SELECT coalesce(max(position), -1) + 1 AS next FROM dh_columns WHERE ${access.scope()} AND deleted_at IS NULL`);
   return (res.rows[0] as { next: number }).next;
+}
+
+/** Stores the dependencies and schedule of a computed column and queues its whole-column recalculation (design module2 section 6.5). */
+async function saveComputed(ctx: Ctx, acc: TableAccess, columnId: string, p: PreparedComputed): Promise<void> {
+  await ctx.db.execute(sql`DELETE FROM dh_formula_deps WHERE ${acc.scope()} AND column_id = ${columnId}::uuid`);
+  await insertDeps(ctx, acc.tableId, columnId, p.deps);
+  await ctx.db.execute(sql`UPDATE dh_columns SET calc_volatile = ${p.volatile} WHERE ${acc.scope()} AND id = ${columnId}::uuid`);
+  await markPending(ctx.db, [columnId]);
+}
+
+async function insertDeps(ctx: Ctx, tableId: string, columnId: string, deps: DepRow[]): Promise<void> {
+  if (deps.length === 0) return;
+  await ctx.db.execute(sql`INSERT INTO dh_formula_deps (column_id, table_id, src_table_id, src_key, kind)
+    SELECT ${columnId}::uuid, ${tableId}::uuid, d.src_table_id, d.src_key, d.kind
+    FROM jsonb_to_recordset(${JSON.stringify(deps.map((d) => ({ src_table_id: d.srcTableId, src_key: d.srcKey, kind: d.kind })))}::jsonb) AS d(src_table_id uuid, src_key text, kind text)
+    ON CONFLICT DO NOTHING`);
+}
+
+/** Queues the columns that read the given columns of a table. */
+async function markDependents(ctx: Ctx, tableId: string, keys: string[]): Promise<void> {
+  const res = await ctx.db.execute(sql`SELECT DISTINCT c.id FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id
+    WHERE /*scope*/ c.deleted_at IS NULL AND f.src_table_id = ${tableId}::uuid AND f.src_key = ANY(${`{${keys.join(",")}}`}::text[])`);
+  await markPending(ctx.db, (res.rows as { id: string }[]).map((r) => r.id));
 }
 
 const ColumnBody = {
@@ -183,7 +209,8 @@ export const columnOperations = [
   defineCommand({
     name: "datahub.column.create",
     summary: "Thêm cột vào bảng (mặc định tối đa 70 cột, trần 200). Tên cột không trùng trong bảng.",
-    description: "Mã cột (`key`) do hệ thống sinh, không đổi dù đổi tên. Kiểu công thức/liên kết/lookup/rollup chưa dùng được (Stage 2B).",
+    description:
+      "Mã cột (`key`) do hệ thống sinh, không đổi dù đổi tên. Cột tính toán: `formula` (`config: {formula: \"=...\", result_type?}`), `relation` (`config: {target_table_id, multiple?}` liên kết tới bảng khác của cùng chủ), `lookup` (`config: {relation, target_column}`), `rollup` (`config: {relation, target_column, fn}`). Giá trị công thức do hệ thống tính và lưu; ô đang chờ tính có `calc.status` khác `ready`.",
     permission: "datahub:datahub:use",
     aiAllowed: true,
     emits: [STRUCTURE_EVENT],
@@ -197,12 +224,19 @@ export const columnOperations = [
       const limits = await getLimits(ctx.db, ctx.actor.userId);
       const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NULL`);
       if ((cnt.rows[0] as { n: number }).n >= limits.columns) quotaExceeded("cột trong một bảng", limits.columns);
-      const config = normalizeConfig(i.type, i.config);
+      const key = newColumnKey();
+      const id = newId();
+      // Formula, relation, lookup, rollup: checked against the owner's tables (same owner only, no cycle, scan size).
+      const linked = isComputedType(i.type) || i.type === "relation";
+      let prepared: PreparedComputed | null = null;
+      if (linked) {
+        const ix = await OwnerIndex.load(ctx.db, acc.datahub.ownerId);
+        prepared = await prepareComputed(ctx.db, ix, await TableSchema.load(ctx.db, acc), { id, key, tableId: acc.tableId, datahubId: acc.datahub.id, type: i.type as "formula" }, i.config ?? {});
+      }
+      const config = prepared ? prepared.config : normalizeConfig(i.type, i.config);
       const display = normalizeDisplay(i.display);
       if (i.unique && !def.uniqueable) throw new AppError("validation_error", `Cột kiểu "${def.label}" không đặt được "duy nhất".`);
-      const key = newColumnKey();
       const dflt = parseDefault(i.type, config, i.name, key, i.default_value);
-      const id = newId();
       const position = i.position ?? (await nextPosition(ctx.db, acc));
       try {
         await ctx.db.execute(sql`INSERT INTO dh_columns (id, table_id, key, name, type, config, position, required, is_unique, default_value, description, display, created_by, updated_by)
@@ -219,9 +253,11 @@ export const columnOperations = [
         await ctx.db.execute(sql`UPDATE dh_columns SET config = jsonb_set(config, '{seq}', to_jsonb(${start - 1 + (c.rows[0] as { n: number }).n}::int)) WHERE ${acc.scope()} AND id = ${id}::uuid`);
       }
       if (i.unique) await ensureUnique(ctx, acc, { key, name: i.name });
+      if (prepared && isComputedType(i.type)) await saveComputed(ctx, acc, id, prepared);
       ctx.audit({ type: "datahub_column", id, details: { table_id: acc.tableId, name: i.name, type: i.type } });
       await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_created");
-      return columnOut(await reload(ctx.db, acc, id));
+      const created = await reload(ctx.db, acc, id);
+      return columnOut(created, await indexFor(ctx.db, acc.datahub.ownerId, [created]));
     },
   }),
 
@@ -252,7 +288,13 @@ export const columnOperations = [
       const { col } = await loadColumn(ctx.db, acc, i.column);
       if (i.version !== undefined && i.version !== col.version) throw new AppError("conflict", undefined, { current_version: col.version, sent_version: i.version });
       const def = columnTypeDef(col.type);
-      const config = i.config !== undefined ? normalizeConfig(col.type, { ...i.config }) : col.config;
+      const linked = isComputedType(col.type) || col.type === "relation";
+      let prepared: PreparedComputed | null = null;
+      if (linked && i.config !== undefined) {
+        const ix = await OwnerIndex.load(ctx.db, acc.datahub.ownerId);
+        prepared = await prepareComputed(ctx.db, ix, await TableSchema.load(ctx.db, acc), { id: col.id, key: col.key, tableId: acc.tableId, datahubId: acc.datahub.id, type: col.type as "formula", current: col }, { ...i.config });
+      }
+      const config = prepared ? prepared.config : i.config !== undefined ? normalizeConfig(col.type, { ...i.config }) : col.config;
       // Keep the internal counter of an auto-number column.
       if (col.type === "auto_number" && i.config !== undefined && col.config.seq !== undefined) config.seq = col.config.seq;
       const display = i.display !== undefined ? normalizeDisplay(i.display) : col.display;
@@ -270,9 +312,13 @@ export const columnOperations = [
       }
       if (unique && !col.isUnique) await ensureUnique(ctx, acc, { key: col.key, name });
       if (!unique && col.isUnique) await ctx.db.execute(sql`SELECT soe_dh_drop_indexes(${acc.tableId}::uuid, ${col.key}, ARRAY['uniq'])`);
+      if (prepared && isComputedType(col.type)) await saveComputed(ctx, acc, col.id, prepared);
+      // A relation that changed (single/multiple) changes what lookups and rollups on it return.
+      if (prepared && col.type === "relation") await markDependents(ctx, acc.tableId, [col.key]);
       ctx.audit({ type: "datahub_column", id: col.id, details: { table_id: acc.tableId, name } });
       await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_updated");
-      return columnOut(await reload(ctx.db, acc, col.id));
+      const updated = await reload(ctx.db, acc, col.id);
+      return columnOut(updated, await indexFor(ctx.db, acc.datahub.ownerId, [updated]));
     },
   }),
 
@@ -317,7 +363,8 @@ export const columnOperations = [
       }
       ctx.audit({ type: "datahub_column", id: col.id, details: { table_id: acc.tableId, name: i.name ?? col.name } });
       await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_restored");
-      return columnOut(await reload(ctx.db, acc, col.id));
+      const restored = await reload(ctx.db, acc, col.id);
+      return columnOut(restored, await indexFor(ctx.db, acc.datahub.ownerId, [restored]));
     },
   }),
 
@@ -370,7 +417,7 @@ export const columnOperations = [
       await ctx.db.execute(sql`DELETE FROM dh_index_requests WHERE ${acc.scope()} AND column_key = ${col.key}`);
       if (keepUnique) await ensureUnique(ctx, acc, col);
       await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_type_changed");
-      return { column: columnOut(await reload(ctx.db, acc, col.id)), report };
+      return { column: columnOut(await reload(ctx.db, acc, col.id), null), report };
     },
   }),
 ];

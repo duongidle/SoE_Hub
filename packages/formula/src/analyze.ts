@@ -77,6 +77,8 @@ export interface GroupableCall {
   target: string | null;
   /** Index of the "if not found" argument of the call. */
   notFoundArg?: number;
+  /** The column references (`{table.key}` nodes) this call reads as ranges; they need no scan when the call is grouped. */
+  rangeNodes: Extract<Node, { t: "key" }>[];
 }
 
 const isRangeNode = (n: Node | undefined): n is Extract<Node, { t: "key" }> => !!n && n.t === "key" && n.table !== null;
@@ -129,7 +131,7 @@ export function findGroupable(ast: Node): GroupableCall[] {
       if (!table || !ranges.every((r) => tableOf(r) === table)) return;
       if (target && tableOf(target) !== table) return;
       if (crits.some((c) => hasRange(c) || c.t === "empty" || !maybePlainCriteria(c))) return;
-      out.push({ ...base, kind: "criteria", agg, table, keyColumns: ranges.map((r) => (r as { key: string }).key), keyNodes: crits, target: target ? (target as { key: string }).key : null });
+      out.push({ ...base, kind: "criteria", agg, table, keyColumns: ranges.map((r) => (r as { key: string }).key), keyNodes: crits, target: target ? (target as { key: string }).key : null, rangeNodes: [...ranges, ...(target ? [target] : [])] as Extract<Node, { t: "key" }>[] });
     };
     switch (n.name) {
       case "COUNTIFS":
@@ -154,26 +156,26 @@ export function findGroupable(ast: Node): GroupableCall[] {
       case "AVERAGEIF": {
         if (a.length === 2 && isRangeNode(a[0])) {
           const r = a[0];
-          if (!hasRange(a[1]!) && maybePlainCriteria(a[1]!)) out.push({ ...base, kind: "criteria", agg: n.name === "SUMIF" ? "sum" : "avg", table: r.table!, keyColumns: [r.key], keyNodes: [a[1]!], target: r.key });
+          if (!hasRange(a[1]!) && maybePlainCriteria(a[1]!)) out.push({ ...base, kind: "criteria", agg: n.name === "SUMIF" ? "sum" : "avg", table: r.table!, keyColumns: [r.key], keyNodes: [a[1]!], target: r.key, rangeNodes: [r] });
         } else if (a.length === 3 && isRangeNode(a[0]) && isRangeNode(a[2]) && a[0].table === a[2].table) {
-          if (!hasRange(a[1]!) && maybePlainCriteria(a[1]!)) out.push({ ...base, kind: "criteria", agg: n.name === "SUMIF" ? "sum" : "avg", table: a[0].table!, keyColumns: [a[0].key], keyNodes: [a[1]!], target: a[2].key });
+          if (!hasRange(a[1]!) && maybePlainCriteria(a[1]!)) out.push({ ...base, kind: "criteria", agg: n.name === "SUMIF" ? "sum" : "avg", table: a[0].table!, keyColumns: [a[0].key], keyNodes: [a[1]!], target: a[2].key, rangeNodes: [a[0], a[2]] });
         }
         break;
       }
       case "XLOOKUP":
         if (isRangeNode(a[1]) && isRangeNode(a[2]) && a[1].table === a[2].table && !hasRange(a[0]!) && absentOrLiteral(a[4], 0) && absentOrLiteral(a[5], 1)) {
-          out.push({ ...base, kind: "lookup", agg: "lookup", table: a[1].table!, keyColumns: [a[1].key], keyNodes: [a[0]!], target: a[2].key, notFoundArg: 3 });
+          out.push({ ...base, kind: "lookup", agg: "lookup", table: a[1].table!, keyColumns: [a[1].key], keyNodes: [a[0]!], target: a[2].key, notFoundArg: 3, rangeNodes: [a[1], a[2]] });
         }
         break;
       case "VLOOKUP":
         if (isRangeNode(a[1]) && isRangeNode(a[2]) && a[1].table === a[2].table && !hasRange(a[0]!) && (a[3] === undefined || a[3].t === "empty" || isLiteral(a[3], false) || isLiteral(a[3], 0))) {
-          out.push({ ...base, kind: "lookup", agg: "lookup", table: a[1].table!, keyColumns: [a[1].key], keyNodes: [a[0]!], target: a[2].key });
+          out.push({ ...base, kind: "lookup", agg: "lookup", table: a[1].table!, keyColumns: [a[1].key], keyNodes: [a[0]!], target: a[2].key, rangeNodes: [a[1], a[2]] });
         }
         break;
       case "INDEX": {
         const m = a[1];
         if (isRangeNode(a[0]) && m?.t === "call" && m.name === "MATCH" && isRangeNode(m.args[1]) && m.args[1].table === a[0].table && !hasRange(m.args[0]!) && isLiteral(m.args[2], 0)) {
-          out.push({ ...base, kind: "lookup", agg: "lookup", table: a[0].table!, keyColumns: [m.args[1].key], keyNodes: [m.args[0]!], target: a[0].key });
+          out.push({ ...base, kind: "lookup", agg: "lookup", table: a[0].table!, keyColumns: [m.args[1].key], keyNodes: [m.args[0]!], target: a[0].key, rangeNodes: [a[0], m.args[1]] });
         }
         break;
       }
@@ -185,7 +187,7 @@ export function findGroupable(ast: Node): GroupableCall[] {
       case "MAX":
         if (a.length === 1 && isRangeNode(a[0])) {
           const agg: GroupAgg = n.name === "SUM" ? "sum" : n.name === "COUNT" ? "count_num" : n.name === "COUNTA" ? "counta" : n.name === "AVERAGE" ? "avg" : n.name === "MIN" ? "min" : "max";
-          out.push({ ...base, kind: "criteria", agg, table: a[0].table!, keyColumns: [], keyNodes: [], target: a[0].key });
+          out.push({ ...base, kind: "criteria", agg, table: a[0].table!, keyColumns: [], keyNodes: [], target: a[0].key, rangeNodes: [a[0]] });
         }
         break;
       default:

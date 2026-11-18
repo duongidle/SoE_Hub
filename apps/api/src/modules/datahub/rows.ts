@@ -7,8 +7,10 @@ import { files } from "@soe/db";
 import { and, eq, isNull } from "drizzle-orm";
 import type { TableAccess } from "./access";
 import { sourceOf, type CellWrite, type LoadedRow } from "./column-source";
+import { isComputedType } from "./cell-values";
 import { buildSearchText, columnTypeDef } from "./column-types";
 import { pgError } from "./errors";
+import { RowFormulas } from "./row-formulas";
 import { rowFromDb, toApiRow, type ApiRow, type TableSchema } from "./table-schema";
 import { CellError, type DhColumn, type Stored } from "./types";
 
@@ -34,13 +36,18 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stri
 const ROW_COLS = sql.raw("id, row_no, version, data, created_at, created_by, updated_at, updated_by");
 
 /** Validates the cells of one op. Errors are collected so the caller sees every bad column at once. */
-function parseCells(schema: TableSchema, input: Record<string, unknown>, issues: { row: number; column: string; message: string }[], rowIndex: number): Map<string, Stored> {
+function parseCells(schema: TableSchema, input: Record<string, unknown>, issues: { row: number; column: string; message: string }[], rowIndex: number, access: TableAccess): Map<string, Stored> {
   const out = new Map<string, Stored>();
   for (const [ref, raw] of Object.entries(input)) {
     const col = schema.resolve(ref);
     const def = columnTypeDef(col.type);
     if (!def.writable) {
       issues.push({ row: rowIndex, column: col.name, message: `Cột "${col.name}" (${def.label}) không sửa được.` });
+      continue;
+    }
+    // Linking rows reveals and changes how another table is read, so only the owner of the datahub does it.
+    if (col.type === "relation" && access.level !== "owner") {
+      issues.push({ row: rowIndex, column: col.name, message: `Chỉ chủ datahub được sửa cột liên kết "${col.name}".` });
       continue;
     }
     if (out.has(col.key)) {
@@ -58,7 +65,7 @@ function parseCells(schema: TableSchema, input: Record<string, unknown>, issues:
 }
 
 /** Users and files named by a cell must exist (and files must be the actor's own ready files). */
-async function checkRefs(db: Executor, actorId: string, cells: Map<string, Stored>[], schema: TableSchema, issues: { row: number; column: string; message: string }[]): Promise<void> {
+async function checkRefs(db: Executor, actorId: string, ownerId: string, cells: Map<string, Stored>[], schema: TableSchema, issues: { row: number; column: string; message: string }[]): Promise<void> {
   const users = new Set<string>();
   const fileIds = new Set<string>();
   cells.forEach((m) => {
@@ -79,9 +86,28 @@ async function checkRefs(db: Executor, actorId: string, cells: Map<string, Store
     const rows = await db.select({ id: files.id }).from(files).where(and(ownedBy(files.ownerId, actorId), eq(files.status, "ready"), isNull(files.deletedAt), sql`${files.id} = ANY(${uuidArray([...fileIds])}::uuid[])`));
     rows.forEach((r) => okFiles.add(r.id));
   }
+  // Linked rows must be live rows of the target table, which must belong to the same owner.
+  const links = new Map<string, Set<string>>();
+  cells.forEach((m) => {
+    for (const [k, v] of m) {
+      const col = schema.tryResolve(k);
+      if (col?.type === "relation" && Array.isArray(v)) {
+        const target = col.config.target_table_id as string;
+        links.set(target, new Set([...(links.get(target) ?? []), ...v]));
+      }
+    }
+  });
+  const okRows = new Set<string>();
+  for (const [target, rowIds] of links) {
+    const res = await db.execute(sql`SELECT r.id FROM dh_rows r JOIN dh_tables t ON t.id = r.table_id JOIN dh_datahubs d ON d.id = t.datahub_id
+      WHERE /*scope*/ r.table_id = ${target}::uuid AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND d.deleted_at IS NULL AND d.owner_id = ${ownerId}::uuid
+        AND r.id = ANY(${uuidArray([...rowIds])}::uuid[])`);
+    (res.rows as { id: string }[]).forEach((r) => okRows.add(r.id));
+  }
   cells.forEach((m, i) => {
     for (const [k, v] of m) {
       const col = schema.tryResolve(k);
+      if (col?.type === "relation" && Array.isArray(v) && v.some((x) => !okRows.has(x))) issues.push({ row: i, column: col.name, message: `Cột "${col.name}" liên kết tới dòng không tồn tại hoặc không thuộc bảng đích.` });
       const refs = col && v !== null ? columnTypeDef(col.type).refs?.(v) : undefined;
       if (refs?.users?.some((x) => !okUsers.has(x))) issues.push({ row: i, column: col!.name, message: `Người dùng ở cột "${col!.name}" không tồn tại.` });
       if (refs?.files?.some((x) => !okFiles.has(x))) issues.push({ row: i, column: col!.name, message: `File ở cột "${col!.name}" không tồn tại hoặc không phải file của bạn.` });
@@ -141,8 +167,10 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
 
   // ---- 1. validate cells --------------------------------------------------------------------------
   const issues: { row: number; column: string; message: string }[] = [];
-  const cellsOf = ops.map((o, i) => (o.op === "delete" ? new Map<string, Stored>() : parseCells(schema, o.data, issues, i)));
-  await checkRefs(db, actorId, cellsOf, schema, issues);
+  const cellsOf = ops.map((o, i) => (o.op === "delete" ? new Map<string, Stored>() : parseCells(schema, o.data, issues, i, access)));
+  await checkRefs(db, actorId, access.datahub.ownerId, cellsOf, schema, issues);
+  const formulas = RowFormulas.for(schema);
+  const now = new Date();
   throwIssues(issues);
 
   // ---- 2. turn ops into plans (upsert becomes create or update) --------------------------------------
@@ -217,6 +245,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   }
 
   const changedColumns = new Set<string>();
+  const computedKeys = new Set(schema.all.filter((c) => isComputedType(c.type)).map((c) => c.key));
   const history: { rowId: string; version: number; op: "create" | "update" | "delete"; changes: FieldChange[] }[] = [];
   const insertRows: { id: string; row_no: number; data: Record<string, Stored>; search: string }[] = [];
   const updateRows: { id: string; data: Record<string, Stored>; search: string }[] = [];
@@ -276,6 +305,8 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
       outcome.set(p, "unchanged");
       continue;
     }
+    // Same-row formulas: computed here, in the transaction that saves the row. They never enter the history.
+    formulas?.compute(next, { id: row.id, rowNo: row.rowNo, createdAt: row.createdAt, updatedAt: now, createdBy: row.createdBy, updatedBy: actorId }, now).forEach((k) => changedColumns.add(k));
     newData.set(p.id, next);
     updateRows.push({ id: p.id, data: next, search: buildSearchText(next, schema.alive) });
     history.push({ rowId: p.id, version: row.version + 1, op: "update", changes });
@@ -319,10 +350,12 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
       for (const c of requiredCols) {
         if (data[c.key] === undefined) issues.push({ row: p.indexes[0]!, column: c.name, message: `Cột "${c.name}" là bắt buộc.` });
       }
-      newData.set(p.id, data);
-      insertRows.push({ id: p.id, row_no: firstNo + n, data, search: buildSearchText(data, schema.alive) });
+      // History records what people entered; the formulas computed below never enter it.
       history.push({ rowId: p.id, version: 1, op: "create", changes: Object.entries(data).map(([field, v]) => ({ field, old: null, new: v })) });
       for (const k of Object.keys(data)) changedColumns.add(k);
+      formulas?.compute(data, { id: p.id, rowNo: firstNo + n, createdAt: now, updatedAt: now, createdBy: actorId, updatedBy: actorId }, now).forEach((k) => changedColumns.add(k));
+      newData.set(p.id, data);
+      insertRows.push({ id: p.id, row_no: firstNo + n, data, search: buildSearchText(data, schema.alive) });
       outcome.set(p, "created");
     });
     throwIssues(issues);
@@ -355,7 +388,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     for (const r of res.rows as Record<string, unknown>[]) {
       const row = rowFromDb(r);
       out.set(row.id, row);
-      history.push({ rowId: row.id, version: row.version, op: "delete", changes: Object.entries(row.data).map(([field, v]) => ({ field, old: v, new: null })) });
+      history.push({ rowId: row.id, version: row.version, op: "delete", changes: Object.entries(row.data).filter(([field]) => !field.startsWith("!") && !computedKeys.has(field)).map(([field, v]) => ({ field, old: v, new: null })) });
     }
     await db.execute(sql`UPDATE dh_tables SET row_count = row_count - ${deleteIds.length}::int WHERE /*scope*/ id = ${access.tableId}::uuid`);
   }

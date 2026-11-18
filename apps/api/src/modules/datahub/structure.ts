@@ -8,6 +8,8 @@ import { getLimits, quotaExceeded } from "./limits";
 import { rethrowNameConflict } from "./errors";
 import { emitStructure, Id, STRUCTURE_EVENT, Ts } from "./shared";
 import { columnFromDb } from "./table-schema";
+import { isComputedType } from "./cell-values";
+import { displayConfig, OwnerIndex } from "./computed";
 import { columnTypeDef } from "./column-types";
 
 const LevelOut = z.enum(["owner", "edit_data", "view"]);
@@ -94,15 +96,28 @@ export const ColumnOut = z.object({
   description: z.string().nullable(),
   display: z.record(z.string(), z.unknown()),
   version: z.number().int(),
+  /** Recalculation state of a formula, lookup or rollup column (null for other columns). `pending` / `running` cells show the "calculating" icon. */
+  calc: z.object({ status: z.enum(["ready", "pending", "running"]), done: z.number().int().nullable(), total: z.number().int().nullable(), at: Ts.nullable() }).nullable(),
 });
 
-export function columnOut(c: ReturnType<typeof columnFromDb>): z.infer<typeof ColumnOut> {
+/**
+ * Column in API shape. A formula is shown with the CURRENT names (`ix` = the owner's tables); the stored form uses keys, so
+ * renaming a column or table never breaks a formula.
+ */
+export function columnOut(c: ReturnType<typeof columnFromDb>, ix: OwnerIndex | null = null): z.infer<typeof ColumnOut> {
   const def = columnTypeDef(c.type);
-  const config = { ...c.config };
+  let config = { ...c.config };
   delete config.__source;
   // The auto-number counter is internal.
   if (def.type === "auto_number") delete config.seq;
-  return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, version: c.version };
+  if (isComputedType(c.type) || c.type === "relation") config = displayConfig({ type: c.type, config, tableId: c.tableId }, ix);
+  const calc = isComputedType(c.type) ? { status: c.calcStatus as "ready" | "pending" | "running", done: c.calcDone, total: c.calcTotal, at: c.calcAt } : null;
+  return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, version: c.version, calc };
+}
+
+/** Index of the owner's tables, loaded only when a column needs names of other objects. */
+export async function indexFor(db: Executor, ownerId: string, cols: { type: string }[]): Promise<OwnerIndex | null> {
+  return cols.some((c) => isComputedType(c.type) || c.type === "relation") ? OwnerIndex.load(db, ownerId) : null;
 }
 
 export const structureOperations = [
@@ -286,7 +301,12 @@ export const structureOperations = [
       const acc = await loadTableAccess(ctx, i.table_id);
       const cols = await ctx.db.execute(sql`SELECT * FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NULL ORDER BY position, created_at, id`);
       const limits = await getLimits(ctx.db, acc.datahub.ownerId);
-      return { ...(await tableOut(ctx.db, acc)), datahub_name: acc.datahub.name, owner_id: acc.datahub.ownerId, columns: (cols.rows as Raw[]).map((r) => columnOut(columnFromDb(r))), max_columns: limits.columns };
+      return { ...(await tableOut(ctx.db, acc)), datahub_name: acc.datahub.name, owner_id: acc.datahub.ownerId, columns: await (async () => {
+        const list = (cols.rows as Raw[]).map(columnFromDb);
+        // Only the owner sees names of other tables inside formulas; people the table is shared with see values only.
+        const ix = acc.level === "owner" ? await indexFor(ctx.db, acc.datahub.ownerId, list) : null;
+        return list.map((c) => columnOut(c, ix));
+      })(), max_columns: limits.columns };
     },
   }),
 

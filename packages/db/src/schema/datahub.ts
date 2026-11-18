@@ -73,6 +73,18 @@ export const dhColumns = pgTable(
     description: text("description"),
     /** Display format: decimals, thousands separator, unit... (shape depends on the type). */
     display: jsonb("display").notNull().default(sql`'{}'::jsonb`),
+    /**
+     * Recalculation state of a computed column (formula, lookup, rollup): `ready`, `pending` (waiting for the worker) or
+     * `running`. Other column types stay `ready`. `calc_done` / `calc_total` drive the progress bar.
+     */
+    calcStatus: text("calc_status").notNull().default("ready"),
+    calcTotal: integer("calc_total"),
+    calcDone: integer("calc_done"),
+    /** When the stored values were last computed (catch-up of TODAY()/NOW() columns compares against it). */
+    calcAt: timestamp("calc_at", { withTimezone: true, mode: "date" }),
+    calcRequestedAt: timestamp("calc_requested_at", { withTimezone: true, mode: "date" }),
+    /** `today` | `now` when the formula uses TODAY() / NOW(); null otherwise. */
+    calcVolatile: text("calc_volatile"),
   },
   (t) => [
     uniqueIndex("dh_columns_key_uq").on(t.tableId, t.key),
@@ -80,6 +92,36 @@ export const dhColumns = pgTable(
     index("dh_columns_table_idx").on(t.tableId),
     check("dh_columns_name_chk", sql`char_length(btrim(${t.name})) BETWEEN 1 AND 100 AND ${t.name} !~ '[\\[\\]]'`),
     check("dh_columns_key_chk", sql`${t.key} ~ '^[a-z][a-z0-9_]{0,40}$'`),
+    check("dh_columns_calc_status_chk", sql`${t.calcStatus} IN ('ready', 'pending', 'running')`),
+    index("dh_columns_calc_idx").on(t.calcStatus).where(sql`${t.calcStatus} <> 'ready'`),
+  ],
+);
+
+/**
+ * What a computed column reads (design module2 section 6.5): drives the cycle check at save and the recalculation
+ * of dependants. `cell` = another column of the same row; `range` = a whole column of a table (this one or another).
+ */
+export const dhFormulaDeps = pgTable(
+  "dh_formula_deps",
+  {
+    columnId: uuid("column_id")
+      .notNull()
+      .references(() => dhColumns.id, { onDelete: "cascade" }),
+    /** Table of the computed column. */
+    tableId: uuid("table_id")
+      .notNull()
+      .references(() => dhTables.id, { onDelete: "cascade" }),
+    /** Table the data is read from (equals `table_id` for `cell`). No foreign key: a deleted source gives `#REF!`, not a cascade. */
+    srcTableId: uuid("src_table_id").notNull(),
+    srcKey: text("src_key").notNull(),
+    /** `cell` | `range` */
+    kind: text("kind").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.columnId, t.srcTableId, t.srcKey, t.kind] }),
+    index("dh_formula_deps_src_idx").on(t.srcTableId, t.srcKey),
+    index("dh_formula_deps_table_idx").on(t.tableId),
+    check("dh_formula_deps_kind_chk", sql`${t.kind} IN ('cell', 'range')`),
   ],
 );
 

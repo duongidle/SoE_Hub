@@ -4,6 +4,7 @@ import { startOutboxDispatcher } from "./core/outbox-dispatcher";
 import { defaultSubscribers } from "./core/subscribers";
 import { jobs } from "./jobs";
 import { registerTrashTables } from "./modules";
+import { markVolatilePending, resetRunningColumns, startRecalcLoop } from "./modules/datahub";
 
 const c = createContainer({}, "worker");
 registerTrashTables({ config: c.config, storage: c.storage });
@@ -29,12 +30,19 @@ for (const job of jobs) {
   c.logger.info({ job: job.name, cron: job.cron }, "job scheduled");
 }
 
+// Formula columns: columns left `running` by a crash go back in the queue, TODAY()/NOW() columns missed while the worker was
+// down are queued now (catch-up), and the loop recomputes whatever is pending.
+await resetRunningColumns(c.db.db);
+await markVolatilePending(c.db.db);
+const recalc = startRecalcLoop(c.db.db, c.logger, c.config.WORKER_OUTBOX_POLL_MS);
+
 const dispatcher = startOutboxDispatcher(c.db.db, defaultSubscribers(c.events, c.config.AUTH_SECRET), c.logger, c.config.WORKER_OUTBOX_POLL_MS);
 c.logger.info("worker started");
 
 const shutdown = async (signal: string) => {
   c.logger.info({ signal }, "worker shutting down");
   await dispatcher.stop();
+  await recalc.stop();
   await boss.stop({ graceful: true, timeout: 10_000 });
   await c.db.close();
   process.exit(0);

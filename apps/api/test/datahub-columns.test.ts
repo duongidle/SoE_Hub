@@ -133,9 +133,9 @@ describe("column types: validation on every write", () => {
     expect(many.details.issues).toHaveLength(3);
   });
 
-  it("reserved computed types are listed but refused (Stage 2B)", async () => {
+  it("computed types are available (Stage 2B) and need a configuration", async () => {
     const types = await a("datahub.column.types");
-    for (const k of ["formula", "relation", "lookup", "rollup"]) expect(types.find((d: { type: string }) => d.type === k)).toMatchObject({ available: false });
+    for (const k of ["formula", "relation", "lookup", "rollup"]) expect(types.find((d: { type: string }) => d.type === k)).toMatchObject({ available: true, writable: k === "relation" });
     const e = await fails(a("datahub.column.create", { table_id: x.tableId, name: "F", type: "formula" }));
     expect(e.code).toBe("validation_error");
   });

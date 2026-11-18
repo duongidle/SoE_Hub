@@ -427,18 +427,46 @@ defs.push(
   systemType("modified_by", "Người sửa", "uuid", "updated_by"),
 );
 
-// Reserved for Stage 2B (computed columns). Same shape, not available yet: creating them is refused with a clear message.
-for (const [type, label] of [["formula", "Công thức"], ["relation", "Liên kết dòng"], ["lookup", "Lookup"], ["rollup", "Rollup"]] as const) {
-  defs.push({
-    type, label, group: type === "formula" ? "compute" : "link", available: false, writable: false,
-    fieldType: null, expr: (k) => jb(k), sortable: false, indexKind: null, uniqueable: false,
-    configSchema: z.record(z.string(), z.unknown()), defaultConfig: () => ({}),
-    parse() {
-      throw new CellError("Cột tính toán do công thức điền, không sửa được.");
+// Computed and linked columns (stage 2B). Their configuration is checked by `computed.ts` (it needs the database);
+// a computed column behaves like the plain type of its result (`config.result_type`) for filter, sort and index.
+const computedBase = {
+  group: "compute" as const,
+  available: true,
+  writable: false,
+  fieldType: null,
+  sortable: false,
+  indexKind: null,
+  uniqueable: false,
+  configSchema: z.record(z.string(), z.unknown()),
+  defaultConfig: () => ({}),
+  parse(): never {
+    throw new CellError("Cột tính toán do công thức điền, không sửa được.");
+  },
+  toPlain: () => null,
+};
+defs.push(
+  { ...computedBase, type: "formula", label: "Công thức", expr: (k) => jb(k) },
+  { ...computedBase, type: "lookup", label: "Lookup", group: "link", expr: (k) => jb(k) },
+  { ...computedBase, type: "rollup", label: "Rollup", group: "link", expr: (k) => jb(k) },
+  {
+    type: "relation", label: "Liên kết dòng", group: "link", available: true, writable: true,
+    fieldType: "set", expr: jb, sortable: false, indexKind: null, uniqueable: false,
+    configSchema: z.record(z.string(), z.unknown()),
+    defaultConfig: () => ({ multiple: true }),
+    // Stored as an array of row ids of the target table. Existence of the rows is checked by the row writer.
+    parse(value, col) {
+      if (value === null || value === undefined) return null;
+      const arr = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : null;
+      if (!arr) throw new CellError(`Cột "${col.name}" cần danh sách mã dòng.`);
+      const ids = [...new Set(arr.map((x) => (typeof x === "string" ? x.trim().toLowerCase() : "")).filter((x) => x !== ""))];
+      if (ids.some((x) => !UUID_RE.test(x))) throw new CellError(`Cột "${col.name}" cần mã dòng (uuid).`);
+      if (col.config.multiple === false && ids.length > 1) throw new CellError(`Cột "${col.name}" chỉ liên kết được một dòng.`);
+      if (ids.length > 500) throw new CellError(`Cột "${col.name}" liên kết tối đa 500 dòng.`);
+      return ids.length ? ids : null;
     },
     toPlain: () => null,
-  });
-}
+  },
+);
 
 for (const d of defs) registerColumnType(d);
 

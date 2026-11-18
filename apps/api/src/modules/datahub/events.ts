@@ -38,6 +38,22 @@ export const datahubEvents: EventDef[] = [
     audience: async (p: { datahub_id: string; table_id: string | null }, db) => ({ users: p.table_id ? await tableAudience(db, p.table_id) : await datahubAudience(db, p.datahub_id) }),
   },
   {
+    name: "datahub.formula.recalculated",
+    version: 1,
+    description: "Một cột công thức, lookup hoặc rollup đang chờ tính (state=pending) hoặc đã tính xong (state=done). Bảng đang mở tải lại các ô; cột phụ thuộc được tính tiếp.",
+    schema: z.object({
+      table_id: z.uuid(),
+      /** Keys of the computed columns. */
+      columns: z.array(z.string()),
+      state: z.enum(["pending", "done"]),
+      /** Rows whose stored value changed (state=done). */
+      changed_rows: z.number().int(),
+      /** Ids of those rows, or null when there are more than 500 (reload the whole table). */
+      row_ids: z.array(z.uuid()).nullable(),
+    }),
+    audience: async (p: { table_id: string }, db) => ({ users: await tableAudience(db, p.table_id) }),
+  },
+  {
     name: "datahub.share.changed",
     version: 1,
     description: "Chia sẻ datahub hoặc bảng được thêm, đổi quyền hoặc gỡ.",

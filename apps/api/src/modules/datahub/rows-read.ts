@@ -5,8 +5,10 @@ import type { ListOutput } from "../../core/types";
 import type { TableAccess } from "./access";
 import { sourceOf } from "./column-source";
 import { columnTypeDef } from "./column-types";
+import { effectiveType } from "./cell-values";
 import { assertColumnKey } from "./types";
 import { META_FIELDS, normName, type TableSchema } from "./table-schema";
+import { exposeErrors } from "./cell-values";
 
 export interface RowQuery {
   filter?: FilterNode;
@@ -40,10 +42,11 @@ type Shaped = Record<string, unknown> & { data: Record<string, unknown> };
 function shape(items: Record<string, unknown>[], schema: TableSchema, labels: boolean): Shaped[] {
   return items.map((it) => {
     const { cells, ...meta } = it as { cells: Record<string, unknown> } & Record<string, unknown>;
-    let data = cells ?? {};
+    let data = exposeErrors(cells ?? {});
     if (labels) {
+      const plain = data;
       data = {};
-      for (const [k, v] of Object.entries(cells ?? {})) {
+      for (const [k, v] of Object.entries(plain)) {
         const c = schema.tryResolve(k);
         const def = c ? columnTypeDef(c.type) : null;
         data[k] = c && def?.toLabel ? def.toLabel(v as never, c) : v;
@@ -110,7 +113,7 @@ export async function noteIndexUse(db: Executor, access: TableAccess, schema: Ta
     if ("or" in n) return n.or.forEach(walk);
     const col = schema.tryResolve(n.field);
     if (!col || META_FIELDS.includes(n.field)) return;
-    const def = columnTypeDef(col.type);
+    const def = columnTypeDef(effectiveType(col));
     if (def.virtual) return;
     add(col.key, def.fieldType === "text" && (n.op === "contains" || n.op === "starts_with") ? "trgm" : def.indexKind);
   };
@@ -118,7 +121,7 @@ export async function noteIndexUse(db: Executor, access: TableAccess, schema: Ta
   for (const s of sort) {
     const col = schema.tryResolve(s.field);
     if (!col) continue;
-    const def = columnTypeDef(col.type);
+    const def = columnTypeDef(effectiveType(col));
     if (!def.virtual && !def.sortExpr?.(col)) add(col.key, def.indexKind);
   }
   for (const [ck, u] of uses) {

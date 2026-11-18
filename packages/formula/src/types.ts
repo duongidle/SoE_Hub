@@ -39,8 +39,11 @@ export class RangeValue {
 export type Scalar = number | string | boolean | null | FError;
 export type Value = Scalar | Value[] | RangeValue;
 
-/** Static result type of an expression. `mixed` = several types depending on the data; stored as text. */
-export type FType = "number" | "text" | "boolean" | "date" | "datetime" | "mixed" | "unknown";
+/**
+ * Static result type of an expression. `mixed` = several types depending on the data; stored as text. `blank` = the empty
+ * text `""`, which does not decide a type on its own: `IFERROR([a]/[b], "")` is still a number column.
+ */
+export type FType = "number" | "text" | "boolean" | "date" | "datetime" | "mixed" | "unknown" | "blank";
 
 export const err = {
   div0: (d?: string) => new FError("#DIV/0!", d),

@@ -10,3 +10,6 @@ export { FUNCTION_CATALOG, type FunctionInfo } from "./catalog";
 export { ALL_FUNCTIONS, getFunction, formatText } from "./functions";
 export { buildMatcher, isPlainEquality, equalityKey } from "./criteria";
 export * from "./dates";
+
+/** Kept for packages/metrics (Stage 3), which only checks that the package is wired. */
+export const FORMULA_PACKAGE_READY = true as const;

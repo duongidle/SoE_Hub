@@ -58,8 +58,11 @@ export function pickWhere(values: Value[], mask: boolean[]): Value[] {
 }
 
 export const sameOrMixed = (types: FType[]): FType => {
+  // `""` (blank) does not decide the type: IFERROR(number, "") is a number.
+  const nonBlank = types.filter((t) => t !== "blank");
+  if (nonBlank.length === 0) return "text";
+  types = nonBlank;
   const ts = types.filter((t) => t !== "unknown");
-  if (types.some((t) => t === "unknown") && ts.length === 0) return "unknown";
   if (ts.length === 0) return "unknown";
   if (types.includes("unknown")) return "unknown";
   const first = ts[0]!;
