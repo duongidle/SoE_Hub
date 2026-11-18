@@ -95,6 +95,19 @@ pnpm test:e2e
 
 Lệnh tạo lại database rỗng `soe_hub_e2e`, chạy migration, bật api (cổng 3100), worker và web (cổng 5273), rồi chạy các luồng của Stage 1 ở hai bề ngang: desktop 1440×900 và điện thoại 390×844. Mỗi luồng kiểm tra không có lỗi console và không có request lỗi (trừ 401/403/423 được chờ trước). Ảnh chụp màn hình nằm ở `apps/web/e2e/screenshots/` (không commit). Chạy một phần: `pnpm test:e2e --project=desktop -g "token"`. Dùng cùng user Postgres như `pnpm test` (đổi bằng `E2E_ADMIN_URL`). Test và e2e dùng vai trò Postgres riêng (`soe_app_test`, `soe_app_e2e`) nên không đụng database dev.
 
+## Datahub (Stage 2A)
+
+2A có phần lưu trữ và API lõi của Datahub: datahub, bảng, cột có kiểu, dòng (tạo, sửa gộp theo ô, xoá mềm, batch, upsert), lọc, sắp xếp, tìm kiếm, phân trang keyset, view, chia sẻ, giới hạn, thùng rác, lịch sử dòng, view SQL xuất (`dh_views`) và index tự động. Chưa có công thức (2B), giao diện (2C), import/export (2D).
+
+- Code: `apps/api/src/modules/datahub/`, schema `packages/db/src/schema/datahub.ts`.
+- API: các thao tác `datahub.*` có trong `docs/api/openapi.json` và `/api/docs`; request mẫu ở `docs/api/bruno/datahub/`.
+- Quyết định khi code: `design/module2-datahub.md`, mục "Quyết định khi code".
+- Test tốc độ 100.000 dòng (nạp dữ liệu, đo trước và sau index tự động, in số `[perf]`):
+
+```bash
+npx vitest run apps/api/test/datahub-perf.test.ts --reporter=verbose
+```
+
 ## Cấu trúc
 
 ```

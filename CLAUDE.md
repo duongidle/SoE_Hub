@@ -18,7 +18,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 
 ### Bắt đầu mỗi phiên
 
-**Đọc `CLAUDE.md` và `progress.md` trước khi làm bất cứ việc gì**, đặc biệt trước khi code. Khi code một stage, đọc thêm file thiết kế của module thuộc stage đó. Không cần đọc lại phiên cũ.
+**Đọc `CLAUDE.md` trước khi làm bất cứ việc gì, rồi đọc `progress.md`.** Áp dụng cho mọi agent: Opus, Sonnet và mọi agent được giao việc; không được dựa vào trí nhớ hay bản tóm tắt của file này. Khi code một stage, đọc thêm file thiết kế của module thuộc stage đó. Không cần đọc lại phiên cũ.
 
 ### Thiết kế
 
@@ -109,7 +109,9 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 
 Thiết kế module vẫn do Opus đề xuất và Dương chốt. Từ Stage 2, Opus là người kiểm soát:
 
+0. **Opus không tự sửa code hay test**, kể cả sửa nhỏ phát hiện khi rà soát (Dương nhắc 18/11/2026). Opus chỉ chạy lệnh để kiểm tra (git, test, lint, typecheck), ghi lỗi và giao Sonnet sửa. Opus vẫn tự viết thiết kế, `CLAUDE.md` và ghi chú điều phối trong `progress.md`.
 1. Đọc thiết kế, chia stage thành các việc nhỏ có tiêu chí nghiệm thu rõ ràng (file nào, chức năng gì, test nào phải có, luồng giao diện nào phải chạy được), rồi giao từng việc cho Sonnet.
+   **Mỗi prompt giao cho Sonnet phải ghi rõ:** (a) đọc `CLAUDE.md` trước khi làm bất cứ việc gì, rồi `progress.md` và file thiết kế liên quan; (b) **sau mỗi bước nhỏ** (một nhóm chức năng, một bộ test pass, một file tài liệu) thì cập nhật `progress.md` (đánh dấu xong, ghi bước tiếp theo cụ thể) và **commit ngay**, không đợi xong cả việc, để hết quota giữa chừng không mất gì; (c) không push.
 2. Rà soát kết quả của Sonnet: đọc diff, chạy test, kiểm tra giao diện; đánh giá so với thiết kế và tiêu chí.
 3. Phản biện và yêu cầu sửa khi chưa đạt; chỉ đánh dấu xong khi đạt "Định nghĩa xong".
 4. Sonnet không được tự đổi quy định đã chốt; chỗ nào thiết kế chưa rõ thì hỏi Opus, Opus tự quyết chi tiết nhỏ và chỉ hỏi Dương việc quan trọng.
