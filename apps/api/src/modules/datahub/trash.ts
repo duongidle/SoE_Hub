@@ -14,7 +14,8 @@ export function registerDatahubTrash(): void {
     beforePurge: async (ex, cutoff) => {
       const doomed = await ex.execute(sql`SELECT table_id, key FROM dh_columns WHERE /*scope:system*/ deleted_at IS NOT NULL AND deleted_at < ${cutoff}`);
       for (const c of doomed.rows as { table_id: string; key: string }[]) {
-        await ex.execute(sql`UPDATE dh_rows SET data = data - ${c.key}::text WHERE /*scope:system*/ table_id = ${c.table_id}::uuid AND data ? ${c.key}`);
+        // The error of a computed cell lives under `!<key>`; it goes too.
+        await ex.execute(sql`UPDATE dh_rows SET data = data - ARRAY[${c.key}::text, ${`!${c.key}`}::text] WHERE /*scope:system*/ table_id = ${c.table_id}::uuid AND (data ? ${c.key} OR data ? ${`!${c.key}`})`);
         await ex.execute(sql`SELECT soe_dh_drop_indexes(${c.table_id}::uuid, ${c.key})`);
       }
     },

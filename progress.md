@@ -5,18 +5,17 @@ Cập nhật: 18/11/2026
 ## Giai đoạn hiện tại
 
 - Thiết kế: Module 0, 1, 2, **3** đã chốt (Module 3 có Bảng gộp, lọc chéo, chịu tải; Module 2 có thêm mục 7a Tìm dòng trùng). **Module 4: bản nháp** `design/module4-quan-ly-deal.md` (18/11), chờ Dương chốt.
-- Code: Stage 0 và **Stage 1 xong** (18/11/2026) trên nhánh `dev`. **Stage 2 phần 2A code xong**, chờ Opus rà soát.
+- Code: Stage 0 và Stage 1 xong. Stage 2: 2A xong và đã rà soát; **2B (công thức) code xong, chờ Opus rà soát**; 2C, 2D chưa làm.
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
-1. 2A đã rà soát, đã push `main` + `dev` (18/11). **Dương bảo làm 2B (18/11).** 2B xong thì Opus rà soát, báo Dương, chờ Dương bảo mới làm 2C.
-2. Nếu phiên trước bị ngắt khi 2A chưa xong: agent 2A có thể đã dừng giữa chừng. Xem danh sách bước 2A bên dưới, `git status`, `git log`; giao Sonnet làm tiếp từ bước chưa đánh dấu (prompt: đọc CLAUDE.md, progress.md, `design/module2-datahub.md` + "Quyết định khi code" của Module 0/1; phạm vi 2A như danh sách bước; không làm 2B/2C/2D).
+1. 2A đã rà soát, đã push `main` + `dev`. **2B code xong (18/11), chờ Opus rà soát**, báo Dương, chờ Dương bảo mới làm 2C. Nếu phiên bị ngắt: xem `git status`, `git log`, danh sách bước 2B bên dưới.
 3. Ghi nhớ cho các phần sau của Stage 2:
    - 2B: golden test được đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (Dương cho phép), không commit dữ liệu lấy từ file, máy không có file thì test tự bỏ qua.
    - 2C: làm cả công cụ **Tìm dòng trùng** (Module 2 mục 7a).
    - Bảng gộp thuộc Stage 3 (Module 3 mục 4), không làm ở Stage 2.
 4. **Module 4 đang chờ Dương chốt bản nháp.** Chốt xong: đổi trạng thái file thành `Đã chốt`, cập nhật bảng module và "Quy định đã chốt" trong CLAUDE.md (chia 4A/4B, winrate cohort, CR1 là tham số kế hoạch).
-5. **Golden test 2B:** sheet `Deals` của file mẫu không có dòng dữ liệu, Index/Cumulative Index trong file đều bằng 0. Golden test so số phải dùng `Raw PODPS` + script tham chiếu (Module 4 mục 18); công thức của sheet Index vẫn dùng để test engine công thức.
+5. Golden test 2B đã làm (đọc file mẫu, 3.322 công thức); số liệu và hai điểm lạ của file mẫu ở `design/module2-datahub.md` mục 2B.
 
 ## Đã xong
 
@@ -28,49 +27,37 @@ Cập nhật: 18/11/2026
   - Cấu hình: `AUTH_SECRET` (bắt buộc ở production, có test), `GOOGLE_*`, `SESSION_*` trong `.env.example` và `docker-compose.yml`; README có cách tạo Admin đầu tiên, đặt lại mật khẩu Admin duy nhất, chạy test, chạy test giao diện.
   - "Quyết định khi code" của Module 1 đã ghi vào `design/module1-tai-khoan-phan-quyen.md`.
 
-### Kết quả kiểm thử Stage 1
+### Kết quả kiểm thử Stage 1 (tóm tắt, chi tiết trong git log)
 
-- `pnpm test`: 302 test pass (20 file). `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm docs:openapi`, `pnpm docs:bruno` sạch (không thêm endpoint mới).
-- `pnpm test:e2e` (Playwright, DB rỗng `soe_hub_e2e`, api + worker + web thật): **16 luồng x 2 bề ngang (desktop 1440x900, điện thoại 390x844) = 32 pass**, kèm kiểm tra trang không tràn ngang và ngày dd/mm/yyyy, mỗi phiên kiểm tra không lỗi console/network (trừ 401/403/423 khai báo trước). Ảnh chụp ở `apps/web/e2e/screenshots/` (không commit).
-- Luồng đã đi: CLI tạo Admin -> đăng ký bằng mã -> đăng nhập; đăng xuất xoá phiên, trang bảo vệ về đăng nhập rồi quay lại đúng trang; Admin thấy menu quản trị; Admin thêm Manager/Leader/User; mã đăng ký hiện ở chuông Admin, Manager, Leader ngay (SSE, không tải lại); User đăng nhập; quên mật khẩu (Leader đọc mã); sai 5 lần thì khoá; token cá nhân tạo -> chờ duyệt -> Admin duyệt -> gọi API Bearer được; tài khoản hệ thống (token hiện một lần, dùng, thu hồi); trang Guest trống của Manager; User mở trang Admin thấy "Không có quyền" + API 403; cài đặt (đổi, lưu, tải lại, sai giá trị báo tiếng Việt); nhật ký (lọc hành động/người/kết quả/kênh/thời gian, chi tiết cũ -> mới, phân trang, xuất CSV); chuyển giao dữ liệu (xem trước, xác nhận, kết quả, nguồn bị khoá).
-- Lỗi đã sửa: (1) `GET /org/members` trả `roles` là chuỗi, trang Org chart sập; (2) `GET /system/settings` trả `value` là chuỗi JSON, nút bật/tắt cài đặt không phản ánh; (3) trang bảo vệ vẫn dựng và gọi API (401) trong lúc router chuyển trang; (4) đăng xuất làm trang cũ gọi lại API bằng phiên đã chết; (5) ô số của cài đặt bị kiểm tra bằng thông báo của trình duyệt (tiếng Anh) thay vì tiếng Việt. (6) nhật ký bị ngập dòng `auth.me` chưa đăng nhập; (7) dòng ẩn danh thiếu kênh/IP/email; (8) bảng nhật ký bị cắt trên điện thoại (nay dạng thẻ); (9) ô ngày hiện mm/dd/yyyy (nay dd/mm/yyyy); (10) test đổi mật khẩu vai trò `soe_app` của database dev (nay vai trò riêng). Có test hồi quy cho (1), (2), (6), (7), (10).
-- Chưa kiểm thử giao diện: chuyển cả cây (`/admin/trees/:id/transfer`, có test API), đăng nhập Google (cần Google Cloud thật), `docker-compose.yml` (máy dev không có Docker).
+- 302 test pass; `pnpm test:e2e` 16 luồng x 2 bề ngang = 32 pass, không lỗi console/network; 10 lỗi tìm thấy khi chạy giao diện thật đã sửa. Chưa thử: chuyển cả cây bằng giao diện, đăng nhập Google, `docker-compose.yml`.
 
 ## Đang làm: Stage 2 (Module 2 – Datahub), do Sonnet code, Opus rà soát
 
 Kế hoạch Stage 2:
 - **2A – Lưu trữ và API lõi** (xong, đã rà soát).
-- **2B – Engine công thức, cột tính toán (formula, relation/lookup/rollup), tính lại, golden test** (đang làm).
+- **2B – Engine công thức, cột tính toán, tính lại, golden test** (code xong, chờ Opus rà soát).
 - 2C – Giao diện grid, view kiểu Lark tự lưu, trình soạn công thức, chia sẻ/thùng rác/giới hạn.
 - 2D – Import/export, import công thức, load test 100k dòng, e2e cả stage.
 
-Các bước của 2A (đánh dấu khi xong):
-- [x] 1. Schema + migration
-- [x] 2. Tên, kiểu cột, ColumnSource, truy cập/chia sẻ
-- [x] 3. API cấu trúc
-- [x] 4. API dòng
-- [x] 5. SSE, chuyển giao, view SQL `dh_views`, tự tạo index
-- [x] 6. Test, OpenAPI, Bruno, README, quyết định khi code (xong, chờ Opus rà soát)
+2A: 6 bước đã xong (schema, kiểu cột, API cấu trúc, API dòng, SSE/chuyển giao/view SQL/index tự động, test và tài liệu).
 
-### Kết quả kiểm thử 2A
+### Kết quả kiểm thử 2A (tóm tắt)
 
-- `pnpm test`: 27 file, 396 test pass (chạy hai lần). `pnpm lint`, `pnpm typecheck`, `pnpm build` sạch (lint: đổi `console.log` thành `console.warn` trong test tốc độ).
-- 2A chưa có giao diện (giao diện là 2C) nên không có test trình duyệt.
-- Test tốc độ 100.000 dòng (`npx vitest run apps/api/test/datahub-perf.test.ts`), trung vị 7 lần, trang 50 dòng:
-  - Trước index: lọc Mức+Doanh thu, sắp Mức+Hạn 23 ms; lọc Hạn, sắp Doanh thu 81 ms; lọc Nhãn 39 ms; chỉ sắp Doanh thu + tổng 43 ms; trang 500 dòng 7 ms; lọc chứa chữ 53 ms; tìm kiếm 4 ms.
-  - Sau index tự động (4 index): 38, 35, 2,7, 15, 4,5, 43, 5 ms. Trang keyset kế tiếp 2,7 ms mỗi trang. Nạp 100.000 dòng mất khoảng 3,4 s.
-- 4 lỗi test phụ thuộc thứ tự đã sửa: (1) `worker.test.ts` không dọn outbox còn tồn; (2) `datahub-infra.test.ts` đếm index toàn DB thay vì theo bảng của test; (3) cùng file thiếu `ANALYZE` trước `EXPLAIN`; (4) `auth.test.ts` không khôi phục cài đặt mặc định.
+- 396 test pass; test tốc độ 100.000 dòng (`datahub-perf.test.ts`): trước index 23–81 ms, sau index tự động 3–44 ms, trang keyset 2,7 ms; nạp 100.000 dòng 3,4 s. 4 lỗi test phụ thuộc thứ tự đã sửa.
 
 ## Bước tiếp theo
 
-Các bước của 2B (Sonnet đánh dấu khi xong, commit sau mỗi bước):
-- [x] 1. `packages/formula`: lexer/parser (`src/parser.ts`), AST, tham chiếu tên ↔ mã (`src/refs.ts`: lưu dạng `{c_xxx}` / `{<uuid bảng>.c_xxx}`), suy kiểu (`infer.ts`), lỗi Excel (`types.ts`), phân tích phụ thuộc và lời gọi gom nhóm được (`analyze.ts`)
-- [x] 2. Thư viện hàm 106 hàm (`src/functions/*.ts`, danh mục `catalog.ts`) + điều kiện kiểu Excel (`criteria.ts`); `pnpm vitest run packages/formula` = 26 test pass
-- [x] 3. Kiểu cột formula/relation/lookup/rollup (`column-types.ts`, `computed.ts`: lưu, kiểm tra cùng chủ/vòng lặp/ngưỡng 20.000); migration `0006_formula_columns` (cột `calc_*`, bảng `dh_formula_deps`)
-- [x] 4. Tính lại: cùng dòng trong lúc lưu (`row-formulas.ts`, gọi từ `rows.ts`); khác bảng qua worker (`recalc.ts`: `formulaSubscriber`, `processPendingColumns`, vòng lặp trong `worker.ts`); `TODAY()`/`NOW()` + chạy bù (`markVolatilePending`); không log; sự kiện `datahub.formula.recalculated`. Test: `apps/api/test/datahub-formulas.test.ts` (22 test pass)
-- [x] 5. Gom nhóm SQL (`buildPlan` trong `recalc.ts`): test tương đương với duyệt từng dòng (`datahub-formulas-grouped.test.ts`) và test tốc độ 100k × 100k (`datahub-formulas-perf.test.ts`): SUMIFS 1,76 s; COUNTIFS 2 điều kiện 2,33 s; XLOOKUP 2,08 s; AVERAGEIFS 1,97 s; MAXIFS ngày 2,34 s; SUMIFS/COUNTIFS gộp 2,52 s (cả cột 100.000 dòng, nạp 2 × 100.000 dòng bằng SQL mất 4,7 s); sửa một dòng nguồn → 6 cột phụ thuộc tính lại 3,95 s
-- [x] 6. Golden test `apps/api/test/formula-golden.test.ts` (đọc thẳng file mẫu, tự bỏ qua khi thiếu file; thêm devDependency `exceljs`, `jszip`): 3.322/3.322 công thức của 6 sheet parse + chạy, 3.321 khớp giá trị Excel đã lưu (1 công thức `TODAY()` chỉ kiểm parse/chạy). 324 công thức `LEFT(ngày,2)` được adapter viết lại thành `TEXT(ngày,"mm")` vì giá trị lưu trong file dựa vào chữ hiển thị MM/yyyy của ô ngày (Excel/engine lấy chữ số của số serial) — ghi ở "Quyết định khi code"
-- [ ] 7. API xem trước công thức + danh mục hàm; OpenAPI, Bruno, README, quyết định khi code
+2B xong cả 7 bước (mỗi bước một commit trên `dev`): 1-2 `packages/formula` (parser, 106 hàm); 3-4 cột formula/relation/lookup/rollup + tính lại (`apps/api/src/modules/datahub/computed.ts`, `recalc.ts`, `row-formulas.ts`, migration `0006`); 5 gom nhóm SQL + test tốc độ; 6 golden test; 7 API `datahub.formula.functions|preview`, OpenAPI, Bruno, README, quyết định khi code (`design/module2-datahub.md` mục 2B).
+
+Việc kế: **Opus rà soát 2B**, rồi chờ Dương bảo làm 2C (giao diện grid, view tự lưu, trình soạn công thức dùng `datahub.formula.preview` và `datahub.formula.functions`, Tìm dòng trùng, chia sẻ/thùng rác/giới hạn). 2D: import công thức (dịch tham chiếu Excel sang tên, cảnh báo `LEFT(ngày,2)`).
+
+### Kết quả kiểm thử 2B
+
+- `pnpm test`: 33 file, 475 test pass (chạy hai lần); `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm docs:openapi`, `pnpm docs:bruno` sạch. Chạy thử `node apps/api/dist/worker.js` trên DB rỗng: worker khởi động, lên lịch 2 job mới.
+- Mới so với 2A: 79 test (formula 26, `datahub-formulas` 43, gom nhóm 1, tốc độ 7, golden 2). 2B chưa có giao diện nên không có test trình duyệt.
+- Tốc độ 100.000 x 100.000 dòng, tính lại cả cột: SUMIFS 1,76 s; COUNTIFS 2 điều kiện 2,33 s; XLOOKUP 2,08 s; AVERAGEIFS 1,97 s; MAXIFS ngày 2,34 s; gộp 2,52 s; sửa 1 dòng nguồn rồi 6 cột phụ thuộc tính lại 3,95 s.
+- Golden test: 3.322/3.322 công thức file mẫu parse và chạy, 3.321 khớp Excel (1 công thức `TODAY()` chỉ kiểm chạy).
+- Lỗi tìm thấy khi test và đã sửa: (1) cột kẹt `running` vì mốc claim mất phần micro giây; (2) vị trí lỗi tên hàm tính trên văn bản đã đổi sang mã; (3) `IFERROR(a/b, "")` bị suy thành cột chữ; (4) `XLOOKUP` với giá trị thay thế suy sai kiểu; (5) chữ ngày `dd/mm/yyyy` chưa ép thành số khi tính; (6) dọn thùng rác chưa xoá khoá lỗi `!<mã cột>`; (7) `DATEDIF "MD"` ra số âm.
 
 ## Câu hỏi còn mở
 

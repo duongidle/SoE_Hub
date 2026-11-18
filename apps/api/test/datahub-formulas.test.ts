@@ -3,6 +3,7 @@ import pg from "pg";
 import { as, drainOutbox, fails, makeTable, unlimit } from "./dh-helpers";
 import { activeToken, login, seedOrg, type Org, type WebSession } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
+import { enqueueOutbox } from "@soe/db";
 import { markVolatilePending } from "../src/modules/datahub";
 
 /**
@@ -328,9 +329,9 @@ describe("formulas across tables and datahubs (worker)", () => {
     const dep = await addFormula(customers.id, "Tổng thanh toán", `=SUM([${other.dh.name}].[Bảng 1].[Số tiền])`);
     await drainOutbox(t);
     expect((await rows(customers.id))[0]!.data[dep.key]).toBe(1500);
+    // The datahub changes owner (what a data transfer does): its "owner_changed" event makes the dependants recompute.
     await q(`UPDATE dh_datahubs SET owner_id = $1 WHERE id = $2`, [org.userA2.id, other.dhId]);
-    await a("datahub.column.update", { table_id: customers.id, column: dep.key, description: "đổi" }); // no recompute needed for a description
-    await t.c.db.db.execute((await import("drizzle-orm")).sql`UPDATE dh_columns SET calc_status = 'pending', calc_requested_at = clock_timestamp() WHERE /*scope:system*/ id = ${dep.id}::uuid`);
+    await enqueueOutbox(t.c.db.db, { event: "datahub.structure.changed", aggregateType: "datahub", aggregateId: other.dhId, payload: { datahub_id: other.dhId, table_id: null, change: "owner_changed" } });
     await drainOutbox(t);
     expect((await rows(customers.id))[0]!.data[dep.key]).toBe("#PERM!");
     await q(`UPDATE dh_datahubs SET owner_id = $1 WHERE id = $2`, [org.userA1.id, other.dhId]);
@@ -583,5 +584,33 @@ describe("formula API: function catalogue and preview", () => {
         });
       }
     }
+  });
+});
+
+describe("SQL export view and trash purge", () => {
+  it("the view shows computed columns by their result type; error cells are NULL; purging a column drops its values and errors", async () => {
+    const x = await makeTable(a, { columns: [{ name: "Giá", type: "number" }, { name: "Ngày", type: "date" }] });
+    await addFormula(x.tableId, "Gấp đôi", "=[Giá] * 2");
+    await addFormula(x.tableId, "Chia", "=10 / [Giá]");
+    await addFormula(x.tableId, "Hạn", "=[Ngày] + 1");
+    await addFormula(x.tableId, "Nhãn", '=IF([Giá] > 5, "lớn", "nhỏ")');
+    await addFormula(x.tableId, "Cờ", "=[Giá] > 5");
+    await a("datahub.row.create", { table_id: x.tableId, data: { Giá: 0, Ngày: "2026-01-31" } });
+    await a("datahub.row.create", { table_id: x.tableId, data: { Giá: 10, Ngày: "2026-02-28" } });
+    await drainOutbox(t);
+    const view = String((await q(`SELECT sql_view FROM dh_tables WHERE id = $1`, [x.tableId]))[0]!.sql_view);
+    const rows = await q(`SELECT * FROM dh_views."${view}" ORDER BY row_no`);
+    expect(rows.map((r) => [r["Gấp đôi"], r["Chia"], r["Nhãn"], r["Cờ"]])).toEqual([["0", null, "nhỏ", false], ["20", "1", "lớn", true]]);
+    expect(rows.every((r) => r["Hạn"] instanceof Date)).toBe(true); // a real date column in the view
+    // purge: the value and the error of a deleted column are removed from the rows
+    const chia = (await a("datahub.table.get", { table_id: x.tableId })).columns.find((c: { name: string }) => c.name === "Chia");
+    await a("datahub.column.delete", { table_id: x.tableId, column: chia.key });
+    await q(`UPDATE dh_columns SET deleted_at = now() - interval '10 days' WHERE id = $1`, [chia.id]);
+    const { purgeTrash } = await import("@soe/db");
+    const { registerDatahubTrash } = await import("../src/modules/datahub/trash");
+    registerDatahubTrash();
+    await purgeTrash(t.c.db.db, 7);
+    const left = await q(`SELECT count(*) FROM dh_rows WHERE table_id = $1 AND (data ? $2 OR data ? $3)`, [x.tableId, chia.key, `!${chia.key}`]);
+    expect(Number(left[0]!.count)).toBe(0);
   });
 });
