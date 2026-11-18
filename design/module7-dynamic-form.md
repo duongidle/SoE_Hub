@@ -161,10 +161,10 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 
 **Hai cách dùng kết quả**
 
-1. **Hiển thị:** bảng, thẻ hoặc danh sách ngay trên form; chủ chọn trường nào hiện. Có trạng thái đang tải (khung xương), rỗng ("Không có kết quả phù hợp"), lỗi ("Không tải được dữ liệu" + nút Thử lại). Tối đa 50 dòng mỗi lần (chủ đổi được, trần 500), có "Xem thêm".
+1. **Hiển thị:** bằng các khối gắn với nguồn (mục 2.6). Tối đa 50 kết quả mỗi lần (chủ đổi được, trần 500), có "Xem thêm".
 2. **Làm lựa chọn cho một câu hỏi:** ví dụ câu "Ngành" lấy danh sách lựa chọn từ các giá trị của cột Ngành; câu "Chọn khách" lấy từ kết quả tra cứu. Câu này nối cột thì giá trị được chọn lưu vào bảng như câu thường (lưu dạng chữ hoặc lựa chọn, không phải liên kết dòng).
 
-**Khi nào chạy:** tự chạy khi câu tham số đổi (chờ người dùng ngừng gõ 0,4 giây), hoặc chỉ chạy khi bấm nút "Tra cứu". Chủ chọn.
+**Khi nào chạy:** tự chạy khi câu tham số đổi (chờ người dùng ngừng gõ 0,4 giây), hoặc chỉ chạy khi bấm nút "Tra cứu". Chủ chọn. Nút "Tra cứu" chỉ chạy nguồn và hiện kết quả, **không ghi gì**; nút "Gửi" mới ghi vào bảng đích. Hai nút luôn khác nhãn và khác vị trí. Form chỉ để tra cứu thì không có nút Gửi.
 
 **Quyền.** Theo đúng quyền của form (mục 3): form công khai thì ai có link cũng mở và tra cứu được; form nội bộ thì người có tài khoản; form chia sẻ cho ai thì chỉ người đó. Nguồn Datahub và API nội bộ chạy bằng quyền **chủ form**, nên người dùng form không cần quyền xem bảng; chủ mất quyền thì nguồn báo lỗi. Trình soạn ghi rõ phần dữ liệu sẽ lộ ra: "Người mở form xem được các dòng có Trạng thái = Đã triển khai, cột: Tên công ty, Ngành, Thời gian triển khai".
 
@@ -185,6 +185,45 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 
 **AI.** JSON của form chứa cấu hình nguồn (không có key), nên AI dựng được form có nguồn dữ liệu qua `form_save`.
 
+
+### 2.6 Hiển thị kết quả của nguồn
+
+*Dương chốt 19/11/2026.*
+
+**Nguồn ẩn, khối gắn vào nguồn.** Nguồn dữ liệu là component không hiện ra, có tên (ví dụ "Khách hàng"). Các khối hiển thị **gắn vào** nguồn; một nguồn nuôi được nhiều khối cùng lúc (một câu tóm tắt, một danh sách thẻ…).
+
+**Khối tự dựng, chèn trường của nguồn.**
+
+- Chủ dựng một khối như mọi khối trên form (nền, viền, bo góc, khoảng cách; bên trong có tiêu đề, chữ, ảnh, nhãn, nút), rồi chèn trường của nguồn vào component cần dữ liệu, kiểu trộn thư: `Hạng: {Khách hàng.Hạng thành viên}`. Chữ cố định giữ nguyên, phần trong `{}` thay bằng dữ liệu. Một component chèn được nhiều trường.
+- Đoạn chữ ngoài khối cũng chèn được câu trả lời và số liệu của nguồn: "Có {Khách hàng.số kết quả} khách ngành {Ngành} triển khai từ 2024".
+- Kiểu dáng chỉ chọn từ bộ có sẵn: màu theo token, khoảng cách bội số 4px, cỡ chữ theo thang của hệ thống (chuẩn giao diện trong CLAUDE.md). Dựng tự do nhưng không ra màu lệch, cỡ chữ lạ.
+- Có vài **mẫu dựng sẵn** làm bằng chính cơ chế này: thẻ khách hàng, dòng bài Knowledge (tiêu đề + 2 dòng tóm tắt, tô đậm từ khoá), bảng. Chọn mẫu rồi sửa.
+
+**Hai cách gắn khối với nguồn**
+
+| Cách | Hiện | Hợp với |
+|---|---|---|
+| **Lặp** | Mỗi kết quả một khối, xếp danh sách hoặc lưới (1–3 cột; điện thoại 1 cột). Kiểu bảng: dưới 768px tự thành thẻ | Tra khách theo ngành |
+| **Một kết quả** | Một khối. Đúng 1 kết quả thì hiện ngay; nhiều hơn 1 thì hiện danh sách gọn "Tìm thấy 3 khách, chọn một khách", chọn xong mới hiện khối | Tra hạng thành viên theo số điện thoại, mã khách |
+
+**Định dạng và ảnh**
+
+- Giá trị định dạng theo kiểu dữ liệu, qua bộ hàm định dạng dùng chung (`vi-VN`): nguồn Datahub lấy kiểu cột; API ngoài thì chủ chọn kiểu cho từng trường (Chữ, Số, Tiền, Phần trăm, Ngày, Ảnh, Link, Nhãn), không chọn thì là Chữ.
+- **Nhãn** tự lấy màu của lựa chọn trong Datahub (hạng Vàng, Bạc… đã đặt màu ở cột thì hiện đúng màu). Chữ dài tối đa 2 dòng; số, tiền, ngày không bao giờ bị cắt.
+- **Ẩn khi trống:** mỗi component có tuỳ chọn ẩn khi trường trống (khách chưa có hạng thì ẩn cả dòng "Hạng: …"); không chọn thì hiện "—".
+- **Ảnh:** component Ảnh nhận trường Đính kèm (ảnh đầu tiên hoặc dải ảnh, bấm để phóng to), trường URL, hoặc trường kiểu Ảnh của API ngoài. File của SoE Hub vẫn riêng tư: server cấp link xem có hạn ngắn theo quyền chủ form, chỉ cho ảnh thuộc trường đã gắn vào form. Ảnh của API ngoài tải **qua server** (cùng lớp chặn địa chỉ nội bộ của mục 2.5, tối đa 5 MB, chỉ nhận kiểu ảnh, có cache) để trang ngoài không theo dõi được người mở form và không phải nới CSP. Ảnh lỗi hoặc trống: ảnh dự phòng (chữ cái đầu) hoặc ẩn, chủ chọn; ảnh luôn cắt vừa khung (`object-fit: cover`), có chữ thay thế.
+
+**Đổi kiểu dáng theo giá trị**
+
+- Khối có **biến thể theo giá trị** của một trường: chọn một trường (thường là Một lựa chọn, ví dụ Hạng thành viên), mỗi giá trị một biến thể (màu nền, màu viền, màu chữ, ảnh nền từ token). Ví dụ Kim cương nền tím, Vàng nền vàng, không khớp giá trị nào thì dùng kiểu mặc định của khối.
+- Màu chữ của mỗi biến thể được kiểm tra tương phản (≥ 4,5:1 với nền); không đạt thì trình soạn báo và không cho lưu biến thể đó.
+- Một khối chỉ đổi theo **một** trường ở bản đầu (đủ cho thẻ hạng, nhãn trạng thái). Điều kiện nhiều trường để sau.
+
+**Trạng thái** (mỗi khối gắn nguồn đều có): chưa nhập điều kiện ("Chọn ngành để xem khách hàng", chủ sửa câu này); đang tải (khung xương đúng hình khối đã dựng); có kết quả; không có kết quả (câu do chủ đặt, có thể kèm nút); lỗi (kèm Thử lại).
+
+**Chi tiết khi bấm:** bấm một khối mở ngăn chi tiết (bên phải trên máy tính, trượt từ dưới lên trên điện thoại) với các trường chủ chọn. Bài Knowledge hiện nội dung ngay trong ngăn này (form công khai không mở được trang Knowledge).
+
+**Trình soạn** xem trước bằng dữ liệu thật của nguồn, đổi qua lại vài kết quả mẫu và từng biến thể.
 ## 3. Chia sẻ và người điền
 
 ### 3.1 Ba cách mở form
@@ -331,6 +370,7 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 - Unit: chấm tự động mọi loại câu, chấm từng phần, trọng số và điểm sàn của phiếu chấm, thang 100, ngưỡng đạt, số lần làm, hết giờ, điều kiện hiện/ẩn và nhảy trang (server tính lại), ghép phiên bản khi đang làm dở.
 - Quyền: không chọn được bảng của "Quản lý Deal", bảng được chia sẻ, bảng gộp; người điền không đọc được bảng; JSON công khai không có đáp án, mã bảng, mã cột; nộp bài kiểm tra qua token/MCP bị từ chối.
 - Chống spam: honeypot, gửi quá nhanh, vượt giới hạn IP và giới hạn ngày.
+- Hiển thị nguồn: Lặp và Một kết quả (0, 1, 3, 51 kết quả), ẩn khi trống, biến thể theo giá trị và kiểm tra tương phản, ảnh riêng tư qua link có hạn, ảnh ngoài qua server, bảng thành thẻ ở 375px; dữ liệu xấu nhất (tên rất dài, số rất lớn, ảnh lỗi).
 - Nguồn dữ liệu: điều kiện cố định không bị tham số ghi đè; chỉ trả cột đã chọn; chủ mất quyền thì báo lỗi; API nội bộ ngoài danh sách Admin hoặc là command bị từ chối; API ngoài gọi vào `localhost`, IP riêng, chuyển hướng vào IP riêng đều bị chặn; key không có trong mọi phản hồi gửi trình duyệt và JSON xuất; hết giờ, quá 1 MB, giới hạn 30 lần/phút.
 - Đường ghi: phản hồi tạo đúng một dòng, có lịch sử dòng `via = form`, công thức của bảng tính sau khi gửi, gửi hai lần cùng mã chỉ tạo một dòng.
 - Giao diện: luồng tạo form → xuất bản → điền công khai trên 375px → xem phản hồi; bài test → làm bài → chấm tay → người làm xem điểm; dữ liệu xấu nhất theo `break-ui` (form 200 câu, lựa chọn rất dài, 10.000 phản hồi).
