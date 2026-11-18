@@ -18,7 +18,7 @@ Một engine cho ba việc: **form quảng bá, khảo sát** (trang công khai 
 - Ô nhập của form **là cột của bảng**: thêm một câu hỏi thì chọn cột có sẵn hoặc tạo cột mới ngay trong trình soạn. Kiểu cột quyết định kiểu ô nhập. Cách này giống Lark Form và có hai cái lợi: dữ liệu đã có kiểu chuẩn ngay từ lúc nhập, và xem, lọc, vẽ biểu đồ phản hồi bằng chính Datahub, không phải làm lại.
 - Tạo form mới thì chọn: **tạo bảng mới** (mặc định, tên bảng = tên form, đặt trong datahub chủ chọn) hoặc **dùng bảng có sẵn**.
 - Không chọn được làm đích:
-  - Mọi bảng trong datahub **"Quản lý Deal"** (brief mục 7; Module 4 mục 15 nói Deals, ở đây mở rộng ra cả datahub cho đơn giản và an toàn).
+  - Mọi bảng trong datahub **"Quản lý Deal"**. *Dương chốt 19/11/2026:* đây là datahub đặc thù của hệ thống, chỉ có bản chất là datahub, không coi như datahub thông thường; nó **không làm đích và không làm nguồn dữ liệu** của form (mục 2.5).
   - Bảng được người khác chia sẻ cho mình (form công khai không được ghi vào dữ liệu của người khác).
   - Bảng gộp (Module 3, chỉ đọc).
 - Cột công thức, lookup, rollup, số tự tăng và cột hệ thống **không** làm ô nhập được. Chúng vẫn tự tính sau khi dòng được tạo.
@@ -151,7 +151,7 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 
 | Nguồn | Cấu hình | Chạy bằng quyền của |
 |---|---|---|
-| **Datahub** | Một bảng trong datahub của chủ form; điều kiện cố định; điều kiện theo câu hỏi; cột hiển thị; sắp xếp | Chủ form |
+| **Datahub** | Một bảng trong datahub của chủ form (không gồm datahub "Quản lý Deal", mục 1.1); điều kiện cố định; điều kiện theo câu hỏi; cột hiển thị; sắp xếp | Chủ form |
 | **API nội bộ** | Chọn một API trong **danh sách Admin cho phép**; truyền tham số từ câu hỏi. Không cần key | Chủ form |
 | **API bên ngoài** | URL `https`, phương thức `GET`/`POST`, tham số và thân yêu cầu có chèn câu trả lời; tuỳ chọn **gắn key**; chỉ ra chỗ lấy danh sách kết quả trong JSON trả về và các trường hiển thị | — |
 
@@ -344,7 +344,7 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 | Quy định cũ | Đổi thành | Ảnh hưởng |
 |---|---|---|
 | `via` của actor: web, api, mcp, worker, automation (Module 0 mục 3.4) | Thêm `form` | Module 0, code Stage 0 |
-| Form không ghi vào Deals (Module 4 mục 15) | Form không ghi vào **mọi bảng** của datahub "Quản lý Deal" | Module 4 |
+| Form không ghi vào Deals (Module 4 mục 15) | Form không ghi vào và không đọc từ **mọi bảng** của datahub "Quản lý Deal" | Module 4, CLAUDE.md |
 | Bảng chỉ có cột do người tạo | Bật Bài kiểm tra thì hệ thống thêm các cột kết quả và tự quản lý chúng (mục 6.4); bảng có form thêm cột Phiên bản form (mục 2.2) | Module 2 |
 | Endpoint không cần đăng nhập chỉ gồm đăng nhập, quên mật khẩu, OAuth, form công khai (Module 0 mục 16) | Giữ nguyên, nhưng "form công khai" nay gồm cả lời gọi nguồn dữ liệu của form đó; server SoE Hub gọi ra API bên ngoài thay người dùng form | Module 0 |
 | Cột mỗi bảng mặc định 70, trần 200 (Module 2 mục 11) | Bảng có form: **150** (cài đặt `form.table_max_columns`), trần 200 giữ nguyên (mục 1.1a) | Module 2, CLAUDE.md |
@@ -353,6 +353,7 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 
 Đã chốt 19/11/2026: một form ghi vào một bảng, mỗi câu hỏi một cột (mục 1.1); tách bản nháp và xuất bản, phiên bản không sinh cột mới (mục 2.2); giới hạn 150 cột cho bảng có form (mục 1.1a). Đã chốt thêm: component Nguồn dữ liệu (Datahub, API nội bộ do Admin cho phép, API bên ngoài có gắn key), quyền theo quyền của form (mục 2.5). Còn:
 
-1. Chặn cả datahub "Quản lý Deal" làm đích (mục 1.1), và **cả làm nguồn dữ liệu** (mục 2.5)? Nếu cho làm nguồn thì một form công khai lộ được doanh thu, com của deal ra internet; brief cũng ghi Form không kết nối datahub Deals.
-2. Form công khai chống spam bằng ô bẫy + giới hạn tốc độ, chưa dùng captcha (mục 5.3)?
-3. Bài kiểm tra chỉ cho form nội bộ, và AI không nộp bài được (mục 6, 6.5)? Khảo sát thường thì có cho nộp qua API không? Tớ đề xuất có, để hệ thống ngoài đẩy phản hồi vào.
+Datahub "Quản lý Deal" không làm đích, không làm nguồn (mục 1.1). Còn:
+
+1. Form công khai chống spam bằng ô bẫy + giới hạn tốc độ, chưa dùng captcha (mục 5.3)?
+2. Bài kiểm tra chỉ cho form nội bộ, và AI không nộp bài được (mục 6, 6.5)? Khảo sát thường thì có cho nộp qua API không? Tớ đề xuất có, để hệ thống ngoài đẩy phản hồi vào.

@@ -334,6 +334,7 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 - Hiển thị theo quyền: User thấy deal mình tham gia; Leader thấy deal của mình và team; Manager tạo deal, phân deal, thấy mọi deal trong cây của mình.
 - Nguồn deal hiện tại: Manager nhập tay và phân tay. Sau này có hệ thống ngoài bắn API vào (kèm người được chia và tỉ lệ), nên mọi chỗ liên quan phải có API sẵn.
 - Template cột có **bốn lớp**: Cơ bản và Theo vai trò (**Admin và Manager** sửa), Theo team (Leader sửa cho team), Tuỳ chỉnh (từng người). Cột template có hai cách lưu: một giá trị chung mỗi deal, hoặc mỗi người một giá trị. Sửa template áp dụng ngay cho mọi người trong phạm vi. Thêm cột mặc định là cột riêng; đưa vào template phải chọn rõ. Template mặc định bám theo sheet Deals của file mẫu (Module 4 mục 3, 4).
+- Datahub "Quản lý Deal" là **datahub đặc thù của hệ thống**, chỉ có bản chất là datahub; không coi như datahub thông thường. Nó không làm đích, không làm nguồn dữ liệu của Form (Dương chốt 19/11/2026; Module 7). Module sau muốn dùng nó như nguồn chung thì phải nêu rõ và hỏi Dương.
 - **Cột mặc định là cột thường do template sinh sẵn**, không có logic viết cứng: cột tính toán là công thức chỉ dùng hàm kiểu Excel, không thêm hàm riêng cho Quản lý Deal.
 - Deal không bao giờ bị xoá cứng; Manager chỉ đánh dấu "Huỷ".
 - Khoá kỳ / chốt kỳ com là việc của Manager.
