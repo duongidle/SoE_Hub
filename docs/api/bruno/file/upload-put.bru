@@ -1,0 +1,31 @@
+meta {
+  name: storage.local.put
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/api/v1/storage/local/put
+  body: text
+  auth: none
+}
+
+params:query {
+  key: {{up_key}}
+  exp: {{up_exp}}
+  ct: {{up_ct}}
+  fn: {{up_fn}}
+  sig: {{up_sig}}
+}
+
+headers {
+  Content-Type: text/plain
+}
+
+body:text {
+  Xin chao SoE Hub
+}
+
+docs {
+  Chỉ dùng khi STORAGE_DRIVER=local (dev). Với S3/R2, gửi PUT thẳng tới `upload.url` do `file.upload.init` trả về.
+}

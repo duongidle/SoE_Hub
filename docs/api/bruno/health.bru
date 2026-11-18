@@ -1,0 +1,23 @@
+meta {
+  name: Health
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/health
+  body: none
+  auth: none
+}
+
+headers {
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq ok
+}
+
+docs {
+  Không cần đăng nhập. Trả `status`, `db`, và tình trạng worker.
+}

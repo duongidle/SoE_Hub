@@ -1,0 +1,27 @@
+meta {
+  name: system.setting.set (sửa)
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/api/v1/system/settings/{{settingKey}}
+  body: json
+  auth: none
+}
+
+headers {
+  X-Dev-Actor: {{devActor}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "value": 14,
+    "version": {{settingVersion}}
+  }
+}
+
+docs {
+  Sửa: bắt buộc gửi `version` đang có. Lệch phiên bản thì trả `409 conflict`.
+}

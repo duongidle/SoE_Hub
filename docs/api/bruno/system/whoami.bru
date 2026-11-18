@@ -1,0 +1,23 @@
+meta {
+  name: system.whoami
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/system/whoami
+  body: none
+  auth: none
+}
+
+headers {
+  X-Dev-Actor: {{devActor}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Trả tác nhân đang gọi. Dev: lấy từ header X-Dev-Actor (sẽ thay bằng đăng nhập ở Stage 1).
+}

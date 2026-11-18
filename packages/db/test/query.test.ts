@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
-import { listPage, compileFilter, newId, type FieldMap, type FilterNode } from "../src/index";
+import type { FilterNode } from "@soe/shared";
+import { listPage, compileFilter, newId, type FieldMap } from "../src/index";
 import { appDb, testItems } from "./helpers";
 
 const TAG = `q-${newId().slice(-8)}`;
@@ -137,7 +138,7 @@ describe("keyset pagination", () => {
     let cursor: string | null = null;
     let pages = 0;
     do {
-      const r: Awaited<ReturnType<typeof listPage>> = await listPage(db, {
+      const r: Awaited<ReturnType<typeof listPage<Record<string, unknown>>>> = await listPage(db, {
         from: sql`test_items`, fields, baseWhere: pageBase, sort, defaultSort: [{ field: "name", dir: "asc" }], limit, cursor, includeTotal: pages === 0,
       });
       if (pages === 0) expect(r.total).toBe(53);

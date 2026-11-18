@@ -102,6 +102,11 @@ export const listParamsShape = {
   fields: z.string().max(1000).optional().describe("Danh sách cột trả về, ngăn cách bằng dấu phẩy."),
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_LIMIT).default(DEFAULT_PAGE_LIMIT),
   cursor: z.string().max(2000).optional(),
+  include_total: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true")
+    .describe("true = trả thêm `total` (đếm toàn bộ, chậm hơn trên bảng lớn)."),
 };
 
 export interface ListResult<T> {

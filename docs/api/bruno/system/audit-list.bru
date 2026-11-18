@@ -1,0 +1,27 @@
+meta {
+  name: system.audit.list
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/system/audit-log
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 20
+  ~filter: {"and":[{"field":"result","op":"eq","value":"denied"}]}
+  ~sort: at:desc
+  ~include_total: true
+  ~cursor: 
+}
+
+headers {
+  X-Dev-Actor: {{devActor}}
+}
+
+docs {
+  Nhật ký hệ thống, phân trang keyset. Stage 1 giới hạn chỉ Admin xem.
+}

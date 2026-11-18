@@ -1,0 +1,27 @@
+meta {
+  name: system.setting.list
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/system/settings
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 20
+  ~sort: key:asc
+  ~filter: {"field":"key","op":"starts_with","value":"trash"}
+  ~include_total: true
+  ~cursor: 
+}
+
+headers {
+  X-Dev-Actor: {{devActor}}
+}
+
+docs {
+  Danh sách cài đặt. Hỗ trợ `filter` (JSON, mục 6.3), `sort`, `fields`, `limit` (tối đa 500), `cursor`, `include_total`.
+}

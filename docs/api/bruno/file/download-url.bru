@@ -1,0 +1,26 @@
+meta {
+  name: file.download.url
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/files/{{fileId}}/download-url
+  body: none
+  auth: none
+}
+
+headers {
+  X-Dev-Actor: {{devActor}}
+}
+
+script:post-response {
+  if (res.status === 200) {
+    const u = new URL(res.body.data.url);
+    for (const k of ["key", "exp", "ct", "fn", "sig"]) bru.setVar("dl_" + k, u.searchParams.get(k));
+  }
+}
+
+docs {
+  Link tải xuống có hạn 5 phút. Mỗi lần lấy link được ghi audit log.
+}

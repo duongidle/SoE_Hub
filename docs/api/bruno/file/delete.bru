@@ -1,0 +1,23 @@
+meta {
+  name: file.delete
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/files/{{fileId}}
+  body: none
+  auth: none
+}
+
+params:query {
+  version: {{fileVersion}}
+}
+
+headers {
+  X-Dev-Actor: {{devActor}}
+}
+
+docs {
+  Chuyển file vào thùng rác. Phải gửi `version` đang có (lệch thì 409).
+}

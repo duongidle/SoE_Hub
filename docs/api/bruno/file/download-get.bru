@@ -1,0 +1,26 @@
+meta {
+  name: storage.local.get
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/storage/local/get
+  body: none
+  auth: none
+}
+
+params:query {
+  key: {{dl_key}}
+  exp: {{dl_exp}}
+  ct: {{dl_ct}}
+  fn: {{dl_fn}}
+  sig: {{dl_sig}}
+}
+
+headers {
+}
+
+docs {
+  Chỉ dùng khi STORAGE_DRIVER=local (dev). Với S3/R2, mở thẳng `url` do `file.download.url` trả về.
+}

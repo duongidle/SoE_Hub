@@ -1,0 +1,37 @@
+meta {
+  name: file.upload.init
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/files
+  body: json
+  auth: none
+}
+
+headers {
+  X-Dev-Actor: {{devActor}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "filename": "ghi-chu.txt",
+    "content_type": "text/plain",
+    "size_bytes": 16
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    const u = new URL(res.body.data.upload.url);
+    bru.setVar("fileId", res.body.data.file.id);
+    for (const k of ["key", "exp", "ct", "fn", "sig"]) bru.setVar("up_" + k, u.searchParams.get(k));
+  }
+}
+
+docs {
+  Tạo bản ghi file và nhận link tải lên có hạn. Chạy tiếp `file.upload.put` rồi `file.upload.complete`.
+}

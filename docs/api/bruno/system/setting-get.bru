@@ -1,0 +1,23 @@
+meta {
+  name: system.setting.get
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/system/settings/{{settingKey}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-Dev-Actor: {{devActor}}
+}
+
+script:post-response {
+  if (res.status === 200) { bru.setVar("settingVersion", res.body.data.version); }
+}
+
+docs {
+  Đọc một cài đặt theo khoá.
+}

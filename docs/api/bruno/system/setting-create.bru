@@ -1,0 +1,31 @@
+meta {
+  name: system.setting.set (tạo)
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/v1/system/settings/{{settingKey}}
+  body: json
+  auth: none
+}
+
+headers {
+  X-Dev-Actor: {{devActor}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "value": 7
+  }
+}
+
+script:post-response {
+  if (res.status === 200) { bru.setVar("settingVersion", res.body.data.version); }
+}
+
+docs {
+  Tạo mới: không gửi `version`. Nếu khoá đã tồn tại thì lỗi `validation_error` (phải gửi `version`). `Idempotency-Key` cho phép gửi lại an toàn.
+}

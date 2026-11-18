@@ -13,19 +13,19 @@ Cập nhật: 18/11/2026
 - Stage 0, bước 1: khung monorepo pnpm (`apps/api`, `apps/web`, `packages/{shared,db,formula,metrics}`), cấu hình TS, vitest.
 - Stage 0, bước 2: `packages/shared` (mã lỗi, actor, bộ lọc Zod) và `packages/db` (schema Drizzle, 2 migration, audit append-only bằng quyền + trigger, `row_history`, outbox, idempotency, khoá kỳ, snapshot, file, settings, thùng rác + purge, versionedUpdate, filter DSL → SQL, keyset). 36 test DB pass.
 
+- Stage 0, bước 3: `apps/api` đủ lõi: registry + executor (audit, outbox, idempotency trong giao dịch), actor/authorize cắm được (dev-only, production khoá), REST sinh từ registry, OpenAPI + Scalar `/api/docs`, `/health`, SSE, file storage (S3 + local, link ký số), rate limit, header bảo mật; worker pg-boss + dispatcher outbox + 4 job; bộ Bruno đủ endpoint. 83 test pass, typecheck + lint sạch.
+
 ## Đang làm (Stage 0)
 
-Kế hoạch các bước còn lại:
-1. `apps/api` lõi: config, registry (defineCommand/defineQuery), actor + authorize cắm được (dev-only), lỗi chuẩn, audit/outbox/idempotency trong executor, REST sinh từ registry.
-2. Lệnh mẫu `system.*`, file storage (S3 + local), SSE, OpenAPI + Scalar `/api/docs`, `/health`, rate limit, header bảo mật.
-3. Worker: pg-boss, dispatcher outbox, job mẫu, dọn thùng rác, dọn idempotency.
-4. `apps/web` tối thiểu (React + Vite + TanStack + Tailwind).
-5. Docker Compose, Caddyfile, `.env.example`, README, bộ Bruno, ESLint.
-6. Ghi mục "Quyết định khi code" vào `design/module0-nen-tang.md`.
+Còn lại:
+1. `apps/web` tối thiểu (React + Vite + TanStack Router/Query + Tailwind/shadcn): trang khung + trạng thái `/health`.
+2. `Dockerfile`, `docker-compose.yml`, `Caddyfile`, `README.md`.
+3. Mục "Quyết định khi code" trong `design/module0-nen-tang.md`.
+4. Kiểm tra cuối: chạy api + worker + web thật, `pnpm build`, test, lint, typecheck.
 
 ## Bước tiếp theo
 
-- Làm bước 1 ở trên: tạo `apps/api/src/core/*` (registry, executor). Chưa có file nào trong `apps/api/src`.
+- Làm mục 1: tạo `apps/web` (package.json, vite.config.ts, index.html, src/main.tsx, src/routes). Dev server proxy `/api` và `/health` sang `localhost:3000`.
 
 ## Câu hỏi còn mở
 

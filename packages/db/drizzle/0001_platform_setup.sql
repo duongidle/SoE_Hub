@@ -21,6 +21,10 @@ BEGIN
 END
 $$;
 --> statement-breakpoint
+-- pg-boss (job queue, worker process) manages its own tables in the `pgboss` schema, including DDL for queues.
+-- The runtime role owns only this schema; it has no rights to change anything in `public`.
+CREATE SCHEMA IF NOT EXISTS pgboss AUTHORIZATION soe_app;
+--> statement-breakpoint
 GRANT USAGE ON SCHEMA public TO soe_app;
 --> statement-breakpoint
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO soe_app;

@@ -1,0 +1,23 @@
+meta {
+  name: events.stream (SSE)
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/api/v1/events
+  body: none
+  auth: none
+}
+
+params:query {
+  ~topics: system,file
+}
+
+headers {
+  X-Dev-Actor: {{devActor}}
+}
+
+docs {
+  Luồng SSE: chỉ gửi tín hiệu `{ id, event, aggregate_type, aggregate_id, at }`. Bruno hiển thị khi kết nối đóng; dùng `curl -N` để xem trực tiếp.
+}

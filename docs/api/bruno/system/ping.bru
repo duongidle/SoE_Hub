@@ -1,0 +1,22 @@
+meta {
+  name: system.ping
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/system/ping
+  body: none
+  auth: none
+}
+
+headers {
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Công khai, không cần tác nhân.
+}
