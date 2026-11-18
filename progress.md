@@ -4,8 +4,18 @@ Cập nhật: 18/11/2026
 
 ## Giai đoạn hiện tại
 
-- Thiết kế: Module 0, 1, 2 đã chốt.
-- Code: Stage 0 và **Stage 1 xong** (18/11/2026) trên nhánh `dev`. Stage 2 (Module 2 – Datahub) chờ Opus giao việc.
+- Thiết kế: Module 0, 1, 2, **3** đã chốt (Module 3 có Bảng gộp, lọc chéo, chịu tải; Module 2 có thêm mục 7a Tìm dòng trùng).
+- Code: Stage 0 và **Stage 1 xong** (18/11/2026) trên nhánh `dev`. **Stage 2 phần 2A đang chạy** (Sonnet code, Opus rà soát).
+
+## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
+
+1. **2A xong thì DỪNG** (Dương yêu cầu 18/11): Opus rà soát 2A (chạy `pnpm test`, lint, typecheck; đọc diff phần chia sẻ/phân quyền/gộp ô; xem số đo tốc độ 100k dòng), báo Dương kết quả, **không giao 2B** cho đến khi Dương bảo.
+2. Nếu phiên trước bị ngắt khi 2A chưa xong: agent 2A có thể đã dừng giữa chừng. Xem danh sách bước 2A bên dưới, `git status`, `git log`; giao Sonnet làm tiếp từ bước chưa đánh dấu (prompt: đọc CLAUDE.md, progress.md, `design/module2-datahub.md` + "Quyết định khi code" của Module 0/1; phạm vi 2A như danh sách bước; không làm 2B/2C/2D).
+3. Ghi nhớ cho các phần sau của Stage 2:
+   - 2B: golden test được đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (Dương cho phép), không commit dữ liệu lấy từ file, máy không có file thì test tự bỏ qua.
+   - 2C: làm cả công cụ **Tìm dòng trùng** (Module 2 mục 7a).
+   - Bảng gộp thuộc Stage 3 (Module 3 mục 4), không làm ở Stage 2.
+4. **Thiết kế tiếp theo: Module 4 (Quản lý Deal).** Trước khi đề xuất phải đọc lại toàn bộ `design/` (luật trong CLAUDE.md). Câu hỏi cần hỏi Dương nằm ở "Câu hỏi còn mở" (CR1→CR4, winrate theo cycle, thanh toán nhiều đợt) + template cột Deals bám file deal mẫu và sheet Raw PODPS.
 
 ## Đã xong
 
