@@ -37,6 +37,9 @@ const requiredPermission = (path: string) => ROUTE_PERMISSIONS.find((r) => path 
 export function Shell() {
   const location = useRouterState({ select: (s) => s.location });
   const path = location.pathname;
+  // During a navigation the router still renders the previous page for a moment. Gate on the page actually shown,
+  // so a protected page never mounts (and fetches) for someone who may not see it.
+  const shown = useRouterState({ select: (s) => s.resolvedLocation?.pathname ?? s.location.pathname });
   const nav = useNavigate();
   const qc = useQueryClient();
   const meQ = useMe();
@@ -47,7 +50,7 @@ export function Shell() {
   useLiveUpdates(!!me);
 
   useEffect(() => {
-    if (meQ.isLoading) return;
+  if (meQ.isLoading) return;
     if (!me) {
       if (!isPublic(path)) void nav({ href: `/dang-nhap?next=${encodeURIComponent(path + location.searchStr)}`, replace: true });
     } else if (me.must_set_password) {
@@ -65,7 +68,7 @@ export function Shell() {
     return (
       <div className="min-h-screen px-4 py-6">
         <div className="mx-auto mb-2 max-w-md text-center text-lg font-semibold text-primary">SoE Hub</div>
-        {isPublic(path) ? <Outlet /> : null}
+        {isPublic(path) && isPublic(shown) ? <Outlet /> : null}
       </div>
     );
   }
@@ -73,21 +76,22 @@ export function Shell() {
     return (
       <div className="min-h-screen px-4 py-6">
         <div className="mx-auto mb-2 max-w-md text-center text-lg font-semibold text-primary">SoE Hub</div>
-        {path === "/dat-mat-khau" ? <Outlet /> : null}
+        {path === "/dat-mat-khau" && shown === "/dat-mat-khau" ? <Outlet /> : null}
       </div>
     );
   }
 
   const items = NAV.filter((n) => !n.permission || can(me, n.permission));
-  const needed = requiredPermission(path);
+  const needed = requiredPermission(shown);
   const denied = needed !== null && !can(me, needed);
   const logout = async () => {
     try {
       await api("POST", "/auth/logout");
     } finally {
-      qc.clear();
+      // Hide the signed-in pages first, then drop their cached data, so no page refetches with a dead session.
       qc.setQueryData(["me"], null);
-      void nav({ to: "/dang-nhap", replace: true });
+      await nav({ to: "/dang-nhap", replace: true });
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== "me" });
     }
   };
 

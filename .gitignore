@@ -22,3 +22,9 @@ coverage/
 .local-storage/
 *.log
 .env.local
+
+# Browser tests
+apps/web/e2e/screenshots/
+apps/web/e2e/results/
+apps/web/playwright-report/
+.local-storage-e2e/

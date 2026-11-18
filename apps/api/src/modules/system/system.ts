@@ -17,7 +17,8 @@ const SettingOut = z.object({
 const settingFields: FieldMap = {
   id: { type: "uuid", expr: systemSettings.id, selectable: false },
   key: { type: "text", expr: systemSettings.key },
-  value: { type: "text", expr: sql`${systemSettings.value}::text`, sortable: false },
+  // jsonb, so the API returns the real JSON value (number, boolean, array) and not its text form.
+  value: { type: "text", expr: sql`${systemSettings.value}`, sortable: false },
   version: { type: "number", expr: systemSettings.version },
   updated_at: { type: "datetime", expr: systemSettings.updatedAt },
 };

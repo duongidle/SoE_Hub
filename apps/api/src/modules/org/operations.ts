@@ -86,7 +86,11 @@ export const orgOperations = [
         limit: i.limit,
         cursor: i.cursor,
         includeTotal: i.include_total,
-      });
+      }).then((page) => ({
+        ...page,
+        // `roles` is filtered as text (comma list) but must come back as an array, like in org.member.get.
+        items: page.items.map((r) => (typeof r.roles === "string" ? { ...r, roles: r.roles === "" ? [] : r.roles.split(",") } : r)),
+      }));
     },
   }),
 

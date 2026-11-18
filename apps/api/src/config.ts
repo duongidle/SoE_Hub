@@ -31,6 +31,8 @@ const EnvSchema = z.object({
   /** Google login (optional, also needs the setting auth.google_enabled). */
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+  /** Redirect URI registered in Google Cloud. Default: PUBLIC_URL + /api/auth/callback/google. */
+  GOOGLE_REDIRECT_URI: z.string().optional(),
 
   TRASH_RETENTION_DAYS: z.coerce.number().int().min(1).default(7),
 

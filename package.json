@@ -22,7 +22,8 @@
     "db:setup": "bash scripts/db-setup.sh",
     "docs:openapi": "pnpm --filter @soe/api docs:openapi",
     "docs:bruno": "pnpm --filter @soe/api docs:bruno",
-    "cli": "pnpm --filter @soe/api --silent cli"
+    "cli": "pnpm --filter @soe/api --silent cli",
+    "test:e2e": "node apps/web/e2e/run.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

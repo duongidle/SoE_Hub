@@ -68,7 +68,7 @@ const STATE_TTL_SECONDS = 600;
 
 export async function registerGoogleRoutes(app: FastifyInstance, deps: { config: Config; db: Db }) {
   const { config, db } = deps;
-  const client = () => new Google(config.GOOGLE_CLIENT_ID!, config.GOOGLE_CLIENT_SECRET!, `${config.PUBLIC_URL}/api/auth/callback/google`);
+  const client = () => new Google(config.GOOGLE_CLIENT_ID!, config.GOOGLE_CLIENT_SECRET!, config.GOOGLE_REDIRECT_URI ?? `${config.PUBLIC_URL}/api/auth/callback/google`);
   const cookieOpts = { path: "/", httpOnly: true, sameSite: "lax" as const, secure: config.secureCookies };
 
   app.get("/api/auth/google/start", async (_req, reply) => {

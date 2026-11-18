@@ -676,6 +676,7 @@ interface CatalogItem {
   label: string;
   description: string;
   default: unknown;
+  schema?: { minimum?: number; maximum?: number };
 }
 interface SettingRow {
   key: string;
@@ -711,7 +712,20 @@ function SettingEditor({ def, row, loaded }: { def: CatalogItem; row: SettingRow
   });
   const isBool = typeof def.default === "boolean";
   const isNum = typeof def.default === "number";
+  const [localError, setLocalError] = useState<string | null>(null);
   const parse = (): unknown => (isNum ? Number(shown) : shown.split(",").map((s) => s.trim()).filter(Boolean));
+  // The limits come from the catalog (same rules as the server), shown in Vietnamese before sending.
+  const submit = () => {
+    setLocalError(null);
+    const value = parse();
+    if (typeof value === "number") {
+      const { minimum, maximum } = def.schema ?? {};
+      if (!Number.isFinite(value)) return setLocalError("Hãy nhập một số.");
+      if (minimum !== undefined && value < minimum) return setLocalError(`Giá trị tối thiểu là ${minimum}.`);
+      if (maximum !== undefined && value > maximum) return setLocalError(`Giá trị tối đa là ${maximum}.`);
+    }
+    save.mutate(value);
+  };
   return (
     <Card>
       <CardContent className="flex flex-col gap-2 pt-5 text-sm" data-testid={`setting-${def.key}`}>
@@ -725,15 +739,15 @@ function SettingEditor({ def, row, loaded }: { def: CatalogItem; row: SettingRow
         ) : (
           <form
             className="flex flex-col gap-2 sm:flex-row"
+            noValidate
             onSubmit={(e) => {
               e.preventDefault();
-              save.mutate(parse());
+              submit();
             }}
           >
             <Input
               aria-label={def.label}
               type={isNum ? "number" : "text"}
-              min={def.key === "audit.retention_days" ? 730 : 1}
               value={shown}
               onChange={(e) => setText(e.target.value)}
               placeholder={isNum ? undefined : "base.vn, example.com"}
@@ -745,8 +759,8 @@ function SettingEditor({ def, row, loaded }: { def: CatalogItem; row: SettingRow
         )}
         {def.key === "audit.retention_days" && <p className="text-xs text-muted-foreground">Sàn cứng 730 ngày: hệ thống từ chối mọi giá trị thấp hơn và không bao giờ dọn nhật ký trẻ hơn mốc này.</p>}
         {!isNum && !isBool && <p className="text-xs text-muted-foreground">Nhiều giá trị cách nhau bằng dấu phẩy.</p>}
-        <ErrorText error={save.error} />
-        {save.isSuccess && text === null && <p className="text-xs text-ok">Đã lưu.</p>}
+        <ErrorText error={localError ?? save.error} />
+        {save.isSuccess && text === null && !localError && <p className="text-xs text-ok">Đã lưu.</p>}
       </CardContent>
     </Card>
   );

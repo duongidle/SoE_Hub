@@ -3,7 +3,7 @@
 Nơi làm việc chung của team SoE (Base): deal, chỉ số, Datahub, dashboard, form, onboarding, knowledge, AI Hub, giao việc.
 Thiết kế nằm trong `design/`, quy ước làm việc trong `CLAUDE.md`, tiến độ trong `progress.md`.
 
-Trạng thái code: **Stage 0 (nền tảng)**. Chưa có đăng nhập và chưa có chức năng nghiệp vụ.
+Trạng thái code: **Stage 1 (tài khoản và phân quyền)** đã xong: đăng nhập, org chart, phân quyền, token, nhật ký, chuyển giao dữ liệu. Chưa có chức năng nghiệp vụ (Datahub, Deal... từ Stage 2).
 
 ## Yêu cầu
 
@@ -35,26 +35,48 @@ Kiểm tra:
 | http://localhost:3000/api/docs | Tài liệu API (OpenAPI 3.1, giao diện Scalar) |
 | http://localhost:3000/api/openapi.json | Tệp OpenAPI |
 
-### Tác nhân tạm thời khi dev
+### Tạo Admin đầu tiên
 
-Stage 0 chưa có người dùng. Khi `NODE_ENV` khác `production`, api lấy tác nhân từ header `X-Dev-Actor` (một uuid), mặc định là `DEV_ACTOR_ID` trong `.env`.
-Header `X-Dev-Scopes: a:b,c:d` giới hạn quyền để thử trường hợp bị từ chối.
-Phần này nằm trong `apps/api/src/auth/dev.ts`, được đánh dấu tạm thời và **bị tắt hoàn toàn khi `NODE_ENV=production`**: khi đó mọi yêu cầu cần tác nhân đều bị từ chối cho đến khi Stage 1 có đăng nhập.
-
-Ví dụ:
+Hệ thống không có thao tác "tạo tài khoản": mỗi người là một dòng trong org chart. Admin đầu tiên được tạo bằng lệnh trên server:
 
 ```bash
-curl localhost:3000/api/v1/system/whoami
-curl -X PUT localhost:3000/api/v1/system/settings/trash.retention_days \
-  -H 'content-type: application/json' -H 'Idempotency-Key: thu-nghiem-0001' -d '{"value": 7}'
-curl -N localhost:3000/api/v1/events      # luồng SSE
+pnpm cli admin:create --email ten@base.vn --name "Họ tên"
+```
+
+Lệnh in ra mã kích hoạt 6 số (hiệu lực 6 giờ). Mở trang **Đăng ký** (`/dang-ky`), nhập email, bấm **Tôi đã có mã**, nhập mã và đặt mật khẩu. Sau đó Admin thêm Manager, Leader, User trong **Org chart**. Người mới vào trang Đăng ký, bấm **Xin mã**; mã hiện trong chuông thông báo của leader trực tiếp, manager và Admin, người dùng xin mã từ họ.
+
+Trên Docker: `docker compose exec api node dist/cli.js admin:create --email ten@base.vn`.
+
+### Quên mật khẩu của Admin duy nhất
+
+Khi còn Admin khác, họ cấp mã qua chuông như mọi người. Nếu chỉ có một Admin và quên mật khẩu, chạy trên server:
+
+```bash
+pnpm cli auth:reset-code --email ten@base.vn
+```
+
+Rồi mở trang **Quên mật khẩu** (`/quen-mat-khau`), bấm **Tôi đã có mã**, nhập mã và mật khẩu mới. Mọi lần chạy lệnh đều được ghi vào nhật ký hệ thống.
+
+### Biến môi trường về đăng nhập
+
+| Biến | Ý nghĩa |
+|---|---|
+| `AUTH_SECRET` | Khoá bí mật cho CSRF, băm mã và mã hoá mã trong outbox. **Bắt buộc trong production** (ngẫu nhiên, từ 32 ký tự, ví dụ `openssl rand -hex 32`); thiếu thì api và worker không khởi động và báo lỗi rõ. Đổi khoá thì mọi người bị đăng xuất |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | Đăng nhập Google (tuỳ chọn, mặc định tắt). Để trống nếu không dùng. Muốn bật: điền ba biến rồi Admin bật "Cho phép đăng nhập Google" trong Cài đặt hệ thống. `GOOGLE_REDIRECT_URI` mặc định là `PUBLIC_URL/api/auth/callback/google` |
+| `SESSION_IDLE_DAYS`, `SESSION_ABSOLUTE_DAYS` | Phiên hết hạn sau 7 ngày không dùng, tối đa 30 ngày |
+
+Ví dụ gọi API bằng token cá nhân (tạo ở **Tài khoản > Token cá nhân**, Admin duyệt xong mới dùng được):
+
+```bash
+curl -H "Authorization: Bearer soe_pat_..." localhost:3000/api/v1/system/whoami
 ```
 
 ## Lệnh thường dùng
 
 | Lệnh | Việc |
 |---|---|
-| `pnpm test` | Chạy toàn bộ test (cần Postgres; tự tạo database `soe_hub_test`) |
+| `pnpm test` | Chạy toàn bộ test unit và tích hợp (cần Postgres; tự tạo database `soe_hub_test`) |
+| `pnpm test:e2e` | Test giao diện trên trình duyệt thật (xem mục dưới) |
 | `pnpm typecheck` | Kiểm tra kiểu TypeScript mọi package |
 | `pnpm lint` | ESLint |
 | `pnpm build` | Build web và bundle api/worker/migrate |
@@ -64,11 +86,20 @@ curl -N localhost:3000/api/v1/events      # luồng SSE
 
 Test dùng user Postgres của máy (cần quyền superuser, mặc định của Homebrew). Đổi bằng biến `TEST_ADMIN_URL`.
 
+### Test giao diện (Playwright)
+
+```bash
+pnpm --filter @soe/web exec playwright install chromium   # một lần
+pnpm test:e2e
+```
+
+Lệnh tạo lại database rỗng `soe_hub_e2e`, chạy migration, bật api (cổng 3100), worker và web (cổng 5273), rồi chạy các luồng của Stage 1 ở hai bề ngang: desktop 1440×900 và điện thoại 390×844. Mỗi luồng kiểm tra không có lỗi console và không có request lỗi (trừ 401/403/423 được chờ trước). Ảnh chụp màn hình nằm ở `apps/web/e2e/screenshots/` (không commit). Chạy một phần: `pnpm test:e2e --project=desktop -g "token"`. Dùng cùng user Postgres như `pnpm test` (đổi bằng `E2E_ADMIN_URL`).
+
 ## Cấu trúc
 
 ```
 apps/api        Fastify: registry, REST, OpenAPI, SSE, file; src/worker.ts là tiến trình worker
-apps/web        React + Vite + TanStack Router/Query + Tailwind (chỉ trang khung)
+apps/web        React + Vite + TanStack Router/Query + Tailwind; e2e/ là test Playwright
 packages/shared Mã lỗi, actor, cú pháp bộ lọc (Zod), dùng chung server và trình duyệt
 packages/db     Schema Drizzle, migration, helper (audit, lịch sử dòng, outbox, khoá kỳ, lọc, keyset...)
 packages/formula, packages/metrics   Chỗ trống, làm ở Stage 2 và 3
@@ -82,7 +113,7 @@ REST, OpenAPI và (sau này) MCP đều sinh từ registry. Nhớ thêm request 
 ## Production (một VPS)
 
 ```bash
-cp .env.example .env     # điền SITE_ADDRESS, POSTGRES_PASSWORD, APP_DB_PASSWORD, STORAGE_DRIVER=s3 và S3_*
+cp .env.example .env     # điền SITE_ADDRESS, POSTGRES_PASSWORD, APP_DB_PASSWORD, AUTH_SECRET, STORAGE_DRIVER=s3 và S3_*
 docker compose up -d --build
 ```
 

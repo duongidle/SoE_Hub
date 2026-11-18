@@ -297,3 +297,49 @@ Stage 1 cần thông báo cho mã kích hoạt và mã đặt lại mật khẩu
 - Chuyển giao dữ liệu (Admin).
 - Chuông thông báo + hộp thông báo.
 - Cài đặt hệ thống (Admin): tên miền cho phép, `auto_guest_sale`, `google_enabled`, số ngày giữ thùng rác.
+
+## Quyết định khi code
+
+Ghi trong lúc code Stage 1 (18/11/2026). Các phần đã chốt ở trên không đổi; mục này chỉ thêm chi tiết và ghi lệch.
+
+### Xác thực
+- **Tự viết thay vì better-auth.** Luồng mã kích hoạt qua thông báo, org chart làm nguồn duy nhất và không gửi email không khớp mô hình của better-auth. Dùng `hash-wasm` (argon2id), `@fastify/cookie`, `arctic` (Google). Ba gói nhỏ, ít phụ thuộc, dễ bàn giao.
+- **Phiên:** cookie `httpOnly` chứa mã phiên ngẫu nhiên, DB chỉ lưu bản băm. Hết hạn 7 ngày không dùng, tối đa 30 ngày (`SESSION_IDLE_DAYS`, `SESSION_ABSOLUTE_DAYS`).
+- **CSRF:** `HMAC(AUTH_SECRET, session id)` gửi qua cookie `soe_csrf` (đọc được bằng JavaScript) và header `X-CSRF-Token`; server so với giá trị tính lại từ phiên. Chỉ áp cho yêu cầu ghi đi bằng cookie; token Bearer không cần.
+- **`AUTH_SECRET` bắt buộc trong production** (từ 32 ký tự, không bắt đầu bằng `dev-only`): thiếu thì api và worker không khởi động. Mã xác thực được băm bằng khoá này; mã đưa vào thông báo qua outbox được mã hoá AES-GCM, chỉ worker giải mã khi tạo thông báo.
+- **Mã xác thực:** 6 số, hiệu lực 6 giờ. Lệnh công khai (`auth.login`, `auth.code.request`, `auth.code.verify`, `auth.config`) bỏ qua `Idempotency-Key`. Bộ đếm sai mật khẩu và sai mã ghi bằng `ctx.outside` (kết nối riêng) để không bị rollback cùng lệnh lỗi.
+- Tài khoản bị khoá 15 phút trả `423 account_locked`.
+- **Google:** `GOOGLE_REDIRECT_URI` là biến tuỳ chọn, mặc định `PUBLIC_URL/api/auth/callback/google`. Chưa chạy thử với Google thật (cần Google Cloud của Base).
+- `X-Dev-Actor` chỉ còn khi `NODE_ENV=test`; development và production không có đường tắt nào.
+
+### Quyền
+- Tên quyền thêm cho Module 1: `auth:self`, `notification:read`, `org:member:read|write`, `org:role:elevated`, `org:permission:grant`, `guest:grant:manage`, `auth:token:approve`, `auth:session:manage`, `auth:service_account:manage`, `data:transfer`. Quyền nghiệp vụ của module sau đã khai báo sẵn trong `packages/shared/src/permissions.ts` (ví dụ `knowledge:article:read`, `review:reviewer:choose`) để vai trò đầy đủ ngay từ bây giờ.
+- Quyền bổ sung chỉ cấp được cho người có một trong các vai trò hợp lệ của quyền đó (`eligibleRoles`).
+- **Token không mang quyền `auth:*` và `onboarding:*`** (token không đổi được mật khẩu, thiết bị, và AI bị cấm khỏi Onboarding). Tài khoản hệ thống chỉ được các quyền trong `SERVICE_ACCOUNT_PERMISSIONS`.
+- **Admin không tự duyệt token của mình khi còn Admin khác.** Còn một Admin duy nhất thì tự duyệt được.
+- **Chuyển giao token = thu hồi.** Token là credential của một người nên không trao cho người khác; người nhận tự tạo token mới.
+- **Leader hoặc Manager còn người dưới quyền thì không gỡ được vai trò đó** (tránh người "mồ côi"); phải chuyển người đi trước.
+- Tài khoản hệ thống `SYSTEM_USER_ID` có mọi quyền nhưng không đăng nhập được. Migration tạo dòng giữ chỗ cho các actor cũ của Stage 0 để thêm được khoá ngoại.
+- Guest tự đăng ký (`auto_guest_sale` bật) chỉ tạo dòng `users` khi nhập đúng mã.
+
+### Truy vấn có phạm vi
+- Truy vấn bảng có chủ phải đi qua `scopeSql`, `ownedBy` hoặc `systemScope`; các hàm này chèn marker `/*scope*/` vào SQL. `query-guard.ts` chặn truy vấn thẳng `files` và `notifications` khi không phải production (dev, test), nên test bắt được truy vấn quên phạm vi. Production tắt kiểm tra này để khỏi tốn hiệu năng.
+- SSE chỉ gửi tín hiệu cho người trong `audience` của sự kiện (`users` hoặc cây), không gửi mọi sự kiện cho mọi người.
+
+### Giao diện (web)
+- **Chặn route ở `pages/shell.tsx`:** chưa đăng nhập thì mọi trang bảo vệ chuyển về `/dang-nhap?next=<đường dẫn>`; sau khi đăng nhập quay lại đúng trang (`next` chỉ nhận đường dẫn nội bộ). Người `must_set_password` bị giữ ở `/dat-mat-khau`.
+- **Menu và trang theo danh sách quyền do `GET /auth/me` trả**, không bao giờ theo tên vai trò. Mở thẳng đường dẫn thiếu quyền thì hiện trang "Không có quyền"; API vẫn tự trả 403. Shell chỉ dựng trang khi trang đó đúng là trang đang hiển thị (router vẫn giữ trang cũ một lúc khi chuyển), nên trang bảo vệ không bao giờ gọi API khi chưa được phép.
+- Đăng xuất: ẩn trang trước, rồi mới xoá cache, để không có truy vấn nào chạy bằng phiên đã chết.
+- **Chuông** dùng `GET /notifications/unread-count`, cập nhật khi SSE báo `notification.notification.created`; bấm chuông mở hộp thông báo.
+- Lỗi API hiện bằng tiếng Việt: lỗi cụ thể giữ thông điệp của server; mã chung (`forbidden`, `conflict`, `rate_limited`, `account_locked`...) có câu mặc định ở `components/ui/form.tsx`.
+- **Nhật ký:** phân trang keyset phía server (nút Trang trước/sau, giữ chồng con trỏ), `total` chỉ tính ở trang đầu; xuất CSV gọi API bằng cookie rồi tải về từ trình duyệt. Chi tiết mở ngăn bên phải, bảng cũ → mới đọc từ `details.changes`. Lọc "kết nối AI" theo mã kết nối (uuid); danh sách kết nối có tên làm ở Module 5.
+- Danh sách token cần duyệt và tài khoản hệ thống chưa phân trang (tối đa 500 token mới nhất): số lượng nhỏ, Stage 5 phân trang khi có kết nối AI.
+- Chuyển giao: nút xác nhận dùng hộp xác nhận của trình duyệt; xem trước bị coi là cũ nếu đổi tài khoản sau đó. Trang Cấp dữ liệu Guest chỉ là khung: khi chưa có loại dữ liệu nào đăng ký thì hiện trạng thái trống và khoá nút cấp.
+- Cài đặt: giới hạn số (ví dụ sàn 730 ngày của nhật ký) lấy từ danh mục cài đặt và báo bằng tiếng Việt ngay ở trình duyệt; server vẫn kiểm tra lại.
+
+### Sửa lỗi API tìm thấy khi chạy giao diện thật
+- `GET /org/members` trả `roles` dạng chuỗi (do cột lọc dùng `array_to_string`); nay trả mảng như `GET /org/members/:id`.
+- `GET /system/settings` trả `value` dạng chuỗi JSON (`"true"`, `"14"`); nay trả đúng giá trị JSON (boolean, số, mảng).
+
+### Kiểm thử giao diện
+- Bộ Playwright ở `apps/web/e2e`, chạy bằng `pnpm test:e2e`: tạo database rỗng `soe_hub_e2e`, chạy migration, bật api (cổng 3100), worker, web (cổng 5273), chạy cùng các luồng ở hai bề ngang (1440×900 và 390×844). Mỗi phiên trình duyệt kiểm tra không có lỗi console và không có request lỗi (trừ 401/403/423 khai báo trước). Vai trò `soe_app` dùng chung cả cụm Postgres nên e2e đặt cùng mật khẩu với `pnpm test`.

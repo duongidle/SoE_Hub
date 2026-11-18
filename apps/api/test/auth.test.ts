@@ -410,4 +410,30 @@ describe("settings", () => {
     const [s] = await t.c.db.db.select().from(systemSettings).where(eq(systemSettings.key, "audit.retention_days"));
     expect(s).toBeUndefined();
   });
+
+  it("the list returns real JSON values (found by the browser tests)", async () => {
+    const adm = await login(t, o.admin.email);
+    const put = async (key: string, value: unknown) => {
+      const cur = await get(`/system/settings/${key}`, adm.read); // other tests may have created it already
+      const version = cur.statusCode === 200 ? cur.json().data.version : undefined;
+      return t.app.inject({ method: "PUT", url: `/api/v1/system/settings/${key}`, headers: adm.write, payload: { value, ...(version ? { version } : {}) } });
+    };
+    expect((await put("auth.auto_guest_sale", true)).statusCode).toBe(200);
+    expect((await put("trash.retention_days", 9)).statusCode).toBe(200);
+    expect((await put("auth.allowed_domains", ["base.vn", "example.com"])).statusCode).toBe(200);
+    const rows = (await get("/system/settings?limit=50", adm.read)).json().data as { key: string; value: unknown }[];
+    const val = (k: string) => rows.find((r) => r.key === k)?.value;
+    expect(val("auth.auto_guest_sale")).toBe(true);
+    expect(val("trash.retention_days")).toBe(9);
+    expect(val("auth.allowed_domains")).toEqual(["base.vn", "example.com"]);
+  });
+
+  it("org.member.list returns roles as an array, like org.member.get", async () => {
+    const adm = await login(t, o.admin.email);
+    const rows = (await get("/org/members?limit=50", adm.read)).json().data as { id: string; roles: unknown }[];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) expect(Array.isArray(r.roles)).toBe(true);
+    const admin = rows.find((r) => r.id === o.admin.id);
+    expect(admin?.roles).toContain("admin");
+  });
 });

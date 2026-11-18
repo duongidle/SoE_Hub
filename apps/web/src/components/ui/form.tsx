@@ -1,4 +1,5 @@
 import type * as React from "react";
+import { ERROR_CODES, type ErrorCode } from "@soe/shared";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -34,24 +35,10 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-/** Readable Vietnamese text for the generic error codes; specific errors keep the server's own Vietnamese message. */
-const GENERIC_ERRORS: Record<string, string> = {
-  unauthenticated: "Phiên đăng nhập đã hết. Hãy đăng nhập lại.",
-  forbidden: "Bạn không có quyền làm việc này.",
-  ai_not_allowed: "Kết nối AI không được làm việc này.",
-  not_found: "Không tìm thấy dữ liệu.",
-  conflict: "Dữ liệu vừa được người khác sửa. Hãy tải lại trang rồi làm lại.",
-  rate_limited: "Bạn thao tác quá nhanh. Hãy đợi một lúc rồi thử lại.",
-  validation_error: "Dữ liệu chưa hợp lệ.",
-  invalid_filter: "Bộ lọc không hợp lệ.",
-  internal_error: "Hệ thống gặp lỗi. Hãy thử lại sau.",
-  unavailable: "Hệ thống tạm thời chưa sẵn sàng. Hãy thử lại sau.",
-  payload_too_large: "Dữ liệu gửi lên quá lớn.",
-};
-
+/** Readable Vietnamese text for an API error: the server's own message when it is Vietnamese, else the description of its error code. */
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    const generic = error.code ? GENERIC_ERRORS[error.code] : undefined;
+    const generic = error.code && error.code in ERROR_CODES ? ERROR_CODES[error.code as ErrorCode].description : undefined;
     const own = error.body?.error.message;
     if (own && /[\u00C0-\u1EF9]/.test(own)) return own; // already Vietnamese
     return generic ?? own ?? `Lỗi ${error.status}`;
