@@ -151,7 +151,14 @@ Giá trị công thức **luôn được tính sẵn và lưu trong database**, 
 | Sửa một dòng, công thức chỉ dùng cột cùng dòng | API, ngay trong lúc lưu dòng | Tức thì |
 | Bảng nguồn ở bảng/datahub khác thay đổi | Worker tính lại các cột phụ thuộc rồi lưu | Vài giây. Ô đang chờ hiện biểu tượng "đang tính" |
 | Tạo hoặc sửa công thức | Worker tính lại cả cột | Có thanh tiến độ |
-| Công thức có `TODAY()`, `NOW()` | Worker tính lại lúc 00:05 mỗi ngày | — |
+| Công thức có `TODAY()` | Worker tính lại lúc 00:05 mỗi ngày (giờ Việt Nam), kéo theo mọi cột phụ thuộc | Vài giây đến vài phút |
+| Công thức có `NOW()` | Worker tính lại **mỗi giờ** | — |
+
+Ghi chú về hàm theo thời gian:
+
+- Trong vài phút đầu ngày, trước khi job 00:05 chạy xong, ô có `TODAY()` còn giữ giá trị hôm qua. Ô đó hiện biểu tượng "đang tính" cho đến khi xong.
+- Lọc theo ngày tương đối ("tháng này", "30 ngày qua", "quá hạn") **không** dùng giá trị lưu sẵn mà tính ngay lúc truy vấn, nên luôn đúng theo giờ hiện tại. Phần lớn nhu cầu kiểu "deal nào quá hạn" nên dùng bộ lọc, không cần cột công thức `TODAY()`.
+- Server khởi động lại sau khi bỏ lỡ lịch 00:05 thì job chạy bù ngay khi worker lên.
 
 - Vòng lặp (A dùng B, B dùng A) bị chặn ngay khi lưu công thức.
 - Lỗi hiện giống Excel: `#DIV/0!`, `#N/A`, `#VALUE!`, `#REF!` (cột/bảng bị xoá), `#CYCLE!`, `#PERM!`.

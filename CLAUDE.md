@@ -102,10 +102,10 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 
 | Stage | Ai code | Ai kiểm soát |
 |---|---|---|
-| 0–2 | Opus | Opus |
-| 3 trở đi | **Sonnet** code và tự kiểm thử (test + giao diện thực tế) | **Opus** |
+| 0–1 | Opus (đã làm) | Opus |
+| 2 trở đi | **Sonnet** code và tự kiểm thử (test + giao diện thực tế) | **Opus** |
 
-Từ Stage 3, Opus là người kiểm soát:
+Thiết kế module vẫn do Opus đề xuất và Dương chốt. Từ Stage 2, Opus là người kiểm soát:
 1. Đọc thiết kế, chia stage thành các việc nhỏ có tiêu chí nghiệm thu rõ ràng (file nào, chức năng gì, test nào phải có, luồng giao diện nào phải chạy được), rồi giao từng việc cho Sonnet.
 2. Rà soát kết quả của Sonnet: đọc diff, chạy test, kiểm tra giao diện; đánh giá so với thiết kế và tiêu chí.
 3. Phản biện và yêu cầu sửa khi chưa đạt; chỉ đánh dấu xong khi đạt "Định nghĩa xong".
