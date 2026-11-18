@@ -1,0 +1,25 @@
+meta {
+  name: datahub.relation.labels
+  type: http
+  seq: 46
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/relation-labels
+  body: none
+  auth: none
+}
+
+params:query {
+  column: column
+  ids: ids
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Tên hiển thị của các dòng được liên kết ở một cột Liên kết (giá trị cột đầu tiên dạng chữ của bảng đích, không có thì `#<mã dòng>`).
+  Quyền: `datahub:datahub:use`.
+}

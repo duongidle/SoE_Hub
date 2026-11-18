@@ -1,16 +1,29 @@
-import type * as React from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { Loader2, X } from "lucide-react";
+import * as React from "react";
 import { ERROR_CODES, type ErrorCode } from "@soe/shared";
 import { ApiError, parseVnDateTime } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-export function Button({ className, variant = "primary", ...props }: React.ComponentProps<"button"> & { variant?: "primary" | "secondary" | "danger" | "ghost" }) {
+export function Button({ className, variant = "primary", loading, disabled, children, ...props }: React.ComponentProps<"button"> & { variant?: "primary" | "secondary" | "danger" | "ghost"; loading?: boolean }) {
   const styles = {
     primary: "bg-primary text-primary-foreground hover:opacity-90",
     secondary: "border border-border bg-card hover:bg-muted",
     danger: "bg-bad text-white hover:opacity-90",
     ghost: "hover:bg-muted",
   }[variant];
-  return <button type="button" className={cn("inline-flex min-h-9 items-center justify-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-50", styles, className)} {...props} />;
+  return (
+    <button
+      type="button"
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={cn("inline-flex min-h-9 items-center justify-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-transform duration-100 ease-out active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100", styles, className)}
+      {...props}
+    >
+      {loading && <Loader2 size={16} aria-hidden className="animate-spin motion-reduce:animate-none" />}
+      {children}
+    </button>
+  );
 }
 
 export function Input({ className, ...props }: React.ComponentProps<"input">) {
@@ -86,18 +99,53 @@ export function Table({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Modal({ title, open, onClose, children }: { title: string; open: boolean; onClose: () => void; children: React.ReactNode }) {
-  if (!open) return null;
+/** Dialog with focus trap, Esc to close and a close button. `dirty` asks before closing with unsaved changes. */
+export function Modal({ title, open, onClose, children, dirty, wide }: { title: string; open: boolean; onClose: () => void; children: React.ReactNode; dirty?: boolean; wide?: boolean }) {
+  const [asking, setAsking] = React.useState(false);
+  const tryClose = () => {
+    if (dirty) setAsking(true);
+    else onClose();
+  };
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 sm:items-center" onClick={onClose}>
-      <div role="dialog" aria-label={title} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-xl bg-card p-5 shadow-lg sm:rounded-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <Button variant="ghost" onClick={onClose} aria-label="Đóng">✕</Button>
-        </div>
-        {children}
+    <Dialog.Root open={open} onOpenChange={(o) => !o && tryClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
+        <Dialog.Content
+          aria-describedby={undefined}
+          className={cn("contain-scroll fixed bottom-0 left-1/2 z-50 max-h-[90dvh] w-full -translate-x-1/2 overflow-y-auto rounded-t-xl bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-lg sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 sm:rounded-xl", wide ? "max-w-2xl" : "max-w-lg")}
+        >
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <Dialog.Title className="text-lg font-semibold [overflow-wrap:anywhere]">{title}</Dialog.Title>
+            <Button variant="ghost" onClick={tryClose} aria-label="Đóng" className="shrink-0 !px-2">
+              <X size={20} aria-hidden />
+            </Button>
+          </div>
+          {children}
+          {asking && (
+            <div role="alertdialog" aria-label="Bỏ thay đổi?" className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted p-3 text-sm">
+              <span>Có thay đổi chưa lưu. Đóng và bỏ thay đổi?</span>
+              <span className="flex gap-2">
+                <Button variant="secondary" onClick={() => setAsking(false)}>Tiếp tục sửa</Button>
+                <Button variant="danger" onClick={() => { setAsking(false); onClose(); }}>Bỏ thay đổi</Button>
+              </span>
+            </div>
+          )}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+/** Confirmation of a destructive action: the danger button is apart from the safe one. */
+export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onClose, busy }: { title: string; message: React.ReactNode; confirmLabel: string; onConfirm: () => void; onClose: () => void; busy?: boolean }) {
+  return (
+    <Modal title={title} open onClose={onClose}>
+      <p className="text-sm [overflow-wrap:anywhere]">{message}</p>
+      <div className="mt-5 flex flex-wrap justify-between gap-2">
+        <Button variant="secondary" onClick={onClose}>Giữ lại</Button>
+        <Button variant="danger" loading={busy} onClick={onConfirm}>{confirmLabel}</Button>
       </div>
-    </div>
+    </Modal>
   );
 }
 

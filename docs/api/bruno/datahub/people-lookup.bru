@@ -1,0 +1,26 @@
+meta {
+  name: datahub.people.lookup
+  type: http
+  seq: 45
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/people
+  body: none
+  auth: none
+}
+
+params:query {
+  ~ids: ids
+  ~q: q
+  ~limit: 20
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Tìm người để chọn vào cột Người dùng, hoặc đổi mã người thành tên: theo `ids` hoặc theo `q` (tên hoặc email).
+  Quyền: `datahub:datahub:use`.
+}

@@ -56,7 +56,7 @@ Kế hoạch 2C (4 phần, mỗi phần commit riêng):
 - 2C-4: Tìm dòng trùng (mục 7a, API + giao diện), chia sẻ, thùng rác, cài đặt giới hạn Admin; kiểm thử giao diện cả 2C theo "Định nghĩa xong" điểm 5.
 
 Các bước 2C-1 (đánh dấu khi xong):
-- [ ] 1. Thư viện (Glide, fontsource), định dạng vi-VN dùng chung, thành phần ui còn thiếu
+- [x] 1. Thư viện (Glide, fontsource, sonner, radix), định dạng vi-VN dùng chung (`packages/shared/src/format.ts`), thành phần ui (skeleton, toast, tooltip, dropdown, states, Modal radix); API mới `datahub.people.lookup`, `datahub.relation.labels`, `datahub.row.restore_batch`
 - [ ] 2. Trang danh sách datahub + trang datahub (tab bảng) + menu + URL
 - [ ] 3. Grid ảo hoá đọc keyset, hiển thị mọi kiểu cột, "đang tính", lỗi công thức
 - [ ] 4. Sửa ô, thêm/xoá dòng, dán vùng, điền xuống, sửa hàng loạt, hoàn tác/làm lại

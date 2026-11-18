@@ -1,6 +1,49 @@
 @import "tailwindcss";
+@import "@fontsource/be-vietnam-pro/400.css";
+@import "@fontsource/be-vietnam-pro/500.css";
+@import "@fontsource/be-vietnam-pro/600.css";
+@import "@fontsource/be-vietnam-pro/700.css";
+
+/*
+ * "SoE Number": only the digits 0-9 of Roboto. Be Vietnam Pro has no equal-width digits (the "1" is narrower than the "0"),
+ * and a data column must line up. Listed before Be Vietnam Pro, so digits come from here and every other glyph from the main font.
+ * Works in the grid too: the canvas picks the same family.
+ */
+@font-face {
+  font-family: "SoE Number";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("@fontsource/roboto/files/roboto-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0030-0039;
+}
+@font-face {
+  font-family: "SoE Number";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("@fontsource/roboto/files/roboto-latin-500-normal.woff2") format("woff2");
+  unicode-range: U+0030-0039;
+}
+@font-face {
+  font-family: "SoE Number";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("@fontsource/roboto/files/roboto-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0030-0039;
+}
+@font-face {
+  font-family: "SoE Number";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("@fontsource/roboto/files/roboto-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0030-0039;
+}
 
 @theme inline {
+  --font-sans: "SoE Number", "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -13,6 +56,9 @@
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
+  --color-ring: var(--ring);
+  --color-selected: var(--selected);
+  --color-calc: var(--calc);
   --radius: 0.625rem;
 }
 
@@ -29,11 +75,48 @@
   --ok: oklch(0.6 0.15 150);
   --warn: oklch(0.75 0.15 80);
   --bad: oklch(0.58 0.2 25);
+  --ring: oklch(0.55 0.12 260);
+  /* Selected cell / row in a data grid, and the "calculating" mark. */
+  --selected: oklch(0.93 0.03 260);
+  --calc: oklch(0.55 0.1 260);
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "SoE Number", "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+button,
+a {
+  touch-action: manipulation;
+  user-select: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* A scroll area inside the page keeps its scroll to itself (a grid must not drag the page). */
+.contain-scroll {
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,0 +1,30 @@
+meta {
+  name: datahub.row.restore_batch
+  type: http
+  seq: 47
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/rows/restore-batch
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "row_ids": [
+      "{{row_id}}"
+    ]
+  }
+}
+
+docs {
+  Khôi phục nhiều dòng từ thùng rác trong một giao dịch (tối đa 500). Dùng cho "Hoàn tác" sau khi xoá nhiều dòng.
+  Quyền: `datahub:datahub:use`.
+}
