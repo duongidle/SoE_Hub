@@ -1,6 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
 import { AppError, DH_AUTO_INDEX_MIN_ROWS, type FilterNode, type SortItem } from "@soe/shared";
-import { listPage, type Executor } from "@soe/db";
+import { compileFilter, listPage, type Executor } from "@soe/db";
 import type { ListOutput } from "../../core/types";
 import type { TableAccess } from "./access";
 import { sourceOf } from "./column-source";
@@ -26,6 +26,11 @@ export interface RowQuery {
   labels?: boolean;
   /** Time filter of the table (design module2 section 5.4), combined with `filter` by AND. */
   timeFilter?: unknown;
+  /**
+   * Colour rules of the view: filters whose match is reported per row as `marks` (indexes of the rules the row satisfies), so the
+   * screen never evaluates a condition itself.
+   */
+  marks?: FilterNode[];
   /** Window read: skip this many rows instead of following `cursor` (a jump to a far position). */
   offset?: number;
   /** With `offset`: count from the END of the list (the page still comes back in normal order). */
@@ -57,6 +62,14 @@ function dataSelect(schema: TableSchema, sel: ReturnType<TableSchema["parseSelec
   const parts = sel.columns.map((c) => sql`${sql.raw(`'${assertColumnKey(c.key)}'`)}, ${sourceOf(c).readExpr(c)}`);
   void schema;
   return sql`jsonb_strip_nulls(jsonb_build_object(${sql.join(parts, sql`, `)})) AS cells`;
+}
+
+/** `marks`: the indexes of the colour rules a row satisfies (empty when none), computed by the same filter compiler as `filter`. */
+function marksSelect(schema: TableSchema, marks: FilterNode[] | undefined): SQL[] {
+  if (!marks?.length) return [];
+  const fields = schema.fieldMap();
+  const parts = marks.map((m, i) => sql`CASE WHEN ${compileFilter(schema.normalizeFilter(m), fields) ?? sql`true`} THEN ${i}::int END`);
+  return [sql`array_remove(ARRAY[${sql.join(parts, sql`, `)}]::int[], NULL) AS marks`];
 }
 
 function escapeLike(s: string): string {
@@ -100,7 +113,7 @@ export async function listRows(db: Executor, access: TableAccess, schema: TableS
     sortItems: sortItems.length ? sortItems : [{ field: "row_no", dir: "asc" }],
     defaultSort: [{ field: "row_no", dir: "asc" }],
     select: (sel ? ["id", ...sel.meta.filter((m) => m !== "id")] : DEFAULT_META).join(","),
-    extraSelect: [dataSelect(schema, sel)],
+    extraSelect: [dataSelect(schema, sel), ...marksSelect(schema, q.marks)],
     limit: q.limit,
     cursor: q.cursor,
     offset: q.offset,

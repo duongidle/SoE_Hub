@@ -271,6 +271,32 @@ describe("groups with totals (design module2 section 5.1)", () => {
   });
 });
 
+describe("colour rules: the server says which rules a row satisfies", () => {
+  it("marks are indexes of the matching rules, follow the same filter compiler, and survive reading by id", async () => {
+    const x = await makeTable(a, { columns: [{ name: "Tên", type: "text" }, { name: "Tiền", type: "number" }] });
+    await a("datahub.row.batch", { table_id: x.tableId, ops: [{ op: "create", data: { Tên: "a", Tiền: 5 } }, { op: "create", data: { Tên: "b", Tiền: 50 } }, { op: "create", data: { Tên: "c" } }].map((o) => o) });
+    const marks = JSON.stringify([{ field: "Tiền", op: "gt", value: 10 }, { field: "Tiền", op: "is_empty" }, { field: "Tên", op: "contains", value: "A" }]);
+    const r = await a("datahub.row.list", { table_id: x.tableId, sort: "Tên", marks });
+    expect(r.items.map((i: { marks: number[] }) => i.marks)).toEqual([[2], [0], [1]]);
+    const noRules = await a("datahub.row.list", { table_id: x.tableId });
+    expect(noRules.items[0].marks).toBeUndefined();
+    const byId = await a("datahub.row.list", { table_id: x.tableId, marks, filter: JSON.stringify({ field: "_id", op: "in", value: [r.items[1].id] }) });
+    expect(byId.items.map((i: { marks: number[] }) => i.marks)).toEqual([[0]]);
+    expect((await fails(a("datahub.row.list", { table_id: x.tableId, marks: JSON.stringify([{ field: "Không có", op: "eq", value: 1 }]) }))).code).toBe("invalid_filter");
+  });
+});
+
+describe("time range resolver for the toolbar", () => {
+  it("returns the dates and where today falls, from the same resolver as the filter", async () => {
+    const r = await a("datahub.time_filter.resolve", { range: JSON.stringify({ kind: "preset", preset: "this_month" }) });
+    expect(r.from).toBe(`${day().slice(0, 7)}-01`);
+    expect(r.today).toBe(day());
+    expect(r).toMatchObject({ fiscal_start_month: 1, year: Number(day().slice(0, 4)), month: Number(day().slice(5, 7)) });
+    expect(r.fiscal_quarter).toBe(Math.floor((Number(day().slice(5, 7)) - 1) / 3) + 1);
+    expect((await fails(a("datahub.time_filter.resolve", {}))).code).toBe("validation_error");
+  });
+});
+
 describe("autosave of the new view settings (design module2 section 5.2)", () => {
   it("time filter, group, totals and colours save per person: owner on the shared view, sharee as their own copy, personal views", async () => {
     const y = await makeTable(a, { columns: [{ name: "Tên", type: "text" }, { name: "Ngày", type: "date" }, { name: "Tiền", type: "number" }] });

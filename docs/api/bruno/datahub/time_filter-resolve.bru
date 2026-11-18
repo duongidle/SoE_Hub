@@ -1,0 +1,24 @@
+meta {
+  name: datahub.time_filter.resolve
+  type: http
+  seq: 49
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/time-range
+  body: none
+  auth: none
+}
+
+params:query {
+  ~range: [object Object]
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Một khoảng thời gian của ô Thời gian đổi ra ngày cụ thể (giờ Việt Nam, tuần từ thứ Hai, quý theo năm tài chính).
+  Quyền: `datahub:datahub:use`.
+}

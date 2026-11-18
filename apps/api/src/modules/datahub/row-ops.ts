@@ -1,10 +1,11 @@
 import { z } from "zod";
-import { AppError, DH_BATCH_MAX, filterParam, jsonParam, MAX_PAGE_LIMIT, TimeFilterSchema } from "@soe/shared";
+import { AppError, DH_BATCH_MAX, FilterSchema, filterParam, jsonParam, MAX_PAGE_LIMIT, TimeFilterSchema, TimeRangeSchema } from "@soe/shared";
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { ListOutput } from "../../core/types";
 import { loadTableAccess } from "./access";
 import { applyRowOps, restoreRows, type RowOp } from "./rows";
 import { getRow, listRows, rowHistory } from "./rows-read";
+import { describeRange } from "./time-filter";
 import { GROUP_FNS, listGroups, MAX_GROUP_LEVELS } from "./rows-groups";
 import { Id, ROW_EVENTS, Ts } from "./shared";
 import { TableSchema } from "./table-schema";
@@ -28,6 +29,7 @@ const RowOut = z.object({
   updated_by: z.uuid().nullable().optional(),
   data: z.record(z.string(), z.unknown()),
   pending: Pending.optional(),
+  marks: z.array(z.number().int()).optional().describe("Chỉ số các quy tắc tô màu mà dòng thoả (khi gửi `marks`)."),
 });
 
 const ConsistencyOut = z.object({
@@ -76,6 +78,7 @@ export const rowOperations = [
       limit: z.coerce.number().int().min(1).max(MAX_PAGE_LIMIT).default(50),
       cursor: z.string().max(2000).optional(),
       time_filter: jsonParam(TimeFilterSchema).describe("Lọc theo thời gian (ô Thời gian của bảng): `{columns:[cột ngày], range:{kind:\"preset\",preset:\"this_month\"}}`. Kết hợp VÀ với `filter`."),
+      marks: jsonParam(z.array(FilterSchema).max(20)).describe("Quy tắc tô màu: mỗi bộ lọc cho biết dòng có khớp không; kết quả ở trường `marks` của từng dòng (chỉ số các quy tắc khớp)."),
       offset: z.coerce.number().int().min(0).max(10_000_000).optional().describe("Đọc cửa sổ tại vị trí này thay cho `cursor` (nhảy tới vị trí xa). Dòng đầu là 0."),
       reverse: z.enum(["true", "false"]).default("false").transform((v) => v === "true").describe("Với `offset`: đếm từ cuối danh sách; trang vẫn trả đúng thứ tự thường."),
       include_total: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
@@ -88,7 +91,7 @@ export const rowOperations = [
     handler: async (ctx, i): Promise<ListOutput> => {
       const acc = await loadTableAccess(ctx, i.table_id);
       const schema = await TableSchema.load(ctx.db, acc);
-      return listRows(ctx.db, acc, schema, { filter: i.filter, sort: i.sort, fields: i.fields, search: i.search, limit: i.limit, cursor: i.cursor, includeTotal: i.include_total, timeFilter: i.time_filter, offset: i.offset, reverse: i.reverse, labels: i.labels, consistentAfter: i.consistent_after, consistent: i.consistent });
+      return listRows(ctx.db, acc, schema, { filter: i.filter, sort: i.sort, fields: i.fields, search: i.search, limit: i.limit, cursor: i.cursor, includeTotal: i.include_total, timeFilter: i.time_filter, marks: i.marks, offset: i.offset, reverse: i.reverse, labels: i.labels, consistentAfter: i.consistent_after, consistent: i.consistent });
     },
   }),
 
@@ -126,6 +129,30 @@ export const rowOperations = [
       const acc = await loadTableAccess(ctx, i.table_id);
       const schema = await TableSchema.load(ctx.db, acc);
       return listGroups(ctx.db, acc, schema, { filter: i.filter, timeFilter: i.time_filter, search: i.search, group: i.group, aggs: i.aggs });
+    },
+  }),
+
+  defineQuery({
+    name: "datahub.time_filter.resolve",
+    summary: "Một khoảng thời gian của ô Thời gian đổi ra ngày cụ thể (giờ Việt Nam, tuần từ thứ Hai, quý theo năm tài chính).",
+    description: "Để giao diện hiện \"01/11/2026 – 30/11/2026\" bên cạnh \"Tháng này\" và biết hôm nay thuộc tháng, quý, năm tài chính nào. Giao diện không tự tính ngày.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ range: jsonParam(TimeRangeSchema) }),
+    output: z.object({
+      from: z.string().nullable(),
+      to: z.string().nullable(),
+      today: z.string(),
+      fiscal_start_month: z.number().int(),
+      year: z.number().int(),
+      month: z.number().int(),
+      fiscal_year: z.number().int(),
+      fiscal_quarter: z.number().int(),
+    }),
+    http: { method: "GET", path: "/datahub/time-range" },
+    handler: async (ctx, i) => {
+      if (!i.range) throw new AppError("validation_error", "Thiếu `range`.");
+      return describeRange(ctx.db, i.range);
     },
   }),
 

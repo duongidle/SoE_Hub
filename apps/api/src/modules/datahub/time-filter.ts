@@ -1,4 +1,4 @@
-import { AppError, businessDate, businessMidnight, resolveTimeRange, TimeFilterSchema, type FilterCondition, type FilterNode, type TimeFilter } from "@soe/shared";
+import { AppError, businessDate, businessMidnight, currentPeriods, resolveTimeRange, TimeFilterSchema, type FilterCondition, type FilterNode, type TimeFilter, type TimeRange } from "@soe/shared";
 import type { Executor } from "@soe/db";
 import { readSetting } from "../system/settings-catalog";
 import { DH_SETTINGS } from "./limits";
@@ -33,6 +33,15 @@ export async function timeFilterNode(db: Executor, schema: TableSchema, raw: unk
     return parts.length === 0 ? { field: ref, op: "is_not_empty" } : parts.length === 1 ? parts[0]! : { and: parts };
   });
   return nodes.length === 1 ? nodes[0]! : { or: nodes };
+}
+
+/** A range as dates plus where today falls (for the toolbar). Same resolver as the filter, so the label can never disagree with the rows. */
+export async function describeRange(db: Executor, range: TimeRange, now: Date = new Date()) {
+  const fiscal = await readSetting(db, DH_SETTINGS.fiscalStartMonth);
+  const today = businessDate(now);
+  const r = resolveTimeRange(range, today, fiscal);
+  const cur = currentPeriods(today, fiscal);
+  return { from: r.from, to: r.to, today, fiscal_start_month: fiscal, year: cur.year, month: cur.month, fiscal_year: cur.fiscalYear, fiscal_quarter: cur.fiscalQuarter };
 }
 
 function addDay(date: string): string {

@@ -100,6 +100,14 @@ export function resolveTimeRange(range: TimeRange, today: string, fiscalStartMon
   }
 }
 
+/** Where `today` falls: calendar month and year, and the fiscal year (named by the year it starts in) and fiscal quarter 1-4. */
+export function currentPeriods(today: string, fiscalStartMonth = 1): { year: number; month: number; fiscalYear: number; fiscalQuarter: number } {
+  const fy = fiscalYearStart(today, fiscalStartMonth).year;
+  const month = Number(today.slice(5, 7));
+  const monthsIn = (Number(today.slice(0, 4)) - fy) * 12 + month - fiscalStartMonth;
+  return { year: Number(today.slice(0, 4)), month, fiscalYear: fy, fiscalQuarter: Math.floor(monthsIn / 3) + 1 };
+}
+
 /** The instant of midnight of a Vietnam-time day (UTC+7, no daylight saving). */
 export const businessMidnight = (date: string): string => new Date(`${date}T00:00:00+07:00`).toISOString();
 
