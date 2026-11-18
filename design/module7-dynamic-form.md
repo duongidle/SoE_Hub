@@ -12,9 +12,9 @@ Một engine cho ba việc: **form quảng bá, khảo sát** (trang công khai 
 
 ## 1. Form và bảng
 
-### 1.1 Mỗi form ghi vào đúng một bảng
+### 1.1 Mỗi form ghi vào tối đa một bảng
 
-- Form gắn với **một bảng Datahub của chính chủ form**. Mỗi lần gửi là **một dòng** của bảng đó.
+- Form có câu cần lưu thì gắn với **một bảng Datahub của chính chủ form** (form chỉ để tra cứu thì không cần bảng, mục 2.3a). Mỗi lần gửi là **một dòng** của bảng đó.
 - Ô nhập của form **là cột của bảng**: thêm một câu hỏi thì chọn cột có sẵn hoặc tạo cột mới ngay trong trình soạn. Kiểu cột quyết định kiểu ô nhập. Cách này giống Lark Form và có hai cái lợi: dữ liệu đã có kiểu chuẩn ngay từ lúc nhập, và xem, lọc, vẽ biểu đồ phản hồi bằng chính Datahub, không phải làm lại.
 - Tạo form mới thì chọn: **tạo bảng mới** (mặc định, tên bảng = tên form, đặt trong datahub chủ chọn) hoặc **dùng bảng có sẵn**.
 - Không chọn được làm đích:
@@ -162,7 +162,8 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 **Hai cách dùng kết quả**
 
 1. **Hiển thị:** bằng các khối gắn với nguồn (mục 2.6). Tối đa 50 kết quả mỗi lần (chủ đổi được, trần 500), có "Xem thêm".
-2. **Làm lựa chọn cho một câu hỏi:** ví dụ câu "Ngành" lấy danh sách lựa chọn từ các giá trị của cột Ngành; câu "Chọn khách" lấy từ kết quả tra cứu. Câu này nối cột thì giá trị được chọn lưu vào bảng như câu thường (lưu dạng chữ hoặc lựa chọn, không phải liên kết dòng).
+2. **Làm lựa chọn cho một câu hỏi:** ví dụ câu "Ngành" lấy danh sách lựa chọn từ các giá trị của cột Ngành; câu "Chọn khách" lấy từ kết quả tra cứu. Câu này nối với cột **Văn bản** và lưu giá trị đã chọn dạng chữ (không phải liên kết dòng, không tự thêm lựa chọn vào cột Một lựa chọn, để người lạ không làm phình danh sách lựa chọn của bảng).
+3. **Tự điền câu khác** từ kết quả được chọn (mục 2.7).
 
 **Khi nào chạy:** tự chạy khi câu tham số đổi (chờ người dùng ngừng gõ 0,4 giây), hoặc chỉ chạy khi bấm nút "Tra cứu". Chủ chọn. Nút "Tra cứu" chỉ chạy nguồn và hiện kết quả, **không ghi gì**; nút "Gửi" mới ghi vào bảng đích. Hai nút luôn khác nhãn và khác vị trí. Form chỉ để tra cứu thì không có nút Gửi.
 
@@ -224,6 +225,20 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 **Chi tiết khi bấm:** bấm một khối mở ngăn chi tiết (bên phải trên máy tính, trượt từ dưới lên trên điện thoại) với các trường chủ chọn. Bài Knowledge hiện nội dung ngay trong ngăn này (form công khai không mở được trang Knowledge).
 
 **Trình soạn** xem trước bằng dữ liệu thật của nguồn, đổi qua lại vài kết quả mẫu và từng biến thể.
+
+**Chưa làm:** thẻ số, biểu đồ tổng hợp trên kết quả của nguồn (Dương chốt 19/11/2026: chưa cần). Đoạn chữ vẫn chèn được số kết quả.
+
+### 2.7 Tự điền từ kết quả được chọn
+
+*Dương chốt 19/11/2026.* Ví dụ form "Yêu cầu tham quan khách hàng": sale tra cứu theo ngành, bấm **"Chọn"** trên thẻ Lana Logistic, các câu Tên khách, Gói đang dùng, Người liên hệ tự điền; sale nhập thêm ngày muốn tham quan rồi Gửi.
+
+- Khối gắn nguồn có nút **"Chọn"** (bật trong thiết lập khối). Cách gắn "Một kết quả" khi có nhiều kết quả dùng chính bước chọn này.
+- Mỗi câu muốn tự điền khai báo trường lấy từ kết quả: câu "Tên khách" ← `{Khách hàng.Tên khách hàng}`. Câu đó vẫn nối cột và lưu như câu thường.
+- Mỗi câu tự điền chọn **Khoá** (người dùng không sửa) hoặc **Cho sửa**.
+- Chọn lại kết quả khác thì các câu tự điền đổi theo; câu người dùng đã sửa tay thì giữ nguyên. Bỏ chọn thì xoá các câu tự điền chưa sửa tay.
+- **Server không tin giá trị của câu khoá do trình duyệt gửi lên.** Với nguồn Datahub, trình duyệt gửi mã kết quả đã chọn; server đọc lại đúng dòng đó (vẫn trong điều kiện của nguồn) và tự điền các câu khoá; mã không thuộc kết quả hợp lệ thì từ chối. Với API nội bộ và API bên ngoài, server chạy lại nguồn với cùng tham số và lấy kết quả có cùng mã (chủ chỉ ra trường làm mã khi cấu hình nguồn); không có trường mã thì câu chỉ khoá trên giao diện và trình soạn ghi rõ điều đó.
+- Có cột hệ thống tuỳ chọn **Mã kết quả đã chọn** để sau này đối chiếu phản hồi với dòng nguồn.
+
 ## 3. Chia sẻ và người điền
 
 ### 3.1 Ba cách mở form
@@ -231,11 +246,12 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 | Cách | Ai điền | Đăng nhập |
 |---|---|---|
 | **Công khai** | Ai có link | Không |
-| **Mọi tài khoản** | Mọi người dùng SoE Hub (không gồm Guest) | Có |
+| **Mọi tài khoản** | Mọi người dùng SoE Hub (không gồm Guest, xem mục 13) | Có |
 | **Chọn người** | Người, team, vai trò được chọn | Có |
 
 - Link dạng `https://<domain>/f/<mã ngẫu nhiên 10 ký tự>`, không đoán được. Chủ **đổi link** được (link cũ chết ngay).
 - Form nội bộ tự ghi người điền vào cột hệ thống Người tạo của dòng. Form công khai: Người tạo là tài khoản hệ thống "Form công khai".
+- **Nhúng vào trang khác** (iframe, ví dụ landing page của Base): tuỳ chọn của form công khai, mặc định tắt. Bật thì server cho phép nhúng (`frame-ancestors`) chỉ với các tên miền chủ khai báo.
 
 ### 3.2 Tuỳ chọn
 
@@ -269,6 +285,7 @@ Brief yêu cầu người điền lưu được bài đang làm dở.
 - Gửi bài là một command trong registry (`form.response.submit`), ghi dòng qua **cùng đường ghi dòng của Module 2** (`applyRowOps`), nên kiểm tra kiểu, cột Duy nhất, công thức cùng dòng, hàng đợi tính lại, sự kiện đều chạy như mọi lần ghi.
 - Ghi bằng form **có** lịch sử dòng (dữ liệu do form nhập, đúng quy định đã chốt). Actor có `via = form`; với form công khai, nhật ký ghi IP và mã form.
 - Phản hồi trùng do bấm hai lần: mỗi lượt điền có mã riêng làm `Idempotency-Key`.
+- **Nộp qua API, MCP** (*Dương chốt 19/11/2026*): form thường (khảo sát, đăng ký) nộp được qua token hoặc kết nối có menu Form mức Sửa, để hệ thống ngoài đẩy phản hồi vào. Người sở hữu token phải là người được điền form đó (form công khai: ai có token đều được). Đi cùng đường ghi, cùng kiểm tra, `via = api` hoặc `mcp`. Bài kiểm tra thì không (mục 6.5).
 
 ### 5.2 Sửa phản hồi
 
@@ -277,7 +294,7 @@ Brief yêu cầu người điền lưu được bài đang làm dở.
 
 ### 5.3 Chống spam form công khai
 
-Không dùng dịch vụ captcha bên ngoài (hạn chế phụ thuộc như Module 1):
+*Dương chốt 19/11/2026.* Không dùng dịch vụ captcha bên ngoài (hạn chế phụ thuộc như Module 1):
 
 - Ô bẫy ẩn (honeypot) và thời gian điền tối thiểu (gửi dưới 3 giây sau khi mở là bot).
 - Giới hạn mỗi IP 10 lần gửi/phút; mỗi form 1.000 phản hồi/ngày (chủ chỉnh, Admin đặt trần).
@@ -353,9 +370,10 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 - Tạo form: Manager, Leader, User (`form:form:create`). Admin và Guest không tạo (Admin không có quyền nghiệp vụ).
 - Không giới hạn số form (brief). Phản hồi tính vào số dòng của bảng (không giới hạn) và file tính vào dung lượng của chủ.
 - Chỉ chủ sửa form. Muốn người khác xem phản hồi thì chia sẻ bảng đích (Module 2 mục 10).
+- Xoá form: form vào thùng rác (7 ngày như mọi thứ khác), link ngừng nhận phản hồi; bảng đích và phản hồi đã có **giữ nguyên**.
 - **Nhân bản form** (cho Module 9: nhân bản lộ trình kèm bài test): tạo form mới; chọn ghi vào bảng mới cùng cấu trúc (mặc định) hoặc bảng có sẵn.
 - Chuyển giao (Module 1 mục 8): form đổi chủ cùng datahub.
-- MCP (Module 5, menu Form): `form_get`, `form_save`, `form_responses`; nộp bài kiểm tra bị cấm (mục 6.5).
+- MCP (Module 5, menu Form): `form_get`, `form_save`, `form_responses`; nộp form thường qua `soe_call`; nộp bài kiểm tra bị cấm (mục 6.5).
 
 ## 10. Giao diện tối thiểu (Stage 7)
 
@@ -377,6 +395,8 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 
 ## 11a. Để bản sau
 
+- **Thẻ số, biểu đồ tổng hợp trên kết quả của nguồn** (mục 2.6).
+- **Đổi kiểu dáng khối theo nhiều trường** (bản đầu một trường, mục 2.6).
 - **Câu bảng chi tiết** (một lần gửi nhập nhiều dòng con, ví dụ danh sách người tham dự; Lark ghi sang bảng liên kết). Cần ghi nhiều dòng sang bảng con và đụng luật ô Liên kết của Module 2; bài test, bài thu hoạch hiện tại không cần.
 
 ## 12. Thay đổi so với quy định đã chốt
@@ -391,9 +411,8 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 
 ## 13. Câu hỏi cho Dương
 
-Đã chốt 19/11/2026: một form ghi vào một bảng, mỗi câu hỏi một cột (mục 1.1); tách bản nháp và xuất bản, phiên bản không sinh cột mới (mục 2.2); giới hạn 150 cột cho bảng có form (mục 1.1a). Đã chốt thêm: component Nguồn dữ liệu (Datahub, API nội bộ do Admin cho phép, API bên ngoài có gắn key), quyền theo quyền của form (mục 2.5). Còn:
+Đã chốt 19/11/2026: một form ghi vào tối đa một bảng, mỗi câu hỏi một cột (1.1, 2.3a); 150 cột cho bảng có form (1.1a); bản nháp và xuất bản, phiên bản không sinh cột mới (2.2); ràng buộc cột và điền sẵn qua link (2.3b); nhóm câu theo điều kiện (2.4); component Nguồn dữ liệu (2.5), hiển thị kết quả kể cả biến thể theo giá trị (2.6), tự điền từ kết quả (2.7); datahub "Quản lý Deal" không làm đích, không làm nguồn (1.1); chống spam không captcha (5.3); form thường nộp được qua API (5.1); thẻ số, biểu đồ trên kết quả chưa làm.
 
-Datahub "Quản lý Deal" không làm đích, không làm nguồn (mục 1.1). Còn:
+Còn:
 
-1. Form công khai chống spam bằng ô bẫy + giới hạn tốc độ, chưa dùng captcha (mục 5.3)?
-2. Bài kiểm tra chỉ cho form nội bộ, và AI không nộp bài được (mục 6, 6.5)? Khảo sát thường thì có cho nộp qua API không? Tớ đề xuất có, để hệ thống ngoài đẩy phản hồi vào.
+1. **Guest có điền, có dùng được form nội bộ không?** Ví dụ sale (Guest mẫu Sale) dùng form tra cứu khách hàng. Đề xuất: "Mọi tài khoản" không gồm Guest; "Chọn người" được chọn Guest cụ thể hoặc "mọi Guest mẫu Sale". Nếu không cho thì sale chỉ dùng được form công khai.
