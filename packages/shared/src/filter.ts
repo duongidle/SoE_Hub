@@ -60,6 +60,8 @@ export const FilterSchema: z.ZodType<FilterNode> = z.lazy(() =>
 export const SortItemSchema = z.object({
   field: z.string().min(1).max(100),
   dir: z.enum(["asc", "desc"]),
+  /** Where empty values go. Default: last for `asc`, first for `desc` (PostgreSQL order). */
+  nulls: z.enum(["first", "last"]).optional(),
 });
 export type SortItem = z.infer<typeof SortItemSchema>;
 
@@ -70,11 +72,11 @@ export function parseSortParam(raw: string): SortItem[] {
     .map((s) => s.trim())
     .filter(Boolean)
     .map((part) => {
-      const [field = "", dir = "asc", ...rest] = part.split(":");
-      if (rest.length > 0 || (dir !== "asc" && dir !== "desc") || !/^[a-z0-9_]+$/i.test(field)) {
+      const [field = "", dir = "asc", nulls, ...rest] = part.split(":");
+      if (rest.length > 0 || (dir !== "asc" && dir !== "desc") || (nulls !== undefined && nulls !== "first" && nulls !== "last") || !/^[a-z0-9_]+$/i.test(field)) {
         throw new Error(`Sort không hợp lệ: "${part}"`);
       }
-      return { field, dir } as SortItem;
+      return (nulls ? { field, dir, nulls } : { field, dir }) as SortItem;
     });
   if (items.length > 5) throw new Error("Sắp xếp tối đa 5 cột.");
   return items;

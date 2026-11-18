@@ -4,6 +4,7 @@ import { BUSINESS_TIMEZONE, type Actor } from "@soe/shared";
 import type { Logger } from "pino";
 import type { Config } from "../config";
 import { purgeSessions } from "../auth/sessions";
+import { datahubJobs } from "../modules/datahub";
 import { scrubExpiredCodes } from "../modules/notification";
 
 /** The internal system account (a row of `users`, kind `system`, created by migration 0003). */
@@ -116,4 +117,5 @@ export const jobs: JobDef[] = [
       logger.info({ job: "notification-code-scrub", scrubbed: n }, "verification codes scrubbed");
     },
   },
+  ...datahubJobs,
 ];

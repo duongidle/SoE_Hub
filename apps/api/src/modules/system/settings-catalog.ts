@@ -59,6 +59,11 @@ export const SETTINGS = {
 
 export const SETTING_DEFS: SettingDef[] = Object.values(SETTINGS) as SettingDef[];
 
+/** Settings of other modules register their definitions here (for example the Datahub limits). */
+export function registerSettings(...defs: SettingDef[]): void {
+  for (const d of defs) if (!SETTING_DEFS.some((x) => x.key === d.key)) SETTING_DEFS.push(d);
+}
+
 export function settingDef(key: string): SettingDef | undefined {
   return SETTING_DEFS.find((d) => d.key === key);
 }

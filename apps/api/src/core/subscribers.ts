@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import type { Subscriber } from "./outbox-dispatcher";
 import type { EventRegistry } from "./events";
 import { SSE_CHANNEL, type SseSignal } from "../http/sse";
+import { sqlViewSubscriber } from "../modules/datahub";
 import { createNotificationSubscriber } from "../modules/notification";
 
 /**
@@ -31,5 +32,5 @@ export function createSseFanout(events: EventRegistry): Subscriber {
 
 /** Subscribers of the worker. Later modules append theirs (formula recalculation, Automation, webhooks). */
 export function defaultSubscribers(events: EventRegistry, authSecret: string): Subscriber[] {
-  return [createNotificationSubscriber(authSecret), createSseFanout(events)];
+  return [createNotificationSubscriber(authSecret), createSseFanout(events), sqlViewSubscriber];
 }

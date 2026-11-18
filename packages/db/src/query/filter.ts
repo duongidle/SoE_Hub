@@ -16,12 +16,15 @@ import {
  * rejected with `invalid_filter`. Values always go through bind parameters, never string concatenation.
  */
 
-export type FieldType = "text" | "number" | "date" | "datetime" | "boolean" | "uuid" | "enum";
+/** `set`: a JSONB array of strings (multi select, attachments). `in` = has any of, `nin` = has none of, `eq` = has this one. */
+export type FieldType = "text" | "number" | "date" | "datetime" | "boolean" | "uuid" | "enum" | "set";
 
 export interface FieldSpec {
   type: FieldType;
   /** SQL expression or column the field maps to. */
   expr: SQL | AnyPgColumn;
+  /** Expression used for ORDER BY and the keyset cursor when it differs from `expr` (for example option order). */
+  sortExpr?: SQL;
   /** Allowed values for `enum`. */
   values?: readonly string[];
   /** Default true. */
@@ -47,6 +50,7 @@ const ALLOWED: Record<FieldType, readonly FilterOp[]> = {
   boolean: ["eq", "neq", ...EMPTY],
   uuid: ["eq", "neq", "in", "nin", ...EMPTY],
   enum: ["eq", "neq", "in", "nin", ...EMPTY],
+  set: ["eq", "neq", "in", "nin", ...EMPTY],
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -81,6 +85,7 @@ function coerce(spec: FieldSpec, field: string, v: unknown): string | number | b
       if (typeof v !== "string" || (spec.values && !spec.values.includes(v))) bad(`Giá trị không hợp lệ cho cột "${field}".`, { field, allowed: spec.values });
       return v as string;
     case "text":
+    case "set":
       if (typeof v !== "string") bad(`Cột "${field}" cần giá trị chữ.`, { field });
       return v as string;
   }
@@ -125,12 +130,29 @@ function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
+/** Conditions on a JSONB array of strings. */
+function compileSet(spec: FieldSpec, c: FilterCondition, e: SQL): SQL {
+  const f = c.field;
+  const arr = (vals: (string | number | boolean)[]) => sql`ARRAY[${sql.join(vals.map((v) => sql`${v}`), sql`, `)}]::text[]`;
+  switch (c.op) {
+    case "is_empty": return sql`(${e} IS NULL OR ${e} = '[]'::jsonb)`;
+    case "is_not_empty": return sql`(${e} IS NOT NULL AND ${e} <> '[]'::jsonb)`;
+    case "eq": return sql`${e} ? ${singleValue(spec, f, c) as string}`;
+    case "neq": return sql`NOT coalesce(${e} ? ${singleValue(spec, f, c) as string}, false)`;
+    case "in": return sql`${e} ?| ${arr(listValue(spec, f, c))}`;
+    case "nin": return sql`NOT coalesce(${e} ?| ${arr(listValue(spec, f, c))}, false)`;
+    default: return bad(`Toán tử "${c.op}" không dùng được cho cột "${f}".`, { field: f, op: c.op });
+  }
+}
+
 function compileCondition(fields: FieldMap, c: FilterCondition): SQL {
   const spec = fields[c.field];
   if (!spec) bad(`Không có cột "${c.field}" để lọc.`, { field: c.field, allowed: Object.keys(fields) });
   if (!ALLOWED[spec.type].includes(c.op)) bad(`Toán tử "${c.op}" không dùng được cho cột "${c.field}" (kiểu ${spec.type}).`, { field: c.field, op: c.op });
   const e = exprOf(spec);
   const f = c.field;
+
+  if (spec.type === "set") return compileSet(spec, c, e);
 
   switch (c.op) {
     case "is_empty":

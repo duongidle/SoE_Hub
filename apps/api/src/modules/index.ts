@@ -6,11 +6,13 @@ import { EventRegistry } from "../core/events";
 import { Registry } from "../core/registry";
 import type { StorageDriver } from "../storage/types";
 import { authEvents } from "./auth/events";
+import { datahubEvents, datahubOperations } from "./datahub";
 import { authOperations } from "./auth/operations";
 import { tokenOperations } from "./auth/tokens";
 import { guestEvents, guestOperations } from "./guest";
 import { notificationEvents, notificationOperations } from "./notification";
 import { orgOperations } from "./org/operations";
+import { registerDatahubTrash } from "./datahub/trash";
 import { systemEvents } from "./system/events";
 import { fileOperations } from "./system/files";
 import { systemOperations } from "./system/system";
@@ -23,7 +25,7 @@ export interface ModuleDeps {
 
 /** Every module registers its commands/queries and events here. */
 export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: EventRegistry } {
-  const events = new EventRegistry().register(...systemEvents, ...authEvents, ...notificationEvents, ...guestEvents, ...transferEvents);
+  const events = new EventRegistry().register(...systemEvents, ...authEvents, ...notificationEvents, ...guestEvents, ...transferEvents, ...datahubEvents);
   const registry = new Registry().register(
     ...systemOperations,
     ...fileOperations(deps.config, deps.storage),
@@ -33,12 +35,14 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...notificationOperations,
     ...guestOperations,
     ...transferOperations,
+    ...datahubOperations,
   );
   return { registry, events };
 }
 
 /** Tables that have a trash. Used by the purge job. Deals (Stage 4) will register with `neverHardDelete: true`. */
 export function registerTrashTables(deps: ModuleDeps): void {
+  registerDatahubTrash();
   registerTrashTable({
     name: "files",
     beforePurge: async (ex, cutoff) => {

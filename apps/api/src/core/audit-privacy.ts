@@ -16,7 +16,7 @@ export function isPrivateAuditTarget(type: string | null | undefined): boolean {
   return !!type && privateTargets.has(type);
 }
 
-const VALUE_KEYS = new Set(["old", "new", "value", "values", "before", "after", "row", "data"]);
+const VALUE_KEYS = new Set(["old", "new", "value", "values", "before", "after", "row", "data", "current", "samples"]);
 
 function strip(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(strip);

@@ -29,6 +29,20 @@
       "when": 1794990649446,
       "tag": "0003_stage1_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794995170138,
+      "tag": "0004_datahub_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794995195983,
+      "tag": "0005_datahub_setup",
+      "breakpoints": true
     }
   ]
 }

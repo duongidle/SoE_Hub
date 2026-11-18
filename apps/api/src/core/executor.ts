@@ -196,7 +196,8 @@ export class OperationExecutor {
       command: op.name, result: "error", actor: opts.actor, requestId: opts.requestId, client: opts.client, errorCode: code,
       targetType: target?.type, targetId: target?.id,
       details: {
-        ...(isAppError(err) ? { message: err.message, details: err.details } : { message: "unexpected error" }),
+        // Error details can carry cell values (for example the current value of a conflicting cell): mask them for private targets.
+        ...(isAppError(err) ? { message: err.message, details: maskAuditDetails(target?.type, err.details) } : { message: "unexpected error" }),
         ...(target?.details !== undefined ? { target: maskAuditDetails(target.type, target.details) } : {}),
       },
     });

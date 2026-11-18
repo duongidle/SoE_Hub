@@ -21,6 +21,10 @@ export interface ListPageParams {
   filter?: FilterNode | null;
   /** Raw `?sort=` string. */
   sort?: string | null;
+  /** Already parsed sort (wins over `sort`). Used by tables whose field names are not plain identifiers. */
+  sortItems?: SortItem[] | null;
+  /** Extra select expressions (already aliased), appended to the selected fields. */
+  extraSelect?: SQL[];
   defaultSort: SortItem[];
   /** Raw `?fields=` string (comma separated). */
   select?: string | null;
@@ -58,7 +62,9 @@ const ID_FIELD = "id";
 
 function resolveSort(p: ListPageParams): SortItem[] {
   let items: SortItem[];
-  if (p.sort) {
+  if (p.sortItems && p.sortItems.length > 0) {
+    items = p.sortItems;
+  } else if (p.sort) {
     try {
       items = parseSortParam(p.sort);
     } catch (e) {
@@ -88,26 +94,31 @@ function resolveSelect(p: ListPageParams): string[] {
   return Object.entries(p.fields).filter(([, s]) => s.selectable !== false).map(([n]) => n);
 }
 
-/** Condition "strictly after the cursor row" for one key. */
-function after(expr: SQL, dir: "asc" | "desc", v: string | null): SQL {
-  if (dir === "asc") {
-    // NULLs last: after a null there is nothing larger.
-    return v === null ? sql`false` : sql`(${expr} > ${v} OR ${expr} IS NULL)`;
+/** Condition "strictly after the cursor row" for one key. `nullsFirst`: empty values come before all others. */
+function after(expr: SQL, dir: "asc" | "desc", v: string | null, nullsFirst: boolean): SQL {
+  if (v === null) {
+    // First: after a null come all non-null values. Last: after a null there is nothing.
+    return nullsFirst ? sql`${expr} IS NOT NULL` : sql`false`;
   }
-  // DESC, NULLs first: after a null come all non-null values.
-  return v === null ? sql`${expr} IS NOT NULL` : sql`${expr} < ${v}`;
+  const cmp = dir === "asc" ? sql`${expr} > ${v}` : sql`${expr} < ${v}`;
+  return nullsFirst ? cmp : sql`(${cmp} OR ${expr} IS NULL)`;
+}
+
+/** ASC puts NULLs last and DESC first unless the item says otherwise. */
+export function nullsFirstOf(s: SortItem): boolean {
+  return s.nulls ? s.nulls === "first" : s.dir === "desc";
 }
 
 function same(expr: SQL, v: string | null): SQL {
   return v === null ? sql`${expr} IS NULL` : sql`${expr} IS NOT DISTINCT FROM ${v}`;
 }
 
-export function buildKeysetCondition(exprs: SQL[], dirs: ("asc" | "desc")[], values: (string | null)[]): SQL {
+export function buildKeysetCondition(exprs: SQL[], dirs: ("asc" | "desc")[], values: (string | null)[], nullsFirst?: boolean[]): SQL {
   const ors: SQL[] = [];
   for (let i = 0; i < exprs.length; i++) {
     const ands: SQL[] = [];
     for (let j = 0; j < i; j++) ands.push(same(exprs[j]!, values[j]!));
-    ands.push(after(exprs[i]!, dirs[i]!, values[i]!));
+    ands.push(after(exprs[i]!, dirs[i]!, values[i]!, nullsFirst?.[i] ?? dirs[i] === "desc"));
     ors.push(sql`(${sql.join(ands, sql` AND `)})`);
   }
   return sql`(${sql.join(ors, sql` OR `)})`;
@@ -117,10 +128,11 @@ export async function listPage<T = Record<string, unknown>>(ex: Executor, p: Lis
   const limit = Math.min(Math.max(p.limit ?? DEFAULT_PAGE_LIMIT, 1), MAX_PAGE_LIMIT);
   const sort = resolveSort(p);
   const selected = resolveSelect(p);
-  const signature = sort.map((s) => `${s.field}:${s.dir}`).join(",");
+  const signature = sort.map((s) => `${s.field}:${s.dir}:${nullsFirstOf(s) ? "f" : "l"}`).join(",");
 
-  const sortExprs = sort.map((s) => exprOf(p.fields[s.field]!));
+  const sortExprs = sort.map((s) => p.fields[s.field]!.sortExpr ?? exprOf(p.fields[s.field]!));
   const dirs = sort.map((s) => s.dir);
+  const nullsFirst = sort.map(nullsFirstOf);
 
   const filterSql = compileFilter(p.filter, p.fields);
   const where: SQL[] = [];
@@ -135,15 +147,15 @@ export async function listPage<T = Record<string, unknown>>(ex: Executor, p: Lis
     if (c.s !== signature || c.k.length !== sort.length) {
       throw new AppError("invalid_filter", "Con trỏ không khớp với cách sắp xếp hiện tại.");
     }
-    keysetWhere.push(buildKeysetCondition(sortExprs, dirs, c.k));
+    keysetWhere.push(buildKeysetCondition(sortExprs, dirs, c.k, nullsFirst));
   }
   const whereSql = keysetWhere.length ? sql`WHERE ${sql.join(keysetWhere, sql` AND `)}` : sql``;
 
   const selectList = selected.map((n) => sql`${exprOf(p.fields[n]!)} AS ${sql.identifier(n)}`);
   const keyList = sortExprs.map((e, i) => sql`(${e})::text AS ${sql.identifier(`__k${i}`)}`);
-  const orderBy = sortExprs.map((e, i) => (dirs[i] === "asc" ? sql`${e} ASC NULLS LAST` : sql`${e} DESC NULLS FIRST`));
+  const orderBy = sortExprs.map((e, i) => sql`${e} ${dirs[i] === "asc" ? sql`ASC` : sql`DESC`} ${nullsFirst[i] ? sql`NULLS FIRST` : sql`NULLS LAST`}`);
 
-  const query = sql`SELECT ${sql.join([...selectList, ...keyList], sql`, `)} FROM ${p.from} ${whereSql} ORDER BY ${sql.join(orderBy, sql`, `)} LIMIT ${limit + 1}`;
+  const query = sql`SELECT ${sql.join([...selectList, ...(p.extraSelect ?? []), ...keyList], sql`, `)} FROM ${p.from} ${whereSql} ORDER BY ${sql.join(orderBy, sql`, `)} LIMIT ${limit + 1}`;
   const res = await ex.execute(query);
   const rows = res.rows as Record<string, unknown>[];
 
@@ -158,6 +170,8 @@ export async function listPage<T = Record<string, unknown>>(ex: Executor, p: Lis
   const items = page.map((r) => {
     const out: Record<string, unknown> = {};
     for (const n of selected) out[n] = r[n];
+    // Extra select expressions keep their alias.
+    for (const k of Object.keys(r)) if (!k.startsWith("__k") && !(k in out)) out[k] = r[k];
     return out as T;
   });
 

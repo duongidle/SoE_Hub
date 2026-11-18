@@ -61,6 +61,7 @@ export const PERMISSIONS = {
   "deal:template:manage": "Quản lý template Deals",
   "deal:team:export": "Xuất dữ liệu deal của team",
   "datahub:datahub:create": "Tạo datahub",
+  "datahub:datahub:use": "Dùng datahub (của mình hoặc được chia sẻ)",
   "form:form:create": "Tạo form",
   "knowledge:article:read": "Đọc Knowledge",
   "knowledge:article:post": "Đăng bài Knowledge",
@@ -81,7 +82,7 @@ export function isPermission(s: string): s is Permission {
 /** Every signed-in person, guests included (module1 section 3.4). */
 const SIGNED_IN: Permission[] = ["system:whoami", "system:setting:read", "file:read", "file:write", "events:subscribe", "auth:self", "notification:read"];
 /** Every signed-in person except guests. */
-const MEMBER: Permission[] = [...SIGNED_IN, "docs:read", "org:member:read", "knowledge:article:read"];
+const MEMBER: Permission[] = [...SIGNED_IN, "docs:read", "org:member:read", "knowledge:article:read", "datahub:datahub:use"];
 /** Work every member role can do with their own data (module1 section 3.2). */
 const OWN_WORK: Permission[] = ["deal:deal:read", "datahub:datahub:create", "form:form:create", "knowledge:article:post", "aihub:skill:post"];
 

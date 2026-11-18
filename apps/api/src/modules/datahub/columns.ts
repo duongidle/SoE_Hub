@@ -1,0 +1,376 @@
+import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { AppError, COLUMN_TYPES, DhNameSchema, toActorRef } from "@soe/shared";
+import { newId, rowHistory, type Executor, type FieldChange } from "@soe/db";
+import { defineCommand, defineQuery } from "../../core/registry";
+import type { HandlerCtx } from "../../core/types";
+import { loadTableAccess, type TableAccess } from "./access";
+import { buildSearchText, columnTypeDef, convertValue, listColumnTypes, newColumnKey, newOptionId, normalizeConfig, normalizeDisplay, normalizeOptions } from "./column-types";
+import { pgError, rethrowNameConflict } from "./errors";
+import { getLimits, quotaExceeded } from "./limits";
+import { emitStructure, Id, STRUCTURE_EVENT } from "./shared";
+import { columnOut, ColumnOut } from "./structure";
+import { columnFromDb, rowFromDb, TableSchema } from "./table-schema";
+import { CellError, type DhColumn, type SelectOption, type Stored } from "./types";
+
+type Raw = Record<string, unknown>;
+type Ctx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId">;
+
+const ColumnRef = z.string().min(1).max(100).describe("Mã cột hoặc tên cột.");
+
+async function loadColumn(db: Executor, access: TableAccess, ref: string, state: "alive" | "trashed" = "alive"): Promise<{ schema: TableSchema; col: DhColumn }> {
+  const schema = await TableSchema.load(db, access);
+  const col = schema.tryResolve(ref);
+  const ok = col && (state === "alive" ? !col.deletedAt : !!col.deletedAt);
+  if (!col || !ok) throw new AppError("not_found", `Không tìm thấy cột "${ref}".`);
+  return { schema, col };
+}
+
+async function reload(db: Executor, access: TableAccess, id: string): Promise<DhColumn> {
+  const res = await db.execute(sql`SELECT * FROM dh_columns WHERE ${access.scope()} AND id = ${id}::uuid`);
+  return columnFromDb(res.rows[0] as Raw);
+}
+
+/** Validates a default value against the column type (stored form). */
+function parseDefault(type: string, config: Record<string, unknown>, name: string, key: string, raw: unknown): Stored | null {
+  if (raw === null || raw === undefined) return null;
+  const def = columnTypeDef(type);
+  if (!def.writable) throw new AppError("validation_error", `Cột kiểu "${def.label}" không có giá trị mặc định.`);
+  try {
+    return def.parse(raw, { key, name, config });
+  } catch (e) {
+    if (e instanceof CellError) throw new AppError("validation_error", `Giá trị mặc định không hợp lệ: ${e.message}`);
+    throw e;
+  }
+}
+
+/** Index for "unique" columns: a unique partial index on the cell text. */
+async function ensureUnique(ctx: Ctx, access: TableAccess, col: { key: string; name: string }): Promise<void> {
+  try {
+    await ctx.db.execute(sql`SELECT soe_dh_ensure_index(${access.tableId}::uuid, ${col.key}, 'uniq')`);
+  } catch (e) {
+    if (pgError(e).code === "23505") {
+      throw new AppError("conflict", `Cột "${col.name}" đang có giá trị trùng nhau nên chưa đặt được "duy nhất". Sửa các giá trị trùng rồi thử lại.`, { reason: "duplicate_values", column: col.name });
+    }
+    throw e;
+  }
+}
+
+async function nextPosition(db: Executor, access: TableAccess): Promise<number> {
+  const res = await db.execute(sql`SELECT coalesce(max(position), -1) + 1 AS next FROM dh_columns WHERE ${access.scope()} AND deleted_at IS NULL`);
+  return (res.rows[0] as { next: number }).next;
+}
+
+const ColumnBody = {
+  name: DhNameSchema,
+  type: z.enum(COLUMN_TYPES),
+  config: z.record(z.string(), z.unknown()).optional(),
+  required: z.boolean().optional(),
+  unique: z.boolean().optional(),
+  default_value: z.unknown().optional(),
+  description: z.string().trim().max(1000).nullable().optional(),
+  display: z.record(z.string(), z.unknown()).optional(),
+  position: z.number().int().min(0).max(1000).optional(),
+};
+
+// ------------------------------------------------------------------------------------------------
+// type change
+// ------------------------------------------------------------------------------------------------
+
+export interface ConversionReport {
+  total_rows: number;
+  with_value: number;
+  unchanged: number;
+  converted: number;
+  cannot_convert: number;
+  /** First rows whose value cannot be converted (value shown so the owner can decide). */
+  samples: { row_id: string; row_no: number; value: unknown; reason: string }[];
+}
+
+/** Target config for a type change; text-like values turn into options of a select when none were given. */
+async function targetConfig(db: Executor, access: TableAccess, col: DhColumn, type: string, raw: Record<string, unknown> | undefined): Promise<Record<string, unknown>> {
+  const cfg = normalizeConfig(type, raw ?? columnTypeDef(type).defaultConfig());
+  if ((type === "single_select" || type === "multi_select") && (cfg.options as SelectOption[]).length === 0 && col.type !== "single_select" && col.type !== "multi_select") {
+    const key = col.key;
+    const res = await db.execute(sql`SELECT DISTINCT ${sql.raw(`data->>'${key}'`)} AS v FROM dh_rows WHERE ${access.scope()} AND deleted_at IS NULL AND data ? ${key} ORDER BY 1 LIMIT 201`);
+    const vals = (res.rows as { v: string | null }[]).map((r) => r.v).filter((v): v is string => !!v && v.trim() !== "" && v.length <= 100);
+    if (vals.length > 0 && vals.length <= 200) cfg.options = normalizeOptions(vals.map((name) => ({ name, id: newOptionId() })));
+  }
+  return cfg;
+}
+
+const SCAN_BATCH = 2000;
+
+/** Scans every live row that has a value in the column and converts it. With `apply`, writes rows and their history. */
+async function convertColumn(ctx: Ctx, access: TableAccess, schema: TableSchema, col: DhColumn, toType: string, toConfig: Record<string, unknown>, apply: boolean): Promise<ConversionReport> {
+  const to = { key: col.key, name: col.name, config: toConfig, type: toType as DhColumn["type"] };
+  const report: ConversionReport = { total_rows: 0, with_value: 0, unchanged: 0, converted: 0, cannot_convert: 0, samples: [] };
+  const totalRes = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE ${access.scope()} AND deleted_at IS NULL`);
+  report.total_rows = (totalRes.rows[0] as { n: number }).n;
+  const newCols = schema.alive.map((c) => (c.id === col.id ? { ...c, type: toType as DhColumn["type"], config: toConfig } : c));
+  const actorRef = toActorRef(ctx.actor);
+  let last = "00000000-0000-0000-0000-000000000000";
+  for (;;) {
+    const res = await ctx.db.execute(sql`SELECT id, row_no, version, data FROM dh_rows WHERE ${access.scope()} AND deleted_at IS NULL AND id > ${last}::uuid AND data ? ${col.key} ORDER BY id LIMIT ${SCAN_BATCH}`);
+    const rows = res.rows as Raw[];
+    if (rows.length === 0) break;
+    last = rows[rows.length - 1]!.id as string;
+    const updates: { id: string; data: Record<string, Stored>; search: string }[] = [];
+    const history: { rowId: string; version: number; changes: FieldChange[] }[] = [];
+    for (const r of rows) {
+      const row = rowFromDb(r);
+      const old = row.data[col.key] ?? null;
+      report.with_value++;
+      const conv = convertValue(col, to, old);
+      if (!conv.ok) {
+        report.cannot_convert++;
+        if (report.samples.length < 20) report.samples.push({ row_id: row.id, row_no: row.rowNo, value: old, reason: `Không chuyển được sang kiểu "${columnTypeDef(toType).label}".` });
+      } else if (JSON.stringify(conv.value) === JSON.stringify(old)) {
+        report.unchanged++;
+        continue;
+      } else {
+        report.converted++;
+      }
+      if (!apply) continue;
+      const next = { ...row.data };
+      const nv = conv.ok ? conv.value : null;
+      if (nv === null) delete next[col.key];
+      else next[col.key] = nv;
+      // The old value stays in the row history, so a cleared value can be read back and restored by hand.
+      updates.push({ id: row.id, data: next, search: buildSearchText(next, newCols) });
+      history.push({ rowId: row.id, version: row.version + 1, changes: [{ field: col.key, old, new: nv }] });
+    }
+    if (apply && updates.length) {
+      await ctx.db.execute(sql`UPDATE dh_rows r SET data = v.data, search = v.search, version = r.version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid
+        FROM jsonb_to_recordset(${JSON.stringify(updates)}::jsonb) AS v(id uuid, data jsonb, search text)
+        WHERE ${access.scope("r")} AND r.id = v.id`);
+      await ctx.db.insert(rowHistory).values(history.map((h) => ({ tableId: access.tableId, rowId: h.rowId, version: h.version, op: "update", changes: h.changes, actor: actorRef })));
+    }
+  }
+  return report;
+}
+
+const ReportOut = z.object({
+  total_rows: z.number().int(),
+  with_value: z.number().int(),
+  unchanged: z.number().int(),
+  converted: z.number().int(),
+  cannot_convert: z.number().int(),
+  samples: z.array(z.object({ row_id: Id, row_no: z.number().int(), value: z.unknown(), reason: z.string() })),
+});
+
+function checkTypeChange(col: DhColumn, type: string): void {
+  const from = columnTypeDef(col.type);
+  const to = columnTypeDef(type);
+  if (!from.writable || from.virtual || !from.available) throw new AppError("validation_error", `Không đổi kiểu cột "${from.label}".`);
+  if (!to.writable || to.virtual || !to.available || type === "attachment") throw new AppError("validation_error", `Không đổi sang kiểu "${to.label}".`);
+  if (type === col.type) throw new AppError("validation_error", "Cột đã có kiểu này. Dùng sửa cột để đổi cấu hình.");
+}
+
+export const columnOperations = [
+  defineQuery({
+    name: "datahub.column.types",
+    summary: "Danh mục kiểu cột và cấu hình mặc định của từng kiểu.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({}),
+    output: z.array(z.object({ type: z.string(), label: z.string(), group: z.string(), available: z.boolean(), writable: z.boolean(), default_config: z.record(z.string(), z.unknown()), can_be_unique: z.boolean(), filterable: z.boolean(), sortable: z.boolean() })),
+    http: { method: "GET", path: "/datahub/column-types" },
+    handler: async () =>
+      listColumnTypes().map((d) => ({ type: d.type, label: d.label, group: d.group, available: d.available, writable: d.writable, default_config: d.defaultConfig(), can_be_unique: d.uniqueable, filterable: d.fieldType !== null, sortable: d.sortable })),
+  }),
+
+  defineCommand({
+    name: "datahub.column.create",
+    summary: "Thêm cột vào bảng (mặc định tối đa 70 cột, trần 200). Tên cột không trùng trong bảng.",
+    description: "Mã cột (`key`) do hệ thống sinh, không đổi dù đổi tên. Kiểu công thức/liên kết/lookup/rollup chưa dùng được (Stage 2B).",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    emits: [STRUCTURE_EVENT],
+    input: z.object({ table_id: Id, ...ColumnBody }),
+    output: ColumnOut,
+    http: { method: "POST", path: "/tables/:table_id/columns", status: 201 },
+    handler: async (ctx, i) => {
+      const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      const def = columnTypeDef(i.type);
+      if (!def.available) throw new AppError("validation_error", `Kiểu cột "${def.label}" chưa dùng được.`);
+      const limits = await getLimits(ctx.db, ctx.actor.userId);
+      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NULL`);
+      if ((cnt.rows[0] as { n: number }).n >= limits.columns) quotaExceeded("cột trong một bảng", limits.columns);
+      const config = normalizeConfig(i.type, i.config);
+      const display = normalizeDisplay(i.display);
+      if (i.unique && !def.uniqueable) throw new AppError("validation_error", `Cột kiểu "${def.label}" không đặt được "duy nhất".`);
+      const key = newColumnKey();
+      const dflt = parseDefault(i.type, config, i.name, key, i.default_value);
+      const id = newId();
+      const position = i.position ?? (await nextPosition(ctx.db, acc));
+      try {
+        await ctx.db.execute(sql`INSERT INTO dh_columns (id, table_id, key, name, type, config, position, required, is_unique, default_value, description, display, created_by, updated_by)
+          VALUES (${id}::uuid, ${acc.tableId}::uuid, ${key}, ${i.name}, ${i.type}, ${JSON.stringify(config)}::jsonb, ${position}::int, ${i.required ?? false}, ${i.unique ?? false}, ${dflt === null ? null : JSON.stringify(dflt)}::jsonb, ${i.description ?? null}, ${JSON.stringify(display)}::jsonb, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
+      } catch (e) {
+        rethrowNameConflict(e);
+      }
+      // Auto number on a table that already has rows: number the existing rows by row number (system fill, no history).
+      if (i.type === "auto_number") {
+        const start = (config.start as number | undefined) ?? 1;
+        await ctx.db.execute(sql`UPDATE dh_rows r SET data = r.data || jsonb_build_object(${key}::text, ${start - 1}::int + n.rn)
+          FROM (SELECT id, row_number() OVER (ORDER BY row_no) AS rn FROM dh_rows WHERE ${acc.scope()}) n WHERE ${acc.scope("r")} AND r.id = n.id`);
+        const c = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE ${acc.scope()}`);
+        await ctx.db.execute(sql`UPDATE dh_columns SET config = jsonb_set(config, '{seq}', to_jsonb(${start - 1 + (c.rows[0] as { n: number }).n}::int)) WHERE ${acc.scope()} AND id = ${id}::uuid`);
+      }
+      if (i.unique) await ensureUnique(ctx, acc, { key, name: i.name });
+      ctx.audit({ type: "datahub_column", id, details: { table_id: acc.tableId, name: i.name, type: i.type } });
+      await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_created");
+      return columnOut(await reload(ctx.db, acc, id));
+    },
+  }),
+
+  defineCommand({
+    name: "datahub.column.update",
+    summary: "Sửa cột: tên, mô tả, bắt buộc, duy nhất, mặc định, cấu hình (lựa chọn), định dạng hiển thị, vị trí. Không đổi kiểu ở đây.",
+    description: "Cột gọi bằng mã hoặc tên. Đổi kiểu dùng `datahub.column.type_change` (có xem trước).",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    emits: [STRUCTURE_EVENT],
+    input: z.object({
+      table_id: Id,
+      column: ColumnRef,
+      name: DhNameSchema.optional(),
+      config: z.record(z.string(), z.unknown()).optional(),
+      required: z.boolean().optional(),
+      unique: z.boolean().optional(),
+      default_value: z.unknown().optional(),
+      description: z.string().trim().max(1000).nullable().optional(),
+      display: z.record(z.string(), z.unknown()).optional(),
+      position: z.number().int().min(0).max(1000).optional(),
+      version: z.number().int().min(1).optional(),
+    }),
+    output: ColumnOut,
+    http: { method: "PATCH", path: "/tables/:table_id/columns/:column" },
+    handler: async (ctx, i) => {
+      const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      const { col } = await loadColumn(ctx.db, acc, i.column);
+      if (i.version !== undefined && i.version !== col.version) throw new AppError("conflict", undefined, { current_version: col.version, sent_version: i.version });
+      const def = columnTypeDef(col.type);
+      const config = i.config !== undefined ? normalizeConfig(col.type, { ...i.config }) : col.config;
+      // Keep the internal counter of an auto-number column.
+      if (col.type === "auto_number" && i.config !== undefined && col.config.seq !== undefined) config.seq = col.config.seq;
+      const display = i.display !== undefined ? normalizeDisplay(i.display) : col.display;
+      const name = i.name ?? col.name;
+      const unique = i.unique ?? col.isUnique;
+      if (unique && !def.uniqueable) throw new AppError("validation_error", `Cột kiểu "${def.label}" không đặt được "duy nhất".`);
+      let dflt: Stored | null = col.defaultValue as Stored | null;
+      if (i.default_value !== undefined || i.config !== undefined) dflt = parseDefault(col.type, config, name, col.key, i.default_value !== undefined ? i.default_value : col.defaultValue);
+      try {
+        await ctx.db.execute(sql`UPDATE dh_columns SET name = ${name}, config = ${JSON.stringify(config)}::jsonb, required = ${i.required ?? col.required}, is_unique = ${unique},
+          default_value = ${dflt === null ? null : JSON.stringify(dflt)}::jsonb, description = ${i.description === undefined ? col.description : i.description}, display = ${JSON.stringify(display)}::jsonb,
+          position = ${i.position ?? col.position}::int, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
+      } catch (e) {
+        rethrowNameConflict(e);
+      }
+      if (unique && !col.isUnique) await ensureUnique(ctx, acc, { key: col.key, name });
+      if (!unique && col.isUnique) await ctx.db.execute(sql`SELECT soe_dh_drop_indexes(${acc.tableId}::uuid, ${col.key}, ARRAY['uniq'])`);
+      ctx.audit({ type: "datahub_column", id: col.id, details: { table_id: acc.tableId, name } });
+      await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_updated");
+      return columnOut(await reload(ctx.db, acc, col.id));
+    },
+  }),
+
+  defineCommand({
+    name: "datahub.column.delete",
+    summary: "Xoá cột vào thùng rác (dữ liệu của cột được giữ để khôi phục trong 7 ngày).",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    emits: [STRUCTURE_EVENT],
+    input: z.object({ table_id: Id, column: ColumnRef }),
+    output: z.object({ id: Id, deleted: z.literal(true) }),
+    http: { method: "DELETE", path: "/tables/:table_id/columns/:column" },
+    handler: async (ctx, i) => {
+      const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      const { col } = await loadColumn(ctx.db, acc, i.column);
+      await ctx.db.execute(sql`UPDATE dh_columns SET deleted_at = now(), deleted_by = ${ctx.actor.userId}::uuid, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
+      ctx.audit({ type: "datahub_column", id: col.id, details: { table_id: acc.tableId, name: col.name } });
+      await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_deleted");
+      return { id: col.id, deleted: true as const };
+    },
+  }),
+
+  defineCommand({
+    name: "datahub.column.restore",
+    summary: "Khôi phục cột từ thùng rác. Tên đã bị dùng thì gửi `name` mới.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    emits: [STRUCTURE_EVENT],
+    input: z.object({ table_id: Id, column: ColumnRef, name: DhNameSchema.optional() }),
+    output: ColumnOut,
+    http: { method: "POST", path: "/tables/:table_id/columns/:column/restore" },
+    handler: async (ctx, i) => {
+      const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      const { col } = await loadColumn(ctx.db, acc, i.column, "trashed");
+      const limits = await getLimits(ctx.db, ctx.actor.userId);
+      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NULL`);
+      if ((cnt.rows[0] as { n: number }).n >= limits.columns) quotaExceeded("cột trong một bảng", limits.columns);
+      try {
+        await ctx.db.execute(sql`UPDATE dh_columns SET deleted_at = NULL, deleted_by = NULL, name = ${i.name ?? col.name}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
+      } catch (e) {
+        rethrowNameConflict(e);
+      }
+      ctx.audit({ type: "datahub_column", id: col.id, details: { table_id: acc.tableId, name: i.name ?? col.name } });
+      await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_restored");
+      return columnOut(await reload(ctx.db, acc, col.id));
+    },
+  }),
+
+  defineCommand({
+    name: "datahub.column.type_preview",
+    summary: "Xem trước đổi kiểu cột: bao nhiêu giá trị chuyển được, bao nhiêu không. Không ghi gì.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    audit: "none",
+    input: z.object({ table_id: Id, column: ColumnRef, type: z.enum(COLUMN_TYPES), config: z.record(z.string(), z.unknown()).optional() }),
+    output: ReportOut.extend({ new_config: z.record(z.string(), z.unknown()) }),
+    http: { method: "POST", path: "/tables/:table_id/columns/:column/type-preview" },
+    handler: async (ctx, i) => {
+      const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      const { schema, col } = await loadColumn(ctx.db, acc, i.column);
+      checkTypeChange(col, i.type);
+      const cfg = await targetConfig(ctx.db, acc, col, i.type, i.config);
+      const report = await convertColumn(ctx, acc, schema, col, i.type, cfg, false);
+      return { ...report, new_config: cfg };
+    },
+  }),
+
+  defineCommand({
+    name: "datahub.column.type_change",
+    summary: "Đổi kiểu cột. Giá trị không chuyển được bị xoá khỏi ô nhưng giá trị cũ nằm trong lịch sử dòng.",
+    description: "Có giá trị không chuyển được thì phải gửi `accept_data_loss: true` (xem trước bằng `type_preview`). Mọi dòng bị đổi đều có bản lịch sử cũ → mới.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    emits: [STRUCTURE_EVENT],
+    input: z.object({ table_id: Id, column: ColumnRef, type: z.enum(COLUMN_TYPES), config: z.record(z.string(), z.unknown()).optional(), accept_data_loss: z.boolean().default(false) }),
+    output: z.object({ column: ColumnOut, report: ReportOut }),
+    http: { method: "POST", path: "/tables/:table_id/columns/:column/type" },
+    handler: async (ctx, i) => {
+      const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      const { schema, col } = await loadColumn(ctx.db, acc, i.column);
+      checkTypeChange(col, i.type);
+      const cfg = await targetConfig(ctx.db, acc, col, i.type, i.config);
+      const dry = await convertColumn(ctx, acc, schema, col, i.type, cfg, false);
+      if (dry.cannot_convert > 0 && !i.accept_data_loss) {
+        throw new AppError("validation_error", `${dry.cannot_convert} giá trị không chuyển được sang kiểu mới. Xem trước rồi gửi accept_data_loss: true nếu đồng ý xoá các ô đó (giá trị cũ vẫn nằm trong lịch sử).`, { cannot_convert: dry.cannot_convert, samples: dry.samples });
+      }
+      ctx.audit({ type: "datahub_column", id: col.id, details: { table_id: acc.tableId, from: col.type, to: i.type, cannot_convert: dry.cannot_convert } });
+      const report = await convertColumn(ctx, acc, schema, col, i.type, cfg, true);
+      const nextDef = columnTypeDef(i.type);
+      const keepUnique = col.isUnique && nextDef.uniqueable;
+      await ctx.db.execute(sql`UPDATE dh_columns SET type = ${i.type}, config = ${JSON.stringify(cfg)}::jsonb, display = '{}'::jsonb, default_value = NULL, is_unique = ${keepUnique},
+        version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
+      // The old indexes were built for the old value form: drop them and rebuild the unique one.
+      await ctx.db.execute(sql`SELECT soe_dh_drop_indexes(${acc.tableId}::uuid, ${col.key})`);
+      await ctx.db.execute(sql`DELETE FROM dh_index_requests WHERE ${acc.scope()} AND column_key = ${col.key}`);
+      if (keepUnique) await ensureUnique(ctx, acc, col);
+      await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_type_changed");
+      return { column: columnOut(await reload(ctx.db, acc, col.id)), report };
+    },
+  }),
+];
