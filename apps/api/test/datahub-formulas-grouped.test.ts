@@ -25,7 +25,7 @@ describe("grouped SQL = row-by-row scan", () => {
     const dh = await a("datahub.datahub.create", { name: `Gom nhóm ${Math.random()}` });
     const src = await a("datahub.table.create", { datahub_id: dh.id, name: "Nguồn" });
     const dst = await a("datahub.table.create", { datahub_id: dh.id, name: "Đích" });
-    for (const [n, ty] of [["k", "text"], ["v", "number"], ["d", "date"], ["s", "text"], ["w", "date"]] as const) await a("datahub.column.create", { table_id: src.id, name: n, type: ty });
+    for (const [n, ty] of [["k", "text"], ["v", "number"], ["d", "date"], ["s", "text"], ["w", "date"], ["x", "number"]] as const) await a("datahub.column.create", { table_id: src.id, name: n, type: ty });
     for (const [n, ty] of [["k", "text"], ["kn", "number"], ["d", "date"]] as const) await a("datahub.column.create", { table_id: dst.id, name: n, type: ty });
     const S = (name: string) => `[Nguồn].[${name}]`;
     const srcRows: Record<string, unknown>[] = [
@@ -38,9 +38,15 @@ describe("grouped SQL = row-by-row scan", () => {
       { v: 99, d: "2026-01-05" },
       { k: "Ê Đ", v: 3 },
       { k: "ê đ", v: 4 },
+      // rows whose computed column `e` holds an error (x = -1): in the "A" group, and in a group nobody asks about
+      { k: "A", x: -1 },
+      { k: "A", x: 5 },
+      { k: "B", x: 7 },
+      { k: "Z", x: -1 },
     ];
     await a("datahub.row.batch", { table_id: src.id, ops: srcRows.map((data) => ({ op: "create", data })) });
-    const dstRows: Record<string, unknown>[] = [{ k: "A", d: "2026-01-05" }, { k: "b", d: "2026-02-10" }, { k: "C", d: "2026-03-01" }, { k: "zzz" }, { k: "5", kn: 5 }, { kn: 5 }, { k: "ê Đ" }, { k: "B", d: "2026-03-01" }];
+    await a("datahub.column.create", { table_id: src.id, name: "e", type: "formula", config: { formula: "=IF([x] < 0, 1 / 0, [x])" } });
+    const dstRows: Record<string, unknown>[] = [{ k: "A", d: "2026-01-05" }, { k: "b", d: "2026-02-10" }, { k: "C", d: "2026-03-01" }, { k: "zzz" }, { k: "5", kn: 5 }, { kn: 5 }, { k: "ê Đ" }, { k: "B", d: "2026-03-01" }, { k: "Z" }];
     await a("datahub.row.batch", { table_id: dst.id, ops: dstRows.map((data) => ({ op: "create", data })) });
 
     const pairs: [string, string, string][] = [
@@ -66,6 +72,17 @@ describe("grouped SQL = row-by-row scan", () => {
       ["zero key COUNTA", `=COUNTA(${S("k")})`, `=COUNTIFS(${S("k")}, "<>")`],
       ["zero key AVERAGE", `=AVERAGE(${S("v")})`, `=AVERAGEIFS(${S("v")}, ${S("v")}, ">-1000000")`],
       ["zero key MAX date", `=MAX(${S("w")})`, `=MAXIFS(${S("w")}, ${S("w")}, ">0")`],
+      // Errors in the aggregated column: matching rows return the error, other groups are unaffected (Excel).
+      ["error SUMIFS", `=SUMIFS(${S("e")}, ${S("k")}, [k])`, `=SUMIFS(${S("e")}, ${S("k")}, "="&[k])`],
+      ["error AVERAGEIFS", `=AVERAGEIFS(${S("e")}, ${S("k")}, [k])`, `=AVERAGEIFS(${S("e")}, ${S("k")}, "="&[k])`],
+      ["error MINIFS", `=MINIFS(${S("e")}, ${S("k")}, [k])`, `=MINIFS(${S("e")}, ${S("k")}, "="&[k])`],
+      ["error MAXIFS", `=MAXIFS(${S("e")}, ${S("k")}, [k])`, `=MAXIFS(${S("e")}, ${S("k")}, "="&[k])`],
+      ["error SUMIF", `=SUMIF(${S("k")}, [k], ${S("e")})`, `=SUMIF(${S("k")}, "="&[k], ${S("e")})`],
+      ["error XLOOKUP", `=XLOOKUP([k], ${S("k")}, ${S("e")}, "-")`, `=XLOOKUP([k], ${S("k")}, ${S("e")}, "-", 2)`],
+      ["zero key error SUM", `=SUM(${S("e")})`, `=SUM(FILTER(${S("e")}, ${S("k")} <> "@@"))`],
+      ["zero key error MAX", `=MAX(${S("e")})`, `=MAX(FILTER(${S("e")}, ${S("k")} <> "@@"))`],
+      ["zero key error COUNT", `=COUNT(${S("e")})`, `=COUNT(FILTER(${S("e")}, ${S("k")} <> "@@"))`],
+      ["zero key error COUNTA", `=COUNTA(${S("e")})`, `=COUNTA(FILTER(${S("e")}, ${S("k")} <> "@@"))`],
       ["composite", `=IFERROR(SUMIFS(${S("v")}, ${S("k")}, [k]) / COUNTIFS(${S("k")}, [k]), 0) + 1`, `=IFERROR(SUMIFS(${S("v")}, ${S("k")}, "="&[k]) / COUNTIFS(${S("k")}, "="&[k]), 0) + 1`],
     ];
     const cols: [string, { key: string }, { key: string }][] = [];
@@ -103,5 +120,21 @@ describe("grouped SQL = row-by-row scan", () => {
     expect(byLabel("XLOOKUP", 3)).toBe("-");
     expect(byLabel("two criteria", 7)).toBe(1);
     expect(byLabel("zero key SUM", 0)).toBe(149.5);
+    // errors: the "A" group has an error cell, so its sum is that error; "b" (B) has none; the zero-key total sees every row
+    expect(byLabel("error SUMIFS", 0)).toBe("#DIV/0!");
+    expect(byLabel("error SUMIFS", 1)).toBe(7);
+    expect(byLabel("error XLOOKUP", 8)).toBe("#DIV/0!"); // the first "Z" row holds an error: a lookup returns it
+    expect(byLabel("zero key error SUM", 0)).toBe("#DIV/0!");
+    expect(byLabel("zero key error COUNT", 0)).toBe(2); // COUNT ignores errors
+    expect(byLabel("zero key error COUNTA", 0)).toBe(4); // COUNTA counts error cells (x = 5, 7 and the two errors)
+    // fixing the source error clears the dependent error (recalculation)
+    const srcRowsNow = (await a("datahub.row.list", { table_id: src.id, limit: 100 })).items as { id: string; version: number; data: Record<string, unknown> }[];
+    const xKey = (await a("datahub.table.get", { table_id: src.id })).columns.find((c: { name: string }) => c.name === "x").key;
+    for (const r of srcRowsNow.filter((r) => r.data[xKey] === -1)) await a("datahub.row.update", { table_id: src.id, row_id: r.id, data: { x: 1 }, version: r.version });
+    await drainOutbox(t);
+    const fixed = (await a("datahub.row.list", { table_id: dst.id, limit: 100 })).items as { data: Record<string, unknown> }[];
+    const sumKey = cols.find((c) => c[0] === "error SUMIFS")![1].key;
+    expect(fixed[0]!.data[sumKey]).toBe(6); // 1 + 5
+    expect(fixed[0]!.data[cols.find((c) => c[0] === "zero key error SUM")![1].key]).toBe(14); // 1 + 5 + 7 + 1
   }, 60_000);
 });

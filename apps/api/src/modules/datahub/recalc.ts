@@ -187,6 +187,8 @@ interface Acc {
   mn: number | null;
   mx: number | null;
   nb: number;
+  /** First error cell (by row number) of the aggregated column among the rows of the group. */
+  err?: { rowNo: number; code: string };
   rowNo?: number;
   v?: Value;
 }
@@ -232,7 +234,10 @@ async function buildPlan(db: Executor, ix: OwnerIndex, g: GroupableCall): Promis
       const num = numExpr(target);
       const k = assertColumnKey(target.key);
       parts.push(sql`count(${num})::float8 AS nn`, sql`coalesce(sum(${num}), 0)::float8 AS s`, sql`min(${num})::float8 AS mn`, sql`max(${num})::float8 AS mx`);
-      parts.push(sql`count(*) FILTER (WHERE ${sql.raw(`data->'${k}' IS NOT NULL AND data->>'${k}' <> ''`)})::float8 AS nb`);
+      // COUNTA counts error cells (Excel), so a cell with an error key counts as non-blank.
+      parts.push(sql`count(*) FILTER (WHERE ${sql.raw(`(data->'${k}' IS NOT NULL AND data->>'${k}' <> '') OR data ? '${errKey(k)}'`)})::float8 AS nb`);
+      // The first error cell by row number: sum, average, min and max return it (Excel propagates errors).
+      parts.push(sql`min(row_no) FILTER (WHERE ${sql.raw(`data ? '${errKey(k)}'`)})::float8 AS er`, sql`(array_agg(${sql.raw(`data->>'${errKey(k)}'`)} ORDER BY row_no) FILTER (WHERE ${sql.raw(`data ? '${errKey(k)}'`)}))[1] AS ec`);
     }
     const groupBy = keyCols.length ? sql`GROUP BY ${sql.join(keyCols.map((c) => sql.raw(`data->'${assertColumnKey(c.key)}'`)), sql`, `)}` : sql``;
     const res = await db.execute(sql`SELECT ${sql.join(parts, sql`, `)} FROM dh_rows WHERE ${where} ${groupBy}`);
@@ -246,10 +251,12 @@ async function buildPlan(db: Executor, ix: OwnerIndex, g: GroupableCall): Promis
       if (r.mn !== null && r.mn !== undefined) a.mn = a.mn === null ? Number(r.mn) : Math.min(a.mn, Number(r.mn));
       if (r.mx !== null && r.mx !== undefined) a.mx = a.mx === null ? Number(r.mx) : Math.max(a.mx, Number(r.mx));
       a.nb += Number(r.nb ?? 0);
+      if (r.er !== null && r.er !== undefined && (!a.err || Number(r.er) < a.err.rowNo)) a.err = { rowNo: Number(r.er), code: String(r.ec) };
       map.set(key, a);
     }
     const zero: Acc = { n: 0, nn: 0, s: 0, mn: null, mx: null, nb: 0 };
     const answer = (a: Acc): Value => {
+      if (a.err && (g.agg === "sum" || g.agg === "avg" || g.agg === "min" || g.agg === "max")) return new FError(a.err.code as never);
       switch (g.agg) {
         case "count":
           return a.n;
@@ -530,7 +537,8 @@ async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<
       else {
         const links = Array.isArray(row.data[relKey]) ? (row.data[relKey] as string[]) : [];
         const values = links.filter((id) => targets.has(id)).map((id) => targets.get(id)!);
-        const bad = values.find((v) => v instanceof FError) as FError | undefined;
+        // Same rule as the matching aggregate: sum, avg, min, max and concat return the first error; count, counta, countunique do not.
+        const bad = ["count", "counta", "countunique"].includes(col.config.fn as string) && col.type === "rollup" ? undefined : (values.find((v) => v instanceof FError) as FError | undefined);
         if (bad) out = { kind: "error", code: bad.code };
         else if (col.type === "rollup") out = valueToStored(resultType as ResultType, rollup(col.config.fn as string, values));
         else if (single || values.length <= 1) out = valueToStored(resultType as ResultType, values.length ? values[0]! : null);

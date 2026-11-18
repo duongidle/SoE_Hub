@@ -614,3 +614,27 @@ describe("SQL export view and trash purge", () => {
     expect(Number(left[0]!.count)).toBe(0);
   });
 });
+
+describe("errors in a rolled-up column", () => {
+  it("sum/avg/min/max/concat return the first error; count and counta do not; fixing the source clears it", async () => {
+    const dh = await a("datahub.datahub.create", { name: `Rollup lỗi ${Math.random()}` });
+    const p = await a("datahub.table.create", { datahub_id: dh.id, name: "P" });
+    const c = await a("datahub.table.create", { datahub_id: dh.id, name: "C" });
+    await a("datahub.column.create", { table_id: c.id, name: "X", type: "number" });
+    await a("datahub.column.create", { table_id: c.id, name: "E", type: "formula", config: { formula: "=10 / [X]" } });
+    await a("datahub.column.create", { table_id: p.id, name: "Con", type: "relation", config: { target_table_id: c.id } });
+    const mk = (fn: string) => a("datahub.column.create", { table_id: p.id, name: `r_${fn}`, type: "rollup", config: { relation: "Con", target_column: "E", fn } });
+    const cols: Record<string, { key: string }> = {};
+    for (const fn of ["sum", "max", "count", "counta"]) cols[fn] = await mk(fn);
+    const c1 = await a("datahub.row.create", { table_id: c.id, data: { X: 2 } });
+    const c2 = await a("datahub.row.create", { table_id: c.id, data: { X: 0 } });
+    const row = await a("datahub.row.create", { table_id: p.id, data: { Con: [c1.id, c2.id] } });
+    await drainOutbox(t);
+    const got = (await a("datahub.row.get", { table_id: p.id, row_id: row.id })).data;
+    expect([got[cols.sum!.key], got[cols.max!.key], got[cols.count!.key], got[cols.counta!.key]]).toEqual(["#DIV/0!", "#DIV/0!", 1, 2]);
+    await a("datahub.row.update", { table_id: c.id, row_id: c2.id, data: { X: 5 }, version: c2.version });
+    await drainOutbox(t);
+    const fixed = (await a("datahub.row.get", { table_id: p.id, row_id: row.id })).data;
+    expect([fixed[cols.sum!.key], fixed[cols.max!.key], fixed[cols.count!.key], fixed[cols.counta!.key]]).toEqual([7, 5, 2, 2]);
+  });
+});

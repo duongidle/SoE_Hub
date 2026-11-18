@@ -57,6 +57,7 @@ Việc kế: **Opus rà soát 2B**, rồi chờ Dương bảo làm 2C (giao di�
 - Mới so với 2A: 79 test (formula 26, `datahub-formulas` 43, gom nhóm 1, tốc độ 7, golden 2). 2B chưa có giao diện nên không có test trình duyệt.
 - Tốc độ 100.000 x 100.000 dòng, tính lại cả cột: SUMIFS 1,76 s; COUNTIFS 2 điều kiện 2,33 s; XLOOKUP 2,08 s; AVERAGEIFS 1,97 s; MAXIFS ngày 2,34 s; gộp 2,52 s; sửa 1 dòng nguồn rồi 6 cột phụ thuộc tính lại 3,95 s.
 - Golden test: 3.322/3.322 công thức file mẫu parse và chạy, 3.321 khớp Excel (1 công thức `TODAY()` chỉ kiểm chạy).
+- Sau rà soát của Opus: lỗi ở cột nguồn nay truyền đi như Excel (SQL gom nhóm và duyệt từng dòng giống nhau, test tương đương mở rộng, test rollup, test sửa nguồn thì lỗi phụ thuộc hết).
 - Lỗi tìm thấy khi test và đã sửa: (1) cột kẹt `running` vì mốc claim mất phần micro giây; (2) vị trí lỗi tên hàm tính trên văn bản đã đổi sang mã; (3) `IFERROR(a/b, "")` bị suy thành cột chữ; (4) `XLOOKUP` với giá trị thay thế suy sai kiểu; (5) chữ ngày `dd/mm/yyyy` chưa ép thành số khi tính; (6) dọn thùng rác chưa xoá khoá lỗi `!<mã cột>`; (7) `DATEDIF "MD"` ra số âm.
 
 ## Câu hỏi còn mở
