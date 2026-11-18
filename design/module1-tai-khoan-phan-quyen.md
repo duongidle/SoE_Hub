@@ -341,5 +341,14 @@ Ghi trong lúc code Stage 1 (18/11/2026). Các phần đã chốt ở trên khô
 - `GET /org/members` trả `roles` dạng chuỗi (do cột lọc dùng `array_to_string`); nay trả mảng như `GET /org/members/:id`.
 - `GET /system/settings` trả `value` dạng chuỗi JSON (`"true"`, `"14"`); nay trả đúng giá trị JSON (boolean, số, mảng).
 
+### Nhật ký: bớt nhiễu, dòng ẩn danh, ngày giờ
+- Truy vấn chỉ ghi nhật ký khi khai báo `audit: "always"`. Truy vấn bị từ chối vì **chưa đăng nhập** (ví dụ `auth.me` lúc mở trang) không ghi; lệnh ghi bị từ chối vẫn ghi. Đọc chuông, cài đặt, danh mục, SSE không ghi.
+- Dòng không có actor (đăng nhập, xin/nhập mã, `http.authenticate`) luôn có **kênh** (`web` nếu trình duyệt gửi `sec-fetch-site`, ngược lại `api`), IP và user agent, lấy từ yêu cầu (`ExecuteOptions.client`). Giao diện ghi "Chưa đăng nhập", email đã thử (không bao giờ mật khẩu hay mã) và IP; nếu dòng gắn với một người thì email là liên kết sang Org chart (`/to-chuc?q=<email>`).
+- Điện thoại: nhật ký hiện dạng thẻ thay cho bảng; các bảng khác cuộn ngang trong khung của chúng, trang không bao giờ tràn ngang (e2e kiểm ở mọi ảnh chụp).
+- Ngày giờ hiện và nhập theo `dd/mm/yyyy hh:mm` (24 giờ, giờ Việt Nam): hiển thị bằng `fmtTime`, ô nhập là ô chữ `DateTimeInput` (không dùng ô ngày của trình duyệt vì nó theo ngôn ngữ trình duyệt, ra `mm/dd/yyyy`).
+
+### Vai trò Postgres theo môi trường
+- Vai trò chạy ứng dụng thuộc cả cụm Postgres, nên đặt tên theo môi trường: biến `APP_DB_ROLE` (mặc định `soe_app` cho dev và production), `soe_app_test` cho `pnpm test`, `soe_app_e2e` cho e2e. Migration viết sẵn với `soe_app`; khi tên khác, `runMigrations` chạy trên bản sao thư mục migration đã đổi tên vai trò. Chạy test không còn đổi mật khẩu vai trò của database dev.
+
 ### Kiểm thử giao diện
-- Bộ Playwright ở `apps/web/e2e`, chạy bằng `pnpm test:e2e`: tạo database rỗng `soe_hub_e2e`, chạy migration, bật api (cổng 3100), worker, web (cổng 5273), chạy cùng các luồng ở hai bề ngang (1440×900 và 390×844). Mỗi phiên trình duyệt kiểm tra không có lỗi console và không có request lỗi (trừ 401/403/423 khai báo trước). Vai trò `soe_app` dùng chung cả cụm Postgres nên e2e đặt cùng mật khẩu với `pnpm test`.
+- Bộ Playwright ở `apps/web/e2e`, chạy bằng `pnpm test:e2e`: tạo database rỗng `soe_hub_e2e`, chạy migration, bật api (cổng 3100), worker, web (cổng 5273), chạy cùng các luồng ở hai bề ngang (1440×900 và 390×844). Mỗi phiên trình duyệt kiểm tra không có lỗi console và không có request lỗi (trừ 401/403/423 khai báo trước). Mỗi lần chạy xoá ảnh chụp cũ để thư mục chỉ chứa lần chạy mới nhất.

@@ -30,7 +30,7 @@ function StatusBadge({ s }: { s: UserView["status"] }) {
 export function OrgPage() {
   const me = useMe().data;
   const [tab, setTab] = useState<"table" | "tree">("table");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? ""); // opened from an audit row
   const [status, setStatus] = useState("");
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [detail, setDetail] = useState<Row | null>(null);

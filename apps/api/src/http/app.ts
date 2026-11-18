@@ -98,6 +98,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     return payload;
   });
 
+  /** Channel, IP and user agent for audit rows of calls without an actor: a browser sends `sec-fetch-site`, a script does not. */
+  const clientOf = (req: FastifyRequest) => ({
+    via: req.headers["sec-fetch-site"] ? "web" : "api",
+    ip: req.ip,
+    userAgent: typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : null,
+  });
+
   // ---- identify the actor (pluggable) -----------------------------------------------------------
   // Session cookie or bearer token (auth/sessions.ts). Cookie writes must carry the CSRF header.
   app.addHook("onRequest", async (req) => {
@@ -106,7 +113,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       req.actor = await auth.resolver.resolve({ method: req.method, headers: req.headers, ip: req.ip, userAgent: typeof ua === "string" ? ua : null });
     } catch (e) {
       if (isAppError(e)) {
-        await writeAudit(deps.db.db, { command: "http.authenticate", result: "denied", requestId: req.id, errorCode: e.code, details: { reason: e.message, method: req.method, url: req.url.split("?")[0] } }).catch(() => {});
+        await writeAudit(deps.db.db, { command: "http.authenticate", result: "denied", requestId: req.id, client: clientOf(req), errorCode: e.code, details: { reason: e.message, method: req.method, url: req.url.split("?")[0] } }).catch(() => {});
       }
       throw e;
     }
@@ -176,6 +183,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         const r = await executor.execute(op.name, input, {
           actor: req.actor,
           requestId: req.id,
+          client: clientOf(req),
           idempotencyKey: typeof key === "string" ? key : null,
         });
         if (r.replayed) reply.header("idempotent-replayed", "true");

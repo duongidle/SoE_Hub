@@ -93,7 +93,7 @@ pnpm --filter @soe/web exec playwright install chromium   # một lần
 pnpm test:e2e
 ```
 
-Lệnh tạo lại database rỗng `soe_hub_e2e`, chạy migration, bật api (cổng 3100), worker và web (cổng 5273), rồi chạy các luồng của Stage 1 ở hai bề ngang: desktop 1440×900 và điện thoại 390×844. Mỗi luồng kiểm tra không có lỗi console và không có request lỗi (trừ 401/403/423 được chờ trước). Ảnh chụp màn hình nằm ở `apps/web/e2e/screenshots/` (không commit). Chạy một phần: `pnpm test:e2e --project=desktop -g "token"`. Dùng cùng user Postgres như `pnpm test` (đổi bằng `E2E_ADMIN_URL`).
+Lệnh tạo lại database rỗng `soe_hub_e2e`, chạy migration, bật api (cổng 3100), worker và web (cổng 5273), rồi chạy các luồng của Stage 1 ở hai bề ngang: desktop 1440×900 và điện thoại 390×844. Mỗi luồng kiểm tra không có lỗi console và không có request lỗi (trừ 401/403/423 được chờ trước). Ảnh chụp màn hình nằm ở `apps/web/e2e/screenshots/` (không commit). Chạy một phần: `pnpm test:e2e --project=desktop -g "token"`. Dùng cùng user Postgres như `pnpm test` (đổi bằng `E2E_ADMIN_URL`). Test và e2e dùng vai trò Postgres riêng (`soe_app_test`, `soe_app_e2e`) nên không đụng database dev.
 
 ## Cấu trúc
 

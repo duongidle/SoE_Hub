@@ -21,10 +21,10 @@ export default async function setup() {
   const ownerUrl = new URL(base);
   ownerUrl.pathname = `/${DB_NAME}`;
   const appUrl = new URL(ownerUrl);
-  appUrl.username = "soe_app";
+  appUrl.username = "soe_app_test"; // own role: never the role of the dev database
   appUrl.password = "soe_app_test";
 
-  await runMigrations({ url: ownerUrl.toString(), appPassword: "soe_app_test" });
+  await runMigrations({ url: ownerUrl.toString(), appPassword: "soe_app_test", appRole: "soe_app_test" });
 
   // A business-like table used by tests (standard columns), created after the migrations so default grants apply.
   const owner = new pg.Client({ connectionString: ownerUrl.toString() });

@@ -72,7 +72,26 @@ export function qs(params: Record<string, string | number | boolean | null | und
   return s ? `?${s}` : "";
 }
 
+const VN_ZONE = "Asia/Ho_Chi_Minh";
+
+/** Shows a timestamp as `dd/mm/yyyy HH:mm:ss` (24h, Vietnam time), the same everywhere in the UI. */
 export function fmtTime(v: string | null | undefined): string {
   if (!v) return "—";
-  return new Date(v).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour12: false });
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "—";
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: VN_ZONE, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}:${p.second}`;
+}
+
+/** Parses `dd/mm/yyyy` or `dd/mm/yyyy HH:mm` (Vietnam time). Returns null when it is not a real date. */
+export function parseVnDateTime(text: string): Date | null {
+  const m = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?\s*$/.exec(text);
+  if (!m) return null;
+  const [d, mo, y, h = "0", mi = "0"] = m.slice(1);
+  const pad = (n: string) => n.padStart(2, "0");
+  const date = new Date(`${y}-${pad(mo!)}-${pad(d!)}T${pad(h)}:${pad(mi)}:00+07:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  // Reject rolled-over dates such as 31/02/2026.
+  const back = fmtTime(date.toISOString());
+  return back.startsWith(`${pad(d!)}/${pad(mo!)}/${y} ${pad(h)}:${pad(mi)}`) ? date : null;
 }

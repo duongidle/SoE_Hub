@@ -12,6 +12,8 @@ export interface AuditEntry {
   targetType?: string | null;
   targetId?: string | null;
   details?: unknown;
+  /** Channel, IP and user agent of the request. Used when there is no actor (login, codes), so the channel is never empty. */
+  client?: { via?: string | null; ip?: string | null; userAgent?: string | null } | null;
 }
 
 /** Appends one audit row. Works on a transaction (same commit as the data) or on the db. */
@@ -21,11 +23,11 @@ export async function writeAudit(ex: Executor, e: AuditEntry): Promise<void> {
     result: e.result,
     requestId: e.requestId ?? null,
     actorUserId: e.actor?.userId ?? null,
-    via: e.actor?.via ?? null,
+    via: e.actor?.via ?? e.client?.via ?? null,
     connectionId: e.actor?.connectionId ?? null,
     automationId: e.actor?.automationId ?? null,
-    ip: e.actor?.ip ?? null,
-    userAgent: e.actor?.userAgent?.slice(0, 500) ?? null,
+    ip: e.actor?.ip ?? e.client?.ip ?? null,
+    userAgent: (e.actor?.userAgent ?? e.client?.userAgent)?.slice(0, 500) ?? null,
     errorCode: e.errorCode ?? null,
     targetType: e.targetType ?? null,
     targetId: e.targetId ?? null,

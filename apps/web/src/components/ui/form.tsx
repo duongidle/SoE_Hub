@@ -1,6 +1,6 @@
 import type * as React from "react";
 import { ERROR_CODES, type ErrorCode } from "@soe/shared";
-import { ApiError } from "@/lib/api";
+import { ApiError, parseVnDateTime } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function Button({ className, variant = "primary", ...props }: React.ComponentProps<"button"> & { variant?: "primary" | "secondary" | "danger" | "ghost" }) {
@@ -15,6 +15,17 @@ export function Button({ className, variant = "primary", ...props }: React.Compo
 
 export function Input({ className, ...props }: React.ComponentProps<"input">) {
   return <input className={cn("min-h-9 w-full rounded-md border border-border bg-card px-3 py-1.5 text-base sm:text-sm outline-none focus:ring-2 focus:ring-primary/30", className)} {...props} />;
+}
+
+/** Text input for a date and time in the Vietnamese format `dd/mm/yyyy` or `dd/mm/yyyy hh:mm` (24h). */
+export function DateTimeInput({ value, onChange, ...props }: Omit<React.ComponentProps<"input">, "value" | "onChange" | "type"> & { value: string; onChange: (v: string) => void }) {
+  const bad = value.trim() !== "" && parseVnDateTime(value) === null;
+  return (
+    <>
+      <Input inputMode="numeric" placeholder="dd/mm/yyyy hh:mm" value={value} onChange={(e) => onChange(e.target.value)} aria-invalid={bad} {...props} />
+      {bad && <span className="text-xs text-bad">Nhập theo dạng dd/mm/yyyy hoặc dd/mm/yyyy hh:mm, ví dụ 18/11/2026 09:30.</span>}
+    </>
+  );
 }
 
 export function Select({ className, ...props }: React.ComponentProps<"select">) {

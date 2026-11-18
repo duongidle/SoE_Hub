@@ -10,5 +10,6 @@ await runMigrations({
   url,
   folder: process.env.MIGRATIONS_DIR,
   appPassword: process.env.APP_DB_PASSWORD,
+  appRole: process.env.APP_DB_ROLE || undefined,
 });
 console.log("Migrations applied.");

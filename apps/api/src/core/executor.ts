@@ -6,6 +6,7 @@ import {
   finishIdempotent,
   hashRequest,
   writeAudit,
+  type AuditEntry,
   type Db,
   type Executor,
 } from "@soe/db";
@@ -20,6 +21,8 @@ export interface ExecuteOptions {
   actor: Actor | null;
   requestId: string;
   idempotencyKey?: string | null;
+  /** Channel / IP / user agent for audit rows of anonymous calls (no actor). */
+  client?: AuditEntry["client"];
 }
 
 export interface ExecuteResult {
@@ -94,7 +97,8 @@ export class OperationExecutor {
   private async checkAccess(op: Operation, opts: ExecuteOptions): Promise<void> {
     if (op.permission === null) return;
     const deny = async (code: "unauthenticated" | "forbidden" | "ai_not_allowed" | "password_setup_required", reason: string): Promise<never> => {
-      await this.safeAudit({ command: op.name, result: "denied", actor: opts.actor, requestId: opts.requestId, errorCode: code, details: { reason, permission: op.permission } });
+      // An anonymous read (for example the page asking "who am I" before login) is not worth a row; anonymous writes are.
+      if (!(code === "unauthenticated" && op.kind === "query")) await this.safeAudit({ command: op.name, result: "denied", actor: opts.actor, requestId: opts.requestId, client: opts.client, errorCode: code, details: { reason, permission: op.permission } });
       throw new AppError(code, code === "unauthenticated" ? undefined : reason);
     };
     if (!opts.actor) return deny("unauthenticated", "Chưa xác định được người dùng.");
@@ -149,7 +153,7 @@ export class OperationExecutor {
     this.checkOutput(op, result);
     if (op.audit === "always") {
       await writeAudit(this.deps.db, {
-        command: op.name, result: "success", actor: opts.actor, requestId: opts.requestId,
+        command: op.name, result: "success", actor: opts.actor, requestId: opts.requestId, client: opts.client,
         targetType: state.target?.type, targetId: state.target?.id, details: maskAuditDetails(state.target?.type, state.target?.details),
       });
     }
@@ -174,7 +178,7 @@ export class OperationExecutor {
       this.checkOutput(op, result);
       if (op.audit !== "none") {
         await writeAudit(tx, {
-          command: op.name, result: "success", actor: opts.actor, requestId: opts.requestId,
+          command: op.name, result: "success", actor: opts.actor, requestId: opts.requestId, client: opts.client,
           targetType: state.target?.type, targetId: state.target?.id, details: maskAuditDetails(state.target?.type, state.target?.details),
         });
       }
@@ -189,7 +193,7 @@ export class OperationExecutor {
     if (op.kind !== "command") return;
     const code = isAppError(err) ? err.code : "internal_error";
     await this.safeAudit({
-      command: op.name, result: "error", actor: opts.actor, requestId: opts.requestId, errorCode: code,
+      command: op.name, result: "error", actor: opts.actor, requestId: opts.requestId, client: opts.client, errorCode: code,
       targetType: target?.type, targetId: target?.id,
       details: {
         ...(isAppError(err) ? { message: err.message, details: err.details } : { message: "unexpected error" }),

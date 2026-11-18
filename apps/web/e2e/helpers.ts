@@ -68,7 +68,14 @@ export class Session {
     expect(found, `Lỗi console/network ở phiên "${this.name}"`).toEqual([]);
   }
 
+  /** The page itself must never scroll sideways (wide tables scroll inside their own box). */
+  async expectNoHorizontalOverflow(): Promise<void> {
+    const o = await this.page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, width: window.innerWidth }));
+    expect(o.scroll, `Trang tràn ngang: scrollWidth ${o.scroll} > ${o.width} (${this.page.url()})`).toBeLessThanOrEqual(o.width);
+  }
+
   async shot(label: string): Promise<void> {
+    if (!label.startsWith("FAILED")) await this.expectNoHorizontalOverflow();
     await this.page.screenshot({ path: path.join(SHOTS, `${this.project}-${label}.png`), fullPage: true });
   }
 

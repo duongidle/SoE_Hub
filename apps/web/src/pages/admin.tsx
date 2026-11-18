@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { PERMISSIONS, SERVICE_ACCOUNT_PERMISSIONS, type Permission } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, ErrorText, Field, Input, Modal, Notice, PageTitle, Select, Table, Tabs } from "@/components/ui/form";
-import { ApiError, api, apiList, fmtTime, qs } from "@/lib/api";
+import { Button, DateTimeInput, ErrorText, Field, Input, Modal, Notice, PageTitle, Select, Table, Tabs } from "@/components/ui/form";
+import { ApiError, api, apiList, fmtTime, parseVnDateTime, qs } from "@/lib/api";
 import { TokenTable, type TokenRow } from "./account";
 
 /* ------------------------------------------------------------------ shared pieces */
@@ -305,12 +306,46 @@ interface AuditFilters {
   result: string;
   target: string;
 }
+/** Who did it. Without a signed-in actor (login, codes): "Chưa đăng nhập", the email that was tried, and the IP. */
+function ActorCell({ r }: { r: AuditRow }) {
+  if (r.actor_name) {
+    return (
+      <>
+        {r.actor_name}
+        <div className="text-xs text-muted-foreground">{r.actor_email}</div>
+      </>
+    );
+  }
+  // Successful rows keep the email in `details`; failed ones keep it under `details.target`.
+  const d = (r.details ?? {}) as { email?: unknown; target?: { email?: unknown } };
+  const tried = d.email ?? d.target?.email;
+  const email = typeof tried === "string" ? tried : null;
+  const known = r.target_type === "user" && r.target_id; // the email belongs to a person in the org chart
+  return (
+    <>
+      <span className="text-muted-foreground">Chưa đăng nhập</span>
+      {email && (
+        <div className="text-xs">
+          {known ? (
+            <Link to="/to-chuc" search={{ q: email } as never} className="text-primary underline">
+              {email}
+            </Link>
+          ) : (
+            email
+          )}
+        </div>
+      )}
+      {r.ip && <div className="text-xs text-muted-foreground">IP {r.ip}</div>}
+    </>
+  );
+}
+
 const EMPTY_FILTERS: AuditFilters = { from: "", to: "", actor: "", via: "", connection: "", command: "", result: "", target: "" };
 
 function buildAuditFilter(f: AuditFilters): object | undefined {
   const c: unknown[] = [];
-  if (f.from) c.push({ field: "at", op: "gte", value: new Date(f.from).toISOString() });
-  if (f.to) c.push({ field: "at", op: "lte", value: new Date(f.to).toISOString() });
+  if (f.from) { const d = parseVnDateTime(f.from); if (d) c.push({ field: "at", op: "gte", value: d.toISOString() }); }
+  if (f.to) { const d = parseVnDateTime(f.to); if (d) c.push({ field: "at", op: "lte", value: d.toISOString() }); }
   if (f.actor) c.push({ or: [{ field: "actor_name", op: "contains", value: f.actor }, { field: "actor_email", op: "contains", value: f.actor }] });
   if (f.via) c.push({ field: "via", op: "eq", value: f.via });
   if (f.connection && UUID_RE.test(f.connection.trim())) c.push({ field: "connection_id", op: "eq", value: f.connection.trim() });
@@ -367,10 +402,10 @@ export function AuditLogPage() {
       <p className="text-sm text-muted-foreground">Chỉ thêm, không sửa hay xoá. Giữ tối thiểu 730 ngày. Giá trị của dữ liệu riêng (dòng datahub) không được ghi ở đây. Việc xem và xuất nhật ký cũng được ghi lại.</p>
       <form onSubmit={apply} className="grid gap-3 rounded-lg border border-border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Bộ lọc nhật ký">
         <Field label="Từ lúc">
-          <Input type="datetime-local" value={draft.from} onChange={set("from")} />
+          <DateTimeInput value={draft.from} onChange={(v) => setDraft((d) => ({ ...d, from: v }))} />
         </Field>
         <Field label="Đến lúc">
-          <Input type="datetime-local" value={draft.to} onChange={set("to")} />
+          <DateTimeInput value={draft.to} onChange={(v) => setDraft((d) => ({ ...d, to: v }))} />
         </Field>
         <Field label="Người thực hiện" hint="Tên hoặc email">
           <Input value={draft.actor} onChange={set("actor")} />
@@ -406,6 +441,26 @@ export function AuditLogPage() {
         </div>
       </form>
       <ErrorText error={q.error ?? exportError} />
+      {/* Phone: one card per row. From sm up: the table. */}
+      <div className="flex flex-col gap-2 sm:hidden" data-testid="audit-cards">
+        {q.data?.data.map((r) => (
+          <div key={r.id} className="rounded-lg border border-border bg-card p-3 text-sm">
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-mono text-xs break-all">{r.command}</span>
+              <Badge tone={r.result === "success" ? "ok" : r.result === "denied" ? "warn" : "bad"}>{RESULT_LABELS[r.result]}</Badge>
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {fmtTime(r.at)} · {VIA_LABELS[r.via] ?? r.via ?? "—"}
+            </div>
+            <div className="mt-1">
+              <ActorCell r={r} />
+            </div>
+            <Button variant="ghost" className="mt-1" onClick={() => setSelected(r.id)}>Chi tiết</Button>
+          </div>
+        ))}
+        {q.data?.data.length === 0 && <p className="text-muted-foreground">Không có dòng nhật ký nào khớp bộ lọc.</p>}
+      </div>
+      <div className="hidden sm:block">
       <Table>
         <thead>
           <tr>
@@ -423,10 +478,9 @@ export function AuditLogPage() {
             <tr key={r.id}>
               <td className="whitespace-nowrap">{fmtTime(r.at)}</td>
               <td>
-                {r.actor_name ?? "—"}
-                <div className="text-xs text-muted-foreground">{r.actor_email}</div>
+                <ActorCell r={r} />
               </td>
-              <td>{VIA_LABELS[r.via] ?? r.via}</td>
+              <td>{VIA_LABELS[r.via] ?? r.via ?? "—"}</td>
               <td className="font-mono text-xs">{r.command}</td>
               <td>
                 <Badge tone={r.result === "success" ? "ok" : r.result === "denied" ? "warn" : "bad"}>{RESULT_LABELS[r.result]}</Badge>
@@ -448,6 +502,7 @@ export function AuditLogPage() {
           )}
         </tbody>
       </Table>
+      </div>
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <Button variant="secondary" disabled={page === 0} onClick={() => setCursors((c) => c.slice(0, -1))}>Trang trước</Button>
         <span>Trang {page + 1}{total !== undefined ? ` · ${total} dòng` : ""}</span>
@@ -485,8 +540,8 @@ function AuditDetail({ id, onClose }: { id: string; onClose: () => void }) {
             <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1">
               {[
                 ["Thời điểm", fmtTime(r.at)],
-                ["Người thực hiện", `${r.actor_name ?? "—"} ${r.actor_email ? `(${r.actor_email})` : ""}`],
-                ["Kênh", VIA_LABELS[r.via] ?? r.via],
+                ["Người thực hiện", r.actor_name ? `${r.actor_name} ${r.actor_email ? `(${r.actor_email})` : ""}` : `Chưa đăng nhập${typeof (details.email ?? (details.target as { email?: unknown } | undefined)?.email) === "string" ? ` (email thử: ${String(details.email ?? (details.target as { email?: unknown }).email)})` : ""}`],
+                ["Kênh", VIA_LABELS[r.via] ?? r.via ?? "—"],
                 ["Kết nối AI", r.connection_id ?? "—"],
                 ["Hành động", r.command],
                 ["Kết quả", `${RESULT_LABELS[r.result]}${r.error_code ? ` (${r.error_code})` : ""}`],

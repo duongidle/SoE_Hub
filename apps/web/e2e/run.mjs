@@ -2,6 +2,7 @@
 //   pnpm test:e2e [playwright args]
 // Needs a local PostgreSQL where the current OS user is a superuser (same as `pnpm test`). Override with E2E_ADMIN_URL.
 import { spawn, spawnSync } from "node:child_process";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,13 +12,14 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../.
 const DB = "soe_hub_e2e";
 const API_PORT = 3100;
 const WEB_PORT = 5273;
-const APP_PASSWORD = "soe_app_test"; // the runtime role is shared by the whole cluster; same value as the test suite
+const APP_ROLE = "soe_app_e2e"; // own runtime role: roles are cluster-wide, so never the dev role `soe_app`
+const APP_PASSWORD = "soe_app_e2e";
 
 const adminUrl = process.env.E2E_ADMIN_URL ?? `postgres://${os.userInfo().username}@localhost:5432/postgres`;
 const ownerUrl = new URL(adminUrl);
 ownerUrl.pathname = `/${DB}`;
 const appUrl = new URL(ownerUrl);
-appUrl.username = "soe_app";
+appUrl.username = APP_ROLE;
 appUrl.password = APP_PASSWORD;
 
 const env = {
@@ -29,6 +31,7 @@ const env = {
   DATABASE_URL: appUrl.toString(),
   DATABASE_MIGRATE_URL: ownerUrl.toString(),
   APP_DB_PASSWORD: APP_PASSWORD,
+  APP_DB_ROLE: APP_ROLE,
   RATE_LIMIT_MAX: "100000",
   STORAGE_LOCAL_DIR: path.join(root, ".local-storage-e2e"),
   VITE_API_TARGET: `http://localhost:${API_PORT}`,
@@ -72,6 +75,10 @@ async function waitFor(url, check, label, timeoutMs = 90_000) {
     await new Promise((r) => setTimeout(r, 500));
   }
 }
+
+// Only the latest run stays in the screenshots folder (no stale FAILED-* pictures).
+fs.rmSync(path.join(root, "apps/web/e2e/screenshots"), { recursive: true, force: true });
+fs.mkdirSync(path.join(root, "apps/web/e2e/screenshots"), { recursive: true });
 
 let code = 1;
 try {

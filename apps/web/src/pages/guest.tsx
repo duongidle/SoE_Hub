@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ErrorText, Field, Input, Modal, PageTitle, Select, Table } from "@/components/ui/form";
-import { api, apiList, fmtTime, qs } from "@/lib/api";
+import { Button, DateTimeInput, ErrorText, Field, Input, Modal, PageTitle, Select, Table } from "@/components/ui/form";
+import { api, apiList, fmtTime, parseVnDateTime, qs } from "@/lib/api";
 
 interface DataType {
   key: string;
@@ -114,7 +114,7 @@ function GrantForm({ types, onClose }: { types: DataType[]; onClose: () => void 
   const [note, setNote] = useState("");
   const allowed = types.find((t) => t.key === type)?.channels ?? [];
   const m = useMutation({
-    mutationFn: () => api("POST", "/guest/grants", { guest_user_id: guest, data_type: type, scope_leader_id: leader || null, channels, expires_at: expires ? new Date(expires).toISOString() : null, note: note || undefined }),
+    mutationFn: () => api("POST", "/guest/grants", { guest_user_id: guest, data_type: type, scope_leader_id: leader || null, channels, expires_at: expires.trim() ? parseVnDateTime(expires)?.toISOString() : null, note: note || undefined }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["grants"] });
       onClose();
@@ -162,14 +162,14 @@ function GrantForm({ types, onClose }: { types: DataType[]; onClose: () => void 
           ))}
         </fieldset>
         <Field label="Hết hạn (không bắt buộc)">
-          <Input type="datetime-local" value={expires} onChange={(e) => setExpires(e.target.value)} />
+          <DateTimeInput value={expires} onChange={setExpires} />
         </Field>
         <Field label="Ghi chú">
           <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
         </Field>
         <p className="text-xs text-muted-foreground">Cột: chỉ cột hệ thống và cột chung.</p>
         <ErrorText error={m.error} />
-        <Button type="submit" disabled={m.isPending || !guest || channels.length === 0}>
+        <Button type="submit" disabled={m.isPending || !guest || channels.length === 0 || (expires.trim() !== "" && !parseVnDateTime(expires))}>
           Cấp
         </Button>
       </form>

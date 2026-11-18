@@ -307,6 +307,9 @@ test("cài đặt hệ thống: đổi, lưu, tải lại vẫn giữ; giá tr�
   await expect(d2.getByText("Đã lưu.")).toBeVisible();
 });
 
+/** One audit entry: a table row on desktop, a card on phone. */
+const auditRow = (re: RegExp) => (p === "phone" ? admin.page.getByTestId("audit-cards").locator("> div").filter({ hasText: re }) : admin.page.getByRole("row", { name: re }));
+
 test("nhật ký: lọc theo hành động, người, kết quả; chi tiết cũ -> mới; phân trang; xuất CSV", async () => {
   await admin.clickMenu("Nhật ký");
   const form = admin.page.getByRole("form", { name: "Bộ lọc nhật ký" });
@@ -314,15 +317,15 @@ test("nhật ký: lọc theo hành động, người, kết quả; chi tiết c�
   // The personal token actions of the earlier flow.
   await form.getByLabel("Hành động").fill("auth.token");
   await form.getByRole("button", { name: "Lọc", exact: true }).click();
-  await expect(admin.page.getByRole("row", { name: /auth\.token\.create/ }).first()).toBeVisible();
-  await expect(admin.page.getByRole("row", { name: /auth\.token\.approve/ }).first()).toBeVisible();
+  await expect(auditRow(/auth\.token\.create/).first()).toBeVisible();
+  await expect(auditRow(/auth\.token\.approve/).first()).toBeVisible();
   await admin.shot("15-audit-token");
 
   // The old -> new view of a settings change.
   await form.getByLabel("Hành động").fill("system.setting.set");
   await form.getByLabel("Người thực hiện").fill(email("admin"));
   await form.getByRole("button", { name: "Lọc", exact: true }).click();
-  await admin.page.getByRole("row", { name: /system\.setting\.set/ }).first().getByRole("button", { name: "Chi tiết" }).click();
+  await auditRow(/system\.setting\.set/).first().getByRole("button", { name: "Chi tiết" }).click();
   const drawer = admin.page.getByRole("dialog", { name: "Chi tiết nhật ký" });
   await expect(drawer).toContainText("Thay đổi (cũ → mới)");
   await expect(drawer).toContainText("value");
@@ -334,16 +337,36 @@ test("nhật ký: lọc theo hành động, người, kết quả; chi tiết c�
   await form.getByLabel("Người thực hiện").fill(email("user"));
   await form.getByLabel("Kết quả").selectOption("denied");
   await form.getByRole("button", { name: "Lọc", exact: true }).click();
-  await expect(admin.page.getByRole("row", { name: /system\.audit\.list/ }).first()).toBeVisible();
-  await expect(admin.page.getByRole("row", { name: /Thành công/ })).toHaveCount(0);
+  await expect(auditRow(/system\.audit\.list/).first()).toBeVisible();
+  await expect(auditRow(/Thành công/)).toHaveCount(0);
+
+  // Dates are Vietnamese (dd/mm/yyyy, 24h) in inputs and in the list.
+  await expect(form.getByLabel("Từ lúc")).toHaveAttribute("placeholder", "dd/mm/yyyy hh:mm");
+  await form.getByLabel("Từ lúc").fill("31/02/2026");
+  await expect(form.getByText("Nhập theo dạng dd/mm/yyyy")).toBeVisible();
+  await form.getByLabel("Từ lúc").fill("");
+  await expect(admin.page.getByText(/\b\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}\b/).locator("visible=true").first()).toBeVisible();
+  expect(await admin.page.locator('input[type="date"], input[type="datetime-local"]').count()).toBe(0);
+
+  // Rows without a signed-in actor: channel filled, "Chưa đăng nhập", the email that was tried.
+  await form.getByLabel("Hành động").fill("auth.login");
+  await form.getByLabel("Người thực hiện").fill("");
+  await form.getByLabel("Kết quả").selectOption("error");
+  await form.getByRole("button", { name: "Lọc", exact: true }).click();
+  const anon = auditRow(/auth\.login/).filter({ hasText: "Chưa đăng nhập" }).first();
+  await expect(anon).toBeVisible();
+  await expect(anon).toContainText(email("lock"));
+  await expect(anon).toContainText("Web");
+  await expect(anon).toContainText("IP");
+  await form.getByLabel("Kết quả").selectOption("");
 
   // Channel and time range filters work and an empty result says so.
   await form.getByRole("button", { name: "Xoá lọc" }).click();
   await form.getByLabel("Kênh").selectOption("web");
-  await form.getByLabel("Từ lúc").fill("2000-01-01T00:00");
-  await form.getByLabel("Đến lúc").fill("2000-01-02T00:00");
+  await form.getByLabel("Từ lúc").fill("01/01/2000 00:00");
+  await form.getByLabel("Đến lúc").fill("02/01/2000");
   await form.getByRole("button", { name: "Lọc", exact: true }).click();
-  await expect(admin.page.getByText("Không có dòng nhật ký nào khớp bộ lọc.")).toBeVisible();
+  await expect(admin.page.getByText("Không có dòng nhật ký nào khớp bộ lọc.").locator("visible=true")).toBeVisible();
 
   // Server pagination over the whole log.
   await form.getByRole("button", { name: "Xoá lọc" }).click();
