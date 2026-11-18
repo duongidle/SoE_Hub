@@ -23,6 +23,16 @@ Một engine cho ba việc: **form quảng bá, khảo sát** (trang công khai 
   - Bảng gộp (Module 3, chỉ đọc).
 - Cột công thức, lookup, rollup, số tự tăng và cột hệ thống **không** làm ô nhập được. Chúng vẫn tự tính sau khi dòng được tạo.
 
+### 1.1a Giới hạn cột của bảng có form
+
+*Dương chốt 19/11/2026.*
+
+- Bảng đang có ít nhất một form ghi vào được mở giới hạn lên **150 cột** (thay cho mức mặc định 70 của Module 2 mục 11). Bài test dài, bảng lựa chọn nhiều tiêu chí và các cột kết quả của bài kiểm tra cần chỗ này.
+- Con số nằm trong **Cài đặt hệ thống** (`form.table_max_columns`, mặc định 150), Admin chỉnh được, không vượt **trần 200** của Module 2.
+- Giới hạn áp dụng = số lớn hơn giữa giới hạn cột riêng của chủ bảng (Module 2) và cài đặt này, không bao giờ quá 200.
+- Trình soạn hiện "Còn N câu hỏi được thêm" khi còn dưới 10 cột.
+- Bảng không còn form nào ghi vào (form bị xoá hoặc chuyển sang bảng khác) thì quay về giới hạn thường. Cột đang có giữ nguyên, chỉ không thêm được cột mới cho tới khi xuống dưới giới hạn.
+
 ### 1.2 Khối không phải cột
 
 Tiêu đề, đoạn chữ (Tiptap), ảnh, video nhúng (YouTube), đường kẻ, ngắt trang. Chỉ nằm trong cấu hình form, không tạo cột.
@@ -54,6 +64,22 @@ Tiêu đề, đoạn chữ (Tiptap), ảnh, video nhúng (YouTube), đường k�
 - Lý do tách: form đang nhận phản hồi mà sửa dở (xoá một câu, đổi đáp án) thì người đang điền thấy form chạy chập chờn, bài test bị chấm sai.
 - Mỗi lần xuất bản lưu một **phiên bản**. Mỗi phản hồi ghi phiên bản đã dùng; bài test chấm theo đáp án của đúng phiên bản đó.
 - Cột mới tạo trong trình soạn được tạo trong bảng **ngay** (để chọn kiểu, lựa chọn), kể cả trước khi xuất bản.
+- Có thay đổi chưa xuất bản thì trình soạn hiện thanh "Có thay đổi chưa xuất bản" kèm nút Xuất bản. Xem trước luôn là bản nháp, có ghi rõ. Form chưa xuất bản lần nào chỉ có một nút "Xuất bản".
+
+**Phiên bản là của form, không phải của cột.** Xuất bản lại **không bao giờ** tạo cột mới. Cột chỉ được tạo khi thêm một câu hỏi mới.
+
+| Sửa trên câu hỏi đã xuất bản | Kết quả |
+|---|---|
+| Nhãn, mô tả, gợi ý, bắt buộc, điều kiện, vị trí | Cùng cột. Chỉ đổi cấu hình form |
+| Đáp án đúng, số điểm | Cùng cột. Đáp án nằm trong phiên bản form; bài cũ giữ điểm cũ, "Chấm lại theo đáp án mới" là thao tác riêng (mục 6.4) |
+| Đổi tên lựa chọn | Cùng cột, cùng mã lựa chọn (Module 2): câu trả lời cũ hiện tên mới |
+| Thêm lựa chọn | Thêm lựa chọn vào cột |
+| Bỏ lựa chọn khỏi form | Lựa chọn chỉ bị ẩn trên form, **vẫn còn trong cột**, nên câu trả lời cũ không mất. Form hiện một phần các lựa chọn của cột |
+| Đổi kiểu câu hỏi | Là đổi kiểu cột: theo luồng của Module 2 (xem trước, báo giá trị không chuyển được), cảnh báo ảnh hưởng tới phản hồi cũ |
+| Xoá câu hỏi | Câu hỏi rời form. Cột và dữ liệu cũ **giữ nguyên** trong bảng; chủ tự xoá cột nếu muốn |
+
+- Viết lại câu hỏi thành một ý khác hẳn (ví dụ "Bạn hài lòng không?" thành "Bạn có giới thiệu cho người khác không?") thì câu trả lời cũ và mới nằm chung một cột nhưng khác nghĩa. Hệ thống không tự đoán được việc này. Trình soạn có thao tác **"Tách thành câu hỏi mới"**: tạo cột mới cho câu này, cột cũ rời form và giữ dữ liệu. Mặc định vẫn là cùng cột.
+- Bảng có cột hệ thống **Phiên bản form** để lọc phản hồi theo phiên bản khi cần.
 
 ### 2.3 Ô nhập
 
@@ -242,12 +268,13 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 |---|---|---|
 | `via` của actor: web, api, mcp, worker, automation (Module 0 mục 3.4) | Thêm `form` | Module 0, code Stage 0 |
 | Form không ghi vào Deals (Module 4 mục 15) | Form không ghi vào **mọi bảng** của datahub "Quản lý Deal" | Module 4 |
-| Bảng chỉ có cột do người tạo | Bật Bài kiểm tra thì hệ thống thêm các cột kết quả và tự quản lý chúng (mục 6.4) | Module 2 |
+| Bảng chỉ có cột do người tạo | Bật Bài kiểm tra thì hệ thống thêm các cột kết quả và tự quản lý chúng (mục 6.4); bảng có form thêm cột Phiên bản form (mục 2.2) | Module 2 |
+| Cột mỗi bảng mặc định 70, trần 200 (Module 2 mục 11) | Bảng có form: **150** (cài đặt `form.table_max_columns`), trần 200 giữ nguyên (mục 1.1a) | Module 2, CLAUDE.md |
 
 ## 13. Câu hỏi cho Dương
 
-1. Mỗi form gắn đúng một bảng và mỗi câu hỏi là một cột (kiểu Lark Form, mục 1.1)?
-2. Trình soạn tự lưu vào bản nháp, bấm "Xuất bản" mới ra ngoài (mục 2.2)? Hay muốn sửa là người điền thấy ngay?
-3. Chặn cả datahub "Quản lý Deal" làm đích, không chỉ bảng Deals (mục 1.1)?
-4. Form công khai chống spam bằng ô bẫy + giới hạn tốc độ, chưa dùng captcha (mục 5.3)?
-5. Bài kiểm tra chỉ cho form nội bộ, và AI không nộp bài được (mục 6, 6.5)? Khảo sát thường thì có cho nộp qua API không? Tớ đề xuất có, để hệ thống ngoài đẩy phản hồi vào.
+Đã chốt 19/11/2026: một form ghi vào một bảng, mỗi câu hỏi một cột (mục 1.1); tách bản nháp và xuất bản, phiên bản không sinh cột mới (mục 2.2); giới hạn 150 cột cho bảng có form (mục 1.1a). Còn:
+
+1. Chặn cả datahub "Quản lý Deal" làm đích, không chỉ bảng Deals (mục 1.1)?
+2. Form công khai chống spam bằng ô bẫy + giới hạn tốc độ, chưa dùng captcha (mục 5.3)?
+3. Bài kiểm tra chỉ cho form nội bộ, và AI không nộp bài được (mục 6, 6.5)? Khảo sát thường thì có cho nộp qua API không? Tớ đề xuất có, để hệ thống ngoài đẩy phản hồi vào.
