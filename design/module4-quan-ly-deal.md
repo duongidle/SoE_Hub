@@ -411,7 +411,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 1. Datahub, bảng, cột có cờ **được bảo vệ** (không xoá, không đổi tên, không đổi kiểu từ giao diện thường).
 2. Một **bảng hệ thống dùng chung** (Deals, Probation KPI) xuất hiện trong datahub của từng người, đã áp phạm vi.
 3. Cột theo **lớp template** và hai cách lưu giá trị (chung mỗi deal / mỗi người một giá trị), khớp với "ba nguồn cột" của Module 2 mục 3.
-4. Công thức **theo người xem** (`% Com cá nhân`, `Com`, đếm deal mình là Leading), tính sẵn và lưu theo người.
+4. Cột **mỗi người một giá trị** (`Vai trò của tôi`, `% Com cá nhân`) và công thức dùng chúng (`Com`) tính sẵn, lưu theo từng người.
 5. Cột mặc định là cột thường do template sinh sẵn (mục 3.3): cột tính toán là công thức chỉ dùng hàm kiểu Excel, không có hàm riêng. Công thức ở bảng của một người (Index, bảng tự tạo) đọc cột mỗi-người-một-giá-trị của Deals theo **chủ bảng** (ví dụ `[Deals].[Vai trò của tôi]` là vai trò của chủ Index).
 6. Kiểu **Người dùng có thuộc tính** (mỗi người chọn kèm vài ô: nhãn, phần trăm), và cơ chế tự điền cột mỗi-người-một-giá-trị từ cột đó (mục 4.5).
 7. Cột hệ thống Ngày tạo, Người tạo, Ngày sửa, Người sửa có ở mọi bảng, ẩn được.
