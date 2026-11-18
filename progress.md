@@ -4,7 +4,7 @@ Cập nhật: 18/11/2026
 
 ## Giai đoạn hiện tại
 
-- Thiết kế: Module 0, 1, 2, **3** đã chốt (Module 3 có Bảng gộp, lọc chéo, chịu tải; Module 2 có thêm mục 7a Tìm dòng trùng).
+- Thiết kế: Module 0, 1, 2, **3** đã chốt (Module 3 có Bảng gộp, lọc chéo, chịu tải; Module 2 có thêm mục 7a Tìm dòng trùng). **Module 4: bản nháp** `design/module4-quan-ly-deal.md` (18/11), chờ Dương chốt.
 - Code: Stage 0 và **Stage 1 xong** (18/11/2026) trên nhánh `dev`. **Stage 2 phần 2A code xong**, chờ Opus rà soát.
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
@@ -15,7 +15,8 @@ Cập nhật: 18/11/2026
    - 2B: golden test được đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (Dương cho phép), không commit dữ liệu lấy từ file, máy không có file thì test tự bỏ qua.
    - 2C: làm cả công cụ **Tìm dòng trùng** (Module 2 mục 7a).
    - Bảng gộp thuộc Stage 3 (Module 3 mục 4), không làm ở Stage 2.
-4. **Thiết kế tiếp theo: Module 4 (Quản lý Deal).** Trước khi đề xuất phải đọc lại toàn bộ `design/` (luật trong CLAUDE.md). Câu hỏi cần hỏi Dương nằm ở "Câu hỏi còn mở" (CR1→CR4, winrate theo cycle, thanh toán nhiều đợt) + template cột Deals bám file deal mẫu và sheet Raw PODPS.
+4. **Module 4 đang chờ Dương chốt bản nháp.** Chốt xong: đổi trạng thái file thành `Đã chốt`, cập nhật bảng module và "Quy định đã chốt" trong CLAUDE.md (chia 4A/4B, winrate cohort, CR1 là tham số kế hoạch).
+5. **Golden test 2B:** sheet `Deals` của file mẫu không có dòng dữ liệu, Index/Cumulative Index trong file đều bằng 0. Golden test so số phải dùng `Raw PODPS` + script tham chiếu (Module 4 mục 18); công thức của sheet Index vẫn dùng để test engine công thức.
 
 ## Đã xong
 
@@ -66,7 +67,7 @@ Các bước của 2A (đánh dấu khi xong):
 
 ## Câu hỏi còn mở
 
-- Module 4: CR1→CR4 là những bước nào; cách tính winrate theo cycle (đề xuất: theo cohort, chỉ tính nhóm deal đã nhận lâu hơn cycle trung vị); có theo dõi thanh toán nhiều đợt ngay từ bản đầu không.
+- Module 4 (bản nháp): mốc "cohort đã chín" P75 hay trung vị; CR1 là tham số kế hoạch; có làm com tạm tính ở 4A không; trọng số workload; nguồn tiền thực nhận cho 4B (đề xuất BPM). Chi tiết mục 12.4 của file thiết kế.
 - `docker-compose.yml` chưa chạy thử (máy dev không có Docker): phải chạy thử trên VPS trước khi dùng thật. Biến `AUTH_SECRET` giờ bắt buộc trong compose.
 - Đăng nhập Google chưa thử với Google thật; cần tạo Google Cloud client (xem `design/ha-tang.md` mục 4) rồi thử một lần trước khi bật.
 - Danh sách token cần duyệt và tài khoản hệ thống chưa phân trang (giới hạn 500); phân trang ở Stage 5 khi có kết nối AI.
