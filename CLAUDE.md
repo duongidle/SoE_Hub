@@ -55,7 +55,7 @@ Repo: `https://github.com/duongidle/SoE_Hub`.
 |---|---|---|---|
 | 0 | `module0-nen-tang.md` + `ha-tang.md` | Kiến trúc, stack, quy ước, audit, khoá kỳ, sự kiện, hạ tầng | Đã chốt |
 | 1 | `module1-tai-khoan-phan-quyen.md` | Tài khoản, vai trò, cây tổ chức, cấp dữ liệu, token | Đã chốt |
-| 2 | `module2-datahub.md` | Lưu trữ, kiểu cột, công thức, lịch sử, import/export | Chưa |
+| 2 | `module2-datahub.md` | Lưu trữ, kiểu cột, công thức, lịch sử, import/export | Đã chốt |
 | 3 | `module3-metric-dashboard.md` | Định nghĩa chỉ số, biểu đồ | Chưa |
 | 4 | `module4-quan-ly-deal.md` | Template Deals, người tham gia, chính sách/com, forecast, BANT | Chưa |
 | 5 | `module5-ket-noi-ai.md` | REST, MCP, quản lý kết nối AI | Chưa |
@@ -94,8 +94,22 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 1. Chức năng đúng theo file thiết kế; mọi lệch hoặc bổ sung đã ghi vào mục "Quyết định khi code" của file đó.
 2. Test unit và test phân quyền của stage đều pass; test của các stage trước không bị hỏng.
 3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`.
-4. Có giao diện tối thiểu để dùng và kiểm tra bằng mắt.
-5. `progress.md` đã cập nhật, đã commit.
+4. Có giao diện tối thiểu để dùng.
+5. **Đã kiểm thử giao diện thực tế** (với stage có giao diện): chạy api + worker + web thật, mở trên trình duyệt thật (Playwright có chụp màn hình, hoặc Claude in Chrome), đi hết các luồng chính của stage với từng vai trò liên quan, kiểm tra không có lỗi console/network, kiểm tra ở bề ngang desktop và điện thoại (bắt buộc với trang công khai như form). Lỗi tìm thấy phải sửa xong mới coi là xong. Ghi kết quả kiểm thử (luồng đã đi, lỗi đã sửa) vào `progress.md`.
+6. `progress.md` đã cập nhật, đã commit.
+
+## Phân vai khi code
+
+| Stage | Ai code | Ai kiểm soát |
+|---|---|---|
+| 0–2 | Opus | Opus |
+| 3 trở đi | **Sonnet** code và tự kiểm thử (test + giao diện thực tế) | **Opus** |
+
+Từ Stage 3, Opus là người kiểm soát:
+1. Đọc thiết kế, chia stage thành các việc nhỏ có tiêu chí nghiệm thu rõ ràng (file nào, chức năng gì, test nào phải có, luồng giao diện nào phải chạy được), rồi giao từng việc cho Sonnet.
+2. Rà soát kết quả của Sonnet: đọc diff, chạy test, kiểm tra giao diện; đánh giá so với thiết kế và tiêu chí.
+3. Phản biện và yêu cầu sửa khi chưa đạt; chỉ đánh dấu xong khi đạt "Định nghĩa xong".
+4. Sonnet không được tự đổi quy định đã chốt; chỗ nào thiết kế chưa rõ thì hỏi Opus, Opus tự quyết chi tiết nhỏ và chỉ hỏi Dương việc quan trọng.
 
 REST API được sinh từ registry ngay từ Stage 0, nên mỗi stage tự có API của nó; Stage 5 chỉ thêm MCP và phần quản lý kết nối AI.
 
@@ -143,7 +157,12 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 - Công thức đầy đủ các nhóm hàm thường dùng như Excel/Google Sheets, có ví dụ mẫu và gợi ý biến khi gõ.
 - Công thức được tham chiếu **mọi bảng của mọi Datahub thuộc cùng một tài khoản** (Datahub A bảng 1 → Datahub A bảng 2 hoặc Datahub B bảng 1), cộng với bảng hệ thống dùng chung (ví dụ bảng chính sách). **Không bao giờ** tham chiếu Datahub của tài khoản khác. Kiểm tra khi lưu công thức và khi tính.
 - Chỉ số tổng hợp theo thời gian (kiểu sheet Index) nằm ở lớp Metric, khai báo bằng JSON.
-- Import từ Google Sheet/Excel là chức năng bắt buộc.
+- Tên datahub không trùng (theo chủ), tên bảng không trùng (trong datahub), tên cột không trùng (trong bảng); không phân biệt hoa thường; không chứa `[` `]`.
+- Giá trị công thức luôn được tính sẵn và **lưu trong database** (không tính lúc mở bảng); export chứa giá trị, XLSX kèm sheet liệt kê công thức.
+- View theo kiểu Lark Base, **tự lưu** mọi thay đổi (lọc, sắp xếp nhiều cấp, nhóm, ẩn/cố định cột, độ rộng). Người được chia sẻ đổi view chung thì lưu thành bản riêng của họ. Sắp xếp theo thứ tự lựa chọn và theo cột công thức (nền cho sắp deal theo BANT).
+- Chia sẻ cả datahub hoặc từng bảng; quyền Xem hoặc Sửa dữ liệu; chỉ chủ sửa cấu trúc.
+- Cột mỗi bảng mặc định 70, trần 200, Admin chỉnh.
+- Import từ Google Sheet/Excel là chức năng bắt buộc; có tuỳ chọn import công thức (dịch được thì thành cột công thức, không thì nhập giá trị và báo lý do).
 - Dashboard ghép nhiều bảng: khoá không khớp thì báo rõ số dòng ghép được, không vẽ biểu đồ rỗng; ưu tiên cột liên kết (relation/lookup).
 - Xoá mềm, khôi phục trong 7 ngày (admin chỉnh được).
 
