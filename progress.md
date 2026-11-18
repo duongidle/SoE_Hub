@@ -10,19 +10,15 @@ Cập nhật: 18/11/2026
 ## Đã xong
 
 - Phân tích brief, file mẫu, chốt tech stack, thiết kế Module 0, hạ tầng, Module 1.
-- Stage 0, bước 1–3: monorepo, `packages/shared`, `packages/db` (schema, migration, audit append-only, lịch sử dòng, outbox, idempotency, khoá kỳ, snapshot, file, settings, thùng rác, lọc, keyset), `apps/api` (registry, executor, REST, OpenAPI + Scalar, `/health`, SSE, file, rate limit, worker pg-boss + 4 job), Bruno. 84 test pass.
-- Stage 0, bước 4–5: `apps/web` tối thiểu (khung + tình trạng `/health`), `Dockerfile`, `docker-compose.yml`, `Caddyfile`, `README.md`. `pnpm build` chạy được.
+- **Stage 0 xong** (18/11/2026): monorepo, `packages/shared`, `packages/db` (schema, migration, audit append-only + dọn có kiểm soát sau 2 năm, lịch sử dòng, outbox, idempotency, khoá kỳ, snapshot, file, settings, thùng rác, lọc, keyset), `apps/api` (registry, executor, REST, OpenAPI + Scalar, `/health`, SSE, file, rate limit, worker pg-boss + 5 job), `apps/web` tối thiểu, Docker/compose/Caddy, README, Bruno, `pnpm docs:openapi`. 90 test pass; build, lint, typecheck sạch; đã chạy thật api + worker + web và bản bundle production.
 
-## Đang làm (Stage 0, phần cuối)
+## Đang làm
 
-1. Migration `0002_audit_purge`: hàm `soe_purge_audit_before(cutoff)` (SECURITY DEFINER, sàn 2 năm, cài đặt `audit.retention_days`), trigger cho phép xoá chỉ trong hàm; job `system-audit-purge` hằng tháng; test.
-2. Script `pnpm docs:openapi` → `docs/api/openapi.json` + test kiểm tra file khớp.
-3. Ghi "Quyết định khi code" Module 0 (purge audit, docs, compose chưa chạy thử).
-4. Kiểm tra cuối (chạy thật api + worker + web, build, test, lint, typecheck) → đánh dấu Stage 0 xong, commit.
+- Stage 1 (Module 1): lên kế hoạch.
 
 ## Bước tiếp theo
 
-- Mục 1: viết `packages/db/drizzle/0002_audit_purge.sql` (thêm vào `meta/_journal.json`), job ở `apps/api/src/jobs/index.ts`.
+- Ghi kế hoạch Stage 1 vào mục "Đang làm".
 
 ## Câu hỏi còn mở
 

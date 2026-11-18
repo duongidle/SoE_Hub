@@ -370,14 +370,15 @@ Ghi trong lúc code Stage 0 (18/11/2026). Các phần đã chốt ở trên khô
 - Production: `NoActorResolver` + `DenyAllAuthorizer`. Mọi thao tác cần actor trả `401 unauthenticated`. Chỉ `/health` và `system.ping` dùng được. Có test cho việc này.
 - Cột `*_by`, `actor_user_id`, `owner_id`… là `uuid` thường, **chưa có khoá ngoại**. Stage 1 thêm bảng `users` và khoá ngoại (cần xử lý dòng của tài khoản hệ thống). Worker dùng `SYSTEM_USER_ID = 00000000-0000-7000-8000-000000000000`; Stage 1 phải tạo tài khoản hệ thống này.
 - Chuỗi quyền đang dùng: `system:whoami`, `system:setting:read|write`, `system:audit:read`, `file:read|write`, `docs:read`, `events:subscribe`. Module 1 gán chúng vào vai trò (ví dụ `system:audit:read` chỉ Admin).
-- `/api/docs` và `/api/openapi.json` đòi quyền `docs:read` (đúng ý "phải đăng nhập mới xem"). Hệ quả: production chưa xem được tài liệu cho đến Stage 1.
+- `/api/docs` và `/api/openapi.json` đòi quyền `docs:read` (đúng ý "phải đăng nhập mới xem"); production xem được từ Stage 1. Để bàn giao, bản OpenAPI được xuất ra `docs/api/openapi.json` bằng `pnpm docs:openapi` (không cần database); test báo lỗi nếu file cũ so với registry. Bộ Bruno giữ nguyên trong `docs/api/bruno/`.
 
 ### Dữ liệu và migration
 - ID là UUIDv7 sinh ở ứng dụng (PostgreSQL 17 chưa có hàm này).
 - Chỉ bảng nghiệp vụ có đủ cột chuẩn (`files`, `system_settings`). Bảng hạ tầng (`audit_log`, `row_history`, `outbox`, `idempotency_keys`, `period_locks`, `snapshots`) chỉ có cột cần thiết.
 - Hai migration: `0000_init` (Drizzle sinh từ schema) và `0001_platform_setup` (viết tay: extension `pg_trgm`, `unaccent`; hàm `soe_unaccent()` IMMUTABLE để đánh index; vai trò `soe_app`; phân quyền; trigger append-only).
 - Hai vai trò: chủ schema chạy migration; `soe_app` cho api và worker (không đổi được schema). Mật khẩu `soe_app` đặt bởi script migrate từ `APP_DB_PASSWORD`, không nằm trong git.
-- Append-only hai lớp cho `audit_log`, `row_history`, `snapshots`, `snapshot_rows`: (1) `soe_app` bị thu `UPDATE/DELETE/TRUNCATE`; (2) trigger chặn mọi vai trò kể cả chủ schema. Dọn nhật ký quá hạn (thiết kế nói giữ tối thiểu 2 năm) phải do DBA tắt trigger có chủ đích; chưa có job tự xoá.
+- Append-only hai lớp cho `audit_log`, `row_history`, `snapshots`, `snapshot_rows`: (1) `soe_app` bị thu `UPDATE/DELETE/TRUNCATE`; (2) trigger chặn mọi vai trò kể cả chủ schema.
+- **Dọn nhật ký audit có kiểm soát** (migration `0002_audit_purge`): hàm `soe_purge_audit_before(cutoff)` là `SECURITY DEFINER` (chạy bằng quyền chủ schema). Hàm từ chối mọi mốc mới hơn thời hạn giữ tối thiểu: cài đặt `audit.retention_days`, **không bao giờ dưới 730 ngày** dù cài đặt ghi thấp hơn. Trigger append-only chỉ bỏ qua `DELETE` trên `audit_log` khi cờ giao dịch `soe.audit_purge = on`, và cờ này chỉ được bật bên trong hàm. `soe_app` tự bật cờ cũng vô ích vì không có quyền `DELETE`. Job `system-audit-purge` chạy 4:00 ngày 1 hằng tháng (giờ Việt Nam) và ghi một dòng audit sau khi dọn. `row_history` và snapshot không bao giờ bị dọn.
 - `pg-boss` giữ bảng riêng trong schema `pgboss`, schema này do `soe_app` sở hữu (để pg-boss tự tạo bảng cho hàng đợi). Hệ quả: `soe_app` có quyền DDL trong schema đó nhưng không có quyền gì để đổi `public`.
 - Bảng `system_settings` (khoá → JSON, có `version`) lưu cài đặt hệ thống, ví dụ `trash.retention_days`.
 
@@ -398,7 +399,7 @@ Ghi trong lúc code Stage 0 (18/11/2026). Các phần đã chốt ở trên khô
 
 ### Outbox, worker, SSE
 - Dispatcher thăm dò mỗi 1 giây (`WORKER_OUTBOX_POLL_MS`), lấy lô bằng `FOR UPDATE SKIP LOCKED` nên chạy nhiều worker được. Giao **ít nhất một lần**; handler phải idempotent. Cột `delivered_to` ghi các bên nghe đã nhận, nên thử lại chỉ chạy bên chưa nhận. Thử lại theo lũy thừa 2 giây (tối đa 15 phút); quá 8 lần thì `status = dead` để xem.
-- Bốn job pg-boss: `system-heartbeat` (mỗi phút, job mẫu, ghi `worker.last_heartbeat` để `/health` báo tình trạng worker), `system-trash-purge` (3:00 giờ Việt Nam), `system-idempotency-purge` (mỗi giờ), `system-outbox-cleanup` (xoá sự kiện đã xử lý quá 14 ngày; sự kiện `dead` được giữ). Job lỗi thử lại 3 lần có backoff.
+- Năm job pg-boss (thêm `system-audit-purge` ở trên): `system-heartbeat` (mỗi phút, job mẫu, ghi `worker.last_heartbeat` để `/health` báo tình trạng worker), `system-trash-purge` (3:00 giờ Việt Nam), `system-idempotency-purge` (mỗi giờ), `system-outbox-cleanup` (xoá sự kiện đã xử lý quá 14 ngày; sự kiện `dead` được giữ). Job lỗi thử lại 3 lần có backoff.
 - SSE: `/api/v1/events?topics=a,b`. Chỉ gửi **tín hiệu** (`id`, tên sự kiện, loại và id đối tượng, thời điểm), không gửi dữ liệu; client tải lại qua query có kiểm tra quyền. Đường đi: outbox → worker (`sse.fanout`) → `pg_notify` → mọi tiến trình api đang `LISTEN` → kết nối SSE. Chưa hỗ trợ `Last-Event-ID` (client tải lại sau khi kết nối lại). Hiện mọi người đã xác thực nhận mọi tín hiệu theo chủ đề; Stage 1 phải lọc theo quyền xem đối tượng.
 
 ### Thùng rác, khoá kỳ, snapshot
@@ -417,7 +418,13 @@ Ghi trong lúc code Stage 0 (18/11/2026). Các phần đã chốt ở trên khô
 - CSRF token chưa làm vì chưa có xác thực bằng cookie (Stage 1).
 - Biến môi trường để trống được coi là chưa đặt. Production dùng driver `local` mà không đặt `STORAGE_SIGNING_SECRET` thì không khởi động.
 - Production: api phục vụ luôn web tĩnh (`WEB_DIST_DIR`); Caddy chỉ làm TLS và chuyển tiếp (`flush_interval -1` cho SSE).
-- Docker Compose: `postgres`, `migrate` (chạy một lần với quyền chủ schema), `api`, `worker`, `caddy`. MinIO không có trong compose; dùng Cloudflare R2 hoặc tự thêm.
+- Docker Compose: `postgres`, `migrate` (chạy một lần với quyền chủ schema), `api`, `worker`, `caddy`. MinIO không có trong compose; dùng Cloudflare R2 hoặc tự thêm. Một image cho cả ba tiến trình (khác lệnh chạy). Compose **chưa chạy thử** (máy dev không có Docker); phải chạy thử trên VPS trước khi dùng thật.
+- Biến môi trường để trống (`S3_ENDPOINT=`) được coi là chưa đặt, để `.env` và compose dùng chung một mẫu.
+
+### Web (Stage 0)
+- `apps/web`: React 19 + Vite 8 + TanStack Router (khai báo route bằng code, không sinh file) + TanStack Query + Tailwind 4; thành phần kiểu shadcn viết tay trong `src/components/ui` (chưa dùng CLI shadcn). Dev chạy cổng 5173, chuyển `/api` và `/health` sang api cổng 3000.
+- Trang khung có thanh điều hướng, trang Tổng quan và trang Hệ thống hiển thị tình trạng api, database, worker từ `/health` (tự làm mới 15 giây).
+- `pnpm dev` chạy song song api, worker và web.
 
 ### Ngoài phạm vi Stage 0 (có chủ ý)
 - Không có `users`, vai trò, đăng nhập, phiên, token, cây tổ chức, luật phân quyền (Module 1).

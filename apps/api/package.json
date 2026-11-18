@@ -10,7 +10,8 @@
     "start:worker": "node dist/worker.js",
     "build": "tsup",
     "typecheck": "tsc -p tsconfig.json",
-    "openapi": "tsx src/scripts/print-openapi.ts"
+    "openapi": "tsx src/scripts/print-openapi.ts",
+    "docs:openapi": "tsx src/scripts/print-openapi.ts --out ../../docs/api/openapi.json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1171.0",

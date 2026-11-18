@@ -192,7 +192,7 @@ export function buildOpenApi(registry: Registry, serverUrl: string): Json {
     ],
     paths,
     components: {
-      schemas: { Error: errorSchema },
+      schemas: { Error: structuredClone(errorSchema) },
       securitySchemes: {
         devActor: { type: "apiKey", in: "header", name: "X-Dev-Actor", description: "CHỈ DEV (NODE_ENV != production). Uuid người dùng giả lập. Sẽ bị thay ở Stage 1." },
         bearerAuth: { type: "http", scheme: "bearer", description: "Dành cho Stage 1: token cá nhân / OAuth. Chưa hoạt động ở Stage 0." },

@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import type { Actor } from "@soe/shared";
 import type { Executor } from "../client";
 import { auditLog, type NewAuditLogRow } from "../schema/audit";
@@ -31,4 +32,24 @@ export async function writeAudit(ex: Executor, e: AuditEntry): Promise<void> {
     details: e.details === undefined ? null : e.details,
   };
   await ex.insert(auditLog).values(row);
+}
+
+/** Minimum audit retention in days: setting `audit.retention_days`, never below 730 (2 years). Computed in SQL. */
+export async function auditMinRetentionDays(ex: Executor): Promise<number> {
+  const res = await ex.execute(sql`SELECT soe_audit_min_retention_days() AS days`);
+  return Number((res.rows[0] as { days: number }).days);
+}
+
+/**
+ * Deletes audit rows older than `cutoff` through the SECURITY DEFINER function `soe_purge_audit_before`
+ * (migration 0002). The database refuses a cutoff newer than the minimum retention. Returns the row count.
+ */
+export async function purgeAuditBefore(ex: Executor, cutoff: Date): Promise<number> {
+  try {
+    const res = await ex.execute(sql`SELECT soe_purge_audit_before(${cutoff.toISOString()}::timestamptz) AS n`);
+    return Number((res.rows[0] as { n: string | number }).n);
+  } catch (e) {
+    // Surface the database message ("audit purge refused: ...") instead of Drizzle's query wrapper.
+    throw (e as { cause?: unknown }).cause ?? e;
+  }
 }

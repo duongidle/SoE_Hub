@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { getTrashRetentionDays, purgeIdempotencyKeys, purgeTrash, writeAudit, type Db } from "@soe/db";
+import { auditMinRetentionDays, getTrashRetentionDays, purgeAuditBefore, purgeIdempotencyKeys, purgeTrash, writeAudit, type Db } from "@soe/db";
 import { BUSINESS_TIMEZONE, type Actor } from "@soe/shared";
 import type { Logger } from "pino";
 import type { Config } from "../config";
@@ -78,6 +78,20 @@ export const jobs: JobDef[] = [
     async run({ db, logger }) {
       const res = await db.execute(sql`DELETE FROM outbox WHERE status = 'processed' AND processed_at < now() - interval '14 days'`);
       logger.info({ job: "system-outbox-cleanup", purged: res.rowCount ?? 0 }, "outbox cleaned");
+    },
+  },
+  {
+    name: "system-audit-purge",
+    cron: "0 4 1 * *",
+    tz: BUSINESS_TIMEZONE,
+    description: "Ngày 1 hằng tháng xoá nhật ký audit cũ hơn thời hạn giữ (cài đặt audit.retention_days, tối thiểu 730 ngày) qua hàm có kiểm soát soe_purge_audit_before.",
+    async run({ db, logger }) {
+      const days = await auditMinRetentionDays(db);
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const purged = await purgeAuditBefore(db, cutoff);
+      logger.info({ job: "system-audit-purge", days, cutoff, purged }, "audit log purged");
+      // Written after the purge, so this record itself is kept.
+      await writeAudit(db, { command: "system.audit.purge", result: "success", actor: systemActor, details: { retention_days: days, cutoff: cutoff.toISOString(), purged } });
     },
   },
 ];

@@ -60,6 +60,7 @@ curl -N localhost:3000/api/v1/events      # luồng SSE
 | `pnpm build` | Build web và bundle api/worker/migrate |
 | `pnpm db:generate` | Sinh migration từ schema Drizzle (sau khi sửa `packages/db/src/schema`) |
 | `pnpm db:migrate` | Chạy migration |
+| `pnpm docs:openapi` | Xuất OpenAPI ra `docs/api/openapi.json` (bản bàn giao; test báo nếu file cũ) |
 
 Test dùng user Postgres của máy (cần quyền superuser, mặc định của Homebrew). Đổi bằng biến `TEST_ADMIN_URL`.
 
@@ -76,7 +77,7 @@ design/         Thiết kế từng module
 ```
 
 Thêm một thao tác mới: khai báo bằng `defineCommand` / `defineQuery` (xem `apps/api/src/modules/system/`), thêm vào `apps/api/src/modules/index.ts`.
-REST, OpenAPI và (sau này) MCP đều sinh từ registry. Nhớ thêm request vào `docs/api/bruno/`; test `openapi.test.ts` sẽ báo nếu thiếu.
+REST, OpenAPI và (sau này) MCP đều sinh từ registry. Nhớ thêm request vào `docs/api/bruno/` và chạy `pnpm docs:openapi`; test `openapi.test.ts` sẽ báo nếu thiếu.
 
 ## Production (một VPS)
 

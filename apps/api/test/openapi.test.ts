@@ -85,3 +85,11 @@ describe("Bruno collection covers every endpoint", () => {
     expect(missing, `Bruno requests missing for: ${missing.join(", ")}`).toEqual([]);
   });
 });
+
+describe("exported OpenAPI file for handover", () => {
+  it("docs/api/openapi.json matches the registry (run `pnpm docs:openapi` after changing operations)", async () => {
+    const { exportedSpecJson } = await import("../src/scripts/print-openapi");
+    const file = readFileSync(path.resolve(__dirname, "../../../docs/api/openapi.json"), "utf8");
+    expect(JSON.parse(file), "docs/api/openapi.json is stale: run `pnpm docs:openapi`").toEqual(JSON.parse(exportedSpecJson()));
+  });
+});

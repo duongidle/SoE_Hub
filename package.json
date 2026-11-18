@@ -19,7 +19,8 @@
     "test:watch": "vitest",
     "db:generate": "pnpm --filter @soe/db generate",
     "db:migrate": "pnpm --filter @soe/db migrate",
-    "db:setup": "bash scripts/db-setup.sh"
+    "db:setup": "bash scripts/db-setup.sh",
+    "docs:openapi": "pnpm --filter @soe/api docs:openapi"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

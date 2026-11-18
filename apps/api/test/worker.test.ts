@@ -167,6 +167,14 @@ describe("scheduled jobs", () => {
     expect(jobs.map((j) => j.name)).toEqual(expect.arrayContaining(["system-heartbeat", "system-trash-purge"]));
   });
 
+  it("the monthly audit purge job runs through the controlled function and records itself", async () => {
+    const job = jobs.find((j) => j.name === "system-audit-purge")!;
+    expect(job.cron).toBe("0 4 1 * *");
+    await job.run({ db: t.c.db.db, config: t.c.config, logger: t.c.logger });
+    const rows = await t.c.db.db.execute(sql`SELECT details FROM audit_log WHERE command = 'system.audit.purge' AND via = 'worker' LIMIT 1`);
+    expect((rows.rows[0] as { details: { retention_days: number } }).details.retention_days).toBe(730);
+  });
+
   it("the trash purge job uses the configured retention and writes an audit row", async () => {
     const job = jobs.find((j) => j.name === "system-trash-purge")!;
     await job.run({ db: t.c.db.db, config: t.c.config, logger: t.c.logger });
