@@ -1,6 +1,6 @@
 # Module 4 — Quản lý Deal
 
-> Trạng thái: **Bản nháp vòng 2, chờ Dương chốt** · 18/11/2026
+> Trạng thái: **Đã chốt** · 19/11/2026 (bản nháp vòng 2 ngày 18/11, Dương chốt nguyên bản). Mục 7 (bảng Thanh toán) mới là khung, chi tiết chốt sau khi Dương bàn với Manager.
 > Không ghi số của chính sách thật vào file này (repo public); số nằm trong `examples/` và trong dữ liệu chính sách của hệ thống.
 > Phụ thuộc: [Module 0](module0-nen-tang.md) (registry, lịch sử dòng, khoá kỳ, snapshot, outbox), [Module 1](module1-tai-khoan-phan-quyen.md) (cây tổ chức, phạm vi deal, Guest, chuyển giao), [Module 2](module2-datahub.md) (engine bảng, nguồn cột, công thức, liên kết, view), [Module 3](module3-metric-dashboard.md) (chỉ số, dashboard, snapshot trong chỉ số).
 > Để module sau: tool MCP (Module 5); nhắc hạn, nhắc chấm BANT (Module 6); gắn việc vào deal (Module 10).

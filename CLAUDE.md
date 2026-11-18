@@ -58,7 +58,7 @@ Repo: `https://github.com/duongidle/SoE_Hub`.
 | 1   | `module1-tai-khoan-phan-quyen.md`    | Tài khoản, vai trò, cây tổ chức, cấp dữ liệu, token                                  | Đã chốt    |
 | 2   | `module2-datahub.md`                 | Lưu trữ, kiểu cột, công thức, lịch sử, import/export                                 | Đã chốt    |
 | 3   | `module3-metric-dashboard.md`        | Định nghĩa chỉ số, biểu đồ, bảng gộp                                                 | Đã chốt    |
-| 4   | `module4-quan-ly-deal.md`            | Template Deals, người tham gia, chính sách/com, forecast, BANT                       | Chưa       |
+| 4   | `module4-quan-ly-deal.md`            | Template Deals, người tham gia, chính sách/com, forecast, BANT                       | Đã chốt    |
 | 5   | `module5-ket-noi-ai.md`              | REST, MCP, quản lý kết nối AI                                                        | Chưa       |
 | 6   | `module6-thong-bao.md`               | Thông báo, nhắc hẹn, nhắc hạn                                                        | Chưa       |
 | 7   | `module7-dynamic-form.md`            | Form kéo thả, bài test, khảo sát                                                     | Chưa       |
@@ -80,7 +80,7 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 | 1     | M1         | 0                | Tài khoản, vai trò, cây tổ chức, đăng nhập (mật khẩu + Google), session, token, engine phân quyền, quên mật khẩu, hộp thông báo tối thiểu (M6 mở rộng sau), trang nhật ký của Admin, chuyển giao dữ liệu | Đăng nhập, quản lý người dùng, admin xem log                        | Đã xong    |
 | 2     | M2         | 1                | Datahub, bảng, kiểu cột, engine công thức, lọc/sắp xếp/view, grid ảo hoá, import/export, thùng rác, lịch sử dòng                                                                                         | Dùng Datahub thay Google Sheet/Lark Base                            |            |
 | 3     | M3         | 2                | Engine metric, các loại biểu đồ, dashboard tuỳ chỉnh                                                                                                                                                     | Vẽ dashboard từ Datahub                                             |            |
-| 4     | M4         | 2, 3             | Template Deals, người tham gia, ba loại cột, chính sách com có phiên bản, khoá kỳ, snapshot, forecast, BANT, dashboard Deals mặc định, API cho hệ thống ngoài                                            | **Mốc Engine v1: team SoE chạy thử quản lý deal**                   |            |
+| 4     | M4         | 2, 3             | Template Deals (bốn lớp cột), người tham gia, chính sách com có phiên bản, khoá kỳ, snapshot, forecast, BANT, dashboard Deals mặc định, API cho hệ thống ngoài                                            | **Mốc Engine v1: team SoE chạy thử quản lý deal**                   |            |
 | 5     | M5         | 1, 4             | MCP server, OAuth + DCR, token cá nhân, kết nối AI chờ duyệt, scope theo menu, hướng dẫn kết nối, bộ Bruno đầy đủ                                                                                        | Claude/Codex điều khiển được hệ thống                               |            |
 | 6     | M6         | 1                | Thông báo đầy đủ, nhắc hẹn, nhắc hạn, quy tắc gửi                                                                                                                                                        |                                                                     |            |
 | 7     | M7         | 2                | Dynamic Form: builder kéo thả, renderer công khai, lưu nháp, chấm điểm, JSON import/export                                                                                                               |                                                                     |            |
@@ -298,7 +298,7 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 - Vai trò: Admin, Manager, Leader, User, Guest. Một người có thể có nhiều vai trò.
 - **Admin là quản trị hệ thống**: cài đặt, giới hạn, nhật ký, duyệt kết nối AI/token, chuyển giao dữ liệu. Admin **không** có quyền nghiệp vụ: không tạo/phân deal, không sửa chính sách com, không khoá kỳ, không snapshot, không đẩy cột, không tạo lộ trình onboard, không tạo datahub/form, không đăng bài/skill. Muốn có thì phải mang thêm vai trò khác.
 - Cây tổ chức: mỗi User có đúng một Leader (hoặc thuộc thẳng Manager); trên Leader là Manager; một Manager có nhiều Leader. **Hai Manager không thấy dữ liệu của nhau.** Đổi team có lưu lịch sử: quyền xem theo cây hiện tại, báo cáo theo kỳ theo cây tại thời điểm đó.
-- **Deal khác Datahub về quyền xem:** Leader xem Quản lý Deal của team, Manager xem của cả cây. **Datahub là của riêng từng người**, Leader/Manager không xem được, trừ khi chủ chia sẻ (xem hoặc sửa).
+- **Deal khác Datahub về quyền xem:** Leader xem Quản lý Deal của team, Manager xem của cả cây. **Datahub là của riêng từng người**, Leader/Manager không xem được, trừ khi chủ chia sẻ (xem hoặc sửa). Ngoại lệ trong datahub "Quản lý Deal": bảng **Deals** và **Probation KPI** là dữ liệu dùng chung, xem theo phạm vi deal; Index và bảng tự tạo vẫn là của riêng (Module 4 mục 2).
 - Sửa deal: Manager luôn sửa được deal trong cây. Leader mặc định chỉ đọc; User bật tuỳ chọn "cho phép leader sửa" trong Quản lý Deal thì Leader sửa được.
 - Quyền bổ sung: Admin hoặc Manager cấp thêm một quyền trong danh sách cho phép cho một người cụ thể. Không có công cụ tự tạo vai trò.
 - Guest mặc định không có quyền gì. Manager cấp từng phần dữ liệu (ví dụ bộ phận Data đọc Deals qua API/export, chỉ cột hệ thống + cột chung). Guest không bao giờ thấy cột cá nhân. Sale chỉ được cấp Knowledge.
@@ -330,10 +330,11 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 ### Deal
 
 - Engine lưu **một bản ghi cho mỗi deal**, kèm danh sách người tham gia (Leading / Associate / Advisor) và tỉ lệ chia. Doanh thu cộng cho vai trò được tính doanh thu; workload cộng cho tất cả.
-- Quản lý Deal là chức năng riêng chạy trên lõi Datahub (vẫn tạo được cột tuỳ chỉnh).
+- Quản lý Deal là **một datahub được bảo vệ** ("Quản lý Deal") của mỗi Manager, Leader, User: cùng engine, cùng dữ liệu với Datahub. Không xoá, không đổi tên datahub, bảng mặc định và cột mặc định; **được tạo thêm bảng**. Không tính vào giới hạn số datahub (Module 4 mục 1).
 - Hiển thị theo quyền: User thấy deal mình tham gia; Leader thấy deal của mình và team; Manager tạo deal, phân deal, thấy mọi deal trong cây của mình.
 - Nguồn deal hiện tại: Manager nhập tay và phân tay. Sau này có hệ thống ngoài bắn API vào (kèm người được chia và tỉ lệ), nên mọi chỗ liên quan phải có API sẵn.
-- Ba loại cột: **hệ thống** (template, admin quản lý, phân quyền sửa theo từng cột); **chung** (Manager đẩy cho toàn bộ, Leader đẩy cho team, một giá trị mỗi deal); **cá nhân** (mỗi người một giá trị, leader của họ xem được). Template mặc định có nhiều cột, bám theo file deal mẫu.
+- Template cột có **bốn lớp**: Cơ bản và Theo vai trò (**Admin và Manager** sửa), Theo team (Leader sửa cho team), Tuỳ chỉnh (từng người). Cột template có hai cách lưu: một giá trị chung mỗi deal, hoặc mỗi người một giá trị. Sửa template áp dụng ngay cho mọi người trong phạm vi. Thêm cột mặc định là cột riêng; đưa vào template phải chọn rõ. Template mặc định bám theo sheet Deals của file mẫu (Module 4 mục 3, 4).
+- **Cột mặc định là cột thường do template sinh sẵn**, không có logic viết cứng: cột tính toán là công thức chỉ dùng hàm kiểu Excel, không thêm hàm riêng cho Quản lý Deal.
 - Deal không bao giờ bị xoá cứng; Manager chỉ đánh dấu "Huỷ".
 - Khoá kỳ / chốt kỳ com là việc của Manager.
 - Chính sách com có phiên bản và ngày hiệu lực; Manager tạo phiên bản mới, không ghi đè phiên bản cũ. Làm trước phiên bản đầu tiên, sẽ chỉnh sau khi Dương bàn với Manager.
