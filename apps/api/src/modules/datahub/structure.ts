@@ -97,7 +97,7 @@ export const ColumnOut = z.object({
   display: z.record(z.string(), z.unknown()),
   version: z.number().int(),
   /** Recalculation state of a formula, lookup or rollup column (null for other columns). `pending` / `running` cells show the "calculating" icon. */
-  calc: z.object({ status: z.enum(["ready", "pending", "running"]), done: z.number().int().nullable(), total: z.number().int().nullable(), at: Ts.nullable() }).nullable(),
+  calc: z.object({ status: z.enum(["ready", "pending", "running"]), done: z.number().int().nullable(), total: z.number().int().nullable(), at: Ts.nullable(), seq: z.number().int().describe("Số thứ tự thay đổi cột đã tính tới.") }).nullable(),
 });
 
 /**
@@ -111,7 +111,7 @@ export function columnOut(c: ReturnType<typeof columnFromDb>, ix: OwnerIndex | n
   // The auto-number counter is internal.
   if (def.type === "auto_number") delete config.seq;
   if (isComputedType(c.type) || c.type === "relation") config = displayConfig({ type: c.type, config, tableId: c.tableId }, ix);
-  const calc = isComputedType(c.type) ? { status: c.calcStatus as "ready" | "pending" | "running", done: c.calcDone, total: c.calcTotal, at: c.calcAt } : null;
+  const calc = isComputedType(c.type) ? { status: c.calcStatus as "ready" | "pending" | "running", done: c.calcDone, total: c.calcTotal, at: c.calcAt, seq: c.calcSeq } : null;
   return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, version: c.version, calc };
 }
 

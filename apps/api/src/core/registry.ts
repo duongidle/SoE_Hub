@@ -26,6 +26,7 @@ function define<I extends z.ZodType, O, P extends string | null>(kind: Operation
     emits: d.emits ?? [],
     http: { method: d.http.method, path: d.http.path, status: d.http.status ?? 200, respond: d.http.respond },
     list: d.list ?? false,
+    listExtra: d.listExtra,
     handler: d.handler as Operation["handler"],
   };
 }

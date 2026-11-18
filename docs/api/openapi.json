@@ -14909,13 +14909,20 @@
                                             "type": "null"
                                           }
                                         ]
+                                      },
+                                      "seq": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991,
+                                        "description": "Số thứ tự thay đổi cột đã tính tới."
                                       }
                                     },
                                     "required": [
                                       "status",
                                       "done",
                                       "total",
-                                      "at"
+                                      "at",
+                                      "seq"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -16044,13 +16051,20 @@
                                       "type": "null"
                                     }
                                   ]
+                                },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "Số thứ tự thay đổi cột đã tính tới."
                                 }
                               },
                               "required": [
                                 "status",
                                 "done",
                                 "total",
-                                "at"
+                                "at",
+                                "seq"
                               ],
                               "additionalProperties": false
                             },
@@ -16395,13 +16409,20 @@
                                       "type": "null"
                                     }
                                   ]
+                                },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "Số thứ tự thay đổi cột đã tính tới."
                                 }
                               },
                               "required": [
                                 "status",
                                 "done",
                                 "total",
-                                "at"
+                                "at",
+                                "seq"
                               ],
                               "additionalProperties": false
                             },
@@ -16873,13 +16894,20 @@
                                       "type": "null"
                                     }
                                   ]
+                                },
+                                "seq": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991,
+                                  "description": "Số thứ tự thay đổi cột đã tính tới."
                                 }
                               },
                               "required": [
                                 "status",
                                 "done",
                                 "total",
-                                "at"
+                                "at",
+                                "seq"
                               ],
                               "additionalProperties": false
                             },
@@ -17507,13 +17535,20 @@
                                           "type": "null"
                                         }
                                       ]
+                                    },
+                                    "seq": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991,
+                                      "description": "Số thứ tự thay đổi cột đã tính tới."
                                     }
                                   },
                                   "required": [
                                     "status",
                                     "done",
                                     "total",
-                                    "at"
+                                    "at",
+                                    "seq"
                                   ],
                                   "additionalProperties": false
                                 },
@@ -17817,6 +17852,33 @@
               ]
             },
             "description": "true = trả tên lựa chọn thay vì mã lựa chọn."
+          },
+          {
+            "name": "consistent_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Đợi các cột công thức tính xong tới số thứ tự thay đổi này (lấy từ kết quả của lệnh ghi). Hết thời gian chờ thì trả giá trị hiện có kèm `consistency.stale = true`.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "description": "Đợi các cột công thức tính xong tới số thứ tự thay đổi này (lấy từ kết quả của lệnh ghi). Hết thời gian chờ thì trả giá trị hiện có kèm `consistency.stale = true`."
+          },
+          {
+            "name": "consistent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "true = đợi tới số thứ tự mới nhất tại lúc gọi.",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "description": "true = đợi tới số thứ tự mới nhất tại lúc gọi."
           }
         ],
         "responses": {
@@ -17897,6 +17959,13 @@
                               "type": "string"
                             },
                             "additionalProperties": {}
+                          },
+                          "pending": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
                           }
                         },
                         "required": [
@@ -17914,6 +17983,35 @@
                     },
                     "total": {
                       "type": "integer"
+                    },
+                    "consistency": {
+                      "description": "Có khi gửi `consistent_after` hoặc `consistent`.",
+                      "type": "object",
+                      "properties": {
+                        "seq": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Số thứ tự thay đổi đã đợi."
+                        },
+                        "stale": {
+                          "type": "boolean",
+                          "description": "true = hết thời gian chờ, giá trị trả về có thể chưa mới."
+                        },
+                        "columns": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Mã các cột chưa tính xong (rỗng khi stale = false)."
+                        }
+                      },
+                      "required": [
+                        "seq",
+                        "stale",
+                        "columns"
+                      ],
+                      "additionalProperties": false
                     }
                   }
                 }
@@ -18128,11 +18226,25 @@
                             "type": "string"
                           },
                           "additionalProperties": {}
+                        },
+                        "pending": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
+                        },
+                        "seq": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Số thứ tự thay đổi của lần ghi này. Đọc lại với `consistent_after=<số>` để chắc chắn cột công thức đã tính xong."
                         }
                       },
                       "required": [
                         "id",
-                        "data"
+                        "data",
+                        "seq"
                       ],
                       "additionalProperties": false
                     }
@@ -18287,6 +18399,33 @@
               ]
             },
             "description": "true = trả tên lựa chọn thay vì mã lựa chọn."
+          },
+          {
+            "name": "consistent_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Đợi các cột công thức tính xong tới số thứ tự thay đổi này (lấy từ kết quả của lệnh ghi). Hết thời gian chờ thì trả giá trị hiện có kèm `consistency.stale = true`.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "description": "Đợi các cột công thức tính xong tới số thứ tự thay đổi này (lấy từ kết quả của lệnh ghi). Hết thời gian chờ thì trả giá trị hiện có kèm `consistency.stale = true`."
+          },
+          {
+            "name": "consistent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "true = đợi tới số thứ tự mới nhất tại lúc gọi.",
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "description": "true = đợi tới số thứ tự mới nhất tại lúc gọi."
           }
         ],
         "responses": {
@@ -18364,6 +18503,41 @@
                             "type": "string"
                           },
                           "additionalProperties": {}
+                        },
+                        "pending": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
+                        },
+                        "consistency": {
+                          "type": "object",
+                          "properties": {
+                            "seq": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Số thứ tự thay đổi đã đợi."
+                            },
+                            "stale": {
+                              "type": "boolean",
+                              "description": "true = hết thời gian chờ, giá trị trả về có thể chưa mới."
+                            },
+                            "columns": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Mã các cột chưa tính xong (rỗng khi stale = false)."
+                            }
+                          },
+                          "required": [
+                            "seq",
+                            "stale",
+                            "columns"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -18611,11 +18785,25 @@
                             "type": "string"
                           },
                           "additionalProperties": {}
+                        },
+                        "pending": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
+                        },
+                        "seq": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Số thứ tự thay đổi của lần ghi này. Đọc lại với `consistent_after=<số>` để chắc chắn cột công thức đã tính xong."
                         }
                       },
                       "required": [
                         "id",
-                        "data"
+                        "data",
+                        "seq"
                       ],
                       "additionalProperties": false
                     }
@@ -18789,11 +18977,18 @@
                         "deleted": {
                           "type": "boolean",
                           "const": true
+                        },
+                        "seq": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Số thứ tự thay đổi của lần ghi này. Đọc lại với `consistent_after=<số>` để chắc chắn cột công thức đã tính xong."
                         }
                       },
                       "required": [
                         "id",
-                        "deleted"
+                        "deleted",
+                        "seq"
                       ],
                       "additionalProperties": false
                     }
@@ -19053,6 +19248,13 @@
                                 "type": "string"
                               },
                               "additionalProperties": {}
+                            },
+                            "pending": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
                             }
                           },
                           "required": [
@@ -19060,11 +19262,18 @@
                             "data"
                           ],
                           "additionalProperties": false
+                        },
+                        "seq": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Số thứ tự thay đổi của lần ghi này. Đọc lại với `consistent_after=<số>` để chắc chắn cột công thức đã tính xong."
                         }
                       },
                       "required": [
                         "outcome",
-                        "row"
+                        "row",
+                        "seq"
                       ],
                       "additionalProperties": false
                     }
@@ -19445,6 +19654,13 @@
                                           "type": "string"
                                         },
                                         "additionalProperties": {}
+                                      },
+                                      "pending": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
                                       }
                                     },
                                     "required": [
@@ -19457,20 +19673,34 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "seq": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991,
+                                "description": "Số thứ tự thay đổi của lần ghi này. Đọc lại với `consistent_after=<số>` để chắc chắn cột công thức đã tính xong."
                               }
                             },
                             "required": [
                               "op",
                               "outcome",
                               "id",
-                              "row"
+                              "row",
+                              "seq"
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "seq": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Số thứ tự thay đổi của lần ghi này. Đọc lại với `consistent_after=<số>` để chắc chắn cột công thức đã tính xong."
                         }
                       },
                       "required": [
-                        "results"
+                        "results",
+                        "seq"
                       ],
                       "additionalProperties": false
                     }
@@ -19689,11 +19919,25 @@
                             "type": "string"
                           },
                           "additionalProperties": {}
+                        },
+                        "pending": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
+                        },
+                        "seq": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Số thứ tự thay đổi của lần ghi này. Đọc lại với `consistent_after=<số>` để chắc chắn cột công thức đã tính xong."
                         }
                       },
                       "required": [
                         "id",
-                        "data"
+                        "data",
+                        "seq"
                       ],
                       "additionalProperties": false
                     }

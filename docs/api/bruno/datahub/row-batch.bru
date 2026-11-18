@@ -27,5 +27,6 @@ body:json {
 
 docs {
   Nhiều thao tác trong MỘT giao dịch (tối đa 500): create, update, delete, upsert. Một thao tác lỗi thì cả lô không ghi.
+  Kết quả có `seq` (số thứ tự thay đổi): đọc lại với `consistent_after=<seq>` để chắc cột công thức đã tính xong.
   Quyền: `datahub:datahub:use`.
 }

@@ -68,6 +68,8 @@ export interface ListOutput<T = unknown> {
   items: T[];
   nextCursor: string | null;
   total?: number;
+  /** Extra top-level fields of the REST envelope (declared by the operation's `listExtra`), e.g. `consistency`. */
+  extra?: Record<string, unknown>;
 }
 
 export interface OperationDef<I extends z.ZodType, O, P extends string | null> {
@@ -89,6 +91,8 @@ export interface OperationDef<I extends z.ZodType, O, P extends string | null> {
   http: HttpBinding;
   /** Marks a list query: handler returns ListOutput and REST adds `next_cursor`/`total`. */
   list?: boolean;
+  /** Fields a list adds next to `data` / `next_cursor` / `total` (documented in OpenAPI). Returned in `ListOutput.extra`. */
+  listExtra?: z.ZodType;
   handler: (ctx: HandlerCtx<P extends string ? Actor : Actor | null>, input: z.output<I>) => Promise<O>;
 }
 
@@ -108,6 +112,7 @@ export interface Operation {
   emits: string[];
   http: Required<Omit<HttpBinding, "respond">> & Pick<HttpBinding, "respond">;
   list: boolean;
+  listExtra?: z.ZodType;
   handler: (ctx: HandlerCtx<Actor | null>, input: unknown) => Promise<unknown>;
 }
 

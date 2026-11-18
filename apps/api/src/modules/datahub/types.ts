@@ -25,6 +25,8 @@ export interface DhColumn {
   calcDone: number | null;
   calcTotal: number | null;
   calcAt: Date | null;
+  /** Highest change sequence the column has incorporated (design module2 section 6.7). */
+  calcSeq: number;
 }
 
 export interface SelectOption {

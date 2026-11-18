@@ -15,6 +15,8 @@ const Labels = z
   .transform((v) => v === "true")
   .describe("true = trả tên lựa chọn thay vì mã lựa chọn.");
 
+const Pending = z.array(z.string()).describe("Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính).");
+
 const RowOut = z.object({
   id: Id,
   row_no: z.number().int().optional(),
@@ -24,7 +26,23 @@ const RowOut = z.object({
   updated_at: Ts.optional(),
   updated_by: z.uuid().nullable().optional(),
   data: z.record(z.string(), z.unknown()),
+  pending: Pending.optional(),
 });
+
+const ConsistencyOut = z.object({
+  seq: z.number().int().describe("Số thứ tự thay đổi đã đợi."),
+  stale: z.boolean().describe("true = hết thời gian chờ, giá trị trả về có thể chưa mới."),
+  columns: z.array(z.string()).describe("Mã các cột chưa tính xong (rỗng khi stale = false)."),
+});
+
+const SeqOut = z.number().int().describe("Số thứ tự thay đổi của lần ghi này. Đọc lại với `consistent_after=<số>` để chắc chắn cột công thức đã tính xong.");
+/** A row returned by a write: the row and the change sequence of the write. */
+const WriteRowOut = RowOut.extend({ seq: SeqOut });
+
+const consistentParams = {
+  consistent_after: z.coerce.number().int().min(0).optional().describe("Đợi các cột công thức tính xong tới số thứ tự thay đổi này (lấy từ kết quả của lệnh ghi). Hết thời gian chờ thì trả giá trị hiện có kèm `consistency.stale = true`."),
+  consistent: z.enum(["true", "false"]).default("false").transform((v) => v === "true").describe("true = đợi tới số thứ tự mới nhất tại lúc gọi."),
+};
 
 const BatchOp = z.discriminatedUnion("op", [
   z.object({ op: z.literal("create"), data: Cells }),
@@ -33,7 +51,7 @@ const BatchOp = z.discriminatedUnion("op", [
   z.object({ op: z.literal("upsert"), key: z.string().min(1).max(100), data: Cells }),
 ]);
 
-const OpResultOut = z.object({ op: z.string(), outcome: z.enum(["created", "updated", "unchanged", "deleted"]), id: Id, row: RowOut.nullable() });
+const OpResultOut = z.object({ op: z.string(), outcome: z.enum(["created", "updated", "unchanged", "deleted"]), id: Id, row: RowOut.nullable(), seq: SeqOut });
 
 const writeDoc = "Sửa dòng gửi `base` (giá trị các ô bạn đã đọc): chỉ khi CÙNG một ô đã bị người khác sửa mới trả 409 `conflict` kèm giá trị hiện tại; sửa hai ô khác nhau của một dòng thì server gộp. Không có `base` thì bắt buộc gửi `version`.";
 
@@ -58,13 +76,15 @@ export const rowOperations = [
       cursor: z.string().max(2000).optional(),
       include_total: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
       labels: Labels,
+      ...consistentParams,
     }),
     output: RowOut,
+    listExtra: z.object({ consistency: ConsistencyOut.optional().describe("Có khi gửi `consistent_after` hoặc `consistent`.") }),
     http: { method: "GET", path: "/tables/:table_id/rows" },
     handler: async (ctx, i): Promise<ListOutput> => {
       const acc = await loadTableAccess(ctx, i.table_id);
       const schema = await TableSchema.load(ctx.db, acc);
-      return listRows(ctx.db, acc, schema, { filter: i.filter, sort: i.sort, fields: i.fields, search: i.search, limit: i.limit, cursor: i.cursor, includeTotal: i.include_total, labels: i.labels });
+      return listRows(ctx.db, acc, schema, { filter: i.filter, sort: i.sort, fields: i.fields, search: i.search, limit: i.limit, cursor: i.cursor, includeTotal: i.include_total, labels: i.labels, consistentAfter: i.consistent_after, consistent: i.consistent });
     },
   }),
 
@@ -73,12 +93,12 @@ export const rowOperations = [
     summary: "Một dòng.",
     permission: "datahub:datahub:use",
     aiAllowed: true,
-    input: z.object({ table_id: Id, row_id: Id, fields: z.string().max(2000).optional(), labels: Labels }),
-    output: RowOut,
+    input: z.object({ table_id: Id, row_id: Id, fields: z.string().max(2000).optional(), labels: Labels, ...consistentParams }),
+    output: RowOut.extend({ consistency: ConsistencyOut.optional() }),
     http: { method: "GET", path: "/tables/:table_id/rows/:row_id" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id);
-      return getRow(ctx.db, acc, await TableSchema.load(ctx.db, acc), i.row_id, { fields: i.fields, labels: i.labels });
+      return getRow(ctx.db, acc, await TableSchema.load(ctx.db, acc), i.row_id, { fields: i.fields, labels: i.labels, consistentAfter: i.consistent_after, consistent: i.consistent });
     },
   }),
 
@@ -89,13 +109,13 @@ export const rowOperations = [
     aiAllowed: true,
     emits: ROW_EVENTS,
     input: z.object({ table_id: Id, data: Cells.default({}), labels: Labels }),
-    output: RowOut,
+    output: WriteRowOut,
     http: { method: "POST", path: "/tables/:table_id/rows", status: 201 },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "edit_data");
       const schema = await TableSchema.load(ctx.db, acc);
       const [r] = await applyRowOps(ctx, acc, schema, [{ op: "create", data: i.data }], { labels: i.labels });
-      return r!.row!;
+      return { ...r!.row!, seq: r!.seq };
     },
   }),
 
@@ -107,13 +127,13 @@ export const rowOperations = [
     aiAllowed: true,
     emits: ROW_EVENTS,
     input: z.object({ table_id: Id, row_id: Id, data: Cells, base: Cells.optional(), version: z.number().int().min(1).optional(), labels: Labels }),
-    output: RowOut,
+    output: WriteRowOut,
     http: { method: "PATCH", path: "/tables/:table_id/rows/:row_id" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "edit_data");
       const schema = await TableSchema.load(ctx.db, acc);
       const [r] = await applyRowOps(ctx, acc, schema, [{ op: "update", id: i.row_id, data: i.data, base: i.base, version: i.version }], { labels: i.labels });
-      return r!.row!;
+      return { ...r!.row!, seq: r!.seq };
     },
   }),
 
@@ -124,13 +144,13 @@ export const rowOperations = [
     aiAllowed: true,
     emits: ROW_EVENTS,
     input: z.object({ table_id: Id, row_id: Id, version: z.coerce.number().int().min(1).optional() }),
-    output: z.object({ id: Id, deleted: z.literal(true) }),
+    output: z.object({ id: Id, deleted: z.literal(true), seq: SeqOut }),
     http: { method: "DELETE", path: "/tables/:table_id/rows/:row_id" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "edit_data");
       const schema = await TableSchema.load(ctx.db, acc);
-      await applyRowOps(ctx, acc, schema, [{ op: "delete", id: i.row_id, version: i.version }]);
-      return { id: i.row_id, deleted: true as const };
+      const [r] = await applyRowOps(ctx, acc, schema, [{ op: "delete", id: i.row_id, version: i.version }]);
+      return { id: i.row_id, deleted: true as const, seq: r!.seq };
     },
   }),
 
@@ -141,13 +161,13 @@ export const rowOperations = [
     aiAllowed: true,
     emits: ROW_EVENTS,
     input: z.object({ table_id: Id, key: z.string().min(1).max(100).describe("Mã hoặc tên cột khoá."), data: Cells, labels: Labels }),
-    output: z.object({ outcome: z.enum(["created", "updated", "unchanged", "deleted"]), row: RowOut }),
+    output: z.object({ outcome: z.enum(["created", "updated", "unchanged", "deleted"]), row: RowOut, seq: SeqOut }),
     http: { method: "POST", path: "/tables/:table_id/rows/upsert" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "edit_data");
       const schema = await TableSchema.load(ctx.db, acc);
       const [r] = await applyRowOps(ctx, acc, schema, [{ op: "upsert", key: i.key, data: i.data }], { labels: i.labels });
-      return { outcome: r!.outcome, row: r!.row! };
+      return { outcome: r!.outcome, row: r!.row!, seq: r!.seq };
     },
   }),
 
@@ -159,12 +179,13 @@ export const rowOperations = [
     aiAllowed: true,
     emits: ROW_EVENTS,
     input: z.object({ table_id: Id, ops: z.array(BatchOp).min(1).max(DH_BATCH_MAX), labels: Labels }),
-    output: z.object({ results: z.array(OpResultOut) }),
+    output: z.object({ results: z.array(OpResultOut), seq: SeqOut }),
     http: { method: "POST", path: "/tables/:table_id/rows/batch" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "edit_data");
       const schema = await TableSchema.load(ctx.db, acc);
-      return { results: await applyRowOps(ctx, acc, schema, i.ops as RowOp[], { labels: i.labels }) };
+      const results = await applyRowOps(ctx, acc, schema, i.ops as RowOp[], { labels: i.labels });
+      return { results, seq: results[0]!.seq };
     },
   }),
 
@@ -175,13 +196,13 @@ export const rowOperations = [
     aiAllowed: true,
     emits: ROW_EVENTS,
     input: z.object({ table_id: Id, row_id: Id }),
-    output: RowOut,
+    output: WriteRowOut,
     http: { method: "POST", path: "/tables/:table_id/rows/:row_id/restore" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "edit_data");
       const schema = await TableSchema.load(ctx.db, acc);
-      const [row] = await restoreRows(ctx, acc, schema, [i.row_id]);
-      return row!;
+      const r = await restoreRows(ctx, acc, schema, [i.row_id]);
+      return { ...r.rows[0]!, seq: r.seq };
     },
   }),
 

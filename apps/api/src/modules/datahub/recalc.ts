@@ -669,7 +669,7 @@ export async function requestEqkIndex(db: Executor, tableId: string, key: string
 }
 
 /** Own rows whose key columns equal one of the queued group keys (the SQL twin of `equalityKey`, `soe_eqk`; candidates only). */
-async function rowsOfKeys(db: Executor, tableId: string, entries: QueuedRow[], rowCount: number): Promise<string[]> {
+export async function rowsOfKeys(db: Executor, tableId: string, entries: QueuedRow[], rowCount: number, within?: string[]): Promise<string[]> {
   const bySignature = new Map<string, { cols: string[]; tuples: Map<string, unknown[]> }>();
   for (const e of entries) {
     const k = e.keys as KeyTuples;
@@ -686,7 +686,8 @@ async function rowsOfKeys(db: Executor, tableId: string, entries: QueuedRow[], r
     const res = await db.execute(sql`WITH t AS (SELECT DISTINCT ${sel} FROM jsonb_array_elements(${JSON.stringify([...g.tuples.values()])}::jsonb) x)
       SELECT r.id FROM dh_rows r WHERE /*scope:system*/ r.table_id = ${tableId}::uuid AND r.deleted_at IS NULL
         AND ${sql.raw(`soe_eqk(r.data->'${cols[0]}')`)} = ANY(ARRAY(SELECT k0 FROM t))
-        AND EXISTS (SELECT 1 FROM t WHERE ${exact})`);
+        AND EXISTS (SELECT 1 FROM t WHERE ${exact})
+        ${within ? sql`AND r.id = ANY(${`{${within.join(",")}}`}::uuid[])` : sql``}`);
     for (const r of res.rows as { id: string }[]) out.add(r.id);
     // A big table finds the rows of a group by an index on the equality key.
     for (const c of cols) await requestEqkIndex(db, tableId, c, rowCount);

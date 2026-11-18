@@ -29,6 +29,7 @@ export function columnFromDb(r: Raw): DhColumn {
     calcDone: (r.calc_done as number | null | undefined) ?? null,
     calcTotal: (r.calc_total as number | null | undefined) ?? null,
     calcAt: (r.calc_at as Date | null | undefined) ?? null,
+    calcSeq: Number((r.calc_seq as string | number | null | undefined) ?? 0),
   };
 }
 

@@ -89,7 +89,11 @@ function buildOperation(op: Operation): Json {
 
   const item = op.output ? toSchema(op.output, "output") : {};
   const success = op.list
-    ? { type: "object", required: ["data", "next_cursor"], properties: { data: { type: "array", items: item }, next_cursor: { type: ["string", "null"] }, total: { type: "integer" } } }
+    ? {
+        type: "object",
+        required: ["data", "next_cursor"],
+        properties: { data: { type: "array", items: item }, next_cursor: { type: ["string", "null"] }, total: { type: "integer" }, ...(op.listExtra ? ((toSchema(op.listExtra, "output").properties as Json | undefined) ?? {}) : {}) },
+      }
     : { type: "object", required: ["data"], properties: { data: item } };
 
   const result: Json = {

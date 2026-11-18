@@ -206,8 +206,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
           return { data };
         }
         if (op.list) {
-          const l = r.result as { items: unknown[]; nextCursor: string | null; total?: number };
-          return { data: l.items, next_cursor: l.nextCursor, ...(l.total !== undefined ? { total: l.total } : {}) };
+          const l = r.result as { items: unknown[]; nextCursor: string | null; total?: number; extra?: Record<string, unknown> };
+          return { data: l.items, next_cursor: l.nextCursor, ...(l.total !== undefined ? { total: l.total } : {}), ...(l.extra ?? {}) };
         }
         return { data: r.result };
       },

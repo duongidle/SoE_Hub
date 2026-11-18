@@ -431,7 +431,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
 }
 
 /** Restores rows from the trash (design section 12). Needs `edit_data`. Returns the restored rows. */
-export async function restoreRows(ctx: Ctx, access: TableAccess, schema: TableSchema, rowIds: string[]): Promise<ApiRow[]> {
+export async function restoreRows(ctx: Ctx, access: TableAccess, schema: TableSchema, rowIds: string[]): Promise<{ rows: ApiRow[]; seq: number }> {
   access.require("edit_data");
   const actorId = ctx.actor.userId;
   ctx.audit({ type: "datahub_row", id: access.tableId, details: { table_id: access.tableId, restored: rowIds.length } });
@@ -445,5 +445,5 @@ export async function restoreRows(ctx: Ctx, access: TableAccess, schema: TableSc
   const seq = await nextChangeSeq(ctx.db);
   await recordChanges(ctx.db, access.tableId, rows.map((r): RowChange => ({ rowId: r.id, kind: "restore", old: null, new: r.data })), seq);
   await ctx.emit("datahub.row.restored", { aggregateType: "datahub_table", aggregateId: access.tableId, payload: { table_id: access.tableId, row_ids: rows.map((r) => r.id), columns: [], seq } });
-  return rows.map((r) => toApiRow(r, schema));
+  return { rows: rows.map((r) => toApiRow(r, schema)), seq };
 }

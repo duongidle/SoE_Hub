@@ -13,6 +13,8 @@ get {
 params:query {
   ~fields: fields
   ~labels: false
+  ~consistent_after: 0
+  ~consistent: false
 }
 
 headers {
@@ -21,5 +23,6 @@ headers {
 
 docs {
   Một dòng.
+  Hỗ trợ `consistent_after` / `consistent` như `datahub.row.list`; kết quả có `consistency` và `pending`.
   Quyền: `datahub:datahub:use`.
 }

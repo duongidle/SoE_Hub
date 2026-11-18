@@ -19,6 +19,8 @@ params:query {
   ~cursor: cursor
   ~include_total: false
   ~labels: false
+  ~consistent_after: 0
+  ~consistent: false
 }
 
 headers {
@@ -27,5 +29,7 @@ headers {
 
 docs {
   Danh sách dòng: lọc, sắp xếp nhiều cấp, tìm kiếm, chọn cột, phân trang keyset.
+  Đợi tính xong: `consistent_after=<seq>` (seq lấy từ kết quả lệnh ghi) hoặc `consistent=true` (seq mới nhất lúc gọi). Thời gian chờ theo cài đặt `datahub.consistent_wait_ms` (mặc định 5000 ms); hết giờ thì giá trị hiện có kèm `consistency.stale = true` và danh sách `consistency.columns`.
+  Mỗi dòng có `pending` (mã cột đang tính) khi có ô đang chờ tính.
   Quyền: `datahub:datahub:use`.
 }

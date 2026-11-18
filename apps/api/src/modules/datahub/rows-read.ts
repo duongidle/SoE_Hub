@@ -9,6 +9,9 @@ import { effectiveType } from "./cell-values";
 import { assertColumnKey } from "./types";
 import { META_FIELDS, normName, type TableSchema } from "./table-schema";
 import { exposeErrors } from "./cell-values";
+import { pendingCells, wantedSeq, waitConsistent, type Consistency } from "./consistency";
+import { readSetting } from "../system/settings-catalog";
+import { DH_SETTINGS } from "./limits";
 
 export interface RowQuery {
   filter?: FilterNode;
@@ -20,6 +23,22 @@ export interface RowQuery {
   /** Table-wide text search: every word must appear in some text cell (accent and case insensitive). */
   search?: string;
   labels?: boolean;
+  /** Wait until the computed columns have incorporated this change sequence (design module2 section 6.7). */
+  consistentAfter?: number;
+  /** Wait for the newest change sequence at the time of the call. */
+  consistent?: boolean;
+}
+
+export interface ConsistencyOpts {
+  consistentAfter?: number;
+  consistent?: boolean;
+}
+
+/** Waits (bounded by the setting `datahub.consistent_wait_ms`) when the caller asked for it. `null` = not asked. */
+async function awaitConsistency(db: Executor, tableId: string, o: ConsistencyOpts): Promise<Consistency | null> {
+  const seq = await wantedSeq(db, o);
+  if (seq === null) return null;
+  return waitConsistent(db, tableId, seq, await readSetting(db, DH_SETTINGS.consistentWaitMs));
 }
 
 const DEFAULT_META = ["id", "row_no", "version", "created_at", "created_by", "updated_at", "updated_by"];
@@ -58,6 +77,7 @@ function shape(items: Record<string, unknown>[], schema: TableSchema, labels: bo
 
 /** Lists live rows: filter DSL, multi-level sort (option order, nulls first/last), keyset pages, `fields=`. */
 export async function listRows(db: Executor, access: TableAccess, schema: TableSchema, q: RowQuery): Promise<ListOutput<Shaped>> {
+  const consistency = await awaitConsistency(db, access.tableId, q);
   const filter = schema.normalizeFilter(q.filter);
   const sortItems = schema.normalizeSort(q.sort);
   const sel = schema.parseSelect(q.fields);
@@ -80,16 +100,30 @@ export async function listRows(db: Executor, access: TableAccess, schema: TableS
   });
   // Best effort: never let index bookkeeping break a read.
   await noteIndexUse(db, access, schema, filter, sortItems).catch(() => {});
-  return { ...page, items: shape(page.items, schema, q.labels ?? false) };
+  const items = shape(page.items, schema, q.labels ?? false);
+  await attachPending(db, access.tableId, items, sel ? new Set(sel.columns.map((c) => c.key)) : undefined);
+  return { ...page, items, ...(consistency ? { extra: { consistency } } : {}) };
 }
 
-export async function getRow(db: Executor, access: TableAccess, schema: TableSchema, rowId: string, o: { fields?: string; labels?: boolean; includeDeleted?: boolean } = {}): Promise<Shaped> {
+/** Adds `pending` (keys of the computed columns of the row that are being computed) to the rows that have any. */
+async function attachPending(db: Executor, tableId: string, items: Shaped[], only?: Set<string>): Promise<void> {
+  const map = await pendingCells(db, tableId, items.map((i) => i.id as string), only);
+  for (const it of items) {
+    const p = map[it.id as string];
+    if (p?.length) it.pending = p;
+  }
+}
+
+export async function getRow(db: Executor, access: TableAccess, schema: TableSchema, rowId: string, o: { fields?: string; labels?: boolean; includeDeleted?: boolean } & ConsistencyOpts = {}): Promise<Shaped> {
+  const consistency = await awaitConsistency(db, access.tableId, o);
   const sel = schema.parseSelect(o.fields);
   const meta = sel ? ["id", ...sel.meta.filter((m) => m !== "id")] : DEFAULT_META;
   const res = await db.execute(sql`SELECT ${sql.join(meta.map((m) => sql.raw(m)), sql`, `)}, ${dataSelect(schema, sel)} FROM dh_rows WHERE ${access.scope()} AND id = ${rowId}::uuid ${o.includeDeleted ? sql`` : sql`AND deleted_at IS NULL`}`);
   const r = res.rows[0] as Record<string, unknown> | undefined;
   if (!r) throw new AppError("not_found", "Không tìm thấy dòng.");
-  return shape([r], schema, o.labels ?? false)[0]!;
+  const [row] = shape([r], schema, o.labels ?? false);
+  await attachPending(db, access.tableId, [row!], sel ? new Set(sel.columns.map((c) => c.key)) : undefined);
+  return { ...row!, ...(consistency ? { consistency } : {}) };
 }
 
 const seenRequests = new Set<string>();
