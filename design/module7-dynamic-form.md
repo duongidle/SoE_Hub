@@ -117,14 +117,30 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 - Bảng lựa chọn: mỗi dòng tiêu chí tạo một cột, tên `<câu hỏi> – <tiêu chí>`.
 - Câu hỏi chưa nối cột thì chưa xuất bản được. Bấm Xuất bản khi còn câu chưa nối thì hiện "Còn 3 câu chưa nối cột" kèm nút **"Tạo cột mới cho 3 câu"** (đặt tên theo đúng luật trên).
 
-**Trường ẩn:** lấy giá trị từ tham số trên link (`?nguon=facebook`), ghi vào cột; dùng để biết phản hồi đến từ kênh nào.
+### 2.3b Ràng buộc của bảng
+
+*Dương chốt 19/11/2026.* Form ghi vào bảng nên phải tôn trọng ràng buộc của cột (Module 2 mục 4). Ba lỗi hay gặp khi dùng form gắn bảng:
+
+- **Cột Bắt buộc:** cột bắt buộc của bảng mà form không có câu nối vào, hoặc có nhưng câu đó có thể bị điều kiện ẩn, thì mọi lượt gửi sẽ lỗi. Trình soạn **chặn xuất bản** và nói rõ: "Cột Email là bắt buộc trong bảng nhưng form chưa có câu này". Câu nối với cột bắt buộc tự thành câu bắt buộc.
+- **Cột Duy nhất:** trùng giá trị thì báo ngay dưới ô bằng câu dễ hiểu do chủ đặt (mặc định "Email này đã được dùng để gửi form"), giữ nguyên mọi câu trả lời khác. Với form công khai, **chỉ kiểm tra trùng khi gửi**, không kiểm tra lúc rời ô: kiểm lúc rời ô thì người lạ gõ thử từng email là biết email nào đã có trong bảng. Form nội bộ kiểm lúc rời ô được.
+- **Giá trị mặc định:** cột có giá trị mặc định mà không có trong form thì dòng tạo từ form vẫn nhận giá trị đó, giống nhập tay ở bảng. Ngăn thuộc tính của form liệt kê "Cột sẽ tự điền: Trạng thái = Mới".
+
+**Điền sẵn qua link** (*Dương chốt 19/11/2026*):
+
+- Câu đang hiện: link mang giá trị điền sẵn, ví dụ `/f/<mã>?cong_ty=Thuận%20Phát`. Người điền **sửa được**. Dùng cho khảo sát sau showcase đã điền sẵn tên công ty.
+- **Trường ẩn:** người điền không thấy, không sửa; giá trị lấy từ link (`?nguon=facebook`) và **luôn được ghi vào cột** khi gửi (Airtable từng bỏ sót giá trị của trường ẩn, phải tránh).
+- Mỗi câu có một **mã tham số** ngắn do chủ đặt (mặc định sinh từ nhãn, không dấu). Tham số lạ bị bỏ qua. Giá trị điền sẵn vẫn qua kiểm tra kiểu như nhập tay; sai kiểu thì bỏ, không chặn form.
+- Trình soạn có ô "Tạo link điền sẵn": chọn câu, nhập giá trị, sao chép link.
 
 ### 2.4 Điều kiện
 
-- Câu hỏi hoặc trang **hiện khi** điều kiện trên câu trả lời trước đó đúng: ví dụ "Hiện câu 5 khi câu 3 là `Có`". Điều kiện dùng cú pháp lọc của Module 0 (`eq`, `in`, `gt`, `contains`, `is_empty`…), có "thoả tất cả" / "thoả một trong".
+- Câu hỏi, **nhóm câu hỏi** hoặc trang **hiện khi** điều kiện trên câu trả lời trước đó đúng: ví dụ "Hiện câu 5 khi câu 3 là `Có`". Điều kiện dùng cú pháp lọc của Module 0 (`eq`, `in`, `gt`, `contains`, `is_empty`…), có "thoả tất cả" / "thoả một trong".
+- **Nhóm câu hỏi** là một khối chứa nhiều câu, ẩn hiện cùng lúc. Ví dụ câu "Kinh nghiệm ngành" (Một lựa chọn): chọn `Vận tải` thì hiện nhóm 5 câu về vận tải, chọn `Bán lẻ` thì hiện nhóm câu về bán lẻ. Câu Nhiều lựa chọn dùng "có chứa" để hiện nhiều nhóm cùng lúc.
+- Đặt điều kiện nhanh từ câu lựa chọn: mỗi lựa chọn có ô "Khi chọn thì hiện…" để chọn nhóm hoặc câu, không phải tự viết điều kiện.
 - **Nhảy trang** theo câu trả lời: "Câu 2 là `Không` thì sang trang Cảm ơn".
-- Server tính lại điều kiện khi nhận bài: câu bị ẩn thì bỏ giá trị và không bắt buộc. Không tin trình duyệt.
-- Trình soạn chặn điều kiện trỏ tới câu đứng sau hoặc tạo vòng.
+- Server tính lại điều kiện khi nhận bài: câu bị ẩn thì bỏ giá trị và không bắt buộc. Không tin trình duyệt. Đổi lựa chọn làm một nhóm bị ẩn thì câu trả lời trong nhóm đó bị bỏ khi gửi (trình duyệt vẫn giữ tạm để người điền đổi ý chọn lại không phải nhập lại).
+- Mỗi câu của mỗi nhánh là một cột riêng. Dòng của nhánh Vận tải để trống các cột Bán lẻ; đó là đúng, không phải thiếu dữ liệu.
+- Trình soạn chặn điều kiện trỏ tới câu đứng sau hoặc tạo vòng, và có chế độ xem trước "đi thử từng nhánh".
 
 ## 3. Chia sẻ và người điền
 
@@ -274,6 +290,10 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 - Chống spam: honeypot, gửi quá nhanh, vượt giới hạn IP và giới hạn ngày.
 - Đường ghi: phản hồi tạo đúng một dòng, có lịch sử dòng `via = form`, công thức của bảng tính sau khi gửi, gửi hai lần cùng mã chỉ tạo một dòng.
 - Giao diện: luồng tạo form → xuất bản → điền công khai trên 375px → xem phản hồi; bài test → làm bài → chấm tay → người làm xem điểm; dữ liệu xấu nhất theo `break-ui` (form 200 câu, lựa chọn rất dài, 10.000 phản hồi).
+
+## 11a. Để bản sau
+
+- **Câu bảng chi tiết** (một lần gửi nhập nhiều dòng con, ví dụ danh sách người tham dự; Lark ghi sang bảng liên kết). Cần ghi nhiều dòng sang bảng con và đụng luật ô Liên kết của Module 2; bài test, bài thu hoạch hiện tại không cần.
 
 ## 12. Thay đổi so với quy định đã chốt
 
