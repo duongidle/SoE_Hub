@@ -71,7 +71,7 @@ Tiêu đề, đoạn chữ (Tiptap), ảnh, video nhúng (YouTube), đường k�
 | Sửa trên câu hỏi đã xuất bản | Kết quả |
 |---|---|
 | Nhãn, mô tả, gợi ý, bắt buộc, điều kiện, vị trí | Cùng cột. Chỉ đổi cấu hình form |
-| Đáp án đúng, số điểm | Cùng cột. Đáp án nằm trong phiên bản form; bài cũ giữ điểm cũ, "Chấm lại theo đáp án mới" là thao tác riêng (mục 6.4) |
+| Đáp án đúng, số điểm | Cùng cột. Đáp án nằm trong phiên bản form: bài nộp **sau** khi xuất bản chấm theo đáp án mới; bài nộp **trước** giữ điểm cũ, muốn chấm lại thì bấm "Chấm lại theo đáp án mới" (mục 6.4) |
 | Đổi tên lựa chọn | Cùng cột, cùng mã lựa chọn (Module 2): câu trả lời cũ hiện tên mới |
 | Thêm lựa chọn | Thêm lựa chọn vào cột |
 | Bỏ lựa chọn khỏi form | Lựa chọn chỉ bị ẩn trên form, **vẫn còn trong cột**, nên câu trả lời cũ không mất. Form hiện một phần các lựa chọn của cột |
@@ -103,6 +103,19 @@ Thêm hai dạng chỉ có trên form:
 - **Bảng lựa chọn** (mỗi dòng là một tiêu chí, chọn một mức cho từng dòng) → mỗi dòng là một cột Một lựa chọn. Đây là dạng của phiếu chấm mockup.
 
 Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, gợi ý. Server kiểm tra giá trị theo kiểu cột như mọi kênh (Module 2 mục 4).
+
+### 2.3a Nối câu hỏi với cột
+
+*Dương chốt 19/11/2026.*
+
+- Bấm **"Nối cột"** trên một câu hỏi thì có hai lựa chọn:
+  - **Chọn cột chưa nối:** chỉ liệt kê cột của bảng đích **chưa nối với câu hỏi nào khác của form này** và **có kiểu hợp** với câu hỏi (câu trắc nghiệm một đáp án chỉ thấy cột Một lựa chọn…). Cột đã nối với form khác cùng bảng vẫn chọn được (nhiều form ghi chung một bảng).
+  - **Tạo cột mới:** tên cột **lấy theo nội dung câu hỏi** lúc đó, ví dụ câu "Nhu cầu của bạn" tạo cột `Nhu cầu của bạn`. Người dùng sửa được tên trước khi bấm tạo.
+- Tên cột chỉ lấy theo câu hỏi **lần đầu**. Sau đó đổi nội dung câu hỏi **không** đổi tên cột (nhãn và tên cột tách riêng, mục 1.3), để không làm lệch tên cột mà công thức, view, dashboard đang thấy. Ngăn thuộc tính có nút "Đặt tên cột theo câu hỏi" khi muốn đồng bộ lại.
+- Tên lấy từ câu hỏi được làm sạch theo luật tên của Module 2: bỏ `[` `]`, cắt còn 100 ký tự ở ranh giới từ; trùng tên cột có sẵn (không phân biệt hoa thường) thì thêm ` (2)`, ` (3)`…; câu hỏi chưa có nội dung thì đặt `Câu hỏi <số thứ tự>`.
+- Câu lựa chọn: tạo cột mới thì chép các lựa chọn của câu hỏi sang cột. Nối vào cột có sẵn mà câu hỏi có lựa chọn cột chưa có thì hỏi "Thêm 2 lựa chọn vào cột?" trước khi nối.
+- Bảng lựa chọn: mỗi dòng tiêu chí tạo một cột, tên `<câu hỏi> – <tiêu chí>`.
+- Câu hỏi chưa nối cột thì chưa xuất bản được. Bấm Xuất bản khi còn câu chưa nối thì hiện "Còn 3 câu chưa nối cột" kèm nút **"Tạo cột mới cho 3 câu"** (đặt tên theo đúng luật trên).
 
 **Trường ẩn:** lấy giá trị từ tham số trên link (`?nguon=facebook`), ghi vào cột; dùng để biết phản hồi đến từ kênh nào.
 
