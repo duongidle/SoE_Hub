@@ -115,7 +115,8 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 - Tên lấy từ câu hỏi được làm sạch theo luật tên của Module 2: bỏ `[` `]`, cắt còn 100 ký tự ở ranh giới từ; trùng tên cột có sẵn (không phân biệt hoa thường) thì thêm ` (2)`, ` (3)`…; câu hỏi chưa có nội dung thì đặt `Câu hỏi <số thứ tự>`.
 - Câu lựa chọn: tạo cột mới thì chép các lựa chọn của câu hỏi sang cột. Nối vào cột có sẵn mà câu hỏi có lựa chọn cột chưa có thì hỏi "Thêm 2 lựa chọn vào cột?" trước khi nối.
 - Bảng lựa chọn: mỗi dòng tiêu chí tạo một cột, tên `<câu hỏi> – <tiêu chí>`.
-- Câu hỏi chưa nối cột thì chưa xuất bản được. Bấm Xuất bản khi còn câu chưa nối thì hiện "Còn 3 câu chưa nối cột" kèm nút **"Tạo cột mới cho 3 câu"** (đặt tên theo đúng luật trên).
+- Câu hỏi chưa nối cột thì chưa xuất bản được, trừ câu đánh dấu **"Chỉ dùng cho nguồn dữ liệu, không lưu"** (mục 2.5). Bấm Xuất bản khi còn câu chưa nối thì hiện "Còn 3 câu chưa nối cột" kèm nút **"Tạo cột mới cho 3 câu"** (đặt tên theo đúng luật trên).
+- Form không có câu nào cần lưu (chỉ hiển thị, tra cứu) thì **không cần bảng đích**.
 
 ### 2.3b Ràng buộc của bảng
 
@@ -141,6 +142,48 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 - Server tính lại điều kiện khi nhận bài: câu bị ẩn thì bỏ giá trị và không bắt buộc. Không tin trình duyệt. Đổi lựa chọn làm một nhóm bị ẩn thì câu trả lời trong nhóm đó bị bỏ khi gửi (trình duyệt vẫn giữ tạm để người điền đổi ý chọn lại không phải nhập lại).
 - Mỗi câu của mỗi nhánh là một cột riêng. Dòng của nhánh Vận tải để trống các cột Bán lẻ; đó là đúng, không phải thiếu dữ liệu.
 - Trình soạn chặn điều kiện trỏ tới câu đứng sau hoặc tạo vòng, và có chế độ xem trước "đi thử từng nhánh".
+
+### 2.5 Component Nguồn dữ liệu
+
+*Dương chốt 19/11/2026.* Form vẫn là một engine. Thêm một component **Nguồn dữ liệu** để kéo dữ liệu ra hiển thị trên form, ví dụ: sale chọn ngành và khoảng thời gian, form hiện danh sách khách hàng đã triển khai Base thuộc ngành đó; hoặc người điền gõ từ khoá, form hiện bài Knowledge phù hợp.
+
+**Ba loại nguồn**
+
+| Nguồn | Cấu hình | Chạy bằng quyền của |
+|---|---|---|
+| **Datahub** | Một bảng trong datahub của chủ form; điều kiện cố định; điều kiện theo câu hỏi; cột hiển thị; sắp xếp | Chủ form |
+| **API nội bộ** | Chọn một API trong **danh sách Admin cho phép**; truyền tham số từ câu hỏi. Không cần key | Chủ form |
+| **API bên ngoài** | URL `https`, phương thức `GET`/`POST`, tham số và thân yêu cầu có chèn câu trả lời; tuỳ chọn **gắn key**; chỉ ra chỗ lấy danh sách kết quả trong JSON trả về và các trường hiển thị | — |
+
+- **Điều kiện theo câu hỏi** dùng toán tử so sánh của bộ lọc Module 0: một câu trên form nối với một cột bằng `bằng`, `trong danh sách`, `chứa`, `lớn hơn`, `trong khoảng`… Ví dụ câu "Ngành" `bằng` cột Ngành; câu "Từ ngày – đến ngày" `trong khoảng` cột Thời gian triển khai. Câu tham số để trống thì bỏ điều kiện đó, hoặc chặn tra cứu nếu chủ đặt câu là bắt buộc.
+- **Điều kiện cố định** chủ đặt khi lập form, người dùng form không thấy, không đổi được. Ví dụ `Trạng thái = Đã triển khai`.
+- Câu chỉ dùng làm tham số không cần nối cột: đánh dấu "Chỉ dùng cho nguồn dữ liệu, không lưu".
+
+**Hai cách dùng kết quả**
+
+1. **Hiển thị:** bảng, thẻ hoặc danh sách ngay trên form; chủ chọn trường nào hiện. Có trạng thái đang tải (khung xương), rỗng ("Không có kết quả phù hợp"), lỗi ("Không tải được dữ liệu" + nút Thử lại). Tối đa 50 dòng mỗi lần (chủ đổi được, trần 500), có "Xem thêm".
+2. **Làm lựa chọn cho một câu hỏi:** ví dụ câu "Ngành" lấy danh sách lựa chọn từ các giá trị của cột Ngành; câu "Chọn khách" lấy từ kết quả tra cứu. Câu này nối cột thì giá trị được chọn lưu vào bảng như câu thường (lưu dạng chữ hoặc lựa chọn, không phải liên kết dòng).
+
+**Khi nào chạy:** tự chạy khi câu tham số đổi (chờ người dùng ngừng gõ 0,4 giây), hoặc chỉ chạy khi bấm nút "Tra cứu". Chủ chọn.
+
+**Quyền.** Theo đúng quyền của form (mục 3): form công khai thì ai có link cũng mở và tra cứu được; form nội bộ thì người có tài khoản; form chia sẻ cho ai thì chỉ người đó. Nguồn Datahub và API nội bộ chạy bằng quyền **chủ form**, nên người dùng form không cần quyền xem bảng; chủ mất quyền thì nguồn báo lỗi. Trình soạn ghi rõ phần dữ liệu sẽ lộ ra: "Người mở form xem được các dòng có Trạng thái = Đã triển khai, cột: Tên công ty, Ngành, Thời gian triển khai".
+
+**API nội bộ.**
+- Admin quản lý **danh sách API nội bộ dùng cho form** trong Cài đặt: mỗi mục là một query trong registry, kèm tên hiển thị và tham số. Chỉ query (đọc) được đưa vào danh sách; command (ghi) không bao giờ được, để mở form không làm thay đổi dữ liệu.
+- Ban đầu danh sách chỉ có các API của Knowledge (tìm bài, đọc bài); Module 8 đăng ký chúng. Trước Stage 8 danh sách trống.
+
+**API bên ngoài.**
+- **Gắn key:** khai báo key gửi ở header (ví dụ `Authorization: Bearer …`, `X-API-Key`) hoặc tham số URL. Key lưu mã hoá ở server, **không bao giờ gửi ra trình duyệt**, không có trong JSON xuất ra, chỉ hiện dạng che (`••••1a2b`); chủ thay key, không xem lại được. Nhân bản form thì phải nhập lại key. Key chỉ nhập trên web, không nhập qua kết nối AI (để key không nằm trong đoạn chat).
+- **Mọi lời gọi đi qua server** của SoE Hub (trình duyệt không gọi thẳng), vì key phải giấu và trình duyệt bị chặn gọi sang tên miền khác.
+- Chặn gọi vào địa chỉ nội bộ (`localhost`, IP riêng, IP của chính server, kể cả khi bị chuyển hướng tới), để form không bị dùng làm đường dò vào mạng nội bộ của server.
+- Hết giờ sau 10 giây, kết quả tối đa 1 MB, chỉ nhận JSON. Cùng một yêu cầu trong 60 giây dùng lại kết quả cũ.
+- Giới hạn mỗi người mở form (theo tài khoản, hoặc IP với form công khai) 30 lần tra cứu mỗi phút, mọi loại nguồn.
+- API lỗi nhiều lần liên tiếp thì chủ form nhận thông báo (Module 6). Form vẫn gửi được, chỉ component đó báo lỗi.
+- Admin có công tắc tắt API bên ngoài cho toàn hệ thống (Cài đặt).
+
+**Nhật ký.** Đổi cấu hình nguồn, gắn hoặc thay key ghi nhật ký. Mỗi lần tra cứu chỉ đếm số lần và lỗi (thống kê trong tab Phản hồi), không ghi từng lần vào nhật ký, vì form công khai có thể có rất nhiều lượt.
+
+**AI.** JSON của form chứa cấu hình nguồn (không có key), nên AI dựng được form có nguồn dữ liệu qua `form_save`.
 
 ## 3. Chia sẻ và người điền
 
@@ -168,7 +211,7 @@ Mỗi câu hỏi có: nhãn, mô tả, bắt buộc, giá trị mặc định, g
 ### 3.3 Người điền thấy gì
 
 - Chỉ thấy form. Gửi form **không** cho người điền quyền gì trên bảng.
-- Cấu hình form gửi ra trình duyệt **không có** mã bảng, mã cột, tên datahub, đáp án đúng. Câu hỏi chỉ có mã riêng của form.
+- Cấu hình form gửi ra trình duyệt **không có** mã bảng, mã cột, tên datahub, đáp án đúng, cấu hình và key của nguồn dữ liệu. Câu hỏi và nguồn dữ liệu chỉ có mã riêng của form; trình duyệt gọi server bằng mã đó kèm câu trả lời làm tham số.
 
 ## 4. Lưu nháp khi đang điền
 
@@ -288,6 +331,7 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 - Unit: chấm tự động mọi loại câu, chấm từng phần, trọng số và điểm sàn của phiếu chấm, thang 100, ngưỡng đạt, số lần làm, hết giờ, điều kiện hiện/ẩn và nhảy trang (server tính lại), ghép phiên bản khi đang làm dở.
 - Quyền: không chọn được bảng của "Quản lý Deal", bảng được chia sẻ, bảng gộp; người điền không đọc được bảng; JSON công khai không có đáp án, mã bảng, mã cột; nộp bài kiểm tra qua token/MCP bị từ chối.
 - Chống spam: honeypot, gửi quá nhanh, vượt giới hạn IP và giới hạn ngày.
+- Nguồn dữ liệu: điều kiện cố định không bị tham số ghi đè; chỉ trả cột đã chọn; chủ mất quyền thì báo lỗi; API nội bộ ngoài danh sách Admin hoặc là command bị từ chối; API ngoài gọi vào `localhost`, IP riêng, chuyển hướng vào IP riêng đều bị chặn; key không có trong mọi phản hồi gửi trình duyệt và JSON xuất; hết giờ, quá 1 MB, giới hạn 30 lần/phút.
 - Đường ghi: phản hồi tạo đúng một dòng, có lịch sử dòng `via = form`, công thức của bảng tính sau khi gửi, gửi hai lần cùng mã chỉ tạo một dòng.
 - Giao diện: luồng tạo form → xuất bản → điền công khai trên 375px → xem phản hồi; bài test → làm bài → chấm tay → người làm xem điểm; dữ liệu xấu nhất theo `break-ui` (form 200 câu, lựa chọn rất dài, 10.000 phản hồi).
 
@@ -302,12 +346,13 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 | `via` của actor: web, api, mcp, worker, automation (Module 0 mục 3.4) | Thêm `form` | Module 0, code Stage 0 |
 | Form không ghi vào Deals (Module 4 mục 15) | Form không ghi vào **mọi bảng** của datahub "Quản lý Deal" | Module 4 |
 | Bảng chỉ có cột do người tạo | Bật Bài kiểm tra thì hệ thống thêm các cột kết quả và tự quản lý chúng (mục 6.4); bảng có form thêm cột Phiên bản form (mục 2.2) | Module 2 |
+| Endpoint không cần đăng nhập chỉ gồm đăng nhập, quên mật khẩu, OAuth, form công khai (Module 0 mục 16) | Giữ nguyên, nhưng "form công khai" nay gồm cả lời gọi nguồn dữ liệu của form đó; server SoE Hub gọi ra API bên ngoài thay người dùng form | Module 0 |
 | Cột mỗi bảng mặc định 70, trần 200 (Module 2 mục 11) | Bảng có form: **150** (cài đặt `form.table_max_columns`), trần 200 giữ nguyên (mục 1.1a) | Module 2, CLAUDE.md |
 
 ## 13. Câu hỏi cho Dương
 
-Đã chốt 19/11/2026: một form ghi vào một bảng, mỗi câu hỏi một cột (mục 1.1); tách bản nháp và xuất bản, phiên bản không sinh cột mới (mục 2.2); giới hạn 150 cột cho bảng có form (mục 1.1a). Còn:
+Đã chốt 19/11/2026: một form ghi vào một bảng, mỗi câu hỏi một cột (mục 1.1); tách bản nháp và xuất bản, phiên bản không sinh cột mới (mục 2.2); giới hạn 150 cột cho bảng có form (mục 1.1a). Đã chốt thêm: component Nguồn dữ liệu (Datahub, API nội bộ do Admin cho phép, API bên ngoài có gắn key), quyền theo quyền của form (mục 2.5). Còn:
 
-1. Chặn cả datahub "Quản lý Deal" làm đích, không chỉ bảng Deals (mục 1.1)?
+1. Chặn cả datahub "Quản lý Deal" làm đích (mục 1.1), và **cả làm nguồn dữ liệu** (mục 2.5)? Nếu cho làm nguồn thì một form công khai lộ được doanh thu, com của deal ra internet; brief cũng ghi Form không kết nối datahub Deals.
 2. Form công khai chống spam bằng ô bẫy + giới hạn tốc độ, chưa dùng captcha (mục 5.3)?
 3. Bài kiểm tra chỉ cho form nội bộ, và AI không nộp bài được (mục 6, 6.5)? Khảo sát thường thì có cho nộp qua API không? Tớ đề xuất có, để hệ thống ngoài đẩy phản hồi vào.
