@@ -124,12 +124,17 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 
 ### Tài khoản và phân quyền
 - Vai trò: Admin, Manager, Leader, User, Guest. Một người có thể có nhiều vai trò.
-- Cây tổ chức: mỗi User có đúng một Leader (hoặc thuộc thẳng Manager); trên Leader là Manager; một Manager có nhiều Leader. **Hai Manager không thấy dữ liệu của nhau.** Admin thấy tất cả.
+- **Admin là quản trị hệ thống**: cài đặt, giới hạn, nhật ký, duyệt kết nối AI/token, chuyển giao dữ liệu. Admin **không** có quyền nghiệp vụ: không tạo/phân deal, không sửa chính sách com, không khoá kỳ, không snapshot, không đẩy cột, không tạo lộ trình onboard, không tạo datahub/form, không đăng bài/skill. Muốn có thì phải mang thêm vai trò khác.
+- Cây tổ chức: mỗi User có đúng một Leader (hoặc thuộc thẳng Manager); trên Leader là Manager; một Manager có nhiều Leader. **Hai Manager không thấy dữ liệu của nhau.** Đổi team có lưu lịch sử: quyền xem theo cây hiện tại, báo cáo theo kỳ theo cây tại thời điểm đó.
+- **Deal khác Datahub về quyền xem:** Leader xem Quản lý Deal của team, Manager xem của cả cây. **Datahub là của riêng từng người**, Leader/Manager không xem được, trừ khi chủ chia sẻ (xem hoặc sửa).
+- Sửa deal: Manager luôn sửa được deal trong cây. Leader mặc định chỉ đọc; User bật tuỳ chọn "cho phép leader sửa" trong Quản lý Deal thì Leader sửa được.
+- Quyền bổ sung: Admin hoặc Manager cấp thêm một quyền trong danh sách cho phép cho một người cụ thể. Không có công cụ tự tạo vai trò.
 - Guest mặc định không có quyền gì. Manager cấp từng phần dữ liệu (ví dụ bộ phận Data đọc Deals qua API/export, chỉ cột hệ thống + cột chung). Guest không bao giờ thấy cột cá nhân. Sale chỉ được cấp Knowledge.
-- Đăng nhập chính bằng email + mật khẩu; Google OAuth (External) là phương án phụ, chỉ cho email đã có tài khoản; tài khoản Google được đặt mật khẩu riêng.
+- Tài khoản theo **danh sách org chart** (email, vai trò, thông tin cá nhân, vị trí trong cây) trong Cài đặt; không có thao tác "tạo tài khoản". Email trong danh sách đăng ký/đăng nhập thì nhận đúng vai trò. Chỉ email đuôi **@base.vn** được đăng ký (kiểm tra ở server). Tuỳ chọn của Admin (mặc định tắt): email @base.vn ngoài danh sách thì thành Guest "Sale" (chỉ đọc Knowledge).
+- Đăng nhập Google lần đầu bắt buộc đặt mật khẩu, sau đó đăng nhập được bằng email + mật khẩu.
 - Quên mật khẩu: không dùng email; mã xác thực gửi qua thông báo trong ứng dụng cho leader trực tiếp, manager và admin.
 - Không bắt buộc 2FA.
-- Admin có chức năng chuyển giao dữ liệu: chọn tài khoản nguồn và tài khoản đích.
+- Chuyển giao dữ liệu (Admin): chọn tài khoản nguồn và đích; deal đã đóng giữ nguyên người cũ.
 
 ### Datahub và công thức
 - Mô hình Airtable/Lark Base: cột có kiểu, công thức áp cho cả cột. Datahub là linh hồn của hệ thống.
