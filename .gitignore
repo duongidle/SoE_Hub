@@ -17,3 +17,8 @@ coverage/
 .DS_Store
 .vscode/
 .idea/
+
+# Local storage / misc
+.local-storage/
+*.log
+.env.local

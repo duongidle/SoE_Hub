@@ -1,0 +1,170 @@
+import { sql, type SQL } from "drizzle-orm";
+import { AppError, DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT, parseSortParam, type FilterNode, type SortItem } from "@soe/shared";
+import type { Executor } from "../client";
+import { compileFilter, exprOf, type FieldMap } from "./filter";
+
+/**
+ * Keyset pagination (design sections 6.2 and 7). No OFFSET: the cursor carries the sort-key values of the
+ * last row, and the next page is `WHERE (keys) after cursor`. Stable under inserts; O(log n) per page.
+ *
+ * Sort keys are read back as text (`::text`) so that timestamps keep microsecond precision in the cursor.
+ * Order: ASC puts NULLs last, DESC puts NULLs first (PostgreSQL defaults, stated explicitly).
+ * The row id is always appended as the final tie-breaker.
+ */
+
+export interface ListPageParams {
+  /** `FROM` clause, for example `sql\`audit_log\``. */
+  from: SQL;
+  fields: FieldMap;
+  /** Condition always applied (for example `deleted_at IS NULL` or an owner restriction). */
+  baseWhere?: SQL;
+  filter?: FilterNode | null;
+  /** Raw `?sort=` string. */
+  sort?: string | null;
+  defaultSort: SortItem[];
+  /** Raw `?fields=` string (comma separated). */
+  select?: string | null;
+  limit?: number;
+  cursor?: string | null;
+  includeTotal?: boolean;
+}
+
+export interface ListPageResult<T = Record<string, unknown>> {
+  items: T[];
+  nextCursor: string | null;
+  total?: number;
+}
+
+interface CursorPayload {
+  s: string;
+  k: (string | null)[];
+}
+
+export function encodeCursor(c: CursorPayload): string {
+  return Buffer.from(JSON.stringify(c)).toString("base64url");
+}
+
+export function decodeCursor(raw: string): CursorPayload {
+  try {
+    const c = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as CursorPayload;
+    if (typeof c?.s !== "string" || !Array.isArray(c.k)) throw new Error("shape");
+    return c;
+  } catch {
+    throw new AppError("invalid_filter", "Con trỏ phân trang không hợp lệ.");
+  }
+}
+
+const ID_FIELD = "id";
+
+function resolveSort(p: ListPageParams): SortItem[] {
+  let items: SortItem[];
+  if (p.sort) {
+    try {
+      items = parseSortParam(p.sort);
+    } catch (e) {
+      throw new AppError("invalid_filter", (e as Error).message);
+    }
+  } else {
+    items = p.defaultSort;
+  }
+  for (const s of items) {
+    const spec = p.fields[s.field];
+    if (!spec || spec.sortable === false) {
+      throw new AppError("invalid_filter", `Không sắp xếp được theo cột "${s.field}".`, { field: s.field });
+    }
+  }
+  if (!p.fields[ID_FIELD]) throw new Error("FieldMap must contain an `id` field for keyset pagination");
+  return items.some((s) => s.field === ID_FIELD) ? items : [...items, { field: ID_FIELD, dir: "asc" }];
+}
+
+function resolveSelect(p: ListPageParams): string[] {
+  if (p.select) {
+    const names = [...new Set(p.select.split(",").map((s) => s.trim()).filter(Boolean))];
+    for (const n of names) {
+      if (!p.fields[n]) throw new AppError("invalid_filter", `Không có cột "${n}".`, { field: n });
+    }
+    return names;
+  }
+  return Object.entries(p.fields).filter(([, s]) => s.selectable !== false).map(([n]) => n);
+}
+
+/** Condition "strictly after the cursor row" for one key. */
+function after(expr: SQL, dir: "asc" | "desc", v: string | null): SQL {
+  if (dir === "asc") {
+    // NULLs last: after a null there is nothing larger.
+    return v === null ? sql`false` : sql`(${expr} > ${v} OR ${expr} IS NULL)`;
+  }
+  // DESC, NULLs first: after a null come all non-null values.
+  return v === null ? sql`${expr} IS NOT NULL` : sql`${expr} < ${v}`;
+}
+
+function same(expr: SQL, v: string | null): SQL {
+  return v === null ? sql`${expr} IS NULL` : sql`${expr} IS NOT DISTINCT FROM ${v}`;
+}
+
+export function buildKeysetCondition(exprs: SQL[], dirs: ("asc" | "desc")[], values: (string | null)[]): SQL {
+  const ors: SQL[] = [];
+  for (let i = 0; i < exprs.length; i++) {
+    const ands: SQL[] = [];
+    for (let j = 0; j < i; j++) ands.push(same(exprs[j]!, values[j]!));
+    ands.push(after(exprs[i]!, dirs[i]!, values[i]!));
+    ors.push(sql`(${sql.join(ands, sql` AND `)})`);
+  }
+  return sql`(${sql.join(ors, sql` OR `)})`;
+}
+
+export async function listPage<T = Record<string, unknown>>(ex: Executor, p: ListPageParams): Promise<ListPageResult<T>> {
+  const limit = Math.min(Math.max(p.limit ?? DEFAULT_PAGE_LIMIT, 1), MAX_PAGE_LIMIT);
+  const sort = resolveSort(p);
+  const selected = resolveSelect(p);
+  const signature = sort.map((s) => `${s.field}:${s.dir}`).join(",");
+
+  const sortExprs = sort.map((s) => exprOf(p.fields[s.field]!));
+  const dirs = sort.map((s) => s.dir);
+
+  const filterSql = compileFilter(p.filter, p.fields);
+  const where: SQL[] = [];
+  if (p.baseWhere) where.push(p.baseWhere);
+  if (filterSql) where.push(filterSql);
+
+  const baseWhereSql = where.length ? sql`WHERE ${sql.join(where, sql` AND `)}` : sql``;
+
+  const keysetWhere = [...where];
+  if (p.cursor) {
+    const c = decodeCursor(p.cursor);
+    if (c.s !== signature || c.k.length !== sort.length) {
+      throw new AppError("invalid_filter", "Con trỏ không khớp với cách sắp xếp hiện tại.");
+    }
+    keysetWhere.push(buildKeysetCondition(sortExprs, dirs, c.k));
+  }
+  const whereSql = keysetWhere.length ? sql`WHERE ${sql.join(keysetWhere, sql` AND `)}` : sql``;
+
+  const selectList = selected.map((n) => sql`${exprOf(p.fields[n]!)} AS ${sql.identifier(n)}`);
+  const keyList = sortExprs.map((e, i) => sql`(${e})::text AS ${sql.identifier(`__k${i}`)}`);
+  const orderBy = sortExprs.map((e, i) => (dirs[i] === "asc" ? sql`${e} ASC NULLS LAST` : sql`${e} DESC NULLS FIRST`));
+
+  const query = sql`SELECT ${sql.join([...selectList, ...keyList], sql`, `)} FROM ${p.from} ${whereSql} ORDER BY ${sql.join(orderBy, sql`, `)} LIMIT ${limit + 1}`;
+  const res = await ex.execute(query);
+  const rows = res.rows as Record<string, unknown>[];
+
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+
+  let nextCursor: string | null = null;
+  if (hasMore) {
+    const last = page[page.length - 1]!;
+    nextCursor = encodeCursor({ s: signature, k: sort.map((_, i) => (last[`__k${i}`] as string | null) ?? null) });
+  }
+  const items = page.map((r) => {
+    const out: Record<string, unknown> = {};
+    for (const n of selected) out[n] = r[n];
+    return out as T;
+  });
+
+  const result: ListPageResult<T> = { items, nextCursor };
+  if (p.includeTotal) {
+    const cnt = await ex.execute(sql`SELECT count(*)::int AS n FROM ${p.from} ${baseWhereSql}`);
+    result.total = (cnt.rows[0] as { n: number }).n;
+  }
+  return result;
+}

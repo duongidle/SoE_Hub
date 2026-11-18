@@ -1,0 +1,36 @@
+{
+  "name": "soe-hub",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @soe/api --filter @soe/web dev",
+    "dev:api": "pnpm --filter @soe/api dev",
+    "dev:worker": "pnpm --filter @soe/api dev:worker",
+    "dev:web": "pnpm --filter @soe/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "pnpm --filter @soe/db generate",
+    "db:migrate": "pnpm --filter @soe/db migrate",
+    "db:setup": "bash scripts/db-setup.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "26.6.6",
+    "@types/pg": "8.23.1",
+    "eslint": "9.39.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.14.0",
+    "pg": "8.23.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.73.0",
+    "vitest": "5.1.1"
+  }
+}

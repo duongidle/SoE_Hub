@@ -4,24 +4,28 @@ Cập nhật: 18/11/2026
 
 ## Giai đoạn hiện tại
 
-- Thiết kế: Module 0 đã chốt; đang chuẩn bị Module 1.
-- Code: Stage 0 **được phép bắt đầu** (Module 0 đã chốt), chưa bắt đầu.
+- Thiết kế: Module 0 đã chốt; đang chuẩn bị Module 1 (phiên khác lo).
+- Code: **Stage 0 đang làm** trên nhánh `dev`.
 
 ## Đã xong
 
-- Phân tích brief, file mẫu (deal, onboarding, chính sách CRM/PS) và workspace Base Inc.
-- Chốt tech stack và các quy định thiết kế chung (xem `CLAUDE.md`).
-- Module 0 – Nền tảng: `design/module0-nen-tang.md`.
-- Thiết kế hạ tầng: `design/ha-tang.md`.
+- Phân tích brief, file mẫu, chốt tech stack, thiết kế Module 0 và hạ tầng.
+- Stage 0, bước 1: khung monorepo pnpm (`apps/api`, `apps/web`, `packages/{shared,db,formula,metrics}`), cấu hình TS, vitest.
+- Stage 0, bước 2: `packages/shared` (mã lỗi, actor, bộ lọc Zod) và `packages/db` (schema Drizzle, 2 migration, audit append-only bằng quyền + trigger, `row_history`, outbox, idempotency, khoá kỳ, snapshot, file, settings, thùng rác + purge, versionedUpdate, filter DSL → SQL, keyset). 36 test DB pass.
 
-## Đang làm
+## Đang làm (Stage 0)
 
-- Module 1 – Tài khoản & phân quyền: chuẩn bị bản đề xuất để Dương phản biện.
+Kế hoạch các bước còn lại:
+1. `apps/api` lõi: config, registry (defineCommand/defineQuery), actor + authorize cắm được (dev-only), lỗi chuẩn, audit/outbox/idempotency trong executor, REST sinh từ registry.
+2. Lệnh mẫu `system.*`, file storage (S3 + local), SSE, OpenAPI + Scalar `/api/docs`, `/health`, rate limit, header bảo mật.
+3. Worker: pg-boss, dispatcher outbox, job mẫu, dọn thùng rác, dọn idempotency.
+4. `apps/web` tối thiểu (React + Vite + TanStack + Tailwind).
+5. Docker Compose, Caddyfile, `.env.example`, README, bộ Bruno, ESLint.
+6. Ghi mục "Quyết định khi code" vào `design/module0-nen-tang.md`.
 
-## Việc tiếp theo
+## Bước tiếp theo
 
-1. Thiết kế Module 1 → Module 2 (Datahub) → Module 3 (Metric & Dashboard) → Module 4 (Deal) → Module 5 (Kết nối AI).
-2. Code Stage 0 khi Dương muốn bắt đầu (song song với thiết kế Module 1). Thứ tự stage: xem `CLAUDE.md` mục "Stage code".
+- Làm bước 1 ở trên: tạo `apps/api/src/core/*` (registry, executor). Chưa có file nào trong `apps/api/src`.
 
 ## Câu hỏi còn mở
 
