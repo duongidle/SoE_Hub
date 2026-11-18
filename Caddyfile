@@ -1,0 +1,19 @@
+# Caddy terminates TLS (automatic certificates) and forwards everything to the api.
+# SITE_ADDRESS is the public domain, for example hub.example.com (DNS A record pointing to this VPS).
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Server-Sent Events must not be buffered.
+	reverse_proxy api:3000 {
+		flush_interval -1
+	}
+
+	header {
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

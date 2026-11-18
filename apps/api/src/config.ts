@@ -59,7 +59,9 @@ export type Config = z.infer<typeof EnvSchema> & {
 };
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
-  const parsed = EnvSchema.safeParse(env);
+  // An empty variable (for example `S3_ENDPOINT=` in .env or a compose default) means "not set".
+  const cleaned = Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined && v !== ""));
+  const parsed = EnvSchema.safeParse(cleaned);
   if (!parsed.success) {
     const msg = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     throw new Error(`Cấu hình môi trường không hợp lệ: ${msg}`);

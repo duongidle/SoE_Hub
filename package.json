@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @soe/api --filter @soe/web dev",
+    "dev": "pnpm --parallel --filter @soe/api --filter @soe/web run \"/^dev(:worker)?$/\"",
     "dev:api": "pnpm --filter @soe/api dev",
     "dev:worker": "pnpm --filter @soe/api dev:worker",
     "dev:web": "pnpm --filter @soe/web dev",

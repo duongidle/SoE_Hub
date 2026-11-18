@@ -281,3 +281,12 @@ describe("rate limiting", () => {
     }
   });
 });
+
+describe("config", () => {
+  it("treats empty environment variables as not set", async () => {
+    const { loadConfig } = await import("../src/config");
+    const c = loadConfig({ DATABASE_URL: "postgres://x/y", S3_ENDPOINT: "", STORAGE_SIGNING_SECRET: "" });
+    expect(c.S3_ENDPOINT).toBeUndefined();
+    expect(c.STORAGE_SIGNING_SECRET).toContain("dev-only");
+  });
+});
