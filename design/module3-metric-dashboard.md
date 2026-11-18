@@ -125,6 +125,18 @@ Viết bằng engine công thức của Module 2, tham chiếu chỉ số khác 
 - Kết quả cache theo (chỉ số, tham số, phạm vi dữ liệu). Bảng nguồn thay đổi → sự kiện outbox xoá cache → dashboard đang mở tự cập nhật qua SSE.
 - Mục tiêu: một biểu đồ trên 100.000 dòng dưới 1 giây. Các biểu đồ tải song song, có khung chờ; một biểu đồ chậm không làm treo biểu đồ khác.
 
+### 6.1 Chịu tải
+
+Câu SQL của chỉ số chạy trong tiến trình `api` (không qua worker). Các lớp bảo vệ:
+
+1. **Cache:** cùng chỉ số + tham số + phạm vi dữ liệu thì dùng lại kết quả cho đến khi dữ liệu nguồn đổi. Ví dụ 10 người cùng team mở dashboard Deals: Leader và mỗi User có phạm vi khác nhau nên tính riêng, nhưng mỗi người mở lại hay chuyển tab thì lấy từ cache.
+2. **Gộp yêu cầu trùng:** nhiều người cùng lúc hỏi đúng một câu (cùng khoá cache) thì chỉ chạy SQL một lần, các yêu cầu còn lại chờ kết quả đó.
+3. **Giới hạn đồng thời:** mỗi người tối đa 6 câu chỉ số chạy cùng lúc (phần còn lại xếp hàng); toàn hệ thống dùng một pool kết nối có giới hạn, nên lúc đông chỉ chậm đi chứ không sập.
+4. **Giới hạn thời gian:** mỗi câu chỉ số tối đa 10 giây (`statement_timeout`); quá thì biểu đồ báo "Truy vấn quá nặng" kèm gợi ý thu hẹp khoảng thời gian hoặc bộ lọc.
+5. **Bảng tổng hợp làm sẵn:** nếu load test cho thấy chỉ số nào của Deals chậm, chuyển chỉ số đó sang đọc từ bảng tổng hợp theo tháng, cập nhật theo sự kiện.
+
+**Load test bắt buộc trước khi phát hành Stage 3:** 100.000 dòng, 20 người mở cùng lúc một dashboard 30 biểu đồ, không có cache sẵn. Đạt khi mọi biểu đồ hiện xong trong 3 giây và không có lỗi.
+
 ## 7. Loại biểu đồ
 
 | Nhóm | Loại | Ví dụ |
