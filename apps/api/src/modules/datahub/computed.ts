@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { collectDeps, findGroupable, inferType, toDisplayFormula, toStoredFormula, validateCalls, type FType, type GroupableCall, type Node, type RefTarget } from "@soe/formula";
+import { collectDeps, findGroupable, inferType, parseFormula, toDisplayFormula, toStoredFormula, validateCalls, type FType, type GroupableCall, type Node, type RefTarget } from "@soe/formula";
 import { AppError } from "@soe/shared";
 import type { Executor } from "@soe/db";
 import { formulaTypeOf, isComputedType, RESULT_TYPES, resultTypeFor, resultTypeOf, type ResultType } from "./cell-values";
@@ -272,10 +272,13 @@ function depsOfAst(ast: Node, here: string): { deps: DepRow[]; volatile: "today"
 
 /** Preview and save share this: parse, resolve names, check, infer the result type. */
 export function compileFormula(source: string, ix: OwnerIndex, at: Where, own: { key: string } | null): { stored: string; ast: Node; deps: DepRow[]; volatile: "today" | "now" | null; type: FType; grouped: GroupableCall[]; scan: Extract<Node, { t: "key" }>[] } {
+  // Function names and argument counts are checked on the text as typed, so the positions point into what the user wrote.
+  const typed = parseFormula(source);
+  if (!typed.ok) throw new AppError("validation_error", typed.error.message, { position: { start: typed.error.start, end: typed.error.end } });
+  const issues = validateCalls(typed.ast);
+  if (issues.length) throw new AppError("validation_error", issues[0]!.message, { position: { start: issues[0]!.start, end: issues[0]!.end } });
   const r = toStoredFormula(source, nameResolver(ix, at, own));
   if (!r.ok) throw new AppError("validation_error", r.error.message, { position: { start: r.error.start, end: r.error.end } });
-  const issues = validateCalls(r.ast);
-  if (issues.length) throw new AppError("validation_error", issues[0]!.message, { position: { start: issues[0]!.start, end: issues[0]!.end } });
   const { deps, volatile } = depsOfAst(r.ast, at.tableId);
   const colOf = (t: string | null, k: string) => ix.column(t ?? at.tableId, k);
   const type = inferType(r.ast, (n) => (n.t === "key" ? typeOfColumn(colOf(n.table, n.key)) : "unknown"));

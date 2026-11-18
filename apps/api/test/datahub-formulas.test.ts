@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
 import { as, drainOutbox, fails, makeTable, unlimit } from "./dh-helpers";
-import { seedOrg, type Org } from "./fixtures";
+import { activeToken, login, seedOrg, type Org, type WebSession } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
 import { markVolatilePending } from "../src/modules/datahub";
 
@@ -475,6 +475,113 @@ describe("permissions on computed columns", () => {
     for (const id of [org.guestData.id, org.admin.id]) {
       const e = await fails(as(t, id)("datahub.column.create", { table_id: x.tableId, name: "Lậu", type: "formula", config: { formula: "=1" } }));
       expect(["not_found", "forbidden"]).toContain(e.code);
+    }
+  });
+});
+
+describe("formula API: function catalogue and preview", () => {
+  let x: Awaited<ReturnType<typeof makeTable>>;
+  beforeAll(async () => {
+    x = await makeTable(a, { columns: [{ name: "Giá", type: "currency" }, { name: "Số lượng", type: "number" }, { name: "Ngày", type: "date" }] });
+    for (let i = 1; i <= 8; i++) await a("datahub.row.create", { table_id: x.tableId, data: { Giá: i * 100, "Số lượng": i % 3, Ngày: `2026-11-${String(i).padStart(2, "0")}` } });
+  });
+  const preview = (input: Record<string, unknown>) => a("datahub.formula.preview", { table_id: x.tableId, ...input });
+
+  it("catalogue: about 100 functions, each with group, syntax, Vietnamese description, example; and the error codes", async () => {
+    const c = await a("datahub.formula.functions");
+    expect(c.functions.length).toBeGreaterThanOrEqual(100);
+    const sumifs = c.functions.find((f: { name: string }) => f.name === "SUMIFS");
+    expect(sumifs).toMatchObject({ group: "Thống kê", min_args: 3 });
+    expect(sumifs.description).toContain("Cộng");
+    expect(sumifs.example).toContain("SUMIFS(");
+    expect(c.functions.find((f: { name: string }) => f.name === "TODAY").volatile).toBe("today");
+    expect(c.functions.find((f: { name: string }) => f.name === "NOW").volatile).toBe("now");
+    expect(c.errors.map((e: { code: string }) => e.code)).toEqual(expect.arrayContaining(["#DIV/0!", "#N/A", "#VALUE!", "#REF!", "#CYCLE!", "#PERM!"]));
+    expect(c.errors.find((e: { code: string }) => e.code === "#PERM!").message).toContain("cùng chủ");
+  });
+
+  it("preview: result on the first 5 rows, with errors per row", async () => {
+    const r = await preview({ formula: "=[Giá] / [Số lượng]" });
+    expect(r).toMatchObject({ ok: true, formula: "=[Giá] / [Số lượng]", result_type: "number", volatile: null, errors: [] });
+    expect(r.rows).toHaveLength(5);
+    expect(r.rows.map((i: { value: unknown }) => i.value)).toEqual([100, 100, null, 400, 250]); // row 3: 300 / 0
+    expect(r.rows[2]).toMatchObject({ error: "#DIV/0!", value: null });
+    expect(r.rows[2].error_message).toContain("Chia cho 0");
+    expect(r.reads.columns.sort()).toEqual(["Giá", "Số lượng"]);
+    const d = await preview({ formula: "=[Ngày] + 30" });
+    expect(d).toMatchObject({ result_type: "date" });
+    expect(d.rows[0].value).toBe("2026-12-01");
+    expect((await preview({ formula: "=TODAY()" })).volatile).toBe("today");
+    expect((await preview({ formula: "=1", result_type: "text" })).rows[0].value).toBe("1");
+    // nothing was written
+    expect((await a("datahub.table.get", { table_id: x.tableId })).columns).toHaveLength(3);
+  });
+
+  it("preview: errors come with the position and a Vietnamese message instead of an HTTP error", async () => {
+    const bad = async (formula: string, msg: RegExp, start?: number) => {
+      const r = await preview({ formula });
+      expect(r.ok).toBe(false);
+      expect(r.errors[0].message).toMatch(msg);
+      if (start !== undefined) expect(r.errors[0].start).toBe(start);
+      expect(r.rows).toEqual([]);
+      return r;
+    };
+    await bad("=IF([Giá] > 1, 2", /Thiếu dấu đóng ngoặc/);
+    await bad("=[Giá] + [Không có]", /Không có cột "Không có"/, 9);
+    await bad("=FOO(1)", /Hàm FOO không tồn tại/, 1);
+    await bad("=SUM()", /cần từ 1 đến nhiều đối số|cần/);
+    await bad("=1 +", /cần thêm/, 4);
+    // cycle: an existing formula column cannot read itself
+    const f = await a("datahub.column.create", { table_id: x.tableId, name: "Tổng", type: "formula", config: { formula: "=[Giá] * 2" } });
+    const r = await preview({ formula: "=[Tổng] + 1", column: f.key });
+    expect(r.ok).toBe(false);
+    expect(r.errors[0].message).toContain("#CYCLE!");
+    expect((await preview({ formula: "=[Giá] * 3", column: "Tổng" })).ok).toBe(true);
+    expect((await fails(preview({ formula: "=1", column: "Giá" }))).code).toBe("not_found"); // not a formula column
+  });
+
+  it("preview: tells which calls use the grouped SQL and which tables are scanned", async () => {
+    const r = await preview({ formula: "=COUNTIFS([Bảng 1].[Giá], [Giá]) + SUMIFS([Bảng 1].[Giá], [Bảng 1].[Ngày], \">=\"&[Ngày])" });
+    expect(r.ok).toBe(true);
+    expect(r.reads.grouped_calls).toBe(1);
+    expect(r.reads.scanned_tables).toEqual([{ name: "Bảng 1", rows: 8 }]);
+    expect(r.rows[0].value).toBeGreaterThan(0);
+  });
+
+  describe("permissions over the web (cookie) and API (token) channels", () => {
+    const sessions = new Map<string, WebSession>();
+    const tokens = new Map<string, Record<string, string>>();
+    type Who = "owner" | "dhView" | "dhEdit" | "leader" | "manager" | "admin" | "other" | "guest";
+    const person = (w: Who) => ({ owner: org.userA1, dhView: org.userA2, dhEdit: org.leaderA, leader: org.leaderB, manager: org.mgrB, admin: org.admin, other: org.userB1, guest: org.guestData })[w];
+    beforeAll(async () => {
+      await a("datahub.share.set", { datahub_id: x.dhId, grantee_id: org.userA2.id, permission: "view" });
+      await a("datahub.share.set", { datahub_id: x.dhId, grantee_id: org.leaderA.id, permission: "edit_data" });
+    });
+    async function call(channel: "web" | "api", who: Who, method: "GET" | "POST", url: string, body?: unknown) {
+      const p = person(who);
+      let headers: Record<string, string>;
+      if (channel === "web") {
+        let s = sessions.get(p.id);
+        if (!s) sessions.set(p.id, (s = await login(t, p.email)));
+        headers = method === "GET" ? s.read : s.write;
+      } else {
+        let h = tokens.get(p.id);
+        if (!h) tokens.set(p.id, (h = (await activeToken(t, p.id, ["datahub:datahub:use"])).headers));
+        headers = h;
+      }
+      return (await t.app.inject({ method, url: `/api/v1${url}`, headers, ...(body ? { payload: body as object } : {}) })).statusCode;
+    }
+    // [catalogue, preview]: the preview needs the owner of the datahub (it reads the owner's tables); other people do not see the table at all.
+    const expected: Record<Who, number[]> = {
+      owner: [200, 200], dhView: [200, 403], dhEdit: [200, 403], leader: [200, 404], manager: [200, 404], admin: [200, 404], other: [200, 404], guest: [403, 403],
+    };
+    for (const channel of ["web", "api"] as const) {
+      for (const who of Object.keys(expected) as Who[]) {
+        it(`${channel}: ${who}`, async () => {
+          const got = [await call(channel, who, "GET", "/datahub/formula-functions"), await call(channel, who, "POST", `/tables/${x.tableId}/formula/preview`, { formula: "=[Giá]" })];
+          expect(got).toEqual(expected[who]);
+        });
+      }
     }
   });
 });

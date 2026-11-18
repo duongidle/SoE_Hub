@@ -339,15 +339,15 @@ async function writePatches(db: Executor, tableId: string, key: string, patches:
     WHERE /*scope:system*/ r.table_id = ${tableId}::uuid AND r.id = v.id`);
 }
 
-async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: number) => Promise<void>): Promise<RecalcResult> {
-  const col = job.col;
-  const ix = await OwnerIndex.load(db, job.ownerId);
-  const parsed = typeof col.config.expr === "string" ? parseFormula(col.config.expr) : null;
-  const resultType = resultTypeOf(col);
-  const ast: Node | null = parsed && parsed.ok ? parsed.ast : null;
+/** What a formula needs to run over the rows of a table: plans for grouped calls, scanned columns, and a context that follows `setRow`. */
+export interface FormulaEnv {
+  ctx: EvalContext;
+  setRow(row: LoadedRow): void;
+}
 
+export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: string, ast: Node | null, now: Date): Promise<FormulaEnv> {
   // Columns of this table as engine columns (the row loader needs the full DhColumn shape).
-  const full = await db.execute(sql`SELECT * FROM dh_columns WHERE /*scope:system*/ table_id = ${job.tableId}::uuid AND deleted_at IS NULL`);
+  const full = await db.execute(sql`SELECT * FROM dh_columns WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL`);
   const colsByKey = new Map((full.rows as Raw[]).map(columnFromDb).map((c) => [c.key, c]));
 
   const refTables = new Set<string>();
@@ -420,6 +420,16 @@ async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: numbe
     },
     rowInfo: () => ({ id: current.id, rowNo: current.rowNo, createdAt: cellValue({ type: "created_time", key: "_", config: {} } as DhColumn, current) as number, modifiedAt: cellValue({ type: "modified_time", key: "_", config: {} } as DhColumn, current) as number }),
   };
+  return { ctx, setRow: (r) => { current = r; } };
+}
+
+async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: number) => Promise<void>): Promise<RecalcResult> {
+  const col = job.col;
+  const ix = await OwnerIndex.load(db, job.ownerId);
+  const parsed = typeof col.config.expr === "string" ? parseFormula(col.config.expr) : null;
+  const resultType = resultTypeOf(col);
+  const ast: Node | null = parsed && parsed.ok ? parsed.ast : null;
+  const env = await buildFormulaEnv(db, ix, job.tableId, ast, now);
 
   let last = 0;
   let total = 0;
@@ -432,10 +442,10 @@ async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: numbe
     if (rows.length === 0) break;
     const patches: { id: string; patch: Record<string, unknown> }[] = [];
     for (const row of rows) {
-      current = row;
+      env.setRow(row);
       let out: StoreOutcome;
       if (!ast) out = { kind: "error", code: "#NAME?" };
-      else out = valueToStored(resultType, evaluate(ast, ctx));
+      else out = valueToStored(resultType, evaluate(ast, env.ctx));
       const data = { ...row.data };
       if (applyOutcome(data, col, out)) {
         patches.push({ id: row.id, patch: out.kind === "value" ? { [col.key]: out.value } : out.kind === "error" ? { [errKey(col.key)]: out.code } : {} });

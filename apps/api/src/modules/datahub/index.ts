@@ -4,6 +4,7 @@ import { registerSettings } from "../system/settings-catalog";
 import { columnOperations } from "./columns";
 import { viewOperations, shareOperations, limitOperations, trashOperations } from "./collab";
 import { datahubEvents } from "./events";
+import { formulaOperations } from "./formula-ops";
 import { DH_SETTINGS } from "./limits";
 import { rowOperations } from "./row-ops";
 import { structureOperations } from "./structure";
@@ -16,7 +17,7 @@ for (const t of ["dh_datahubs", "dh_tables", "dh_columns", "dh_rows", "dh_views"
 registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.maxColumns);
 
 export { datahubEvents };
-export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations];
+export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations];
 export { datahubJobs as exportJobs, sqlViewSubscriber } from "./export-views";
 export { formulaSubscriber, markVolatilePending, processPendingColumns, resetRunningColumns, startRecalcLoop } from "./recalc";
 import { datahubJobs as exportJobs } from "./export-views";

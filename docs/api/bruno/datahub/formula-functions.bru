@@ -1,0 +1,20 @@
+meta {
+  name: datahub.formula.functions
+  type: http
+  seq: 41
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/formula-functions
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh mục hàm công thức: nhóm, cú pháp, mô tả tiếng Việt và một ví dụ cho từng hàm; kèm danh sách mã lỗi.
+  Quyền: `datahub:datahub:use`.
+}

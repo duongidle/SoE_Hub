@@ -95,9 +95,25 @@ pnpm test:e2e
 
 Lệnh tạo lại database rỗng `soe_hub_e2e`, chạy migration, bật api (cổng 3100), worker và web (cổng 5273), rồi chạy các luồng của Stage 1 ở hai bề ngang: desktop 1440×900 và điện thoại 390×844. Mỗi luồng kiểm tra không có lỗi console và không có request lỗi (trừ 401/403/423 được chờ trước). Ảnh chụp màn hình nằm ở `apps/web/e2e/screenshots/` (không commit). Chạy một phần: `pnpm test:e2e --project=desktop -g "token"`. Dùng cùng user Postgres như `pnpm test` (đổi bằng `E2E_ADMIN_URL`). Test và e2e dùng vai trò Postgres riêng (`soe_app_test`, `soe_app_e2e`) nên không đụng database dev.
 
-## Datahub (Stage 2A)
+## Datahub (Stage 2A, 2B)
 
-2A có phần lưu trữ và API lõi của Datahub: datahub, bảng, cột có kiểu, dòng (tạo, sửa gộp theo ô, xoá mềm, batch, upsert), lọc, sắp xếp, tìm kiếm, phân trang keyset, view, chia sẻ, giới hạn, thùng rác, lịch sử dòng, view SQL xuất (`dh_views`) và index tự động. Chưa có công thức (2B), giao diện (2C), import/export (2D).
+2A có phần lưu trữ và API lõi của Datahub: datahub, bảng, cột có kiểu, dòng (tạo, sửa gộp theo ô, xoá mềm, batch, upsert), lọc, sắp xếp, tìm kiếm, phân trang keyset, view, chia sẻ, giới hạn, thùng rác, lịch sử dòng, view SQL xuất (`dh_views`) và index tự động. Chưa có giao diện (2C), import/export (2D).
+
+**2B: công thức và cột tính toán.** Cột `formula`, `relation`, `lookup`, `rollup`. Engine công thức ở `packages/formula` (TypeScript thuần, chạy cả server lẫn trình duyệt): 106 hàm, tham chiếu `[Cột]`, `[Bảng].[Cột]`, `[Datahub].[Bảng].[Cột]`, lỗi kiểu Excel (`#DIV/0!`, `#N/A`, `#VALUE!`, `#REF!`, `#CYCLE!`, `#PERM!`). Công thức lưu theo mã cột, hiện theo tên hiện tại. Giá trị được tính sẵn và lưu trong database:
+
+- Công thức chỉ đọc cột cùng dòng: API tính ngay trong giao dịch lưu dòng.
+- Công thức đọc bảng khác, lookup, rollup: worker tính cả cột (có tiến độ, `calc.status` của cột là `pending` / `running` / `ready`). Tra cứu và tổng hợp có điều kiện bằng (`SUMIFS`, `COUNTIFS`, `XLOOKUP`...) được gom thành một câu SQL cho cả cột. Điều kiện khác (`>=`, ký tự đại diện...) duyệt từng dòng nên chỉ cho bảng nguồn tối đa 20.000 dòng.
+- `TODAY()` tính lại 00:05 giờ Việt Nam, `NOW()` mỗi giờ (worker chạy bù khi khởi động lại).
+- Tính lại không ghi lịch sử dòng, nhật ký, `version` hay "Ngày sửa".
+- Công thức chỉ đọc datahub **cùng chủ**; bảng được người khác chia sẻ không dùng được.
+- API: `GET /datahub/formula-functions` (danh mục hàm), `POST /tables/:id/formula/preview` (kiểm tra và xem trước 5 dòng).
+- Worker (`apps/api/src/worker.ts`) chạy vòng tính lại; trong test dùng `drainOutbox` (`apps/api/test/dh-helpers.ts`).
+- Golden test đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (tự bỏ qua khi thiếu file, không commit dữ liệu từ file):
+
+```bash
+npx vitest run apps/api/test/formula-golden.test.ts --reporter=verbose
+npx vitest run apps/api/test/datahub-formulas-perf.test.ts --reporter=verbose   # 100.000 x 100.000 dòng
+```
 
 - Code: `apps/api/src/modules/datahub/`, schema `packages/db/src/schema/datahub.ts`.
 - API: các thao tác `datahub.*` có trong `docs/api/openapi.json` và `/api/docs`; request mẫu ở `docs/api/bruno/datahub/`.
@@ -115,7 +131,7 @@ apps/api        Fastify: registry, REST, OpenAPI, SSE, file; src/worker.ts là t
 apps/web        React + Vite + TanStack Router/Query + Tailwind; e2e/ là test Playwright
 packages/shared Mã lỗi, actor, cú pháp bộ lọc (Zod), dùng chung server và trình duyệt
 packages/db     Schema Drizzle, migration, helper (audit, lịch sử dòng, outbox, khoá kỳ, lọc, keyset...)
-packages/formula, packages/metrics   Chỗ trống, làm ở Stage 2 và 3
+packages/formula Engine công thức (parser, 106 hàm, điều kiện kiểu Excel); packages/metrics chỗ trống, làm ở Stage 3
 docs/api/bruno  Bộ request Bruno (mở thư mục này bằng Bruno, chọn môi trường dev)
 design/         Thiết kế từng module
 ```

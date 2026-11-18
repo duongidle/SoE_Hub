@@ -340,3 +340,62 @@ Phạm vi 2A: schema, cấu trúc, dòng, view, chia sẻ, giới hạn, thùng 
 
 **Đo tốc độ (bảng 100.000 dòng, máy dev, `apps/api/test/datahub-perf.test.ts`)**
 - Trung vị 7 lần, trang đầu 50 dòng: trước index 23–81 ms, sau index 3–44 ms; tìm kiếm trigram 4–5 ms; trang keyset kế tiếp 2,7 ms mỗi trang. Mọi tình huống dưới 300 ms. Số cụ thể ở `progress.md`.
+
+### Stage 2B (công thức và cột tính toán)
+
+Phạm vi 2B: engine công thức (`packages/formula`), các cột `formula`, `relation`, `lookup`, `rollup`, tính lại, API xem trước và danh mục hàm. Chưa có giao diện trình soạn (2C), chưa import công thức (2D), chưa có Bảng gộp (Stage 3).
+
+**Engine (`packages/formula`)**
+- TypeScript thuần, không phụ thuộc Node, chạy ở trình duyệt (xem trước) và server (giá trị chính thức). Gồm lexer, parser (có vị trí ký tự cho từng lỗi), suy kiểu tĩnh, danh mục hàm, bộ chạy, phân tích phụ thuộc.
+- **Dạng lưu**: `config.expr` bỏ dấu `=` đầu, tham chiếu đổi thành mã: `{c_ab12cd34}` (ô cùng dòng), `{<uuid bảng>.c_ab12cd34}` (cả cột của một bảng, kể cả bảng này). Hiển thị lại theo tên hiện tại (đổi tên cột/bảng/datahub không làm hỏng công thức); mã trỏ tới thứ đã xoá hiện `[#REF!]`. Cách bố cục của người gõ (xuống dòng, khoảng trắng) được giữ. Vị trí lỗi cú pháp, tên hàm, số đối số tính trên chính văn bản người gõ.
+- **Ngày là số** như Excel (ngày 1899-12-30 = 0, giờ Việt Nam), kiểu kết quả được suy tĩnh nên cột ngày lưu lại `YYYY-MM-DD`. Chữ dạng `dd/mm/yyyy` hoặc `yyyy-mm-dd` được ép thành ngày khi tính toán (như Excel, file mẫu cần: `DATEDIF(TODAY(),"31/12/2025","D")`).
+- **Kiểu kết quả** (`config.result_type`): `number`, `percent`, `text`, `date`, `datetime`, `checkbox`. Tự suy; người dùng ghi đè được khi lưu. Hai nhánh khác kiểu thì kết quả là chữ (`mixed`), nhưng chuỗi rỗng `""` không quyết định kiểu (`IFERROR(a/b, "")` vẫn là cột số, ô lỗi thành ô trống). Không có `currency`, `rating`, lựa chọn làm kiểu kết quả: dùng `display` (đơn vị, số lẻ) cho tiền.
+- **106 hàm** (design nói khoảng 100): đủ các hàm của mục 6.2, thêm `CONCATENATE`, `REPT`, `EXACT`, `LN`, `SIGN`, `TRUNC`, `HOUR`, `MINUTE`. Mỗi hàm có nhóm, cú pháp, mô tả tiếng Việt, một ví dụ và kết quả ví dụ (`FUNCTION_CATALOG`, test kiểm mọi ví dụ parse được).
+- Tra cứu theo **cột** vì không có ô: `VLOOKUP(giá_trị, cột_tìm, cột_kết_quả, [gần_đúng])`, `INDEX(cột, n)`, `MATCH(giá_trị, cột, [kiểu])`. Toán tử áp lên cả cột chạy từng phần tử (như công thức mảng), nên `SUMPRODUCT(([Bảng].[Loại]="x")*[Bảng].[Tiền])` và `FILTER` hoạt động. Hàm trả danh sách (`FILTER`, `UNIQUE`, `SORT`) mà là kết quả cuối thì được nối bằng ", ".
+- **Điều kiện kiểu Excel** (`COUNTIFS`...): `"="`, `">="`, `"<>"`, ký tự đại diện `*` `?` `~`; chữ không phân biệt hoa thường, **có phân biệt dấu**; chữ dạng số bằng số đó; ô điều kiện trống tính là 0 (như Excel); lỗi thì lỗi. `XLOOKUP` với kiểu khớp mặc định coi `*` là chữ thường.
+- Lỗi: `#DIV/0!`, `#N/A`, `#VALUE!`, `#REF!`, `#CYCLE!`, `#PERM!`, thêm `#NAME?` (tên hàm lạ) và `#NUM!`.
+
+**Lưu giá trị**
+- Giá trị lưu ở `data[mã cột]`. **Lỗi của ô lưu riêng ở khoá `!<mã cột>`** (giá trị bị xoá), để lọc và sắp xếp theo số/ngày không bao giờ gặp chữ `#DIV/0!`. API trả mã lỗi thay cho giá trị (cả khi chọn `fields=`); view SQL xuất hiện ô lỗi là NULL.
+- Cột tính toán lọc, sắp xếp, đánh index theo kiểu kết quả của nó. Không có `unique`, `required`, giá trị mặc định. Không vào ô tìm kiếm toàn bảng.
+- Trạng thái tính nằm ở **cột** (`dh_columns.calc_status`: `ready` / `pending` / `running`, `calc_done`, `calc_total`, `calc_at`, `calc_volatile`), API cột trả `calc`. "Đang tính" hiện cho cả cột, không theo từng ô. Bảng phụ thuộc `dh_formula_deps` (cột tính toán đọc gì: `cell` = cột cùng dòng, `range` = cả cột của một bảng) phục vụ kiểm tra vòng lặp và tính lại.
+- Người không phải chủ datahub (được chia sẻ) chỉ thấy giá trị và kiểu kết quả; văn bản công thức và tên bảng đích không hiện (khỏi lộ tên bảng họ không được xem).
+
+**Tính lại**
+- **Công thức chỉ đọc cột cùng dòng**: API tính trong giao dịch lưu dòng (`row-formulas.ts`), theo thứ tự phụ thuộc, nên giá trị có ngay. Không vào lịch sử dòng (kể cả khi xoá dòng); tên cột công thức đổi giá trị được thêm vào `columns` của sự kiện dòng để cột ở bảng khác tính tiếp.
+- **Công thức đọc bảng khác, lookup, rollup**: worker tính. Bộ nghe outbox `datahub.formula` đánh dấu `pending` các cột bị ảnh hưởng (đổi dòng nguồn, thêm/xoá/khôi phục dòng, cột/bảng/datahub xoá hoặc khôi phục, đổi chủ, đổi kiểu cột); vòng lặp trong worker (`startRecalcLoop`, chu kỳ `WORKER_OUTBOX_POLL_MS`) nhận từng cột đang chờ, tính **cả cột**, ghi từng lô 2.000 dòng, báo tiến độ. Nhiều thay đổi liên tiếp được gộp (một cột `pending` chỉ tính một lần). Cột A đang chờ mà cột B đọc A cũng đang chờ thì B đợi A xong (đúng thứ tự phụ thuộc). Dòng mới tạo có ô công thức liên bảng trống cho đến khi worker tính xong (vài giây).
+- Mỗi lần ghi chỉ thay **hai khoá của cột đó** (`data - [khoá, !khoá] || {...}`) trên dữ liệu hiện tại của dòng, nên không đè sửa tay đồng thời; ô không đổi giá trị thì bỏ qua; **không** lịch sử dòng, không nhật ký, không đổi `version` và `updated_at`. Cuối mỗi lần tính phát `datahub.formula.recalculated` (`state: pending|done`, số dòng đổi, tối đa 500 mã dòng hoặc null) tới người nhìn thấy bảng, và là thứ kích hoạt cột phụ thuộc (khi có dòng đổi).
+- **`TODAY()`**: job `datahub-formula-today` 00:05 giờ Việt Nam; **`NOW()`**: job `datahub-formula-now` mỗi giờ. Cả hai gọi `markVolatilePending`: đánh dấu cột có `calc_at` cũ hơn mốc đáng ra đã tính (00:05 gần nhất / đầu giờ gần nhất). Worker khởi động cũng gọi nó (**chạy bù**) và đưa các cột còn `running` do sập máy về `pending`. `calc_at` là thời điểm dùng để tính, không phải giờ ghi.
+- Lỗi khi tính một cột: ghi log, nhả cột (`ready`), không chặn các cột khác.
+
+**Kiểm tra khi lưu cột** (`computed.ts`, dùng chung với API xem trước)
+- Chỉ **chủ** datahub tạo/sửa cột tính toán. Tên bảng/datahub chỉ tìm trong **datahub chưa xoá do chính chủ sở hữu**; datahub người khác (kể cả đã chia sẻ) không tìm thấy, thông báo nhắc `#PERM!`. Lúc tính, bảng không còn cùng chủ (ví dụ sau chuyển giao) cho `#PERM!`, bảng/cột đã xoá cho `#REF!`.
+- **Vòng lặp** bị chặn bằng tìm đường đi trong đồ thị phụ thuộc của cả bộ datahub của chủ, kể cả cạnh lookup/rollup; thông báo nêu đường đi `[Bảng].[Cột] → ...`. Công thức tự đọc chính cột mình cũng là vòng.
+- **Ngưỡng 20.000 dòng**: lời gọi không gom nhóm được bằng SQL (điều kiện `>=`, ký tự đại diện, regex, `MATCH` gần đúng, `FILTER`... trên cột của bảng khác) phải duyệt từng dòng nên bảng nguồn > 20.000 dòng bị từ chối ngay khi lưu (`details.code = scan_too_large`); lúc tính, bảng đã phình quá ngưỡng cho `#VALUE!`.
+- **Gom nhóm SQL** (mục 6.6): `COUNTIFS`, `COUNTIF`, `SUMIFS`, `SUMIF`, `AVERAGEIFS`, `AVERAGEIF`, `MINIFS`, `MAXIFS` với điều kiện bằng; `XLOOKUP` (khớp đúng, tìm từ đầu), `VLOOKUP` (không gần đúng), `INDEX(…, MATCH(…, 0))`; và `SUM`/`COUNT`/`COUNTA`/`AVERAGE`/`MIN`/`MAX` cả một cột. Điều kiện là chữ có toán tử/ký tự đại diện, hoặc vùng điều kiện nằm trong biểu thức thì không gom nhóm (đi đường duyệt từng dòng). Mỗi lời gọi gom nhóm = **một câu `GROUP BY` cho cả cột** (`buildPlan`), kết quả nạp vào bảng băm để từng dòng tra; giá trị điều kiện của một dòng mà hoá ra có toán tử/ký tự đại diện (đến từ ô) thì dòng đó quay về đường duyệt (nếu bảng nhỏ) hoặc `#VALUE!`. Khoá nhóm dùng chung hàm `equalityKey` với đường duyệt nên hai đường cho kết quả giống nhau (test `datahub-formulas-grouped.test.ts` so 22 cặp công thức). Chỉ gom nhóm theo cột lưu trong `data` kiểu chữ, số, ngày, ngày giờ, checkbox, một lựa chọn, người dùng.
+- Khác biệt với Excel: hàm tổng hợp trên cả cột bỏ qua ô lỗi của cột nguồn (Excel truyền lỗi); `LEFT`/`MID`... trên ngày lấy chữ số của số ngày (đúng Excel, xem golden test).
+
+**Cột liên kết**
+- `relation`: giá trị ô là **mảng mã dòng** của bảng đích (một dòng hay nhiều tuỳ `multiple`). Bảng đích phải thuộc datahub của cùng chủ; mã dòng phải là dòng chưa xoá của bảng đích (kiểm tra mỗi lần ghi). **Chỉ chủ** datahub ghi được ô liên kết (người được chia sẻ quyền Sửa không ghi được: tránh biết/ghi mã dòng của bảng họ không xem được). Không đổi được bảng đích của cột có sẵn.
+- `lookup` (`{relation, target_column}`): giá trị cột đích của dòng được liên kết; liên kết một dòng thì kiểu của cột đích, liên kết nhiều dòng thì chữ nối bằng ", ". `rollup` (`{relation, target_column, fn}`, `fn` = sum, count, counta, avg, min, max, countunique, concat): sum/avg cần cột số, min/max cột số hoặc ngày. Lookup/rollup do worker tính.
+
+**API**
+- `datahub.formula.functions` (GET `/datahub/formula-functions`): danh mục hàm + mã lỗi.
+- `datahub.formula.preview` (POST `/tables/:table_id/formula/preview`, chỉ chủ): `ok`, `errors[{message,start,end}]`, `formula` (tên hiện tại), `result_type`, `volatile`, `reads` (cột/bảng đọc, số lời gọi gom nhóm, bảng phải duyệt), `rows` (5 dòng đầu: giá trị hoặc mã lỗi + câu giải thích). Công thức sai trả `ok: false` chứ không lỗi HTTP. Dùng đúng mã kiểm tra của lúc lưu.
+- `datahub.column.create|update` nhận `config.formula` (công thức), `config.result_type` (tuỳ chọn); `GET table` và cột trả `config.formula` (có `=`), `calc`.
+
+**Lệch hoặc bổ sung so với thiết kế**
+- Thiết kế nói "ô đang chờ hiện biểu tượng đang tính": làm ở mức **cột** (`calc.status`), không theo ô.
+- Thiết kế nói "hàm khoảng 100": 106 hàm. `VLOOKUP`, `INDEX`, `MATCH` theo cột, không theo vùng ô.
+- Cột tính toán tính lại **cả cột** khi nguồn đổi (có gộp), không tính riêng những dòng bị ảnh hưởng. Đủ nhanh ở 100.000 dòng (số đo bên dưới); nếu sau này cần thì thêm tính theo dòng.
+- Không có lệch nào với quy định đã chốt trong CLAUDE.md.
+
+**Golden test** (`apps/api/test/formula-golden.test.ts`, đọc thẳng file mẫu, bỏ qua khi máy không có file)
+- 3.322 công thức của 6 sheet (`Raw PODPS`, `Index`, `Cumulative Index`, `Plan 2024 -2025`, `Phân tích PS`, `BC-ML Com Policy`) đều parse và chạy; 3.321 khớp giá trị Excel đã lưu trong file, 1 công thức `TODAY()` chỉ kiểm parse và chạy. Hàm file dùng: COUNTIFS, SUMIFS, DATEDIF, IFS, IFERROR, IF, EOMONTH, EDATE, ROUNDUP, ROUNDDOWN, ROUND, MOD, LEFT, SUM, TODAY.
+- Adapter chỉ có trong test (A1/bảng Excel sang tham chiếu của engine, lấy giá trị đã lưu từ XML của file). Việc dịch công thức Excel khi import là của 2D.
+- Hai điểm của file mẫu: (1) giá trị đã lưu cho `IFERROR(IF(MOD(LEFT($A3,2),3)=0, ...` (324 công thức) dựa vào chữ hiển thị `MM/yyyy` của ô ngày, trong khi Excel và engine lấy `LEFT` của số ngày; adapter viết lại thành `TEXT(ngày,"mm")` để kiểm phần còn lại. Khi import (2D) cần cảnh báo kiểu công thức này. (2) File lưu lỗi dưới dạng chữ (`t="str"` "#DIV/0!"); adapter coi đó là lỗi.
+- Sheet `Deals` không có dòng dữ liệu nên Index đều bằng 0; test thứ hai kiểm `COUNTIFS`/`SUMIFS` kiểu Index trên dòng deal tự tạo (không lấy từ file).
+
+**Đo tốc độ** (`apps/api/test/datahub-formulas-perf.test.ts`, 100.000 dòng nguồn x 100.000 dòng đích, máy dev)
+- Tính lại cả cột 100.000 dòng: SUMIFS 1,76 s, COUNTIFS hai điều kiện 2,33 s, XLOOKUP 2,08 s, AVERAGEIFS 1,97 s, MAXIFS trên ngày 2,34 s, SUMIFS/COUNTIFS gộp 2,52 s. Sửa một dòng nguồn thì 6 cột phụ thuộc tính lại trong 3,95 s.
+

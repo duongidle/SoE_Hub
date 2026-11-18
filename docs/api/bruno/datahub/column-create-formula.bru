@@ -1,0 +1,32 @@
+meta {
+  name: datahub.column.create (công thức)
+  type: http
+  seq: 43
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/columns
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "name": "Thành tiền",
+    "type": "formula",
+    "config": { "formula": "=[Đơn giá] * [Số lượng]" }
+  }
+}
+
+docs {
+  Cột công thức. `config.formula` viết bằng tên cột: `[Cột]`, `[Bảng].[Cột]`, `[Datahub].[Bảng].[Cột]`.
+  Giá trị được tính ngay khi lưu dòng (công thức chỉ dùng cột cùng dòng) hoặc bởi worker (công thức đọc bảng khác); cột có `calc.status` = `pending` đang chờ tính.
+  Ví dụ khác: `=SUMIFS([Thanh toán].[Số tiền], [Thanh toán].[Mã deal], [Mã deal])`, `=XLOOKUP([Mã KH], [Khách hàng].[Mã], [Khách hàng].[Tên], "Chưa có")`.
+  Danh mục hàm: `GET /datahub/formula-functions`.
+}

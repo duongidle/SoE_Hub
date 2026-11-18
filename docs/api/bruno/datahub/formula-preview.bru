@@ -1,0 +1,30 @@
+meta {
+  name: datahub.formula.preview
+  type: http
+  seq: 42
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/formula/preview
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "formula": "=[Giá] * [Số lượng]"
+  }
+}
+
+docs {
+  Kiểm tra công thức và xem trước kết quả trên 5 dòng đầu của bảng. Không ghi gì. Chỉ chủ datahub.
+  Chỉ chủ datahub. Trả `ok`, `errors` (vị trí ký tự + câu giải thích tiếng Việt), kiểu kết quả và kết quả 5 dòng đầu.
+  Sửa công thức có sẵn thì thêm `"column": "<mã hoặc tên cột>"`; muốn ép kiểu kết quả thì thêm `"result_type": "number"`.
+  Quyền: `datahub:datahub:use`.
+}

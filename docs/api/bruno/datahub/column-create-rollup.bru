@@ -1,0 +1,31 @@
+meta {
+  name: datahub.column.create (liên kết, lookup, rollup)
+  type: http
+  seq: 44
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/columns
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "name": "Tổng tiền",
+    "type": "rollup",
+    "config": { "relation": "Đơn hàng", "target_column": "Tiền", "fn": "sum" }
+  }
+}
+
+docs {
+  Cột liên kết: `type: "relation"`, `config: { "target_table_id": "<bảng của cùng chủ>", "multiple": true }`; giá trị ô là mảng mã dòng của bảng đích (chỉ chủ datahub sửa được).
+  Lookup: `type: "lookup"`, `config: { "relation": "<cột liên kết>", "target_column": "<cột ở bảng đích>" }`.
+  Rollup: thêm `fn`: sum, count, counta, avg, min, max, countunique, concat.
+}

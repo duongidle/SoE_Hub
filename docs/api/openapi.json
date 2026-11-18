@@ -14857,6 +14857,72 @@
                                 "type": "integer",
                                 "minimum": -9007199254740991,
                                 "maximum": 9007199254740991
+                              },
+                              "calc": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "status": {
+                                        "type": "string",
+                                        "enum": [
+                                          "ready",
+                                          "pending",
+                                          "running"
+                                        ]
+                                      },
+                                      "done": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": -9007199254740991,
+                                            "maximum": 9007199254740991
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "total": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": -9007199254740991,
+                                            "maximum": 9007199254740991
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "at": {
+                                        "anyOf": [
+                                          {
+                                            "anyOf": [
+                                              {},
+                                              {
+                                                "type": "string"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "status",
+                                      "done",
+                                      "total",
+                                      "at"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -14871,7 +14937,8 @@
                               "default_value",
                               "description",
                               "display",
-                              "version"
+                              "version",
+                              "calc"
                             ],
                             "additionalProperties": false
                           }
@@ -15742,7 +15809,7 @@
       "post": {
         "operationId": "datahub.column.create",
         "summary": "Thêm cột vào bảng (mặc định tối đa 70 cột, trần 200). Tên cột không trùng trong bảng.",
-        "description": "Mã cột (`key`) do hệ thống sinh, không đổi dù đổi tên. Kiểu công thức/liên kết/lookup/rollup chưa dùng được (Stage 2B).",
+        "description": "Mã cột (`key`) do hệ thống sinh, không đổi dù đổi tên. Cột tính toán: `formula` (`config: {formula: \"=...\", result_type?}`), `relation` (`config: {target_table_id, multiple?}` liên kết tới bảng khác của cùng chủ), `lookup` (`config: {relation, target_column}`), `rollup` (`config: {relation, target_column, fn}`). Giá trị công thức do hệ thống tính và lưu; ô đang chờ tính có `calc.status` khác `ready`.",
         "tags": [
           "datahub"
         ],
@@ -15925,6 +15992,72 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
+                        },
+                        "calc": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ready",
+                                    "pending",
+                                    "running"
+                                  ]
+                                },
+                                "done": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "total": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "at": {
+                                  "anyOf": [
+                                    {
+                                      "anyOf": [
+                                        {},
+                                        {
+                                          "type": "string"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "status",
+                                "done",
+                                "total",
+                                "at"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -15939,7 +16072,8 @@
                         "default_value",
                         "description",
                         "display",
-                        "version"
+                        "version",
+                        "calc"
                       ],
                       "additionalProperties": false
                     }
@@ -16209,6 +16343,72 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
+                        },
+                        "calc": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ready",
+                                    "pending",
+                                    "running"
+                                  ]
+                                },
+                                "done": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "total": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "at": {
+                                  "anyOf": [
+                                    {
+                                      "anyOf": [
+                                        {},
+                                        {
+                                          "type": "string"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "status",
+                                "done",
+                                "total",
+                                "at"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -16223,7 +16423,8 @@
                         "default_value",
                         "description",
                         "display",
-                        "version"
+                        "version",
+                        "calc"
                       ],
                       "additionalProperties": false
                     }
@@ -16620,6 +16821,72 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991
+                        },
+                        "calc": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ready",
+                                    "pending",
+                                    "running"
+                                  ]
+                                },
+                                "done": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "total": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "at": {
+                                  "anyOf": [
+                                    {
+                                      "anyOf": [
+                                        {},
+                                        {
+                                          "type": "string"
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "status",
+                                "done",
+                                "total",
+                                "at"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -16634,7 +16901,8 @@
                         "default_value",
                         "description",
                         "display",
-                        "version"
+                        "version",
+                        "calc"
                       ],
                       "additionalProperties": false
                     }
@@ -17187,6 +17455,72 @@
                               "type": "integer",
                               "minimum": -9007199254740991,
                               "maximum": 9007199254740991
+                            },
+                            "calc": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "ready",
+                                        "pending",
+                                        "running"
+                                      ]
+                                    },
+                                    "done": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "total": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "at": {
+                                      "anyOf": [
+                                        {
+                                          "anyOf": [
+                                            {},
+                                            {
+                                              "type": "string"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "status",
+                                    "done",
+                                    "total",
+                                    "at"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             }
                           },
                           "required": [
@@ -17201,7 +17535,8 @@
                             "default_value",
                             "description",
                             "display",
-                            "version"
+                            "version",
+                            "calc"
                           ],
                           "additionalProperties": false
                         },
@@ -22322,6 +22657,572 @@
           },
           "403": {
             "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/datahub/formula-functions": {
+      "get": {
+        "operationId": "datahub.formula.functions",
+        "summary": "Danh mục hàm công thức: nhóm, cú pháp, mô tả tiếng Việt và một ví dụ cho từng hàm; kèm danh sách mã lỗi.",
+        "description": "Dùng cho gợi ý khi gõ công thức và cho AI. Tham chiếu: `[Cột]`, `[Bảng].[Cột]`, `[Datahub].[Bảng].[Cột]`. Toán tử: `+ - * / ^ &`, so sánh `= <> < <= > >=`, `%` sau số.",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.formula.functions",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "functions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "group": {
+                                "type": "string",
+                                "description": "Logic, Toán, Thống kê, Chuỗi, Ngày, Tra cứu hoặc Thông tin dòng."
+                              },
+                              "syntax": {
+                                "type": "string",
+                                "description": "Cú pháp, ví dụ `IF(điều_kiện, nếu_đúng, [nếu_sai])`; tham số trong [ ] là tuỳ chọn."
+                              },
+                              "description": {
+                                "type": "string",
+                                "description": "Mô tả tiếng Việt ngắn."
+                              },
+                              "example": {
+                                "type": "string"
+                              },
+                              "example_result": {
+                                "type": "string"
+                              },
+                              "min_args": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "max_args": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "volatile": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "today",
+                                      "now"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "`today`: cột dùng hàm này tính lại 00:05 mỗi ngày; `now`: mỗi giờ."
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "group",
+                              "syntax",
+                              "description",
+                              "example",
+                              "example_result",
+                              "min_args",
+                              "max_args",
+                              "volatile"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "errors": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "message"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "functions",
+                        "errors"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tables/{table_id}/formula/preview": {
+      "post": {
+        "operationId": "datahub.formula.preview",
+        "summary": "Kiểm tra công thức và xem trước kết quả trên 5 dòng đầu của bảng. Không ghi gì. Chỉ chủ datahub.",
+        "description": "Công thức sai thì `ok: false` kèm `errors` có vị trí ký tự (`start`, `end`) và câu giải thích tiếng Việt; không trả lỗi HTTP vì sai công thức là việc bình thường khi đang gõ. Kiểm tra giống lúc lưu cột: cú pháp, tên cột/bảng, tên và số đối số của hàm, vòng lặp (#CYCLE!), bảng không cùng chủ (#PERM!), ngưỡng 20.000 dòng cho điều kiện không gom nhóm được. Gửi `column` (mã hoặc tên) khi đang sửa một cột công thức có sẵn.",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.formula.preview",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "formula": {
+                    "type": "string",
+                    "maxLength": 10000
+                  },
+                  "result_type": {
+                    "type": "string",
+                    "enum": [
+                      "number",
+                      "percent",
+                      "text",
+                      "date",
+                      "datetime",
+                      "checkbox"
+                    ]
+                  },
+                  "column": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                },
+                "required": [
+                  "formula"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "formula": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "errors": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "message": {
+                                "type": "string"
+                              },
+                              "start": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991,
+                                "description": "Vị trí ký tự bắt đầu (từ 0) trong công thức đã gửi."
+                              },
+                              "end": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "message",
+                              "start",
+                              "end"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "result_type": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "number",
+                                "percent",
+                                "text",
+                                "date",
+                                "datetime",
+                                "checkbox"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "volatile": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "today",
+                                "now"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reads": {
+                          "type": "object",
+                          "properties": {
+                            "columns": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Cột của chính bảng này mà công thức đọc."
+                            },
+                            "tables": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Bảng khác mà công thức đọc cả cột."
+                            },
+                            "grouped_calls": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Số lời gọi (SUMIFS, COUNTIFS, XLOOKUP...) được tính bằng MỘT câu SQL gom nhóm cho cả cột."
+                            },
+                            "scanned_tables": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "rows": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "rows"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Bảng phải duyệt từng dòng (tối đa 20.000 dòng)."
+                            }
+                          },
+                          "required": [
+                            "columns",
+                            "tables",
+                            "grouped_calls",
+                            "scanned_tables"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "row_id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "row_no": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "value": {},
+                              "error": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "error_message": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "row_id",
+                              "row_no",
+                              "value",
+                              "error",
+                              "error_message"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "position": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "start": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "end": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "start",
+                                "end"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "formula",
+                        "errors",
+                        "result_type",
+                        "volatile",
+                        "reads",
+                        "rows",
+                        "position"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
             "content": {
               "application/json": {
                 "schema": {
