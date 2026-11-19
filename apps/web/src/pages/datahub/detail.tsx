@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Share2, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Layers, MoreHorizontal, Pencil, Plus, Share2, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SHARE_PERMISSION_LABELS } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import type { DatahubBrief, TableBrief } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
 import { nameError } from "./list";
 import { ImportDialog } from "./import-dialog";
+import { MergeDialog } from "./merge-dialog";
 import { ShareDialog } from "./share-dialog";
 import { TableView } from "./table-view";
 
@@ -74,7 +75,7 @@ function DatahubBody({ dh, tableId, current }: { dh: DatahubBrief; tableId?: str
         )}
       </div>
       {sharing && <ShareDialog dh={dh} onClose={() => setSharing(false)} />}
-      {importing && <ImportDialog target={{ datahub: { id: dh.id, name: dh.name, access: dh.access, tables: dh.tables.map((t) => ({ id: t.id, name: t.name })) } }} onClose={() => setImporting(false)} />}
+      {importing && <ImportDialog target={{ datahub: { id: dh.id, name: dh.name, access: dh.access, tables: dh.tables.filter((t) => t.kind !== "merged").map((t) => ({ id: t.id, name: t.name })) } }} onClose={() => setImporting(false)} />}
       <TableTabs dh={dh} currentId={tableId} />
       {dh.tables.length === 0 ? (
         <EmptyState title="Datahub chưa có bảng nào" hint={dh.access === "owner" ? "Tạo bảng đầu tiên để thêm dữ liệu." : "Chủ datahub chưa chia sẻ bảng nào cho bạn."} />
@@ -89,7 +90,7 @@ function DatahubBody({ dh, tableId, current }: { dh: DatahubBrief; tableId?: str
 
 function TableTabs({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) {
   const owner = dh.access === "owner";
-  const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "rename"; t: TableBrief } | { kind: "delete"; t: TableBrief } | null>(null);
+  const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "merge" } | { kind: "rename"; t: TableBrief } | { kind: "delete"; t: TableBrief } | null>(null);
   const qc = useQueryClient();
   const nav = useNavigate();
   // Positions are plain numbers (not renumbered by the server): rewrite them as 0..n-1 in the new order.
@@ -111,6 +112,7 @@ function TableTabs({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) 
           return (
             <div key={t.id} className={cn("flex shrink-0 items-center border-b-2", on ? "border-primary" : "border-transparent")}>
               <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: dh.id, tableId: t.id }} role="tab" aria-selected={on} className={cn("max-w-48 truncate px-3 py-3 text-sm sm:py-2", on ? "font-medium" : "text-muted-foreground hover:text-foreground")} title={t.name}>
+                {t.kind === "merged" && <Layers size={14} aria-label="Bảng gộp" className="mr-1 inline align-[-2px]" />}
                 {t.name}
               </Link>
               {owner && on && (
@@ -130,6 +132,11 @@ function TableTabs({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) 
             <Plus size={16} aria-hidden /> Thêm bảng
           </Button>
         )}
+        {owner && (
+          <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "merge" })} data-testid="add-merged-table">
+            <Layers size={16} aria-hidden /> Thêm bảng gộp
+          </Button>
+        )}
       </div>
       {dialog?.kind === "add" && (
         <TableNameDialog
@@ -145,6 +152,7 @@ function TableTabs({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) 
           }}
         />
       )}
+      {dialog?.kind === "merge" && <MergeDialog datahubId={dh.id} onClose={() => setDialog(null)} />}
       {dialog?.kind === "rename" && (
         <TableNameDialog
           title="Đổi tên bảng"

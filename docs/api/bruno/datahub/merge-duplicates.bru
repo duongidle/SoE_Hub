@@ -1,0 +1,25 @@
+meta {
+  name: datahub.merge.duplicates
+  type: http
+  seq: 69
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/merge/duplicates
+  body: none
+  auth: none
+}
+
+params:query {
+  ~limit: 20
+  ~offset: 0
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Các nhóm dòng trùng khoá của bảng gộp: mỗi nhóm là các dòng nguồn, dòng nào được giữ. Chỉ chủ.
+  Quyền: `datahub:datahub:use`.
+}

@@ -16,6 +16,11 @@ import { RowFormulas } from "./row-formulas";
 import { rowFromDb, toApiRow, type ApiRow, type TableSchema } from "./table-schema";
 import { CellError, type DhColumn, type Stored } from "./types";
 
+/** A merged table is read-only for everyone, its owner included: its rows are written only by the worker (design module3 section 4.3). */
+export function assertWritable(access: TableAccess): void {
+  if (access.table.kind === "merged") throw new AppError("forbidden", "Bảng gộp chỉ đọc. Muốn sửa dữ liệu, hãy sửa ở bảng nguồn (mở dòng gốc từ cột \"Mã dòng gốc\").", { reason: "merged_table_read_only" });
+}
+
 /** One operation of a row write (single calls are batches of one). */
 export type RowOp =
   | { op: "create"; data: Record<string, unknown> }
@@ -177,6 +182,7 @@ interface Plan {
  */
 export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSchema, ops: RowOp[], opts: { labels?: boolean } = {}): Promise<OpResult[]> {
   access.require("edit_data");
+  assertWritable(access);
   if (ops.length === 0) throw new AppError("validation_error", "Cần ít nhất một thao tác.");
   if (ops.length > DH_BATCH_MAX) throw new AppError("validation_error", `Một lần gửi tối đa ${DH_BATCH_MAX} thao tác.`);
   const db = ctx.db;
@@ -450,6 +456,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
 /** Restores rows from the trash (design section 12). Needs `edit_data`. Returns the restored rows. */
 export async function restoreRows(ctx: Ctx, access: TableAccess, schema: TableSchema, rowIds: string[]): Promise<{ rows: ApiRow[]; seq: number }> {
   access.require("edit_data");
+  assertWritable(access);
   const actorId = ctx.actor.userId;
   ctx.audit({ type: "datahub_row", id: access.tableId, details: { table_id: access.tableId, restored: rowIds.length } });
   const res = await ctx.db.execute(sql`UPDATE dh_rows SET deleted_at = NULL, deleted_by = NULL, version = version + 1, updated_at = now(), updated_by = ${actorId}::uuid

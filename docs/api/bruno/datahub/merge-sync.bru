@@ -1,0 +1,21 @@
+meta {
+  name: datahub.merge.sync
+  type: http
+  seq: 67
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/merge/sync
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Đồng bộ lại bảng gộp ngay (xếp yêu cầu cho worker). Chỉ chủ.
+  Quyền: `datahub:datahub:use`.
+}

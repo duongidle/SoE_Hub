@@ -1,0 +1,33 @@
+meta {
+  name: datahub.merge.preview
+  type: http
+  seq: 68
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/merge-preview
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "sources": ["{{source_table_1}}", "{{source_table_2}}"],
+    "columns": [
+      { "name": "MST", "from": { "{{source_table_1}}": "MST", "{{source_table_2}}": "Mã số thuế" } },
+      { "name": "Doanh thu", "from": { "{{source_table_1}}": "Doanh thu", "{{source_table_2}}": "Doanh thu" } }
+    ],
+    "dedup": { "columns": ["MST"], "strategy": "priority" }
+  }
+}
+
+docs {
+  Xem trước cấu hình bảng gộp: các cột sẽ có, số dòng, bao nhiêu dòng trùng, cảnh báo. Không ghi gì.
+  Quyền: `datahub:datahub:use`.
+}

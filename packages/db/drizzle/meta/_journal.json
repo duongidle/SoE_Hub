@@ -78,6 +78,13 @@
       "when": 1795080293884,
       "tag": "0010_metrics",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795094320427,
+      "tag": "0011_datahub_merged_tables",
+      "breakpoints": true
     }
   ]
 }

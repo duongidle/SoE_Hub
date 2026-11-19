@@ -23,6 +23,8 @@ export interface TableInfo {
   rowCount: number;
   version: number;
   deleted: boolean;
+  /** `merged` = a merged table (design module3 section 4): read-only for everyone, its rows come from the worker. */
+  kind: "normal" | "merged";
 }
 
 /**
@@ -64,6 +66,16 @@ export function scopeKey(a: TableAccess): string {
   return `${a.tableId}:${a.level}`;
 }
 
+/**
+ * The ONE place that says which LIVE rows of a table this reader may copy out of it (used by the merged table, design module3 section 4.1):
+ * the rows of `access.scope()` that are not in the trash. When the split lock arrives (Stage 4.1) `scope()` (and `scopeKey` above) change
+ * to add the reader's rows; this helper follows, so the merged table never copies a row its owner does not see.
+ */
+export function readableRows(a: TableAccess, alias?: string): SQL {
+  const del = alias ? sql.raw(`${alias}.deleted_at`) : sql.raw("deleted_at");
+  return sql`${a.scope(alias)} AND ${del} IS NULL`;
+}
+
 export interface LoadOptions {
   /** `alive` (default): table and datahub both live. `trashed`: the table itself is in the trash (restore flows). */
   state?: "alive" | "trashed";
@@ -82,17 +94,18 @@ END`;
 export async function loadTableAccess(ctx: Ctx, tableId: string, need: Level = "view", opts: LoadOptions = {}): Promise<TableAccess> {
   const u = ctx.actor.userId;
   const res = await ctx.db.execute(sql`
-    SELECT t.id, t.datahub_id, t.name, t.next_row_no, t.row_count, t.version, t.deleted_at AS t_deleted,
+    SELECT t.id, t.datahub_id, t.name, t.next_row_no, t.row_count, t.version, t.deleted_at AS t_deleted, t.kind,
            d.owner_id, d.name AS datahub_name, d.deleted_at AS d_deleted, ${LEVEL_SQL(u)} AS level
     FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
     WHERE /*scope*/ t.id = ${tableId}::uuid`);
   const r = res.rows[0] as Record<string, unknown> | undefined;
   const state = opts.state ?? "alive";
-  const level = r?.level as Level | null | undefined;
+  // A merged table is read-only for everyone it is shared with (only the owner may configure it; no one writes its rows through the row API).
+  const level = (r?.kind === "merged" && r.level === "edit_data" ? "view" : r?.level) as Level | null | undefined;
   const ok = r && level && (state === "alive" ? !r.t_deleted && !r.d_deleted : !!r.t_deleted && !r.d_deleted);
   if (!r || !level || !ok) throw new AppError("not_found", "Không tìm thấy bảng.");
   const acc = new TableAccess(
-    { id: r.id as string, datahubId: r.datahub_id as string, name: r.name as string, nextRowNo: r.next_row_no as number, rowCount: r.row_count as number, version: r.version as number, deleted: !!r.t_deleted },
+    { id: r.id as string, datahubId: r.datahub_id as string, name: r.name as string, nextRowNo: r.next_row_no as number, rowCount: r.row_count as number, version: r.version as number, deleted: !!r.t_deleted, kind: r.kind === "merged" ? "merged" : "normal" },
     { id: r.datahub_id as string, ownerId: r.owner_id as string, name: r.datahub_name as string, deleted: !!r.d_deleted },
     level,
     u,

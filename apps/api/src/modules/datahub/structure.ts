@@ -20,6 +20,8 @@ const TableBrief = z.object({
   position: z.number().int(),
   row_count: z.number().int(),
   access: LevelOut,
+  /** `merged` = merged table (read-only, filled by the worker). */
+  kind: z.enum(["normal", "merged"]),
 });
 
 export const DatahubOut = z.object({
@@ -42,13 +44,13 @@ async function tablesOf(db: Executor, userId: string, datahubIds: string[]): Pro
   const out = new Map<string, z.infer<typeof TableBrief>[]>();
   if (datahubIds.length === 0) return out;
   const res = await db.execute(sql`SELECT * FROM (
-      SELECT t.id, t.datahub_id, t.name, t.position, t.row_count, ${LEVEL_SQL(userId)} AS level, t.created_at
+      SELECT t.id, t.datahub_id, t.name, t.position, t.row_count, t.kind, ${LEVEL_SQL(userId)} AS level, t.created_at
       FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
       WHERE /*scope*/ t.datahub_id = ANY(${`{${datahubIds.join(",")}}`}::uuid[]) AND t.deleted_at IS NULL AND d.deleted_at IS NULL
     ) x WHERE level IS NOT NULL ORDER BY position, created_at`);
   for (const r of res.rows as Raw[]) {
     const list = out.get(r.datahub_id as string) ?? [];
-    list.push({ id: r.id as string, name: r.name as string, position: r.position as number, row_count: r.row_count as number, access: r.level as "owner" | "edit_data" | "view" });
+    list.push({ id: r.id as string, name: r.name as string, position: r.position as number, row_count: r.row_count as number, access: r.level as "owner" | "edit_data" | "view", kind: r.kind === "merged" ? "merged" : "normal" });
     out.set(r.datahub_id as string, list);
   }
   return out;
@@ -81,6 +83,7 @@ const TableOut = z.object({
   access: LevelOut,
   version: z.number().int(),
   sql_view: z.string().nullable(),
+  kind: z.enum(["normal", "merged"]),
 });
 
 export const ColumnOut = z.object({
@@ -108,6 +111,7 @@ export function columnOut(c: ReturnType<typeof columnFromDb>, ix: OwnerIndex | n
   const def = columnTypeDef(c.type);
   let config = { ...c.config };
   delete config.__source;
+  delete config.__merged;
   // The auto-number counter is internal.
   if (def.type === "auto_number") delete config.seq;
   if (isComputedType(c.type) || c.type === "relation") config = displayConfig({ type: c.type, config, tableId: c.tableId }, ix);
@@ -379,7 +383,7 @@ export const structureOperations = [
 ];
 
 async function tableOut(db: Executor, acc: Awaited<ReturnType<typeof loadTableAccess>>): Promise<z.infer<typeof TableOut>> {
-  const res = await db.execute(sql`SELECT id, datahub_id, name, description, position, row_count, version, sql_view FROM dh_tables WHERE ${sql`/*scope*/ id = ${acc.tableId}::uuid`}`);
+  const res = await db.execute(sql`SELECT id, datahub_id, name, description, position, row_count, version, sql_view, kind FROM dh_tables WHERE ${sql`/*scope*/ id = ${acc.tableId}::uuid`}`);
   const r = res.rows[0] as Raw;
   return {
     id: r.id as string,
@@ -391,6 +395,7 @@ async function tableOut(db: Executor, acc: Awaited<ReturnType<typeof loadTableAc
     access: acc.level,
     version: r.version as number,
     sql_view: (r.sql_view as string | null) ?? null,
+    kind: r.kind === "merged" ? "merged" : "normal",
   };
 }
 

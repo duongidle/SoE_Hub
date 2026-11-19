@@ -219,6 +219,7 @@ export const columnOperations = [
     http: { method: "POST", path: "/tables/:table_id/columns", status: 201 },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      if (acc.table.kind === "merged" && !isComputedType(i.type)) throw new AppError("forbidden", "Bảng gộp chỉ thêm được cột công thức. Cột dữ liệu do cấu hình ghép cột quyết định.", { reason: "merged_table_columns" });
       const def = columnTypeDef(i.type);
       if (!def.available) throw new AppError("validation_error", `Kiểu cột "${def.label}" chưa dùng được.`);
       const limits = await getLimits(ctx.db, ctx.actor.userId);
@@ -289,6 +290,9 @@ export const columnOperations = [
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
       const { col } = await loadColumn(ctx.db, acc, i.column);
       if (i.version !== undefined && i.version !== col.version) throw new AppError("conflict", undefined, { current_version: col.version, sent_version: i.version });
+      if (acc.table.kind === "merged" && !isComputedType(col.type) && (i.config !== undefined || i.required !== undefined || i.unique !== undefined || i.default_value !== undefined)) {
+        throw new AppError("forbidden", "Cột của bảng gộp chỉ đổi được tên, mô tả, định dạng hiển thị và vị trí. Đổi cách ghép ở phần cấu hình bảng gộp.", { reason: "merged_table_columns" });
+      }
       const def = columnTypeDef(col.type);
       const linked = isComputedType(col.type) || col.type === "relation";
       let prepared: PreparedComputed | null = null;
@@ -336,6 +340,7 @@ export const columnOperations = [
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
       const { col } = await loadColumn(ctx.db, acc, i.column);
+      if (acc.table.kind === "merged" && !isComputedType(col.type)) throw new AppError("forbidden", "Không xoá được cột dữ liệu của bảng gộp. Bỏ cột ở phần cấu hình ghép cột.", { reason: "merged_table_columns" });
       await ctx.db.execute(sql`UPDATE dh_columns SET deleted_at = now(), deleted_by = ${ctx.actor.userId}::uuid, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
       ctx.audit({ type: "datahub_column", id: col.id, details: { table_id: acc.tableId, name: col.name } });
       await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_deleted");
@@ -355,6 +360,7 @@ export const columnOperations = [
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
       const { col } = await loadColumn(ctx.db, acc, i.column, "trashed");
+      if (acc.table.kind === "merged" && !isComputedType(col.type)) throw new AppError("forbidden", "Không khôi phục cột dữ liệu của bảng gộp. Thêm lại cột ở phần cấu hình ghép cột.", { reason: "merged_table_columns" });
       const limits = await getLimits(ctx.db, ctx.actor.userId);
       const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NULL`);
       if ((cnt.rows[0] as { n: number }).n >= limits.columns) quotaExceeded("cột trong một bảng", limits.columns);
@@ -381,6 +387,7 @@ export const columnOperations = [
     http: { method: "POST", path: "/tables/:table_id/columns/:column/type-preview" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      if (acc.table.kind === "merged") throw new AppError("forbidden", "Không đổi kiểu cột của bảng gộp.", { reason: "merged_table_columns" });
       const { schema, col } = await loadColumn(ctx.db, acc, i.column);
       checkTypeChange(col, i.type);
       const cfg = await targetConfig(ctx.db, acc, col, i.type, i.config);
@@ -401,6 +408,7 @@ export const columnOperations = [
     http: { method: "POST", path: "/tables/:table_id/columns/:column/type" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      if (acc.table.kind === "merged") throw new AppError("forbidden", "Không đổi kiểu cột của bảng gộp.", { reason: "merged_table_columns" });
       const { schema, col } = await loadColumn(ctx.db, acc, i.column);
       checkTypeChange(col, i.type);
       const cfg = await targetConfig(ctx.db, acc, col, i.type, i.config);

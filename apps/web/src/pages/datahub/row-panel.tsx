@@ -14,6 +14,7 @@ import type { TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
 import { AttachmentField } from "./attachment-field";
+import { OriginLink } from "./merge-status";
 import { OptionChip, PersonPicker, RatingPicker } from "./pickers";
 import { RelationPicker } from "./relation-picker";
 
@@ -57,6 +58,7 @@ export function RowPanel({ session, rowId, level, onClose }: { session: TableSes
               <X size={20} aria-hidden />
             </Button>
           </div>
+          {session.table.kind === "merged" && session.table.access === "owner" && <OriginLink tableId={session.table.id} rowId={rowId} />}
           <div role="tablist" aria-label="Chi tiết dòng" className="flex gap-1 border-b border-border px-4">
             {(["data", "history"] as const).map((t) => (
               <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("border-b-2 px-3 py-3 text-sm sm:py-2", tab === t ? "border-primary font-medium" : "border-transparent text-muted-foreground")}>

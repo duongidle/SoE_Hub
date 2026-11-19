@@ -45,8 +45,11 @@ export const dhTables = pgTable(
     rowCount: integer("row_count").notNull().default(0),
     /** Name of the export view in schema `dh_views` (design section 3). Set by `soe_dh_regenerate_view`. */
     sqlView: text("sql_view"),
+    /** `normal` | `merged` (design module3 section 4): a merged table is read-only, its rows are copied from source tables by the worker. */
+    kind: text("kind").notNull().default("normal"),
   },
   (t) => [
+    check("dh_tables_kind_chk", sql`${t.kind} IN ('normal', 'merged')`),
     uniqueIndex("dh_tables_name_uq").on(t.datahubId, t.nameNorm).where(sql`${t.deletedAt} IS NULL`),
     index("dh_tables_datahub_idx").on(t.datahubId),
     check("dh_tables_name_chk", sql`char_length(btrim(${t.name})) BETWEEN 1 AND 100 AND ${t.name} !~ '[\\[\\]]'`),
@@ -331,4 +334,50 @@ export const dhJobs = pgTable(
     check("dh_jobs_kind_chk", sql`${t.kind} IN ('import', 'export')`),
     check("dh_jobs_status_chk", sql`${t.status} IN ('draft', 'pending', 'running', 'done', 'failed', 'cancelled')`),
   ],
+);
+
+/**
+ * Configuration and state of a merged table (design module3 section 4). `config`: sources in priority order, column mapping, key and
+ * strategy (shape checked by the api). `source_ids` repeats the source tables for the index the worker uses to find the merged tables a
+ * change affects. `request_seq` rises on every request to sync; `synced_seq` is the request the last finished sync started from, so a
+ * request that arrives during a sync is never lost. `status`: `pending` (never synced) | `ok` | `error` (a source is lost: the data of the
+ * last good sync is kept).
+ */
+export const dhMerges = pgTable(
+  "dh_merges",
+  {
+    tableId: uuid("table_id")
+      .primaryKey()
+      .references(() => dhTables.id, { onDelete: "cascade" }),
+    config: jsonb("config").notNull(),
+    sourceIds: uuid("source_ids").array().notNull().default(sql`'{}'::uuid[]`),
+    status: text("status").notNull().default("pending"),
+    error: jsonb("error"),
+    diagnostics: jsonb("diagnostics"),
+    requestSeq: bigint("request_seq", { mode: "number" }).notNull().default(1),
+    syncedSeq: bigint("synced_seq", { mode: "number" }).notNull().default(0),
+    syncedAt: timestamp("synced_at", { withTimezone: true, mode: "date" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    version: integer("version").notNull().default(1),
+  },
+  (t) => [
+    index("dh_merges_sources_idx").using("gin", t.sourceIds),
+    index("dh_merges_pending_idx").on(t.requestSeq).where(sql`${t.requestSeq} > ${t.syncedSeq}`),
+    check("dh_merges_status_chk", sql`${t.status} IN ('pending', 'ok', 'error')`),
+  ],
+);
+
+/** Which source row a merged row came from (the "Mã dòng gốc" and "Nguồn" cells hold text; this keeps the ids for the link back). `ident` identifies the merged row across syncs. */
+export const dhMergeRows = pgTable(
+  "dh_merge_rows",
+  {
+    tableId: uuid("table_id")
+      .notNull()
+      .references(() => dhTables.id, { onDelete: "cascade" }),
+    ident: text("ident").notNull(),
+    rowId: uuid("row_id").notNull(),
+    sourceTableId: uuid("source_table_id").notNull(),
+    sourceRowId: uuid("source_row_id").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tableId, t.ident] }), uniqueIndex("dh_merge_rows_row_uq").on(t.rowId)],
 );

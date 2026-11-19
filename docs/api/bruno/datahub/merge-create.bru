@@ -1,0 +1,36 @@
+meta {
+  name: datahub.merge.create
+  type: http
+  seq: 64
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/merged-tables
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "name": "Khách hàng gộp",
+    "sources": ["{{source_table_1}}", "{{source_table_2}}"],
+    "columns": [
+      { "name": "MST", "from": { "{{source_table_1}}": "MST", "{{source_table_2}}": "Mã số thuế" } },
+      { "name": "Doanh thu", "from": { "{{source_table_1}}": "Doanh thu", "{{source_table_2}}": "Doanh thu" } }
+    ],
+    "dedup": { "columns": ["MST"], "strategy": "priority" }
+  }
+}
+
+docs {
+  Tạo bảng gộp: bảng chỉ đọc, dòng được worker chép từ tối đa 10 bảng nguồn của bạn, có chống trùng.
+  Nguồn xếp theo mức ưu tiên (đầu tiên cao nhất). Bỏ `columns` = tự ghép cột cùng tên. `dedup.strategy`: priority | latest | cell_merge.
+  Dòng được chép trong vài giây: hỏi `merge-get` đến khi `syncing = false`.
+  Quyền: `datahub:datahub:use`.
+}

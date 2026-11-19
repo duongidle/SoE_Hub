@@ -1,0 +1,20 @@
+meta {
+  name: datahub.merge.origin
+  type: http
+  seq: 70
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/merge/origin/{{row_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Dòng gốc của một dòng bảng gộp: bảng nào, dòng nào. Chủ dùng để mở dòng gốc và sửa ở đó.
+  Quyền: `datahub:datahub:use`.
+}

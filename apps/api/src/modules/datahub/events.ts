@@ -71,6 +71,13 @@ export const datahubEvents: EventDef[] = [
     }),
   },
   {
+    name: "datahub.merge.synced",
+    version: 1,
+    description: "Bảng gộp vừa đồng bộ xong (ok) hoặc báo lỗi nguồn (error), kèm số dòng thêm/sửa/xoá. Chỉ mang mã và số, không mang giá trị.",
+    schema: z.object({ table_id: z.uuid(), status: z.enum(["ok", "error"]), created: z.number().int(), updated: z.number().int(), deleted: z.number().int() }),
+    audience: async (p: { table_id: string }, db) => ({ users: await tableAudience(db, p.table_id) }),
+  },
+  {
     name: "datahub.share.changed",
     version: 1,
     description: "Chia sẻ datahub hoặc bảng được thêm, đổi quyền hoặc gỡ.",

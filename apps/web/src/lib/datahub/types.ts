@@ -8,6 +8,8 @@ export interface TableBrief {
   position: number;
   row_count: number;
   access: Level;
+  /** `merged` = merged table: read-only, rows copied by the worker from source tables (design module3 section 4). */
+  kind?: "normal" | "merged";
 }
 
 export interface DatahubBrief {
@@ -55,6 +57,7 @@ export interface TableDetail {
   row_count: number;
   access: Level;
   version: number;
+  kind?: "normal" | "merged";
   owner_id: string;
   columns: Column[];
   max_columns: number;

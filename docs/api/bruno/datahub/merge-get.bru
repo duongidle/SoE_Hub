@@ -1,0 +1,20 @@
+meta {
+  name: datahub.merge.get
+  type: http
+  seq: 66
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/merge
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Cấu hình, trạng thái đồng bộ và chẩn đoán của bảng gộp.
+  Quyền: `datahub:datahub:use`.
+}

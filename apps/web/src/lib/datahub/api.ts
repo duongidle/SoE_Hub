@@ -322,3 +322,60 @@ export function saveFromUrl(url: string, filename: string): void {
   a.click();
   a.remove();
 }
+
+// ---- merged tables (design module3 section 4)
+export type MergeStrategy = "priority" | "latest" | "cell_merge";
+export const MERGE_STRATEGY_LABELS: Record<MergeStrategy, string> = {
+  priority: "Giữ dòng của nguồn ưu tiên cao hơn",
+  latest: "Giữ dòng sửa gần nhất",
+  cell_merge: "Gộp từng ô (lấy giá trị không rỗng đầu tiên theo ưu tiên)",
+};
+export interface MergeInput {
+  sources: string[];
+  /** Manual column mapping; absent = same-name columns are merged automatically. */
+  columns?: { name: string; from: Record<string, string> }[];
+  dedup?: { columns: string[]; strategy: MergeStrategy } | null;
+}
+export interface MergeDuplicateGroup {
+  key: string;
+  rows: { source_table_id: string; source_name: string; row_id: string; row_no: number; kept: boolean }[];
+}
+export interface MergeDiagnostics {
+  sources: { table_id: string; name: string; rows: number; kept: number; dropped: number }[];
+  total_read: number;
+  total_kept: number;
+  dropped: number;
+  duplicate_groups: number;
+  empty_key_rows: number;
+  strategy: MergeStrategy | null;
+  warnings: { code: string; message: string; source_table_id?: string; column?: string }[];
+  duplicate_sample: MergeDuplicateGroup[];
+  summary: string;
+}
+export interface MergeInfo {
+  table_id: string;
+  status: "pending" | "ok" | "error";
+  syncing: boolean;
+  synced_at: string | null;
+  version: number;
+  errors: { table_id: string; name: string | null; reason: string; message?: string }[];
+  diagnostics: MergeDiagnostics | null;
+  config: {
+    sources: { table_id: string; name: string | null; datahub_name: string | null }[];
+    columns: { key: string; name: string; type: string; from: Record<string, { column_key: string; column_name: string | null }> }[];
+    dedup: { columns: string[]; strategy: MergeStrategy } | null;
+  } | null;
+}
+export interface MergePreview {
+  columns: { name: string; type: string; from: Record<string, string> }[];
+  diagnostics: MergeDiagnostics;
+}
+
+export const mergeKeys = { info: (tableId: string) => ["dh-merge", tableId] as const };
+export const getMerge = (tableId: string) => api<MergeInfo>("GET", `/tables/${tableId}/merge`);
+export const createMerged = (datahubId: string, body: MergeInput & { name: string }) => api<{ table: { id: string; name: string }; merge: MergeInfo }>("POST", `/datahubs/${datahubId}/merged-tables`, body);
+export const updateMerged = (tableId: string, body: MergeInput & { version?: number }) => api<MergeInfo>("PUT", `/tables/${tableId}/merge`, body);
+export const previewMerge = (datahubId: string, body: MergeInput) => api<MergePreview>("POST", `/datahubs/${datahubId}/merge-preview`, body);
+export const syncMerged = (tableId: string) => api<MergeInfo>("POST", `/tables/${tableId}/merge/sync`, {});
+export const mergeDuplicates = (tableId: string, offset = 0, limit = 20) => api<{ total: number; groups: MergeDuplicateGroup[] }>("GET", `/tables/${tableId}/merge/duplicates${qs({ offset, limit })}`);
+export const mergeOrigin = (tableId: string, rowId: string) => api<{ source_datahub_id: string | null; source_table_id: string; source_table_name: string | null; source_row_id: string; source_row_no: number | null }>("GET", `/tables/${tableId}/merge/origin/${rowId}`);

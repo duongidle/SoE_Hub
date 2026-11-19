@@ -24,6 +24,7 @@ import { ColumnManager, useColumnDelete } from "./column-manager";
 import { DuplicatesDialog } from "./duplicates-dialog";
 import { ExportDialog } from "./export-dialog";
 import { ImportDialog } from "./import-dialog";
+import { MergeBar } from "./merge-status";
 import { RowPanel } from "./row-panel";
 import { TableTrashDialog } from "./trash";
 import { ViewTabs } from "./view-tabs";
@@ -183,7 +184,9 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
     auto.change(patch);
   };
 
-  const canEditData = table.access === "owner" || table.access === "edit_data";
+  const merged = table.kind === "merged";
+  // A merged table is read-only for everyone: its rows are copied by the worker (design module3 section 4.3).
+  const canEditData = !merged && (table.access === "owner" || table.access === "edit_data");
   const actions = [
     { key: "cols", label: "Cột của bảng", icon: <Columns3 size={16} aria-hidden />, run: () => setColUI({ kind: "manage" }), disabled: false, show: true },
     { key: "export", label: "Xuất", icon: <Download size={16} aria-hidden />, run: () => setExportOpen(true), disabled: false, show: true },
@@ -197,6 +200,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {merged && <MergeBar table={table} />}
       <ViewTabs tableId={table.id} views={views} currentId={view.id} access={table.access} onSelect={onSelect} currentConfig={config} />
       <ViewTools
         columns={table.columns}
@@ -257,7 +261,8 @@ function LoadedTable({ table, query, gridView, searching, onClearFilters }: { ta
 
 function OpenTable({ table, session, gridView, filtered, onClearFilters }: { table: TableDetail; session: TableSession; gridView: GridView; filtered: boolean; onClearFilters: () => void }) {
   const qc = useQueryClient();
-  const level: Level = table.access;
+  // A merged table is read-only for everyone, its owner included.
+  const level: Level = table.kind === "merged" ? "view" : table.access;
   const store = session.store;
   useSyncExternalStore(store.subscribe, store.getVersion);
   useSyncExternalStore(session.subscribeLayout, session.getLayoutVersion);
