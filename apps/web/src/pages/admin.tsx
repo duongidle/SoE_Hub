@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, DateTimeInput, ErrorText, Field, Input, Modal, Notice, PageTitle, Select, Table, Tabs } from "@/components/ui/form";
 import { ApiError, api, apiList, fmtTime, parseVnDateTime, qs } from "@/lib/api";
+import { listUserLimits, setUserLimit, type UserLimit } from "@/lib/datahub/api";
+import { notify } from "@/components/ui/toast";
 import { TokenTable, type TokenRow } from "./account";
 
 /* ------------------------------------------------------------------ shared pieces */
@@ -818,5 +820,98 @@ function SettingEditor({ def, row, loaded }: { def: CatalogItem; row: SettingRow
         {save.isSuccess && text === null && !localError && <p className="text-xs text-ok">Đã lưu.</p>}
       </CardContent>
     </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ Datahub limits per person */
+
+const LIMIT_FIELDS = [
+  { key: "max_datahubs", label: "Datahub tối đa", max: 1000 },
+  { key: "max_tables", label: "Bảng tối đa mỗi datahub", max: 1000 },
+  { key: "max_columns", label: "Cột tối đa mỗi bảng", max: 200 },
+] as const;
+type LimitKey = (typeof LIMIT_FIELDS)[number]["key"];
+
+/** `/quan-tri/datahub-gioi-han` — limits of one person that differ from the system defaults (design module2 section 11). */
+export function DatahubLimitsPage() {
+  const qc = useQueryClient();
+  const list = useQuery({ queryKey: ["dh-user-limits"], queryFn: listUserLimits });
+  const [userId, setUserId] = useState("");
+  const [vals, setVals] = useState<Record<LimitKey, string>>({ max_datahubs: "", max_tables: "", max_columns: "" });
+  const [localError, setLocalError] = useState<string | null>(null);
+  const pick = (u: UserLimit) => {
+    setUserId(u.user_id);
+    setVals({ max_datahubs: u.max_datahubs?.toString() ?? "", max_tables: u.max_tables?.toString() ?? "", max_columns: u.max_columns?.toString() ?? "" });
+    setLocalError(null);
+  };
+  const save = useMutation({
+    mutationFn: (body: Record<LimitKey, number | null>) => setUserLimit(userId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["dh-user-limits"] });
+      notify.ok("Đã lưu giới hạn");
+    },
+  });
+  const submit = () => {
+    setLocalError(null);
+    if (!userId) return setLocalError("Hãy chọn một người.");
+    const body = {} as Record<LimitKey, number | null>;
+    for (const f of LIMIT_FIELDS) {
+      const t = vals[f.key].trim();
+      if (t === "") {
+        body[f.key] = null;
+        continue;
+      }
+      const n = Number(t);
+      if (!Number.isInteger(n) || n < 1) return setLocalError(`${f.label}: nhập số nguyên từ 1, hoặc để trống để dùng mặc định.`);
+      if (n > f.max) return setLocalError(`${f.label}: tối đa ${f.max}.`);
+      body[f.key] = n;
+    }
+    save.mutate(body);
+  };
+  return (
+    <div className="flex flex-col gap-4">
+      <PageTitle>Giới hạn Datahub theo người</PageTitle>
+      <Notice>Giới hạn chung chỉnh ở Cài đặt hệ thống. Ở đây đặt giới hạn riêng cho một người; ô để trống nghĩa là dùng mặc định.</Notice>
+      <Card>
+        <CardContent className="flex flex-col gap-3 pt-5">
+          <PersonPicker label="Người dùng" value={userId} onChange={(id) => { setUserId(id); const u = list.data?.find((x) => x.user_id === id); if (u) pick(u); else setVals({ max_datahubs: "", max_tables: "", max_columns: "" }); }} testId="limit-user" />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {LIMIT_FIELDS.map((f) => (
+              <Field key={f.key} label={f.label} hint={`Để trống = mặc định. Tối đa ${f.max}.`}>
+                <Input inputMode="numeric" value={vals[f.key]} onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))} data-testid={`limit-${f.key}`} />
+              </Field>
+            ))}
+          </div>
+          {localError && <p role="alert" className="text-sm text-bad">{localError}</p>}
+          <ErrorText error={save.error} />
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={submit} loading={save.isPending} data-testid="limit-save">Lưu giới hạn</Button>
+            <Button variant="secondary" disabled={!userId || save.isPending} onClick={() => { setVals({ max_datahubs: "", max_tables: "", max_columns: "" }); save.mutate({ max_datahubs: null, max_tables: null, max_columns: null }); }}>Về mặc định</Button>
+          </div>
+        </CardContent>
+      </Card>
+      <section className="flex flex-col gap-2" aria-label="Giới hạn riêng đã đặt">
+        <h2 className="text-base font-semibold">Đã đặt giới hạn riêng</h2>
+        <ErrorText error={list.error} />
+        {list.data && list.data.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Chưa đặt giới hạn riêng cho ai.</p>
+        ) : (
+          <Table>
+            <thead><tr><th>Người</th><th>Datahub</th><th>Bảng</th><th>Cột</th><th><span className="sr-only">Sửa</span></th></tr></thead>
+            <tbody>
+              {list.data?.map((u) => (
+                <tr key={u.user_id} data-testid="limit-row">
+                  <td className="[overflow-wrap:anywhere]">{u.full_name}<div className="text-xs text-muted-foreground">{u.email}</div></td>
+                  <td>{u.max_datahubs ?? "Mặc định"}</td>
+                  <td>{u.max_tables ?? "Mặc định"}</td>
+                  <td>{u.max_columns ?? "Mặc định"}</td>
+                  <td><Button variant="secondary" onClick={() => pick(u)} aria-label={`Sửa giới hạn của ${u.full_name}`}>Sửa</Button></td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </section>
+    </div>
   );
 }

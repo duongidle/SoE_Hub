@@ -18,6 +18,7 @@ const NAV: { to: string; label: string; permission: string | null }[] = [
   { to: "/quan-tri/tai-khoan-he-thong", label: "Tài khoản hệ thống", permission: "auth:service_account:manage" },
   { to: "/quan-tri/nhat-ky", label: "Nhật ký", permission: "system:audit:read" },
   { to: "/quan-tri/chuyen-giao", label: "Chuyển giao", permission: "data:transfer" },
+  { to: "/quan-tri/datahub-gioi-han", label: "Giới hạn Datahub", permission: "system:setting:write" },
   { to: "/quan-tri/cai-dat", label: "Cài đặt hệ thống", permission: "system:setting:write" },
 ];
 
@@ -30,6 +31,7 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
   { prefix: "/quan-tri/tai-khoan-he-thong", permission: "auth:service_account:manage" },
   { prefix: "/quan-tri/nhat-ky", permission: "system:audit:read" },
   { prefix: "/quan-tri/chuyen-giao", permission: "data:transfer" },
+  { prefix: "/quan-tri/datahub-gioi-han", permission: "system:setting:write" },
   { prefix: "/quan-tri/cai-dat", permission: "system:setting:write" },
 ];
 

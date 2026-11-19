@@ -1,5 +1,5 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from "@tanstack/react-router";
-import { AuditLogPage, ServiceAccountsPage, SettingsPage, TokenApprovalPage, TransferPage } from "@/pages/admin";
+import { AuditLogPage, DatahubLimitsPage, ServiceAccountsPage, SettingsPage, TokenApprovalPage, TransferPage } from "@/pages/admin";
 import { AccountPage, NotificationsPage, TokensPage } from "@/pages/account";
 import { CodeFlowPage, LoginPage, SetPasswordPage } from "@/pages/auth";
 import { GuestGrantsPage } from "@/pages/guest";
@@ -28,6 +28,7 @@ export const router = createRouter({
     r("/quen-mat-khau", () => <CodeFlowPage purpose="reset" />),
     r("/dat-mat-khau", SetPasswordPage),
     lazyPage("/datahub", () => import("@/pages/datahub/list"), "DatahubListPage"),
+    lazyPage("/datahub/thung-rac", () => import("@/pages/datahub/trash"), "TrashPage"),
     lazyPage("/datahub/$datahubId", () => import("@/pages/datahub/detail"), "DatahubPage"),
     lazyPage("/datahub/$datahubId/$tableId", () => import("@/pages/datahub/detail"), "DatahubPage"),
     r("/to-chuc", OrgPage),
@@ -39,6 +40,7 @@ export const router = createRouter({
     r("/quan-tri/tai-khoan-he-thong", ServiceAccountsPage),
     r("/quan-tri/nhat-ky", AuditLogPage),
     r("/quan-tri/chuyen-giao", TransferPage),
+    r("/quan-tri/datahub-gioi-han", DatahubLimitsPage),
     r("/quan-tri/cai-dat", SettingsPage),
   ]),
 });

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { DhNameSchema, formatCount, formatRelative, SHARE_PERMISSION_LABELS } from "@soe/shared";
-import { Database, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { Database, MoreHorizontal, Pencil, Plus, Trash2, Trash } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Tabs, Textarea } from "@/components/ui/form";
@@ -38,11 +38,14 @@ export function DatahubListPage() {
     <>
       <PageTitle
         actions={
-          canCreate && (
+          <>
+            <Link to="/datahub/thung-rac" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted sm:min-h-9"><Trash size={16} aria-hidden /> Thùng rác</Link>
+            {canCreate && (
             <Button onClick={() => setDialog({ kind: "create" })} disabled={full} title={full ? "Bạn đã dùng hết số datahub được tạo." : undefined}>
               <Plus size={16} aria-hidden /> Tạo datahub
             </Button>
-          )
+            )}
+          </>
         }
       >
         Datahub
