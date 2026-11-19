@@ -42,7 +42,6 @@ let mgrApi: ApiClient;
 let leaderApi: ApiClient;
 let ownerApi: ApiClient;
 let viewerNoApi: ApiClient;
-let viewerSrcApi: ApiClient;
 let guestOkApi: ApiClient;
 let guestNoApi: ApiClient;
 let owner: Session;
@@ -160,7 +159,6 @@ test.beforeAll(async ({ browser }, info) => {
   leaderApi = await login("leader");
   ownerApi = await login("owner");
   viewerNoApi = await login("vno");
-  viewerSrcApi = await login("vsrc");
   guestOkApi = await login("gok");
   guestNoApi = await login("gno");
 

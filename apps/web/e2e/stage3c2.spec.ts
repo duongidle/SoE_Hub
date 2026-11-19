@@ -63,7 +63,7 @@ async function markPoint(card: Locator, coord: unknown[]) {
 
 test.beforeAll(async ({ browser }, info) => {
   p = info.project.name as ProjectName;
-  test.skip(p === "phone", "3C-2 chỉ chạy ở desktop (điện thoại để kiểm thử cuối stage)");
+  test.skip(p === "phone", "3C-2 chỉ chạy ở desktop (điện thoại: các luồng chính ở stage3e)");
   const admin = await createAdmin(API, email("admin"), `Admin 3C2 ${p} ${RUN}`, PASSWORD(), ROOT);
   const ids = await seedPeople(
     API,
