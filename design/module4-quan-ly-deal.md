@@ -713,6 +713,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 13. Phần Module 2 phải sửa do các quyết định 19/11 làm ở **bước con 4.1** (mục 19a), trước mọi phần khác của Stage 4.
 14. Chỉ số trỏ cột **theo vai trò** (`"field": {"role": ...}`, mục 13) trong engine metric của Module 3: phân giải vai trò → cột lúc tính, theo cây của bảng; danh sách "đang dùng" của màn xem trước chuyển vai trò đọc được các chỉ số này. Làm cùng dashboard hệ thống, không sửa Stage 3.
 15. Thanh toán (mục 7): bốn command và query ghép là code Module 4 trên engine Datahub (ghi dòng qua `rows`, sinh dòng Sổ com, đổi công thức thành giá trị khi chốt). Kiểm `Người dùng có thuộc tính` dùng được cho `Chia com đợt này`, và cột tự điền `Người tham gia` của Đợt làm khoá phân chia được (gửi xuống từ Deals như mục 4.5).
+16. Cấp dữ liệu cho Guest (Module 1 mục 5.2): bảng `data_grants` (Stage 1) chưa có chỗ cho tuỳ chọn riêng của từng loại dữ liệu. Thêm cột `options jsonb` (migration nhỏ), loại dữ liệu `deals` đăng ký tuỳ chọn `show_shares` (tỉ lệ trong Người tham gia, mặc định tắt) và áp khi đọc. Khung Stage 1 giữ nguyên.
 
 ## 19a. Bước con 4.1: bổ sung Module 2 (code đã xong ở Stage 2)
 
