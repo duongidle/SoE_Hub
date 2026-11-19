@@ -307,6 +307,7 @@ Một cơ chế chia sẻ cho **mọi bảng** của mọi datahub, kể cả b�
 - Thành viên thêm dòng: tên người thêm được tự điền vào cột khoá chính (để họ thấy dòng mình vừa thêm).
 - Bị gỡ khỏi mọi cột khoá: dòng biến mất khỏi bảng của người đó. Giá trị cột riêng họ đã nhập được giữ lại, gắn lại thì hiện lại.
 - Tổng hợp (nhóm, dòng tổng, dashboard, export, API, MCP) chỉ tính trên các dòng người đọc thấy.
+- **Lookup, Rollup và công thức đọc sang bảng có khoá phân chia được tính theo từng người đọc** (Dương chốt 19/11/2026): mỗi thành viên nhận kết quả chỉ tính trên các dòng họ thấy, để không lộ tổng của dòng bị ẩn. Kết quả vẫn tính sẵn và lưu, theo nguồn cột cá nhân (mục 3, mỗi thành viên một giá trị). Bảng nguồn đổi dòng hoặc đổi cột khoá thì tính lại theo phần cho những thành viên bị ảnh hưởng (mục 6.7). Chủ bảng nhận kết quả trên mọi dòng.
 
 **Gỡ một thành viên** đang được tag ở các dòng: trước khi gỡ, hệ thống báo "Người này đang được tag ở N dòng". Gỡ xong, tag giữ nguyên để không mất lịch sử, ô hiện "không còn quyền"; người bị gỡ không còn xem được bảng.
 

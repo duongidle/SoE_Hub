@@ -539,7 +539,7 @@ Các quyết định ngày 19/11/2026 (bảng template, chia sẻ thống nhất
 7. **Ô Người dùng chỉ nhận thành viên**: `cell-values.ts` kiểm ở mọi kênh (web, API, MCP, import, form); `datahub.people.lookup` chỉ gợi ý chủ bảng và thành viên; `import-plan.ts` báo lỗi theo dòng; mã lỗi mới trong `errors.ts`. Dữ liệu đã có tag người ngoài danh sách: không xoá, hiện "không còn quyền".
 8. Gỡ thành viên (`collab.ts`): trả số dòng đang tag người đó để giao diện cảnh báo; tag giữ nguyên, ô hiện "không còn quyền".
 9. Chuyển giao (`transfer.ts`): người đích nhận luôn tư cách thành viên và tag của người nguồn ở các bảng có khoá phân chia (deal đóng giữ người cũ theo luật đã chốt).
-10. Công thức trên bảng có khoá phân chia: cột Lookup/Rollup/công thức do chủ bảng định nghĩa được tính trên mọi dòng của chủ. Thành viên chỉ thấy kết quả trên dòng mình thấy, nhưng một rollup có thể **lộ tổng của các dòng bị ẩn**. Opus kiểm khi code; nếu phải đổi quy định thì hỏi Dương.
+10. **Lookup, Rollup, công thức đọc sang bảng có khoá phân chia tính theo từng người đọc** (Module 2 mục 10, Dương chốt 19/11): lưu theo nguồn cột cá nhân, mỗi thành viên một giá trị chỉ tính trên dòng họ thấy; `recalc.ts`, `partial.ts` tính lại theo phần cho thành viên bị ảnh hưởng khi dòng nguồn hoặc cột khoá đổi. Load test: 20 thành viên × bảng 100.000 dòng, ghi số đo.
 11. Bỏ `PhysicalSource` và nguồn `physical` trong `column-source.ts` (Module 2 mục 3 còn hai nguồn cột).
 
 **B. Hạ tầng bảng template (engine Module 2, Module 4 dùng)**
