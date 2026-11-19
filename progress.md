@@ -47,7 +47,7 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 
 ## Bước tiếp theo
 
-**3A-1 (Sonnet)**: đang giao 19/11.
+**3A-1 (Sonnet)**: đang làm (19/11). Xong: migration `0010_metrics.sql` (mt_sources, mt_metrics, mt_dashboards, mt_charts); `packages/metrics` (schema JSON, SQL gom nhóm, phép tổng hợp, nhóm thời gian giờ VN, khoảng tương đối, lọc, ghép bảng + chẩn đoán); API `metrics.*` (query, metric/source CRUD, source.diagnose, source.unmatched); `apps/api/test/metrics-engine.test.ts` 45 pass. Còn: test ghép bảng + phân quyền + hiệu năng 100.000 dòng, OpenAPI + Bruno, `design/module3-quyet-dinh-khi-code.md`.
 
 ## Lỗi điện thoại để sau
 

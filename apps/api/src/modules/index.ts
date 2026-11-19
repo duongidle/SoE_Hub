@@ -6,6 +6,7 @@ import { EventRegistry } from "../core/events";
 import { Registry } from "../core/registry";
 import type { StorageDriver } from "../storage/types";
 import { authEvents } from "./auth/events";
+import { metricOperations } from "./metrics";
 import { datahubEvents, datahubOperations, exportOperations, importOperations, jobOperations } from "./datahub";
 import { attachmentOperations } from "./datahub/attachment-ops";
 import { authOperations } from "./auth/operations";
@@ -41,6 +42,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...jobOperations(deps.config, deps.storage),
     ...exportOperations,
     ...importOperations(deps.config, deps.storage),
+    ...metricOperations,
   );
   return { registry, events };
 }

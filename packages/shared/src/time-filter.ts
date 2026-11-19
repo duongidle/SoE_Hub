@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { FilterCondition, FilterNode } from "./filter";
 
 /**
  * Time filter of a table (design module2 section 5.4): "which of these date columns falls in this period".
@@ -123,3 +124,23 @@ export const TIME_PRESET_LABELS: Record<TimePreset, string> = {
   last_year: "Năm trước",
   last_n_days: "N ngày qua",
 };
+
+const nextDay = (date: string): string => new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * "This field falls in these days" as a filter node of Module 0. The one place that turns a range of Vietnam-time days into
+ * conditions, for the Datahub time filter and for metrics. A `date` column compares days; a `datetime` column compares the instant
+ * with [midnight of the first day, midnight after the last day). An open range (no `from`, no `to`) means "has a value".
+ */
+export function dateRangeNode(field: string, type: "date" | "datetime", range: DateRange): FilterNode {
+  if (type === "date") {
+    if (range.from && range.to) return { field, op: "between", value: [range.from, range.to] };
+    if (range.from) return { field, op: "gte", value: range.from };
+    if (range.to) return { field, op: "lte", value: range.to };
+    return { field, op: "is_not_empty" };
+  }
+  const lo: FilterCondition | null = range.from ? { field, op: "gte", value: businessMidnight(range.from) } : null;
+  const hi: FilterCondition | null = range.to ? { field, op: "lt", value: businessMidnight(nextDay(range.to)) } : null;
+  const parts = [lo, hi].filter((x): x is FilterCondition => !!x);
+  return parts.length === 0 ? { field, op: "is_not_empty" } : parts.length === 1 ? parts[0]! : { and: parts };
+}

@@ -424,9 +424,21 @@ importers:
 
   packages/metrics:
     dependencies:
+      '@soe/db':
+        specifier: workspace:*
+        version: link:../db
       '@soe/formula':
         specifier: workspace:*
         version: link:../formula
+      '@soe/shared':
+        specifier: workspace:*
+        version: link:../shared
+      drizzle-orm:
+        specifier: 0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1)
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       typescript:
         specifier: 5.9.3
