@@ -1,0 +1,21 @@
+meta {
+  name: datahub.job.cancel
+  type: http
+  seq: 57
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/jobs/{{job_id}}/cancel
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Huỷ một việc đang chờ hoặc đang chạy. Import đã ghi dòng nào thì dòng đó giữ nguyên (xoá được từ lịch sử/thùng rác).
+  Quyền: `datahub:datahub:use`.
+}

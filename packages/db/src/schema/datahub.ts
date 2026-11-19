@@ -288,3 +288,47 @@ export const dhChangeQueue = pgTable(
   },
   (t) => [index("dh_change_queue_col_idx").on(t.columnId, t.id), index("dh_change_queue_seq_idx").on(t.seq), check("dh_change_queue_mode_chk", sql`${t.mode} IN ('rows', 'linked', 'keys', 'full')`)],
 );
+
+/**
+ * Background jobs of the Datahub the user waits for (design module2 sections 8, 9): imports and exports. The api creates the row,
+ * the worker takes `pending` rows one at a time (`FOR UPDATE SKIP LOCKED`), reports progress here and leaves the result.
+ * Status: `draft` (import analysed, waiting for the mapping) | `pending` | `running` | `done` | `failed` | `cancelled`.
+ * `owner_id` is the person who asked; the job runs with that person's rights (the worker calls the same registry operations).
+ */
+export const dhJobs = pgTable(
+  "dh_jobs",
+  {
+    id: uuid("id").primaryKey().$defaultFn(newId),
+    kind: text("kind").notNull(),
+    status: text("status").notNull().default("pending"),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id),
+    datahubId: uuid("datahub_id"),
+    tableId: uuid("table_id"),
+    params: jsonb("params").notNull().default(sql`'{}'::jsonb`),
+    phase: text("phase"),
+    progressDone: bigint("progress_done", { mode: "number" }).notNull().default(0),
+    progressTotal: bigint("progress_total", { mode: "number" }).notNull().default(0),
+    report: jsonb("report"),
+    error: text("error"),
+    sourceKey: text("source_key"),
+    sourceName: text("source_name"),
+    sourceKind: text("source_kind"),
+    resultKey: text("result_key"),
+    resultName: text("result_name"),
+    resultType: text("result_type"),
+    resultSize: bigint("result_size", { mode: "number" }),
+    cancelRequested: boolean("cancel_requested").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true, mode: "date" }),
+    finishedAt: timestamp("finished_at", { withTimezone: true, mode: "date" }),
+  },
+  (t) => [
+    index("dh_jobs_owner_idx").on(t.ownerId, t.createdAt),
+    index("dh_jobs_pending_idx").on(t.status, t.createdAt),
+    check("dh_jobs_kind_chk", sql`${t.kind} IN ('import', 'export')`),
+    check("dh_jobs_status_chk", sql`${t.status} IN ('draft', 'pending', 'running', 'done', 'failed', 'cancelled')`),
+  ],
+);

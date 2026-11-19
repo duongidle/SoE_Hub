@@ -1,0 +1,20 @@
+meta {
+  name: datahub.job.get
+  type: http
+  seq: 55
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/jobs/{{job_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Trạng thái và tiến độ của một việc import hoặc export (hỏi lại mỗi 1–2 giây đến khi `status` là done, failed hoặc cancelled).
+  Quyền: `datahub:datahub:use`.
+}

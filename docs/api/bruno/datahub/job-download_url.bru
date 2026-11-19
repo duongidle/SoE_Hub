@@ -1,0 +1,20 @@
+meta {
+  name: datahub.job.download_url
+  type: http
+  seq: 58
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/jobs/{{job_id}}/download-url
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Link tải file kết quả của một việc export (có hạn, mặc định 5 phút; file giữ 24 giờ).
+  Quyền: `datahub:datahub:use`.
+}

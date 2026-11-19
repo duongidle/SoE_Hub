@@ -87,4 +87,15 @@ export const datahubJobs: JobDef[] = [
       logger.info({ job: "datahub-views-sync", tables: tables.length, dropped: dropped.n }, "datahub SQL views synced");
     },
   },
+  {
+    name: "datahub-jobs-purge",
+    cron: "10 * * * *",
+    description: "Mỗi giờ xoá file kết quả export và file nguồn import quá 24 giờ, và bản ghi việc quá 30 ngày.",
+    async run({ db, config, logger }) {
+      const { purgeJobFiles } = await import("./jobs");
+      const { createStorage } = await import("../../storage");
+      const n = await purgeJobFiles(db, createStorage(config));
+      if (n > 0) logger.info({ job: "datahub-jobs-purge", purged: n }, "datahub job files purged");
+    },
+  },
 ];

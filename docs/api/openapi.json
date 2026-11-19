@@ -25877,6 +25877,1574 @@
         ]
       }
     },
+    "/api/v1/datahub/jobs/{job_id}": {
+      "get": {
+        "operationId": "datahub.job.get",
+        "summary": "Trạng thái và tiến độ của một việc import hoặc export (hỏi lại mỗi 1–2 giây đến khi `status` là done, failed hoặc cancelled).",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.job.get",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "import",
+                            "export"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "pending",
+                            "running",
+                            "done",
+                            "failed",
+                            "cancelled"
+                          ]
+                        },
+                        "phase": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "done": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "total": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "done",
+                            "total"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "datahub_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "table_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {},
+                          "description": "Tham số đã gửi khi tạo việc."
+                        },
+                        "report": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Báo cáo: số dòng nhập, dòng lỗi, cột công thức dịch được hay không (import); số dòng xuất (export)."
+                        },
+                        "error": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "source_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "result": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "size_bytes": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "type",
+                                "size_bytes"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "File kết quả (export) khi đã xong và chưa hết hạn."
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "started_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "finished_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "status",
+                        "phase",
+                        "progress",
+                        "datahub_id",
+                        "table_id",
+                        "params",
+                        "report",
+                        "error",
+                        "source_name",
+                        "result",
+                        "created_at",
+                        "started_at",
+                        "finished_at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/datahub/jobs": {
+      "get": {
+        "operationId": "datahub.job.list",
+        "summary": "Các việc import/export gần đây của bạn (mới nhất trước, tối đa 50).",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.job.list",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "import",
+                "export"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "import",
+                              "export"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "pending",
+                              "running",
+                              "done",
+                              "failed",
+                              "cancelled"
+                            ]
+                          },
+                          "phase": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "progress": {
+                            "type": "object",
+                            "properties": {
+                              "done": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "total": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "done",
+                              "total"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "datahub_id": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "table_id": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "params": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {},
+                            "description": "Tham số đã gửi khi tạo việc."
+                          },
+                          "report": {
+                            "anyOf": [
+                              {},
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Báo cáo: số dòng nhập, dòng lỗi, cột công thức dịch được hay không (import); số dòng xuất (export)."
+                          },
+                          "error": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "source_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "result": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string"
+                                  },
+                                  "size_bytes": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "type",
+                                  "size_bytes"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "File kết quả (export) khi đã xong và chưa hết hạn."
+                          },
+                          "created_at": {
+                            "anyOf": [
+                              {},
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "started_at": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "finished_at": {
+                            "anyOf": [
+                              {
+                                "anyOf": [
+                                  {},
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "status",
+                          "phase",
+                          "progress",
+                          "datahub_id",
+                          "table_id",
+                          "params",
+                          "report",
+                          "error",
+                          "source_name",
+                          "result",
+                          "created_at",
+                          "started_at",
+                          "finished_at"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/datahub/jobs/{job_id}/cancel": {
+      "post": {
+        "operationId": "datahub.job.cancel",
+        "summary": "Huỷ một việc đang chờ hoặc đang chạy. Import đã ghi dòng nào thì dòng đó giữ nguyên (xoá được từ lịch sử/thùng rác).",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.job.cancel",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "import",
+                            "export"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "pending",
+                            "running",
+                            "done",
+                            "failed",
+                            "cancelled"
+                          ]
+                        },
+                        "phase": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "done": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "total": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "done",
+                            "total"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "datahub_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "table_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {},
+                          "description": "Tham số đã gửi khi tạo việc."
+                        },
+                        "report": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Báo cáo: số dòng nhập, dòng lỗi, cột công thức dịch được hay không (import); số dòng xuất (export)."
+                        },
+                        "error": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "source_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "result": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "size_bytes": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "type",
+                                "size_bytes"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "File kết quả (export) khi đã xong và chưa hết hạn."
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "started_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "finished_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "status",
+                        "phase",
+                        "progress",
+                        "datahub_id",
+                        "table_id",
+                        "params",
+                        "report",
+                        "error",
+                        "source_name",
+                        "result",
+                        "created_at",
+                        "started_at",
+                        "finished_at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/datahub/jobs/{job_id}/download-url": {
+      "get": {
+        "operationId": "datahub.job.download_url",
+        "summary": "Link tải file kết quả của một việc export (có hạn, mặc định 5 phút; file giữ 24 giờ).",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.job.download_url",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string"
+                        },
+                        "expires_at": {
+                          "type": "string"
+                        },
+                        "filename": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expires_at",
+                        "filename"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/datahub/exports": {
+      "post": {
+        "operationId": "datahub.export.create",
+        "summary": "Xuất bảng (hoặc cả datahub) ra CSV, XLSX hoặc JSON. Chạy nền: gọi `datahub.job.get` đến khi xong rồi lấy `datahub.job.download_url`.",
+        "description": "File chứa **giá trị đã tính sẵn** của cột công thức. XLSX có thêm sheet `Công thức` (chỉ khi bạn là chủ datahub) và `Thông tin xuất` (người xuất, thời điểm). Xuất theo view: gửi `filter`, `sort`, `search`, `time_filter` và `columns` (các cột đang hiện, theo thứ tự) giống `datahub.row.list`. Gửi `datahub_id` (không có `table_id`) để xuất mọi bảng bạn thấy: chỉ XLSX (mỗi bảng một sheet). Người được chia sẻ (Xem hoặc Sửa) xuất được dữ liệu họ thấy, không có nội dung công thức. Việc xuất được ghi vào nhật ký.",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.export.create",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "table_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "datahub_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "format": {
+                    "default": "xlsx",
+                    "type": "string",
+                    "enum": [
+                      "csv",
+                      "xlsx",
+                      "json"
+                    ]
+                  },
+                  "filter": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "sort": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "search": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "time_filter": {
+                    "type": "object",
+                    "properties": {
+                      "columns": {
+                        "minItems": 1,
+                        "maxItems": 10,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        }
+                      },
+                      "range": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "preset"
+                              },
+                              "preset": {
+                                "type": "string",
+                                "enum": [
+                                  "today",
+                                  "this_week",
+                                  "last_week",
+                                  "this_month",
+                                  "last_month",
+                                  "this_quarter",
+                                  "last_quarter",
+                                  "this_year",
+                                  "last_year",
+                                  "last_n_days"
+                                ]
+                              },
+                              "n": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 3660
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "preset"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "period"
+                              },
+                              "unit": {
+                                "type": "string",
+                                "enum": [
+                                  "month",
+                                  "quarter",
+                                  "year"
+                                ]
+                              },
+                              "year": {
+                                "type": "integer",
+                                "minimum": 1900,
+                                "maximum": 2200
+                              },
+                              "index": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 12
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "unit",
+                              "year"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "between"
+                              },
+                              "from": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "to": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "columns",
+                      "range"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "columns": {
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "import",
+                            "export"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "pending",
+                            "running",
+                            "done",
+                            "failed",
+                            "cancelled"
+                          ]
+                        },
+                        "phase": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "done": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "total": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "done",
+                            "total"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "datahub_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "table_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {},
+                          "description": "Tham số đã gửi khi tạo việc."
+                        },
+                        "report": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Báo cáo: số dòng nhập, dòng lỗi, cột công thức dịch được hay không (import); số dòng xuất (export)."
+                        },
+                        "error": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "source_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "result": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "size_bytes": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "type",
+                                "size_bytes"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "File kết quả (export) khi đã xong và chưa hết hạn."
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "started_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "finished_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "status",
+                        "phase",
+                        "progress",
+                        "datahub_id",
+                        "table_id",
+                        "params",
+                        "report",
+                        "error",
+                        "source_name",
+                        "result",
+                        "created_at",
+                        "started_at",
+                        "finished_at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "health",

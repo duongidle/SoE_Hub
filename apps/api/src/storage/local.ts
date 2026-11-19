@@ -71,6 +71,10 @@ export class LocalStorageDriver implements StorageDriver {
     return p;
   }
 
+  async put(key: string, bytes: Buffer, _contentType: string): Promise<void> {
+    await this.write(key, bytes);
+  }
+
   async write(key: string, bytes: Buffer): Promise<void> {
     const p = this.pathFor(key);
     await mkdir(path.dirname(p), { recursive: true });

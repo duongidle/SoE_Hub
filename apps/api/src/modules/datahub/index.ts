@@ -11,6 +11,8 @@ import { duplicateOperations } from "./duplicates";
 import { rowOperations } from "./row-ops";
 import { structureOperations } from "./structure";
 import "./transfer";
+import "./export-job";
+import "./import-job";
 
 // Datahub rows are private data: the Admin's audit log records the action and the field names, never the values
 // (design module1 section 10). Every table that holds datahub data must go through the scoped query helpers.
@@ -20,6 +22,9 @@ registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.max
 
 export { datahubEvents };
 export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...duplicateOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations, ...lookupOperations];
+export { exportOperations } from "./export-job";
+export { importOperations } from "./import-job";
+export { jobOperations, processJobs, resetRunningJobs, startJobLoop, purgeJobFiles } from "./jobs";
 export { datahubJobs as exportJobs, sqlViewSubscriber } from "./export-views";
 export { reconcileColumns } from "./reconcile";
 export { formulaSubscriber, markVolatilePending, processPendingColumns, resetRunningColumns, startRecalcLoop } from "./recalc";

@@ -1,0 +1,37 @@
+meta {
+  name: datahub.export.create
+  type: http
+  seq: 59
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/exports
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "table_id": "{{table_id}}",
+    "datahub_id": "{{datahub_id}}",
+    "format": "xlsx",
+    "filter": null,
+    "sort": "sort",
+    "search": "search",
+    "time_filter": {},
+    "columns": [
+      "column"
+    ]
+  }
+}
+
+docs {
+  Xuất bảng (hoặc cả datahub) ra CSV, XLSX hoặc JSON. Chạy nền: gọi `datahub.job.get` đến khi xong rồi lấy `datahub.job.download_url`.
+  Quyền: `datahub:datahub:use`.
+}

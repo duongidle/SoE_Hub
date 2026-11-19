@@ -37,8 +37,8 @@ Cập nhật: 19/11/2026
 - **2C-3 xong, sửa lại theo rà soát của Opus (3 việc, 19/11), chờ Opus rà lại**: quản lý cột (thêm/sửa/xoá có Hoàn tác, mọi kiểu, đổi kiểu báo trước), trình soạn công thức (gợi ý, cú pháp, lỗi gạch chân, xem trước, mẫu, chèn tham chiếu), Liên kết/Lookup/Rollup, ô chọn dòng đích ảo hoá, ô Đính kèm tải lên/tải về, phân quyền người Xem/Sửa. API mới `datahub.relation.search`, `datahub.attachment.list`, `datahub.attachment.download_url`. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-3".
 - **2C-4 xong, Opus đã rà (19/11)**: Tìm dòng trùng, Chia sẻ, Thùng rác, giới hạn Admin theo người, e2e `stage2c4`. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-4".
 - **2D (Sonnet, đang làm)**: kế hoạch (đánh dấu [x] khi xong):
-  - [ ] 1 Hạ tầng việc nền: bảng `dh_jobs` (migration 0009), `storage.put/read`, vòng lặp worker nhận việc, lệnh `datahub.job.*`
-  - [ ] 2 Export CSV/XLSX/JSON (theo bảng/view/datahub, nền) + test + phân quyền
+  - [x] 1 Hạ tầng việc nền: bảng `dh_jobs` (migration 0009), `storage.put/read`, vòng lặp worker nhận việc, lệnh `datahub.job.*` (`modules/datahub/jobs.ts`)
+  - [x] 2 Export CSV/XLSX/JSON (theo bảng/view/datahub, nền) + test + phân quyền (`export-job.ts`, `apps/api/test/datahub-export.test.ts` 9 pass)
   - [ ] 3 Import: đọc xlsx/csv/dán/link Google Sheet, `datahub.import.analyze|preview|start`, chạy nền, báo lỗi
   - [ ] 4 Import công thức (dịch Excel sang engine, lý do từng cột, cảnh báo `LEFT(ngày,2)`)
   - [ ] 5 Giao diện: hộp thoại Import (các bước), nút Export
@@ -48,7 +48,7 @@ Cập nhật: 19/11/2026
 
 ## Bước tiếp theo
 
-**2D đang làm: bước 1 (hạ tầng việc nền).** Rồi 2E.
+**2D đang làm: bước 3 (import)**: `apps/api/src/modules/datahub/import-job.ts` hiện là khung rỗng (`importOperations`); viết đọc xlsx/csv, `datahub.import.analyze|preview|start`, bộ chạy `registerJobRunner("import")`. Rồi 2E.
 
 2C-4 xong và đã rà (xem git log). Chưa làm: xoá hẳn ngay, gợi ý người theo team (`Lệch hoặc bổ sung` mục 2C-4); `form.table_max_columns` chờ Module 7.
 

@@ -1,5 +1,6 @@
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { PassThrough, type Readable } from "node:stream";
 import type { Config } from "../config";
 import type { SignedUpload, StorageDriver } from "./types";
 
@@ -44,6 +45,19 @@ export class S3StorageDriver implements StorageDriver {
       { expiresIn: o.ttlSeconds },
     );
     return { url, expiresAt: new Date(Date.now() + o.ttlSeconds * 1000) };
+  }
+
+  async put(key: string, bytes: Buffer, contentType: string): Promise<void> {
+    await this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: bytes, ContentType: contentType }));
+  }
+
+  read(key: string): Readable {
+    const out = new PassThrough();
+    this.client
+      .send(new GetObjectCommand({ Bucket: this.bucket, Key: key }))
+      .then((r) => (r.Body as Readable).on("error", (e) => out.destroy(e)).pipe(out))
+      .catch((e) => out.destroy(e as Error));
+    return out;
   }
 
   async stat(key: string) {
