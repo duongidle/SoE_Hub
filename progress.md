@@ -61,6 +61,9 @@ Ghi chú Stage 4: chia sẻ thống nhất (khoá phân chia, Module 2 mục 10,
 - Tuỳ chọn "Thành viên được thêm dòng hàng loạt": chặn import, dán sinh dòng mới, API nhiều dòng (2D đang cho import).
 - Lookup/Rollup sang bảng có khoá phân chia tính theo từng người đọc.
 - Hạ tầng bảng template (cờ bảo vệ, lớp cột, vai trò cột); bỏ `PhysicalSource`.
+- Metrics: đọc cột giá trị theo từng người, khoá cache theo người (việc 11b).
+
+**Cho Stage 3 đang làm (Module 3 sửa 19/11):** cache 3A-2 lấy khoá phạm vi từ một hàm của `access.ts`, không tự dựng; 3B bảng gộp nhận bảng template của chủ làm nguồn, chỉ đồng bộ dòng chủ thấy; 3C-2 "xem các dòng" chỉ trả dòng người nhận thấy. Opus nhắc khi giao các bước này.
 
 ## Lỗi điện thoại để sau
 

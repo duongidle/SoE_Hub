@@ -544,6 +544,8 @@ Các quyết định ngày 19/11/2026 (bảng template, chia sẻ thống nhất
 
 11a. **Thêm dòng hàng loạt** (Module 2 mục 10): tuỳ chọn bảng `members_bulk_create` (bảng thường bật, bảng template tắt). Tắt thì thành viên không chủ sở hữu bị chặn: `import-job.ts`/`datahub.import.start` (2D đang cho người có quyền Sửa import), `rows.ts` khi một lần ghi tạo hơn một dòng mới (API/MCP hàng loạt, upsert sinh dòng mới), và dán trong grid sinh dòng mới (web chặn trước, server vẫn kiểm). Mã lỗi riêng; giao diện ẩn nút Nhập dữ liệu và báo khi dán vượt số dòng đang có.
 
+11b. **Metrics (code 3A-1, 3A-2):** đã đọc dòng qua `TableAccess.scope()` nên khoá phân chia tự áp, chỉ cần test lại. Phải sửa: `packages/metrics/src/columns.ts` chỉ đọc giá trị trong `dh_rows.data`, nên chưa đọc được cột có giá trị theo từng người (Lookup/Rollup tính theo người đọc ở việc 10, cột "mỗi người một giá trị" của Deals); khoá cache phạm vi phải đổi theo người khi bảng có khoá phân chia (Module 3 mục 6). Chỉ số và dashboard mặc định của Deals trỏ cột theo **vai trò cột** (mục 3.7), không theo tên.
+
 **B. Hạ tầng bảng template (engine Module 2, Module 4 dùng)**
 
 12. Cờ bảo vệ bảng và cột template: không đổi tên, không xoá, không đổi kiểu từ trang bảng; người nhận chỉ thêm cột riêng.

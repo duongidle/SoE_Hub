@@ -2,6 +2,7 @@
 
 > Trạng thái: **Đã chốt** · 18/11/2026
 > Phụ thuộc: [Module 0](module0-nen-tang.md) (registry, cú pháp lọc, outbox, SSE), [Module 1](module1-tai-khoan-phan-quyen.md) (phạm vi dữ liệu, cấp dữ liệu Guest), [Module 2](module2-datahub.md) (bảng, cột, công thức, chia sẻ).
+> **Sửa 19/11/2026** (theo khoá phân chia của Module 2 mục 10): bảng gộp (mục 4.1), cache và "xem các dòng" (mục 6, 9). Phần đã code ở 3A-1 xử lý ở bước con 4.1 (Module 4 mục 19a).
 > Để module sau: các chỉ số và dashboard mặc định của Deals, công thức winrate theo cycle, forecast (Module 4); tool MCP (Module 5).
 
 ## 1. Các lớp
@@ -50,6 +51,7 @@ Một loại bảng mới, **chỉ đọc**, dòng được hệ thống tự đ
 ### 4.1 Cấu hình
 
 - **Nguồn:** tối đa 10 bảng, thuộc các datahub **cùng chủ** với bảng gộp (cùng luật với công thức). Bảng được người khác chia sẻ không làm nguồn được.
+- Bảng template nằm trong datahub "Quản lý Deal" của chủ (Deals, Probation KPI…) làm nguồn được như bảng của chủ (Module 4 mục 19.9). Nếu bảng đó bật khoá phân chia, bảng gộp chỉ đồng bộ các dòng chủ bảng gộp thấy. Dòng vào hoặc ra khỏi phạm vi (do sửa cột khoá, đổi cây tổ chức) thì đồng bộ lại.
 - **Ghép cột:** cột cùng tên tự khớp; cột khác tên ghép tay; kiểu phải tương thích. Cột nguồn không ghép thì bỏ qua.
 - Có sẵn cột **Nguồn** (dòng đến từ bảng nào) và cột **Mã dòng gốc**.
 - Đếm vào giới hạn số bảng của datahub (Module 2 mục 11).
@@ -122,7 +124,7 @@ Viết bằng engine công thức của Module 2, tham chiếu chỉ số khác 
 ## 6. Tính toán và tốc độ
 
 - Mỗi chỉ số được dịch thành **một câu SQL gom nhóm** chạy trên Postgres, áp sẵn phạm vi dữ liệu. Không kéo dòng thô về trình duyệt.
-- Kết quả cache theo (chỉ số, tham số, phạm vi dữ liệu). Bảng nguồn thay đổi → sự kiện outbox xoá cache → dashboard đang mở tự cập nhật qua SSE.
+- Kết quả cache theo (chỉ số, tham số, phạm vi dữ liệu). **Phạm vi dữ liệu lấy từ một hàm duy nhất của `access.ts`** (khoá phạm vi của người đọc), không tự dựng trong metrics; khi bảng nguồn bật khoá phân chia (Module 2 mục 10), khoá phạm vi khác nhau theo người. Cache cũng phải xoá khi đổi cài đặt chia sẻ hoặc khoá phân chia của bảng nguồn, và khi cây tổ chức đổi. Bảng nguồn thay đổi → sự kiện outbox xoá cache → dashboard đang mở tự cập nhật qua SSE.
 - Mục tiêu: một biểu đồ trên 100.000 dòng dưới 1 giây. Các biểu đồ tải song song, có khung chờ; một biểu đồ chậm không làm treo biểu đồ khác.
 
 ### 6.1 Chịu tải
@@ -181,7 +183,7 @@ Câu SQL của chỉ số chạy trong tiến trình `api` (không qua worker). 
 - Dashboard, chỉ số, nguồn dữ liệu, bảng gộp thuộc chủ datahub. Chỉ chủ sửa.
 - **Chia sẻ dashboard = người nhận xem được số.** Số được tính bằng **quyền của chủ dashboard**, người nhận không cần quyền xem bảng nguồn.
 - Người nhận được: xem biểu đồ, đổi bộ lọc chung (bản riêng), lọc chéo, xuất PNG.
-- Người nhận **không** được "xem các dòng" và không xuất CSV dữ liệu, **trừ khi** họ có quyền xem bảng nguồn. Lý do: chia sẻ dashboard không được biến thành chia sẻ cả bảng dữ liệu thô.
+- Người nhận **không** được "xem các dòng" và không xuất CSV dữ liệu, **trừ khi** họ có quyền xem bảng nguồn. Khi bảng nguồn có khoá phân chia, "xem các dòng" và CSV chỉ trả các dòng **người nhận** thấy, kèm dòng báo "Bạn thấy 12/40 dòng tạo nên con số này" (số vẫn tính theo quyền chủ). Lý do: chia sẻ dashboard không được biến thành chia sẻ cả bảng dữ liệu thô.
 - Quyền của chủ thay đổi (bị chuyển giao, mất quyền xem) thì dashboard tính theo quyền **hiện tại** của chủ.
 - Dashboard Deals: User thấy số của mình, Leader của team, Manager của cả cây, Admin của mọi cây (chỉ đọc). Dashboard Deals tuỳ chỉnh được chia sẻ thì người nhận thấy số theo phạm vi của chủ.
 - Guest được cấp dashboard (Module 1 mục 5.2): tính theo phạm vi của lần cấp.
