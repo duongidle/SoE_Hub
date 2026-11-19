@@ -61,7 +61,7 @@ export function FilterEditor({ columns, value, onChange, idPrefix }: { columns: 
     return walk(draft) as DraftGroup;
   };
 
-  const names = useNames(draft);
+  const names = useNames(draft, columns);
 
   return (
     <GroupNode
@@ -77,11 +77,12 @@ export function FilterEditor({ columns, value, onChange, idPrefix }: { columns: 
 }
 
 /** Names of the people chosen in user conditions (the filter stores ids). */
-function useNames(draft: DraftGroup): Map<string, string> {
+function useNames(draft: DraftGroup, columns: Column[]): Map<string, string> {
   const ids: string[] = [];
+  const userKeys = new Set(columns.filter((c) => kindOf(c) === "user").map((c) => c.key));
   const walk = (n: DraftNode) => {
     if (n.kind === "group") n.children.forEach(walk);
-    else ids.push(...n.ids);
+    else if (userKeys.has(n.field)) ids.push(...n.ids);
   };
   walk(draft);
   const key = [...new Set(ids)].sort().join(",");

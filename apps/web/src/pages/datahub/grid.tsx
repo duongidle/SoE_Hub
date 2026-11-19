@@ -569,7 +569,6 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
           rowMarkers={grouped ? { kind: "checkbox", width: MARKER_WIDTH } : { kind: "both", width: MARKER_WIDTH }}
           freezeColumns={view.frozen}
           onCellClicked={onHeaderClick}
-          onCellActivated={onHeaderClick}
           onHeaderMenuClick={(c, bounds) => {
             const col = columns[c];
             if (col) setMenu({ x: bounds.x, y: bounds.y + bounds.height, col });
@@ -604,6 +603,13 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
           overscrollX={0}
           overscrollY={0}
           onKeyDown={(e) => {
+            // Enter or Space on the first cell of a group line opens or closes the group.
+            const cur = selection.current?.cell;
+            if (cur && cur[0] === 0 && !e.shiftKey && (e.key === "Enter" || e.key === " ") && lineAt(cur[1])?.type === "header") {
+              e.preventDefault();
+              onHeaderClick(cur);
+              return;
+            }
             if (e.shiftKey && e.key === " ") {
               const id = apiRef.current?.activeRowId();
               if (id) {

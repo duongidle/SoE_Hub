@@ -14,7 +14,7 @@ import { nameKey, optionsOf, parseCellText, readOnlyReason, type Parsed } from "
 import { TableSession } from "@/lib/datahub/session";
 import type { Column, Level, TableDetail } from "@/lib/datahub/types";
 import { ViewAutosave } from "@/lib/datahub/view-autosave";
-import { buildQuery, DEFAULT_ROW_HEIGHT, fullOrder, layoutColumns, moveColumn, pruneConfig, querySignature, ROW_HEIGHTS, type ColorRule, type SessionQuery, type ViewConfig, type ViewDto } from "@/lib/datahub/view-config";
+import { buildQuery, DEFAULT_ROW_HEIGHT, fullOrder, layoutColumns, moveColumn, normalizeConfig, pruneConfig, querySignature, ROW_HEIGHTS, type ColorRule, type SessionQuery, type ViewConfig, type ViewDto } from "@/lib/datahub/view-config";
 import { liveBus, type LiveSignal } from "@/lib/session";
 import { TableGrid, type GridApi } from "./grid";
 import { PersonPicker, RatingPicker } from "./pickers";
@@ -93,11 +93,11 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   const qc = useQueryClient();
   const auto = useMemo(
     () =>
-      new ViewAutosave(view.config, {
+      new ViewAutosave(normalizeConfig(view.config, table.columns), {
         save: async (patch) => {
           const v = await updateView(view.id, { config: patch });
           qc.setQueryData<{ views: ViewDto[]; last_view_id: string | null }>(dhKeys.views(table.id), (old) => (old ? { ...old, views: old.views.map((x) => (x.id === v.id ? v : x)) } : old));
-          return v.config;
+          return normalizeConfig(v.config, table.columns);
         },
         onError: async (e) => notify.error(`Không lưu được thay đổi của view. ${errorMessage(e)}`),
       }),
@@ -106,7 +106,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
     [],
   );
   useSyncExternalStore(auto.subscribe, auto.getVersion);
-  useEffect(() => auto.adopt(view.config), [auto, view.config]);
+  useEffect(() => auto.adopt(normalizeConfig(view.config, table.columns)), [auto, view.config, table.columns]);
   useEffect(() => () => void auto.flush(), [auto]);
 
   const config = auto.config;

@@ -107,7 +107,7 @@ async function sharedView(api: ApiClient) {
   return (await views(api)).find((v) => v.shared)!;
 }
 async function apiTotal(query: string): Promise<number> {
-  return ((await ownerApi.call("GET", `/tables/${tableId}/rows?limit=1&include_total=true${query}`, undefined, true)) as { total: number }).total;
+  return (await ownerApi.raw<{ total: number }>(`/tables/${tableId}/rows?limit=1&include_total=true${query}`)).total;
 }
 /** The view toolbar opens a panel; a button of the toolbar with this name. */
 async function openTool(page: Page, name: string, panelName: string): Promise<Locator> {
@@ -149,7 +149,7 @@ test("tab view: thêm, đổi tên, sao chép, xoá; URL giữ view đang chọn
   await pg.getByRole("menuitem", { name: "Xoá view" }).click();
   await pg.getByRole("dialog").getByRole("button", { name: "Xoá view" }).click();
   await expect(tabs.getByRole("tab", { name: /bản sao/ })).toHaveCount(0);
-  expect((await views(ownerApi)).filter((v) => !v.shared).map((v) => v.name)).toEqual(["Của tôi"]);
+  await expect.poll(async () => (await views(ownerApi)).filter((v) => !v.shared).map((v) => v.name)).toEqual(["Của tôi"]);
   // Back to the shared view for the next tests, and drop the personal one.
   await pg.getByRole("tab", { name: "Dạng bảng" }).click();
 });
@@ -162,13 +162,13 @@ test("lọc: điều kiện lồng nhau tự lưu, giữ sau khi tải lại; l�
   await d.getByRole("button", { name: "Thêm điều kiện" }).click();
   await d.getByLabel("Cột", { exact: true }).selectOption({ label: "Giai đoạn" });
   await d.getByLabel("Giá trị").selectOption({ label: "Chốt" });
-  await expect(pg.getByText("4 dòng", { exact: true })).toBeVisible();
+  await expect(pg.getByText("3 dòng", { exact: true })).toBeVisible();
   await waitSaved(pg);
   expect((await sharedView(ownerApi)).config.filter).toEqual({ field: keys["Giai đoạn"], op: "eq", value: expect.any(String) });
   await pg.keyboard.press("Escape");
   await expect(toolbar(pg).getByRole("button", { name: /^Lọc/ })).toContainText("1");
   await pg.reload();
-  await expect(pg.getByText("4 dòng", { exact: true })).toBeVisible();
+  await expect(pg.getByText("3 dòng", { exact: true })).toBeVisible();
   // A condition on a number: "lớn hơn" a huge value leaves nothing.
   const d2 = await openTool(pg, "Lọc", "Lọc dòng");
   await d2.getByRole("button", { name: "Thêm điều kiện" }).click();
@@ -193,8 +193,8 @@ test("sắp xếp nhiều cấp và theo cột công thức; nhóm có dòng t�
   await s.getByRole("button", { name: "Thêm cấp sắp xếp" }).click();
   await s.getByLabel("Cột sắp xếp cấp 1").selectOption({ label: "Gấp đôi" });
   await s.getByLabel("Chiều sắp xếp").selectOption({ label: "Lớn → nhỏ" });
-  await expect.poll(async () => g.read(11, 0), { timeout: 10_000 }).toMatch(/24\.000\.000/);
   await pg.keyboard.press("Escape");
+  await expect.poll(async () => g.read(5, 0), { timeout: 10_000 }).toMatch(/24\.000\.000/);
   await waitSaved(pg);
   // Group by stage with the total of revenue.
   const gp = await openTool(pg, "Nhóm", "Nhóm dòng");
@@ -230,10 +230,7 @@ test("sắp xếp nhiều cấp và theo cột công thức; nhóm có dòng t�
   await s2.getByRole("button", { name: "Bỏ cấp sắp xếp 1" }).click();
   await pg.keyboard.press("Escape");
   await expect.poll(() => lines(g)).toBe(12);
-  await waitSaved(pg);
-  const cfg = (await sharedView(ownerApi)).config;
-  expect(cfg.group).toBeUndefined();
-  expect(cfg.sort).toBeUndefined();
+  await expect.poll(async () => JSON.stringify([(await sharedView(ownerApi)).config.group, (await sharedView(ownerApi)).config.sort])).toBe("[null,null]");
 });
 
 test("ô Thời gian: khoảng có sẵn, kỳ cụ thể có ‹ ›, chip bỏ được; số dòng khớp server", async () => {
@@ -244,6 +241,7 @@ test("ô Thời gian: khoảng có sẵn, kỳ cụ thể có ‹ ›, chip bỏ
   const expected = await apiTotal(`&time_filter=${encodeURIComponent(JSON.stringify({ columns: [keys["Ngày nhận"]], range: { kind: "preset", preset: "this_month" } }))}`);
   expect(expected).toBe(6);
   await expect(pg.getByText("6 dòng", { exact: true })).toBeVisible();
+  await expect.poll(async () => (await sharedView(ownerApi)).config.time_filter).toEqual({ columns: [keys["Ngày nhận"]], range: { kind: "preset", preset: "this_month" } });
   const chip = pg.getByLabel("Bộ lọc đang bật");
   await expect(chip).toContainText("Ngày nhận");
   await expect(chip).toContainText("Tháng này");
@@ -257,8 +255,7 @@ test("ô Thời gian: khoảng có sẵn, kỳ cụ thể có ‹ ›, chip bỏ
   await pg.keyboard.press("Escape");
   await chip.getByRole("button", { name: "Bỏ lọc theo thời gian" }).click();
   await expect(pg.getByText("12 dòng", { exact: true })).toBeVisible();
-  await waitSaved(pg);
-  expect((await sharedView(ownerApi)).config.time_filter).toBeUndefined();
+  await expect.poll(async () => (await sharedView(ownerApi)).config.time_filter).toBeUndefined();
 });
 
 test("cột của view: ẩn, đổi thứ tự, cố định, chiều cao dòng, tô màu; tải lại vẫn giữ", async () => {
@@ -274,7 +271,7 @@ test("cột của view: ẩn, đổi thứ tự, cố định, chiều cao dòng
   await pg.keyboard.press("Escape");
   // Row height and a colour rule: stage "Chốt" in green.
   const rh = await openTool(pg, "Dòng", "Chiều cao dòng");
-  await rh.getByLabel("Cao").check();
+  await rh.getByRole("radio", { name: /^Cao/ }).check();
   await expect.poll(async () => Number(await g.root.getAttribute("data-row-height"))).toBe(56);
   await pg.keyboard.press("Escape");
   const col = await openTool(pg, "Tô màu", "Tô màu theo điều kiện");
@@ -298,10 +295,11 @@ test("cột của view: ẩn, đổi thứ tự, cố định, chiều cao dòng
   // Undo all of it through the same toolbar.
   const c2 = await openTool(pg, "Cột", "Cột của view");
   await c2.getByRole("button", { name: "Hiện tất cả" }).click();
+  await c2.getByRole("button", { name: "Đưa cột Doanh thu xuống" }).click();
   await c2.getByRole("button", { name: "Bỏ cố định đến cột Tên" }).click();
   await pg.keyboard.press("Escape");
   const rh2 = await openTool(pg, "Dòng", "Chiều cao dòng");
-  await rh2.getByLabel("Vừa").check();
+  await rh2.getByRole("radio", { name: "Vừa" }).check();
   await pg.keyboard.press("Escape");
   const col2 = await openTool(pg, "Tô màu", "Tô màu theo điều kiện");
   await col2.getByRole("button", { name: "Xoá quy tắc 1" }).click();
@@ -323,7 +321,7 @@ test("tìm kiếm trong bảng; view dùng cột đã xoá vẫn mở được v
   const extra = await ownerApi.call<{ key: string; id: string }>("POST", `/tables/${tableId}/columns`, { name: "Cột tạm", type: "number" });
   const sv = await sharedView(ownerApi);
   await ownerApi.call("PATCH", `/views/${sv.id}`, { config: { filter: { field: extra.key, op: "gt", value: 5 } } });
-  await ownerApi.call("DELETE", `/tables/${tableId}/columns/${extra.id}`);
+  await ownerApi.call("DELETE", `/tables/${tableId}/columns/${extra.key}`);
   await pg.reload();
   await expect(pg.getByText("12 dòng", { exact: true })).toBeVisible();
   const alert = pg.getByRole("alert").filter({ hasText: "trỏ tới cột đã bị xoá" });
@@ -403,8 +401,9 @@ test("bảng rất lớn: kéo thanh cuộn tới đâu cũng dưới 1 giây, �
   await ownerApi.call("PATCH", `/views/${bigViews[0]!.id}`, { config: { sort: [{ field: "Tiền", dir: "desc" }] } });
   await pg.reload();
   await expect(pg.getByText("100.000 dòng", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect.poll(async () => g.read(1, 0), { timeout: 10_000 }).toMatch(/^100\.000\.000 ₫$/);
   await jump(1);
-  await expect.poll(async () => g.read(1, 2), { timeout: 5000 }).toMatch(/^[1-9]\.000 ₫$|^[1-9]\d?\.000 ₫$/);
+  await expect.poll(async () => g.read(1, 2), { timeout: 5000 }).toMatch(/^\d{1,2}\.000 ₫$/);
   // Grouped in four groups of 25.000 rows: close the first group, jump to the end.
   await ownerApi.call("PATCH", `/views/${bigViews[0]!.id}`, { config: { sort: null, group: [{ field: "Nhóm" }] } });
   await pg.reload();

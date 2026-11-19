@@ -259,6 +259,8 @@ export function draftToFilter(root: DraftGroup, columns: Column[], parse: Parame
     if (n.kind === "group") {
       const kids = n.children.map(walk).filter((x): x is FilterNode => x !== null);
       if (kids.length === 0) return null;
+      // One condition needs no group around it.
+      if (kids.length === 1) return kids[0]!;
       return n.mode === "and" ? { and: kids } : { or: kids };
     }
     const col = byKey.get(n.field);
@@ -298,6 +300,34 @@ export function pruneFilter(node: FilterNode | undefined, ok: (field: string) =>
     return kids.length ? { or: kids } : undefined;
   }
   return ok(node.field) ? node : undefined;
+}
+
+// ------------------------------------------------------------------------------------------------ column references
+
+const nameKey = (s: string) => s.normalize("NFC").trim().toLowerCase();
+
+/**
+ * A view made through the API or by an AI may name its columns by name ("Doanh thu") instead of by key; the server accepts both.
+ * The screen works with keys, so references are turned into keys when the view is loaded (names the table does not know stay as they are
+ * and show up as deleted columns).
+ */
+export function normalizeConfig(config: ViewConfig, columns: Column[]): ViewConfig {
+  const keys = new Set(columns.map((c) => c.key));
+  const byName = new Map(columns.map((c) => [nameKey(c.name), c.key] as const));
+  const meta = new Set(["_created_at", "_updated_at"]);
+  const ref = (f: string): string => (keys.has(f) || meta.has(f) ? f : (byName.get(nameKey(f)) ?? f));
+  const walk = (n: FilterNode): FilterNode => ("and" in n ? { and: n.and.map(walk) } : "or" in n ? { or: n.or.map(walk) } : { ...n, field: ref(n.field) });
+  const out: ViewConfig = { ...config };
+  if (config.filter) out.filter = walk(config.filter);
+  if (config.sort) out.sort = config.sort.map((s) => ({ ...s, field: ref(s.field) }));
+  if (config.group) out.group = config.group.map((g) => ({ ...g, field: ref(g.field) }));
+  if (config.hidden) out.hidden = config.hidden.map(ref);
+  if (config.order) out.order = config.order.map(ref);
+  if (config.widths) out.widths = Object.fromEntries(Object.entries(config.widths).map(([k, v]) => [ref(k), v]));
+  if (config.group_aggs) out.group_aggs = Object.fromEntries(Object.entries(config.group_aggs).map(([k, v]) => [ref(k), v])) as Record<string, GroupFn>;
+  if (config.colors) out.colors = config.colors.map((c) => ({ ...c, filter: walk(c.filter) }));
+  if (config.time_filter) out.time_filter = { ...config.time_filter, columns: config.time_filter.columns.map(ref) };
+  return out;
 }
 
 // ------------------------------------------------------------------------------------------------ dead references

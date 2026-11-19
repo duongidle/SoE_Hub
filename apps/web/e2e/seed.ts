@@ -26,6 +26,14 @@ export class ApiClient {
     this.cookie = [...jar.values()].join("; ");
   }
 
+  /** A GET that keeps the whole answer of a list (`data`, `next_cursor`, `total`). */
+  async raw<T = any>(url: string): Promise<T> { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const res = await fetch(`${this.base}/api/v1${url}`, { headers: { cookie: this.cookie, accept: "application/json" } });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(`GET ${url} -> ${res.status}: ${JSON.stringify(json)}`);
+    return json as T;
+  }
+
   async call<T = any>(method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", url: string, body?: unknown): Promise<T> { // eslint-disable-line @typescript-eslint/no-explicit-any
     const res = await fetch(`${this.base}/api/v1${url}`, {
       method,

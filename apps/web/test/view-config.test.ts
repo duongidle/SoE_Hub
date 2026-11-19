@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { GroupLayout } from "../src/lib/datahub/group-layout";
 import { ViewAutosave } from "../src/lib/datahub/view-autosave";
-import { applyPatch, buildQuery, countConditions, diffConfig, draftToFilter, filterToDraft, fullOrder, layoutColumns, moveColumn, pruneConfig, saveTarget, type ViewConfig } from "../src/lib/datahub/view-config";
+import { applyPatch, buildQuery, normalizeConfig, countConditions, diffConfig, draftToFilter, filterToDraft, fullOrder, layoutColumns, moveColumn, pruneConfig, saveTarget, type ViewConfig } from "../src/lib/datahub/view-config";
 import { currentPeriod, stepPeriod } from "../src/lib/datahub/time-ui";
 import { parseCellText } from "../src/lib/datahub/cells";
 import type { Column } from "../src/lib/datahub/types";
@@ -62,6 +62,26 @@ describe("buildQuery", () => {
     const { config, dead } = pruneConfig({ time_filter: { columns: ["_created_at", "gone"], range: { kind: "preset", preset: "today" } } }, columns);
     expect(config.time_filter?.columns).toEqual(["_created_at"]);
     expect(dead.time).toBe(false);
+  });
+});
+
+describe("column references", () => {
+  it("turns column names (as an API or an AI writes them) into keys, and leaves unknown ones", () => {
+    const cfg: ViewConfig = {
+      filter: { and: [{ field: " b ", op: "gt", value: 1 }, { or: [{ field: "Gone", op: "is_empty" }] }] },
+      sort: [{ field: "B", dir: "desc" }],
+      hidden: ["a"],
+      time_filter: { columns: ["_created_at", "C"], range: { kind: "preset", preset: "today" } },
+    };
+    const n = normalizeConfig(cfg, columns);
+    expect(n.filter).toEqual({ and: [{ field: "b", op: "gt", value: 1 }, { or: [{ field: "Gone", op: "is_empty" }] }] });
+    expect(n.sort).toEqual([{ field: "b", dir: "desc" }]);
+    expect(n.time_filter?.columns).toEqual(["_created_at", "c"]);
+    expect(pruneConfig(n, columns).dead.filter).toBe(1);
+  });
+  it("a single condition needs no group around it", () => {
+    const draft = filterToDraft({ field: "a", op: "eq", value: "x" }, columns);
+    expect(draftToFilter(draft, columns, (c, t) => parseCellText(c, t))).toEqual({ field: "a", op: "eq", value: "x" });
   });
 });
 
