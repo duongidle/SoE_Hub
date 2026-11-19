@@ -10,7 +10,7 @@ Cập nhật: 19/11/2026
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
 1. 2A đã push `main` + `dev`. 2B+ Opus đã rà soát (19/11): đạt, `pnpm lint`/`typecheck`/`test` 511 pass. 2C-1 Opus đã rà soát: đạt, còn 3 việc chuyển sang phần sau: (a) kéo thanh cuộn xuống cuối bảng 100.000 dòng mất 5,8 s, yêu cầu nhảy tới vị trí bất kỳ < 1 s (đọc thẳng cửa sổ quanh vị trí, đúng cả khi lọc/sắp/nhóm) — giao trong 2C-2; (b) cột Liên kết, Đính kèm sửa được — 2C-3; (c) `impeccable audit` cho grid — 2C-2.
-2. **2C-2 xong, Opus đã rà (19/11)**: đọc diff và kết quả; lỗi e2e 100.000 dòng do Vite tải lại trang khi Playwright ghi trace (sửa ở `vite.config.ts`). Quyết định ở `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-2". **Tiếp: 2C-3 (Sonnet).** Sau đó 2C-4, 2D, 2E (kiểm thử đầy đủ cả Stage 2), rồi Opus rà và push `main` theo yêu cầu của Dương.
+2. **2C-2, 2C-3 xong, Opus đã rà (19/11)**. 2C-3: rà lần 1 tìm 3 lỗi (quyền ghi mã file ở ô Đính kèm, hồi quy bộ chọn e2e 2C-2, liên kết chỉ cùng datahub), đã sửa (106488a, 05b9202); Opus chạy lại 216 test API Datahub pass. **Tiếp: 2C-4 (Sonnet).** Sau đó 2D, 2E, rồi Opus rà và push `main` theo yêu cầu của Dương. Nguyên tắc thêm: bước con đụng thành phần dùng chung thì chạy lại e2e desktop của mọi spec dùng thành phần đó.
 3. Ghi nhớ cho các phần sau của Stage 2:
    - 2B: golden test được đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (Dương cho phép), không commit dữ liệu lấy từ file, máy không có file thì test tự bỏ qua.
    - 2C: làm cả công cụ **Tìm dòng trùng** (Module 2 mục 7a).
