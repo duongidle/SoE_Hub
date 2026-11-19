@@ -258,7 +258,7 @@ function FunctionPicker({ fns, loading, onPick }: { fns: FnInfo[]; loading: bool
   }, [fns, q]);
   const groups = [...new Set(shown.map((f) => f.group))];
   return (
-    <Popover label="Chèn hàm" open={open} onOpenChange={setOpen} width="w-[30rem]" trigger={<Button variant="secondary"><Sigma size={16} aria-hidden /> Chèn hàm</Button>}>
+    <Popover label="Chèn hàm" fixedSide open={open} onOpenChange={setOpen} width="w-[30rem]" trigger={<Button variant="secondary"><Sigma size={16} aria-hidden /> Chèn hàm</Button>}>
       <Input aria-label="Tìm hàm" placeholder="Tìm hàm theo tên hoặc việc cần làm" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" />
       <div className="contain-scroll mt-2 max-h-72 overflow-y-auto">
         {loading && <Skeleton className="h-24" />}
@@ -307,7 +307,7 @@ function RefPicker({ table, scope, ensure, columnsOf, onInsert }: PickerProps & 
   const ref = !t || !col ? "" : sameDh && t.id === table.id ? `[${col}]` : sameDh ? `[${t.name}].[${col}]` : `[${dh.name}].[${t.name}].[${col}]`;
   const meaning = !ref ? "" : sameDh && t?.id === table.id ? "Giá trị của cột này ở dòng đang tính." : "Cả cột của bảng đó, dùng trong hàm tra cứu và tổng hợp như SUMIFS, XLOOKUP.";
   return (
-    <Popover label="Chèn cột hoặc bảng" open={open} onOpenChange={setOpen} width="w-[24rem]" trigger={<Button variant="secondary"><Braces size={16} aria-hidden /> Chèn cột hoặc bảng</Button>}>
+    <Popover label="Chèn cột hoặc bảng" fixedSide open={open} onOpenChange={setOpen} width="w-[24rem]" trigger={<Button variant="secondary"><Braces size={16} aria-hidden /> Chèn cột hoặc bảng</Button>}>
       <div className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           <span className="font-medium">Datahub</span>
@@ -390,7 +390,7 @@ function SamplePicker({ table, scope, ensure, columnsOf, hasFormula, onUse }: Pi
   };
 
   return (
-    <Popover label="Công thức mẫu" open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSample(null); }} width="w-[32rem]" trigger={<Button variant="secondary"><BookOpen size={16} aria-hidden /> Công thức mẫu</Button>}>
+    <Popover label="Công thức mẫu" fixedSide open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSample(null); }} width="w-[32rem]" trigger={<Button variant="secondary"><BookOpen size={16} aria-hidden /> Công thức mẫu</Button>}>
       {!sample ? (
         <ul className="flex flex-col gap-1">
           {FORMULA_SAMPLES.map((s) => (

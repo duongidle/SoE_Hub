@@ -147,7 +147,8 @@ export function storageAddress(url: string): string {
 /** Uploads one file with the storage flow of Stage 0 (init, PUT to the signed address, complete) and returns its record. */
 export async function uploadFile(file: File): Promise<FileBrief> {
   const init = await api<{ file: FileBrief; upload: { url: string; method: "PUT"; headers: Record<string, string> } }>("POST", "/files", { filename: file.name, content_type: file.type || "application/octet-stream", size_bytes: file.size });
-  const put = await fetch(storageAddress(init.upload.url), { method: "PUT", headers: init.upload.headers, body: file });
+  // The signed address is the credential: no session cookie (the API refuses a cookie-bearing write that has no CSRF header).
+  const put = await fetch(storageAddress(init.upload.url), { method: "PUT", headers: init.upload.headers, body: file, credentials: "omit" });
   if (!put.ok) throw new Error("Không tải được file lên. Thử lại sau ít phút.");
   await api("POST", `/files/${init.file.id}/complete`, {});
   return init.file;

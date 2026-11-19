@@ -80,10 +80,10 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
     setErrors(errs);
     setTouched(Object.fromEntries(Object.keys(draft).map((k) => [k, true])));
     const first = firstError(errs);
-    if (first) return focusField(first);
+    if (first) return void setTimeout(() => focusField(first), 0);
     if (!def.ok) {
       setFormError(new Error(def.message));
-      return focusField("default");
+      return void setTimeout(() => focusField("default"), 0);
     }
     setBusy(true);
     try {
@@ -92,7 +92,7 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
         return await done("Đã thêm cột");
       }
       if (draft.type !== column.type) {
-        const report = await previewTypeChange(table.id, column.id, draft.type, buildConfig(draft));
+        const report = await previewTypeChange(table.id, column.key, draft.type, buildConfig(draft));
         setConfirm({ report });
         return;
       }
@@ -101,7 +101,7 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
       const patch: Record<string, unknown> = { name: body.name, description: body.description, required: body.required, unique: body.unique, default_value: body.default_value, display: body.display, version: column.version };
       if (!sameConfig) patch.config = body.config;
       if (!dirty) return onClose();
-      await updateColumn(table.id, column.id, patch);
+      await updateColumn(table.id, column.key, patch);
       await done("Đã lưu cột");
     } catch (e) {
       failWith(e);
@@ -116,10 +116,10 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
     setBusy(true);
     try {
       const def = parseDefault(draft);
-      await changeColumnType(table.id, column.id, draft.type, buildConfig(draft), confirm.report.cannot_convert > 0);
+      await changeColumnType(table.id, column.key, draft.type, buildConfig(draft), confirm.report.cannot_convert > 0);
       // A type change resets the format and the default; the rest of the form is written on top of it.
       const body = buildBody(draft, def.ok ? def.value : null);
-      await updateColumn(table.id, column.id, { name: body.name, description: body.description, required: body.required, unique: body.unique, default_value: body.default_value, display: body.display });
+      await updateColumn(table.id, column.key, { name: body.name, description: body.description, required: body.required, unique: body.unique, default_value: body.default_value, display: body.display });
       setConfirm(null);
       await done("Đã đổi kiểu cột");
     } catch (e) {
@@ -130,10 +130,6 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
     }
   };
 
-  useEffect(() => {
-    const t = setTimeout(() => focusField("name"), 50);
-    return () => clearTimeout(t);
-  }, []);
 
   const convertible = column ? convertibleTypes(types, column.type) : [];
   const typeLocked = editing && convertible.length === 0;
@@ -147,7 +143,7 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
         <form ref={form} className="flex flex-col gap-4" noValidate onSubmit={(e) => { e.preventDefault(); void save(); }}>
           <div data-field="name">
             <Field label="Tên cột" required error={shown("name")} hint="Không trùng tên cột khác trong bảng, không chứa [ hoặc ]. Công thức gọi cột bằng tên này.">
-              <Input value={draft.name} onChange={(e) => { set({ name: e.target.value }); setErrors((x) => ({ ...x, name: undefined })); }} maxLength={100} autoComplete="off" {...fieldProps("name")} />
+              <Input value={draft.name} onChange={(e) => { set({ name: e.target.value }); setErrors((x) => ({ ...x, name: undefined })); }} maxLength={100} autoComplete="off" autoFocus {...fieldProps("name")} />
             </Field>
           </div>
 
@@ -237,7 +233,8 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
           )}
 
           {formError ? <ErrorText error={formError} /> : null}
-          <div className="flex flex-wrap justify-between gap-2">
+          {/* The buttons stay in view at the bottom of a long form, so an error line above never moves them from under the pointer. */}
+          <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-wrap justify-between gap-2 border-t border-border bg-card px-5 py-3">
             <Button variant="secondary" onClick={onClose}>Huỷ</Button>
             <Button type="submit" loading={busy}>{editing ? "Lưu cột" : "Thêm cột"}</Button>
           </div>

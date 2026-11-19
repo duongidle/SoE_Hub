@@ -14,12 +14,12 @@ export function useColumnDelete(table: TableDetail) {
   const qc = useQueryClient();
   return async (col: Column) => {
     try {
-      await deleteColumn(table.id, col.id);
+      await deleteColumn(table.id, col.key);
       await qc.invalidateQueries({ queryKey: dhKeys.table(table.id) });
       notify.ok(`Đã xoá cột "${col.name}"`, {
         label: "Hoàn tác",
         onClick: () =>
-          void restoreColumn(table.id, col.id)
+          void restoreColumn(table.id, col.key)
             .then(() => qc.invalidateQueries({ queryKey: dhKeys.table(table.id) }))
             .then(() => notify.ok(`Đã khôi phục cột "${col.name}"`))
             .catch((e) => notify.error(`Không khôi phục được cột: ${errorMessage(e)}`)),
