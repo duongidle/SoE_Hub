@@ -4,7 +4,7 @@ Cập nhật: 19/11/2026
 
 ## Giai đoạn hiện tại
 
-- Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11, mục 7 Thanh toán còn là khung). **Module 5, 6: bản nháp vòng 1 xong** (`design/module5-ket-noi-ai.md`, `design/module6-thong-bao.md`, 19/11), chờ Dương phản biện. **Module 7 đã chốt** (19/11; CLAUDE.md, Module 0, 4 đã ghi thay đổi; Module 2 mục 11 chưa ghi giới hạn 150 cột vì Sonnet đang sửa file đó, ghi khi rảnh). Câu hỏi ở mục cuối mỗi file.
+- Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11; **sửa lần 2 cùng ngày**: thanh toán và com theo đợt, Won khi tiền về, Sổ com, chốt kỳ gộp, ghép tiền về, vai trò cột trong dashboard; xem đầu file Module 4 và mục 18). **Module 5, 6: bản nháp vòng 1 xong** (`design/module5-ket-noi-ai.md`, `design/module6-thong-bao.md`, 19/11), chờ Dương phản biện. **Module 7 đã chốt** (19/11; CLAUDE.md, Module 0, 4 đã ghi thay đổi; Module 2 mục 11 chưa ghi giới hạn 150 cột vì Sonnet đang sửa file đó, ghi khi rảnh). Câu hỏi ở mục cuối mỗi file.
 - Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1, 2C-2 xong và Opus đã rà soát (19/11); **2C-3, 2C-4 xong, Opus đã rà (19/11)**; **Stage 2 xong (Opus quyết đạt 19/11)**. Đã push `main` + `dev` tới a07d60c (hết 2C-4, Dương yêu cầu 19/11).
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
@@ -70,6 +70,7 @@ Module 3 vừa sửa sau khi Sonnet đọc (commit 36d3e03), vì Dương chốt 
 - Tuỳ chọn "Thành viên được thêm dòng hàng loạt": chặn import, dán sinh dòng mới, API nhiều dòng (2D đang cho import).
 - Lookup/Rollup sang bảng có khoá phân chia tính theo từng người đọc.
 - Hạ tầng bảng template (cờ bảo vệ, lớp cột, vai trò cột); bỏ `PhysicalSource`.
+- Sau 4.1, Stage 4 thêm: thanh toán và com theo đợt (Module 4 mục 7, 12: bốn command, ghép tiền về, chốt kỳ), chỉ số trỏ cột theo vai trò (Module 4 mục 19 việc 14–15).
 
 
 ## Lỗi điện thoại để sau

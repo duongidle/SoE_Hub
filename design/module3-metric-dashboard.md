@@ -186,6 +186,7 @@ Câu SQL của chỉ số chạy trong tiến trình `api` (không qua worker). 
 - Người nhận **không** được "xem các dòng" và không xuất CSV dữ liệu, **trừ khi** họ có quyền xem bảng nguồn. Khi bảng nguồn có khoá phân chia, "xem các dòng" và CSV chỉ trả các dòng **người nhận** thấy, kèm dòng báo "Bạn thấy 12/40 dòng tạo nên con số này" (số vẫn tính theo quyền chủ). Lý do: chia sẻ dashboard không được biến thành chia sẻ cả bảng dữ liệu thô.
 - Quyền của chủ thay đổi (bị chuyển giao, mất quyền xem) thì dashboard tính theo quyền **hiện tại** của chủ.
 - Dashboard Deals: User thấy số của mình, Leader của team, Manager của cả cây, Admin của mọi cây (chỉ đọc). Dashboard Deals tuỳ chỉnh được chia sẻ thì người nhận thấy số theo phạm vi của chủ.
+- **Trỏ cột theo vai trò** (Module 4 mục 3.7, 13; code ở Stage 4, Stage 3 không làm): trên bảng template có vai trò cột, chỉ số được trỏ `"field": {"role": "doanh_thu"}` thay cho mã cột; engine phân giải vai trò → cột lúc tính. Dashboard hệ thống Deals dùng cách này; bản nhân bản giữ nguyên. Ô chọn cột có nhóm Vai trò ghi rõ đang trỏ vào cột nào.
 - Guest được cấp dashboard (Module 1 mục 5.2): tính theo phạm vi của lần cấp.
 - Việc chia sẻ, bỏ chia sẻ, xem dashboard được chia sẻ đều ghi nhật ký.
 

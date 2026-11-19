@@ -223,19 +223,19 @@ Vai trò của bảng Đợt thanh toán và Sổ com: mục 7.6.
 |---|---|---|---|
 | 1 | Tên công ty | Văn bản | Bắt buộc |
 | 2 | Loại deal | Một lựa chọn | `POD bán mới`, `POD CSM`, `POD Express`, `PS kèm POD`, `PS không kèm POD`, `Data` (Data Validation) |
-| 3 | Không tính vào báo cáo | Nhiều lựa chọn | `Số deal`, `Doanh thu`. Chọn `Số deal` thì không đếm deal; chọn `Doanh thu` thì không cộng doanh thu (đúng cách sheet Index lọc) |
-| 4 | Start date | Ngày | Ngày nhận deal. Bắt buộc |
-| 5 | Closing date | Ngày | Deal đang mở: ngày dự kiến chốt (forecast dùng). Deal đã đóng: ngày đóng |
+| 3 | Start date | Ngày | Ngày nhận deal. Bắt buộc |
+| 4 | Ngày dự kiến chốt | Ngày | Deal đang mở: ngày dự kiến tiền về đợt đầu. Forecast dùng. Nhập tay (BPM: `Ngày dự kiến chốt`) |
+| 5 | Closing date | Ngày | **Hệ thống điền**, deal mở để trống. Won: ngày tiền về của đợt đầu (mục 7). Lost, Disqualified, Convert to POD, Huỷ: ngày đổi trạng thái, lấy từ lịch sử dòng; sửa tay được khi biết ngày chính xác hơn |
 | 6 | Ghi chú | Văn bản dài | |
 | 7 | Sale | Văn bản | Email hoặc tên sale (sale không phải người dùng SoE Hub) |
 | 8 | Status | Một lựa chọn | Mục 4.4 |
-| 9 | Doanh thu | Tiền | Deal mở: doanh thu dự kiến. Won: giá trị hợp đồng chưa VAT |
-| 10 | Nguồn lead | Một lựa chọn | `ML` (Marketing Lead), `SH` (Sale Hunt) |
-| 11 | Level BC | Một lựa chọn | `Level 0` đến `Level 9` (Data Validation có 1–9; chính sách có thêm Level 0) |
-| 12 | Performance BC | Một lựa chọn | `Under KPI`, `KPI`, `Goal`, `Out performance` |
-| 13 | %Com team | Công thức | Tra chính sách com (mục 9) theo Loại deal, Nguồn lead, Level BC, Performance BC |
-| 14 | % Com cá nhân | Phần trăm, tự điền, mỗi người một giá trị | Lấy từ tỉ lệ com Manager chia cho người đó ở cột Người tham gia; chưa chia thì 0 (mục 4.5) |
-| 15 | Com | Công thức | `[Doanh thu] * [%Com team] * [% Com cá nhân]`. Luôn ghi **Tạm tính** |
+| 9 | Doanh thu | Tiền | Deal mở: doanh thu dự kiến, nhập tay. Deal Won: **tổng tiền đã về** (chưa VAT), rollup từ Đợt thanh toán, không nhập tay |
+| 10 | Nguồn lead | Một lựa chọn | `ML` (Marketing Lead), `SH` (Sale Hunt). Đọc từ phiếu request |
+| 11 | Level BC | Một lựa chọn | `Level 0` đến `Level 9`. Đọc từ phiếu request |
+| 12 | Performance BC | Một lựa chọn | `Under KPI`, `KPI`, `Goal`, `Out performance`. Đọc từ phiếu request |
+| 13 | Tỉ lệ com sale | Công thức | Tra chính sách com (mục 9) theo Loại deal, Nguồn lead, Level BC, Performance BC, bản hiệu lực tại Closing date (deal mở: Ngày dự kiến chốt) |
+| 14 | % Com cá nhân | Phần trăm, tự điền, mỗi người một giá trị | **% trên com của sale** Manager chia cho người đó ở `Người tham gia` (ví dụ com sale 100tr, A 15% = 15tr). Là mặc định cho các đợt chưa về; mỗi đợt chia riêng được (mục 7). Chưa chia thì 0 |
+| 15 | Com dự kiến của tôi | Công thức | `[Giá trị hợp đồng] * [Tỉ lệ com sale] * [% Com cá nhân]`, deal chưa có lịch dùng `[Doanh thu]`. Luôn ghi **Tạm tính** |
 
 Thêm vào lớp Cơ bản vì hệ thống cần:
 
@@ -245,19 +245,26 @@ Thêm vào lớp Cơ bản vì hệ thống cần:
 | 17 | Thành viên deal | Tự điền từ cột `Người tham gia` của Manager: tên và vai trò của từng người, **không có tỉ lệ**. Để ai cũng biết deal có những ai |
 | 17a | Vai trò của tôi | Nhãn `Leading` / `Associate` / `Advisor`, tự điền, mỗi người một giá trị (mục 4.5) |
 | 17b | % doanh thu của tôi | Phần trăm, tự điền, mỗi người một giá trị |
+| 17c | Tính vào số deal của tôi | Có/không, tự điền, mỗi người một giá trị (mục 4.5) |
+| 17d | Doanh thu tính cho tôi | Công thức, mỗi người một giá trị: `[Doanh thu] * [% doanh thu tính cho tôi]`. Vai trò `doanh thu được tính`. `% doanh thu tính cho tôi` là % của mình (User), tổng % của team (Leader), tổng % đã chia (Manager) |
 | 18 | Mức ưu tiên (BANT) | Brief yêu cầu. Bốn cột B, A, N, T ẩn mặc định, chấm trong ngăn chi tiết deal (mục 8) |
-| 19 | Mã số thuế | Nhận ra cùng khách: gợi ý `PS kèm POD`, khớp phiếu BPM, chống trùng |
+| 19 | Mã số thuế | Nhận ra cùng khách: gợi ý `PS kèm POD`, khớp phiếu BPM, chống trùng, ghép tiền về |
 | 20 | Nhóm dịch vụ | Công thức, ẩn: `POD` / `PS` / `Khác` theo Data Validation; `Software` / `Non-software` cho bảng luỹ kế |
+| 21 | Giá trị hợp đồng | Rollup: tổng `Số tiền dự kiến` của các đợt (chưa VAT) |
+| 22 | Đã thu, Còn lại | Rollup: tổng `Số tiền về`; `Giá trị hợp đồng − Đã thu` |
+| 23 | Thanh toán | Công thức: `Chưa có lịch` / `Chờ tiền về` / `Đang thu` / `Đã thu đủ` |
+| 24 | Com đã nhận của tôi, Com tạm tính của tôi, Com chờ nhận của tôi | Rollup từ Sổ com theo người đọc (dòng `Đã chốt` + `Điều chỉnh`; dòng `Tạm tính`); chờ nhận = các đợt chưa về × Tỉ lệ com sale × % Com cá nhân |
 
-Không đưa vào template ban đầu (Manager thêm khi cần, hoặc mỗi người tự thêm): Link CRM, Văn phòng, Đơn vị kinh doanh, Giai đoạn, Việc tiếp theo, Lý do thắng/thua, Thời gian showcase.
+- **Bỏ cột `Không tính vào báo cáo`** của sheet cũ. Cột này dùng cho Associate, Advisor chọn không tính doanh thu hoặc số deal, tức là lựa chọn của **từng người tham gia**, không phải của deal. Thay bằng hai thuộc tính trong `Người tham gia`: `% doanh thu` (0 là không tính doanh thu) và `Tính vào số deal` (mục 4.5). Một nguồn duy nhất, không có chỗ hai giá trị nói ngược nhau.
+- Không đưa vào template ban đầu (Manager thêm khi cần, hoặc mỗi người tự thêm): Link CRM, Văn phòng, Đơn vị kinh doanh, Giai đoạn, Việc tiếp theo, Lý do thắng/thua, Thời gian showcase.
 
 ### 4.2 Cột theo vai trò (mặc định)
 
 | Vai trò | Cột thêm |
 |---|---|
-| User | Không thêm (đã có `Com` của mình) |
-| Leader | `% com của team` (tự điền: tổng % com của thành viên team mình trong deal), `Com của team` = `[Doanh thu] * [%Com team] * [% com của team]` |
-| Manager | **`Người tham gia`**: chia deal cho ai, vai trò gì, bao nhiêu % doanh thu, % com (mục 4.5). `Tổng % com đã chia` (tự điền: tổng % com của mọi người tham gia; cảnh báo khi chưa đủ 100%), `Com của deal` = `[Doanh thu] * [%Com team] * [Tổng % com đã chia]`. Khi có bảng Thanh toán: `Số lần tiền về`, `Com đã chia`, `Com còn lại`, `Đủ com` (rollup từ Thanh toán) |
+| User | Không thêm (đã có các cột com và doanh thu "của tôi") |
+| Leader | `% com của team` (tự điền: tổng % com của thành viên team mình trong deal), `% doanh thu của team`, `Com đã nhận của team`, `Com chờ nhận của team` (rollup Sổ com và Đợt như cột "của tôi") |
+| Manager | **`Người tham gia`**: chia deal cho ai, vai trò gì, % doanh thu, % com, tính vào số deal (mục 4.5). `Tổng % com đã chia` (tự điền; cảnh báo khi khác mức trần `Tỉ lệ SoE`), `Com của deal` (rollup mọi dòng Sổ com của deal), `Số đợt`, `Số đợt đã về` |
 
 ### 4.3 Quyền sửa mặc định
 
@@ -265,22 +272,23 @@ Theo mục 3.6: thành viên có quyền Sửa; cột được cho phép thì m�
 
 | Cột | Cho phép sửa | Ghi chú |
 |---|---|---|
-| Cột 1–12, 18, 19 (trừ Loại deal) | Có | Mọi người tham gia deal sửa như nhau. Leader sửa deal của team khi thành viên bật "Cho phép leader sửa deal của tôi" |
-| Loại deal, `Huỷ` | Không | Manager |
+| Tên công ty, Start date, Ngày dự kiến chốt, Ghi chú, Sale, Doanh thu (deal mở), Nguồn lead, Level BC, Performance BC, BANT, Mã số thuế | Có | Mọi người tham gia deal sửa như nhau. Leader sửa deal của team khi thành viên bật "Cho phép leader sửa deal của tôi" |
+| Status | Có, trừ `Won` và `Huỷ` | `Won` chỉ do xác nhận tiền về đặt (mục 4.4). `Huỷ` chỉ Manager |
+| Loại deal, Closing date | Không | Manager. Closing date hệ thống điền, Manager sửa tay khi cần |
 | Người tham gia | Không | Manager |
-| Cột tự điền từ Người tham gia (14, 17, 17a, 17b, cột % của team) | Không | Sửa qua Người tham gia |
-| Cột công thức | — | Không ai sửa ô |
+| Cột tự điền từ Người tham gia (14, 17, 17a–17c, cột % của team) | Không | Sửa qua Người tham gia |
+| Cột rollup, cột công thức | — | Không ai sửa ô |
 | Cột tuỳ chỉnh của mình | — | Chỉ chủ cột |
 
-Admin, Manager đổi cho phép sửa từng cột ở trang Template.
+Admin, Manager đổi cho phép sửa từng cột ở trang Template. Kỳ đã chốt khoá thêm một số cột (mục 12).
 
 ### 4.4 Status
 
 | Status | Mở/đóng | Ghi chú |
 |---|---|---|
-| Processing | Mở | Mặc định |
+| Processing | Mở | Mặc định. Gồm cả deal đã ký hợp đồng, đã có lịch thanh toán nhưng chưa có tiền về |
 | Pending | Mở | Tạm dừng. Sheet Index có đếm `Pending` dù Data Validation chưa có |
-| Won | Đóng | Bắt buộc Closing date và Doanh thu |
+| Won | Đóng | **Chỉ khi tiền về**: hệ thống đặt khi đợt thanh toán đầu tiên được xác nhận (mục 7). Không chọn tay. Huỷ xác nhận đợt duy nhất đã về (trước khi chốt kỳ) thì deal về lại Processing |
 | Lost | Đóng | Đã gặp khách nhưng không chốt |
 | Disqualified | Đóng | **Dừng trước khi gặp được khách** |
 | Convert to POD | Đóng | Chỉ POD Express. Liên kết sang deal POD mới |
@@ -288,19 +296,21 @@ Admin, Manager đổi cho phép sửa từng cột ở trang Template.
 
 Kiểm chứng `Disqualified`: trong `Raw PODPS`, deal Disqualified chỉ dừng ở `Tiếp nhận khách hàng` hoặc `Lost`, không có deal nào ở `Post Meeting` hay `Negotiation`.
 
-Ánh xạ từ BPM: `Completed` → Won, `Khách không chốt` → Lost, `Đã chuyển Sale POD` → Convert to POD, `Bị từ chối ở đề xuất` → Disqualified.
+Ánh xạ từ BPM: `Completed` → Won, `Khách không chốt` → Lost, `Đã chuyển Sale POD` → Convert to POD, `Bị từ chối ở đề xuất` → Disqualified. Nhập lịch sử và API ngoài được ghi `Won` kèm ngày tiền về (mục 14), vì dữ liệu cũ không có lịch đợt.
 
 ### 4.5 Người tham gia
 
-- Cột `Người tham gia` nằm ở **bảng Deals của Manager** (lớp Theo vai trò: Manager), kiểu **Người dùng** (chọn nhiều người trong hệ thống). Mỗi người được chọn kèm ba ô: **Vai trò** (nhãn `Leading` / `Associate` / `Advisor`), **% doanh thu**, **% com**. Giống bảng "Danh sách SoE tham gia deal" của BPM. Manager điền, hoặc API bắn vào.
+- Cột `Người tham gia` nằm ở **bảng Deals của Manager** (lớp Theo vai trò: Manager), kiểu **Người dùng** (chọn nhiều người trong hệ thống). Mỗi người được chọn kèm bốn ô: **Vai trò** (nhãn `Leading` / `Associate` / `Advisor`), **% doanh thu**, **% com** (phần trăm **trên com của sale**), **Tính vào số deal** (có/không). Giống bảng "Danh sách SoE tham gia deal" của BPM. Manager điền (tay hoặc nhờ AI đọc phiếu request), hoặc API bắn vào.
 - Đây là **nguồn duy nhất** của việc chia deal. Bảng của người khác chỉ nhận dữ liệu từ cột này, không ai khác sửa được.
-- Chọn ai thì deal hiện trong bảng Deals của người đó. Hệ thống **gửi dữ liệu xuống**: tự điền các cột mỗi-người-một-giá-trị của họ: `Vai trò của tôi`, `% doanh thu của tôi`, `% Com cá nhân`; với Leader thêm `% com của team`; với Manager thêm `Tổng % com đã chia`. Từ đó mọi cột `Com` chỉ là công thức nhân thường. Chọn cách gửi xuống thay vì để mỗi người tự lookup, vì lookup "phần của tôi" cần một hàm biết ai đang xem, mà ta đã thống nhất không thêm hàm riêng.
-- **% com mặc định 0** (chưa chia). Deal vẫn hiện, `Com` bằng 0 cho đến khi Manager chia.
-- % doanh thu mặc định: deal chỉ có một Leading thì Leading 100%; còn lại 0 cho đến khi Manager chia. Associate, Advisor mặc định 0 (chỉ tính workload).
-- Được nhiều Leading (BPM cho nhiều `Lead SoE` chia `% Rev`). Kiểu `Người dùng có thuộc tính` là tính năng chung của Datahub, bảng khác cũng dùng được (ví dụ giao việc có tỉ lệ).
-- Ràng buộc: tổng mỗi loại tỉ lệ ≤ 100%, kiểm tra ở mọi kênh.
-- Doanh thu của một người = `[Doanh thu] * [% doanh thu của tôi]`. Đếm deal (nhận, thắng, winrate) của một người: `COUNTIFS(... [Vai trò của tôi], "Leading")`. Của team: đếm không trùng.
-- Dashboard và cột của Manager cảnh báo deal Won chưa chia đủ tỉ lệ.
+- Chọn ai thì deal hiện trong bảng Deals của người đó. Hệ thống **gửi dữ liệu xuống**: tự điền các cột mỗi-người-một-giá-trị của họ: `Vai trò của tôi`, `% doanh thu của tôi`, `% Com cá nhân`, `Tính vào số deal của tôi`; với Leader thêm `% com của team`, `% doanh thu của team`; với Manager thêm `Tổng % com đã chia`. Chọn cách gửi xuống thay vì để mỗi người tự lookup, vì lookup "phần của tôi" cần một hàm biết ai đang xem, mà ta đã thống nhất không thêm hàm riêng.
+- **% com** là mặc định cho các đợt chưa về. Mỗi đợt có cột `Chia com đợt này` riêng (mục 7.2), điền sẵn từ đây lúc xác nhận tiền về. Đổi % com ở deal không đổi com của đợt đã về.
+- **% com mặc định 0** (chưa chia). Deal vẫn hiện, com bằng 0 cho đến khi Manager chia.
+- **Ràng buộc com:** tổng % com của một deal và của một đợt **không vượt `Tỉ lệ SoE`** (bảng Tham số com, ví dụ 20%), kiểm ở mọi kênh. Thấp hơn mức trần thì màn chốt kỳ cảnh báo "còn 5% chưa chia".
+- % doanh thu mặc định: deal chỉ có một Leading thì Leading 100%; còn lại 0 cho đến khi Manager chia. Associate, Advisor mặc định 0 (chỉ tính workload). Tổng % doanh thu ≤ 100%.
+- **Tính vào số deal** mặc định: Leading có, Associate và Advisor không. Thay cho cột `Không tính vào báo cáo` cũ.
+- Được nhiều Leading (BPM cho nhiều `Lead SoE` chia `% Rev`). Kiểu `Người dùng có thuộc tính` là tính năng chung của Datahub, bảng khác cũng dùng được (ví dụ giao việc có tỉ lệ, `Chia com đợt này`).
+- Doanh thu của một người = tổng tiền về của các đợt × `% doanh thu của tôi`, theo ngày tiền về (mục 5, 10.3). Đếm deal (nhận, thắng, winrate) của một người: deal có `Tính vào số deal của tôi` = có. Của team: đếm không trùng.
+- Dashboard và cột của Manager cảnh báo deal có tiền về mà chưa chia com.
 - Workload: mọi vai trò, trọng số mặc định Leading 1, Associate 0,5, Advisor 0,3; Manager chỉnh cho cây mình.
 - Người tham gia phải cùng cây với deal. Đổi người lưu lịch sử và phát sự kiện `deal.participant.changed`.
 
@@ -314,10 +324,11 @@ Sheet Index lọc POD bằng `"POD*"`, nên cột POD **đã gồm cả POD Expr
 - Cột mặc định = các cột của sheet Index, là **cột công thức trên bảng Deals**, đã sửa lỗi ở mục 4.6:
   - Theo nhóm POD, PS, POD Express, Tổng: Nhận, Disqualified, Pending, Qualified, Lost, Won, Winrate (theo quý như file mẫu), PS kèm POD, POD Express chuyển thành POD.
   - Doanh thu: POD, POD Express, PS, PS kèm POD, PS không kèm POD, Tổng, Tổng theo quý.
-  - Forecast: POD, PS, Tổng (deal Processing có Closing date trong tháng, như file mẫu).
+  - Forecast: POD, PS, Tổng, tách hai phần (mục 11): đợt chưa về có hạn trong tháng của deal đã có lịch, và doanh thu dự kiến của deal chưa có lịch có Ngày dự kiến chốt trong tháng.
   - Thêm: CR1, CR2 của tháng (mục 10).
-- Mốc thời gian như file mẫu: Nhận, Disqualified, Pending theo Start date; Won, Lost, doanh thu, forecast theo Closing date.
-- Index của User đếm deal mình là Leading, doanh thu theo % doanh thu của mình. Index của Leader và Manager có thêm nhóm cột cho team / cây (lớp Theo vai trò).
+- Mốc thời gian: Nhận, Disqualified, Pending theo Start date; Won, Lost theo Closing date; **doanh thu theo ngày tiền về** của từng đợt (cộng từ bảng Đợt thanh toán). Một hợp đồng 120tr trả 3 đợt ở ba tháng thì mỗi tháng nhận phần tiền về của tháng đó, như sheet cũ (mỗi lần tiền về một dòng). Đổi sang tính theo giá trị hợp đồng ở ngày Won sau này chỉ là sửa công thức template.
+- **Khác sheet cũ:** sheet cũ ghi mỗi lần tiền về một dòng nên một deal 3 đợt bị **đếm thành 3 deal Won**, làm số Won và CR2 cao hơn thực tế, deal size thấp hơn thực tế. SoE Hub đếm mỗi deal một lần. Sau khi chuyển, winrate sẽ thấp hơn số Manager quen nhìn; phải báo trước khi nhập lịch sử.
+- Index của User đếm deal có `Tính vào số deal của tôi`, doanh thu theo % doanh thu của mình. Index của Leader và Manager có thêm nhóm cột cho team / cây (lớp Theo vai trò).
 - Mỗi người thêm cột tuỳ chỉnh được, ví dụ `Số showcase trong tháng` = đếm theo cột `Thời gian showcase` tự tạo ở Deals.
 - Bảng luỹ kế (sheet Cumulative Index) không thành bảng riêng: là các thẻ số trên dashboard mặc định.
 
@@ -335,32 +346,110 @@ Lưu **số đã commit từ đầu năm**, nằm cạnh Deals trong Quản lý 
 | Deal size, CR1, CR2, Cycle (ngày) cam kết | CR1 mặc định 90% |
 | Trạng thái | `Nháp` / `Đã commit` |
 | Ngày commit | |
-| Công thức có sẵn | KPI và Goal từng quý; số deal cần thắng = doanh thu ÷ deal size; lead cần nhận = deal ÷ (CR1 × CR2); **Đã đạt**, **Còn thiếu**, **% đạt** của năm và quý hiện tại (cộng từ Deals) |
+| Công thức có sẵn | KPI và Goal từng quý; số deal cần thắng = doanh thu ÷ deal size; lead cần nhận = deal ÷ (CR1 × CR2); **Đã đạt**, **Còn thiếu**, **% đạt** của năm và quý hiện tại (cộng doanh thu từ Đợt thanh toán theo ngày tiền về, như Index) |
 
 - Người dùng tự nhập kế hoạch của mình rồi bấm **Commit**. Sau khi commit, chỉ Manager sửa được, phải ghi lý do; mọi lần sửa có lịch sử.
 - Leader xem của team, Manager xem của cả cây.
 - Doanh thu tính KPI: Software = POD bán mới + POD CSM + POD Express; Non-software = PS kèm POD + PS không kèm POD. `Data` không tính KPI (file mẫu không có Data trong Index).
 
-## 7. Bảng Thanh toán của Manager (khung, chi tiết sau)
+## 7. Thanh toán và commission theo đợt
 
-Bài toán: Manager cần biết mỗi deal com bao nhiêu, **đã chia mấy lần** (tiền về lần nào thì chia lần đó), tổng com đã đủ chưa. Trong `Raw PODPS`, mọi deal chia đợt đều chỉ ghi `Lần thanh toán = 1`, tức là đợt sau không ai theo dõi.
+### 7.1 Bài toán (Dương hỏi Manager, 19/11/2026)
 
-Khung đề xuất: mỗi dòng là một lần tiền về, liên kết tới một deal.
+- Một deal có thể có nhiều hợp đồng, nhiều pháp nhân; mỗi hợp đồng một hoặc nhiều đợt thanh toán. Số đợt, số tiền, ngày của từng đợt được sale thống nhất với khách từ đầu, nằm trong hợp đồng.
+- **Deal chỉ Won khi tiền về.** Có lịch thanh toán không có nghĩa là tiền đã về. Com cũng chỉ có khi tiền về, mỗi lần tiền về chia com một lần, nhận theo tháng.
+- Hiện tại: mỗi lần tiền về là một dòng trong sheet (deal 3 đợt thành 3 dòng); team Data mở từng phiếu request, tính com; cuối kỳ Manager mở lại từng phiếu, nhẩm lại tỉ lệ và số tiền. Khó nhất là tiền về từ pháp nhân có tên khác tên deal, Manager phải dò xem là deal nào, đợt nào.
+- Mục tiêu: Manager ghép tiền về nhanh và đúng, không phải nhẩm com; nhân sự SoE thấy trực tiếp deal đã thu bao nhiêu, còn bao nhiêu, com đã nhận, com chờ nhận; cuối tháng chốt kỳ, qua tháng không sửa số đã nhận.
+- Nhập liệu: hiện tại Manager điền tay hoặc nhờ AI đọc phiếu request và workflow rồi điền (qua kết nối AI của Manager, Module 5). Sau này request đẩy dữ liệu qua API (Manager tạo kết nối API). Cả ba kênh gọi cùng các command ở mục 7.4.
 
-| Cột (nháp) | Ghi chú |
+**Cách giải:** ghép tiền với deal **lúc lập lịch** (lúc thông tin hợp đồng còn đủ), không phải lúc tiền về. Dữ liệu nằm ở hai bảng template trên engine Datahub; tính toán là công thức thường; hệ thống chỉ thêm bốn command công thức không làm được (mục 7.4), tìm cột theo vai trò (mục 7.6).
+
+### 7.2 Bảng Đợt thanh toán
+
+Bảng template chung của cây (Manager tạo). Mỗi đợt thanh toán của hợp đồng một dòng, lập lúc ký hợp đồng (deal vẫn Processing). Khớp "Bảng chia đợt thanh toán" và "Bảng chia thanh toán – ver 2" của BPM. Mỗi deal một loại dịch vụ (mục 1.4) nên mỗi đợt chỉ có một số tiền.
+
+| Cột | Ghi chú |
 |---|---|
 | Deal | Liên kết tới Deals |
-| Đợt, Pháp nhân, Loại doanh thu (POD/PS/Data) | Theo "Bảng chia thanh toán – ver 2" của BPM |
-| Số tiền dự kiến, Hạn | |
-| Ngày tiền về, Số tiền về (chưa VAT) | |
-| Com đợt này | Công thức theo chính sách hiệu lực ngày tiền về |
-| Đã chia com, Ngày chia | |
+| Pháp nhân, Mã số thuế, Số hợp đồng, Đợt số | Theo hợp đồng, **không phải** tên công ty của deal. Nhập lúc lập lịch |
+| Số tiền dự kiến (chưa VAT), Hạn | Nhập lúc lập lịch |
+| Ngày tiền về, Số tiền về (chưa VAT), Số tiền nhận (gồm VAT) | Ghi khi xác nhận tiền về (mục 7.4) |
+| Thông tin người trả | Tên đơn vị trả, số tài khoản, ngân hàng, nội dung chuyển khoản (như UNC). Ghi khi ghép tiền về |
+| Chia com đợt này | Người dùng có thuộc tính (người, % com trên com sale). Điền sẵn từ `Người tham gia` của deal lúc xác nhận tiền về; Manager sửa nếu đợt này chia khác. Tổng ≤ `Tỉ lệ SoE` |
+| Trạng thái | Công thức: `Chưa đến hạn` / `Sắp đến hạn` (7 ngày) / `Quá hạn` / `Đã về` / `Về thiếu` |
+| Kỳ | Tháng của ngày tiền về. Tháng đó đã chốt thì lấy kỳ đang mở, kèm nhãn `Về muộn` |
+| Người tham gia | Tự điền từ deal (gửi xuống như mục 4.5), là **khoá phân chia**: SoE chỉ thấy đợt của deal mình, Leader của team, Manager cả cây |
+| Nguồn nhập | `Tay` / `AI (tên kết nối)` / `API`; `Đã kiểm` (Manager đánh dấu) cho dòng không nhập tay |
 
-Ở Deals, cột của Manager (`Số lần tiền về`, `Com đã chia`, `Com còn lại`, `Đủ com`) là rollup từ bảng này.
+- Quyền: Manager ghi. Thành viên quyền Xem. Cột `Chia com đợt này` chỉ Manager.
+- View hệ thống: **Chờ tiền về** (chưa về, xếp theo hạn, quá hạn lên đầu), **Đã về tháng này**, **Do AI nhập chưa kiểm**.
 
-Nguyên tắc nên giữ khi làm chi tiết: tháng com đã chốt thì không sửa dòng cũ; sai sót thì thêm dòng điều chỉnh vào tháng đang mở.
+### 7.3 Bảng Sổ com
 
-Cần chốt với Manager: nguồn tiền về (đề xuất lấy từ BPM, bước "Theo dõi thanh toán"); com POD tính theo hợp đồng hay theo tiền về; Level BC và Performance BC lấy từ đâu; thu hồi com khi khách trả lại tiền; com cho POD Express và Data.
+Bảng template chung của cây. Mỗi người, mỗi đợt một dòng. **Khoá phân chia theo cột Người**: mỗi người thấy com của mình, Leader của team, Manager cả cây (Module 4 mục 9: Guest không bao giờ thấy).
+
+| Cột | Ghi chú |
+|---|---|
+| Người, Đợt (liên kết), Deal, Kỳ | |
+| Số tiền về, Tỉ lệ com sale, Com sale, % com, Com | `Com sale = Số tiền về × Tỉ lệ com sale`; `Com = Com sale × % com`. Hiện cả các số để Manager đối chiếu bằng mắt, không phải nhẩm |
+| Trạng thái | `Tạm tính` / `Đã chốt` / `Điều chỉnh` |
+| Lý do | Bắt buộc với dòng `Điều chỉnh` |
+
+- Dòng `Tạm tính` là công thức, tự tính lại khi số tiền, % chia hoặc đầu vào chính sách đổi. Dòng `Đã chốt` là **giá trị cứng**, không phải công thức, không ai sửa. Lý do có bảng này thay vì chỉ dùng công thức trên Đợt: số đã chốt phải đứng yên (công thức luôn tính lại), và cộng theo người, theo team không bị trùng vì mỗi người có dòng riêng.
+- Không ai thêm dòng tay ngoài dòng `Điều chỉnh` (Manager).
+- Không có thu hồi com (Manager xác nhận không có trường hợp khách trả lại tiền). Dòng điều chỉnh chỉ dùng để sửa sai do nhập liệu sau khi kỳ đã chốt; có thể âm.
+
+### 7.4 Bốn command
+
+Là command trong registry (giao diện, REST, MCP, API ngoài gọi chung), có `Idempotency-Key`, ghi nhật ký. Chỉ Manager của cây (và kết nối AI/API của Manager).
+
+1. **Lập lịch thanh toán** `payment.schedule`: một lần gọi cho cả lịch của deal (deal + danh sách đợt), để AI đọc một phiếu gọi một lần. Sửa lịch (thêm, bớt, đổi đợt chưa về) cũng qua command này. Không xoá đợt đã về.
+2. **Xác nhận tiền về** `payment.confirm`: một hoặc nhiều đợt. Ghi ngày, số tiền, thông tin người trả. Nếu là đợt đầu của deal: deal → `Won`, `Closing date` = ngày tiền về. Sinh dòng Sổ com `Tạm tính` cho từng người theo `Chia com đợt này`. Về thiếu thì hỏi tách phần còn lại thành đợt mới (giữ hạn). Một khoản tiền trả cho nhiều đợt hoặc nhiều deal: chia một khoản vào nhiều đợt, tổng phải bằng số tiền về. **Huỷ xác nhận** được khi kỳ chưa chốt (xoá dòng Sổ com tạm tính; đợt duy nhất thì deal về Processing).
+3. **Chốt kỳ** `period.close` (mục 12): đóng băng Đợt, Sổ com và deal đóng của tháng.
+4. **Điều chỉnh** `commission.adjust`: thêm dòng `Điều chỉnh` vào kỳ đang mở, có lý do.
+
+AI dùng kết nối của Manager được ghi thẳng (không xin duyệt từng lần) vì mọi thứ vẫn `Tạm tính` cho tới khi Manager chốt kỳ; dòng do AI nhập phải được đánh dấu `Đã kiểm` ở màn chốt kỳ (mục 12).
+
+### 7.5 Ghép tiền về
+
+Giả định thông tin tiền về có dạng **UNC**: tên đơn vị trả, số tài khoản, ngân hàng, số tiền (gồm VAT), ngày, nội dung chuyển khoản. Thường **không có mã số thuế**. Sẽ chỉnh luật khi có mẫu thật.
+
+- Công cụ **Ghép tiền về**: Manager nhập những gì thông báo có, hoặc dán nguyên thông báo cho AI. Query `payment.match_candidates` xếp hạng các đợt chưa về trong cây, mỗi gợi ý kèm lý do (ví dụ "Deal ABC – đợt 2: khớp số tài khoản đã ghép trước, 108tr = 100tr + VAT 8%, hạn còn 2 ngày"). Chấm điểm bằng luật cố định ở server, hệ thống không tiêu thụ AI.
+
+| Dấu hiệu | Cách so |
+|---|---|
+| Số tài khoản, tên người trả đã ghép trước | Khớp đúng bảng ghi nhớ. Mạnh nhất |
+| Mã số thuế | Khớp đúng (khi thông báo có) |
+| Số hợp đồng | Có trong nội dung chuyển khoản |
+| Tên pháp nhân | So gần đúng với pháp nhân của đợt và tên công ty của deal, sau khi bỏ dấu, bỏ `Công ty`, `TNHH`, `CP`, `Cổ phần`… |
+| Số tiền | Bằng số tiền đợt, hoặc số tiền đợt cộng VAT (0%, 5%, 8%, 10%), cho lệch nhỏ (tham số) |
+| Hạn | Càng gần hạn càng cao điểm |
+
+- **Ghi nhớ:** mỗi lần Manager ghép, hệ thống lưu `tên người trả, số tài khoản → khách hàng (mã số thuế / deal)` vào bảng ghi nhớ của cây. Lần sau tiền về từ pháp nhân đó, gợi ý đúng đứng đầu. Chỉ lần đầu phải dò.
+- AI chỉ tự xác nhận khi có **đúng một** đợt khớp mạnh (ghi nhớ hoặc mã số thuế, và số tiền). Còn lại AI đưa danh sách gợi ý cho Manager chọn.
+- Không tìm được đợt: khoản tiền vào hàng **Tiền về chưa ghép** để không bị quên; màn chốt kỳ báo còn bao nhiêu khoản.
+- Sau này API của request đẩy kèm mã đợt (`source` + `external_id`), gần như không còn phải ghép.
+
+### 7.6 Vai trò cột của Đợt thanh toán và Sổ com
+
+Bốn command tìm cột theo vai trò (mục 3.7), nên Manager sửa tên, định dạng, công thức mà không phải sửa code.
+
+| Bảng | Vai trò |
+|---|---|
+| Đợt thanh toán | `deal` (liên kết), `số tiền dự kiến`, `hạn`, `ngày tiền về`, `số tiền về`, `chia com đợt`, `kỳ`, `pháp nhân`, `mã số thuế`, `số hợp đồng` |
+| Sổ com | `người`, `đợt`, `kỳ`, `com`, `trạng thái com` |
+
+### 7.7 Đi thử một deal
+
+Sale tạo request ngày D; Manager chia A 15%, B 5% com sale; 3 đợt: D+7, D+21, D+35.
+
+| Lúc | Manager | Hệ thống |
+|---|---|---|
+| D | Tạo deal (tay hoặc "AI, tạo deal từ phiếu X, A 15%, B 5%"); Level BC, Performance BC, nguồn lead đọc từ phiếu | Deal hiện ở bảng của A, B và Leader của họ; Com dự kiến của tôi |
+| Ký hợp đồng | Lập lịch 3 đợt (hoặc "AI, lập lịch từ phiếu X") | Deal `Chờ tiền về`; forecast có số và ngày |
+| D+7 | Nhận thông báo tiền về → Ghép tiền về → xác nhận | Deal `Won`, Closing date = D+7, tra chính sách tại D+7; Sổ com: A 15%, B 5% tạm tính |
+| D+21, D+35 | Ghép, xác nhận | Thêm dòng Sổ com; deal `Đã thu đủ` |
+| Cuối tháng | Chốt kỳ (mục 12) | Sổ com của tháng thành số cứng; đợt về sau ngày chốt vào tháng sau |
 
 ## 8. BANT và hàng chờ "Cần chấm lại hôm nay"
 
@@ -379,15 +468,18 @@ Bốn cột B, A, N, T, mỗi cột: `Có bằng chứng` / `Chưa rõ` / `Âm`.
 
 ## 9. Commission
 
-- **POD:** Com sale = Doanh thu × tỉ lệ tra theo (Nguồn lead, Level BC, Performance BC); Com SoE = Com sale × tỉ lệ SoE. Nên `%Com team` = tỉ lệ tra được × tỉ lệ SoE.
-- **PS:** `%Com team` = tỉ lệ PS POD; chính thức tính trên tiền PS thực nhận từng đợt (bảng Thanh toán). Ở 4A giả định khách trả đủ.
+- **Com tính trên từng lần tiền về** (mục 7), không trên doanh thu dự kiến. Với mỗi đợt: `Com sale = Số tiền về × Tỉ lệ com sale`; com của một SoE = `Com sale × % com của người đó trong đợt`. Ví dụ com sale 100tr, A 15%, B 5%: A 15tr, B 5tr.
+- **POD:** `Tỉ lệ com sale` tra theo (Nguồn lead, Level BC, Performance BC).
+- **PS:** `Tỉ lệ com sale` = tỉ lệ PS POD (bảng Tham số com).
+- **`Tỉ lệ SoE`** (Tham số com, ví dụ 20%) **không nhân vào công thức**. Nó là **mức trần**: tổng % com của các SoE trong một deal, một đợt không vượt nó (mục 4.5). Manager chia trực tiếp % trên com sale, đúng con số đang ghi trên phiếu.
+- **Phiên bản chính sách:** mọi đợt của deal tra bản có hiệu lực tại **Closing date** (= ngày tiền về đợt đầu). Deal mở (com dự kiến) tra theo Ngày dự kiến chốt.
 - **POD Express, Data:** chưa có chính sách, cột hiện "Chưa có chính sách".
 - **Chính sách com là bảng hệ thống dùng chung** (công thức được tham chiếu bảng hệ thống, theo CLAUDE.md), không phải logic trong code. Hiện trong Quản lý Deal của mọi người; **chỉ Manager** thêm, sửa, cập nhật; người khác chỉ xem:
   - Bảng `Chính sách com`: Hiệu lực từ, Nguồn lead (ML/SH), Level, Performance, Doanh thu tối thiểu, Tỉ lệ. Dựng từ các sheet BC-ML, BC-SH.
   - Bảng `Tham số com`: Hiệu lực từ, Tên tham số (tỉ lệ SoE trên com sale, tỉ lệ PS POD…), Giá trị.
 - **Có phiên bản theo ngày hiệu lực:** Manager thêm một bộ dòng mới với `Hiệu lực từ` mới, không sửa dòng cũ. Dòng đã có hiệu lực bị khoá.
-- `%Com team` là công thức thường, tra đúng phiên bản theo Closing date. Ví dụ phần POD: `SUMIFS([Chính sách com].[Tỉ lệ], [Chính sách com].[Hiệu lực từ], MAXIFS([Chính sách com].[Hiệu lực từ], [Chính sách com].[Hiệu lực từ], "<="&[Closing date]), [Chính sách com].[Nguồn lead], [Nguồn lead], [Chính sách com].[Level], [Level BC], [Chính sách com].[Performance], [Performance BC])` nhân với tỉ lệ SoE tra cùng cách. Template dựng sẵn công thức này; Manager sửa khi chính sách đổi cách tính.
-- Thiếu đầu vào (ví dụ chưa có Level BC) thì `Com` để trống kèm lý do, không đoán.
+- `Tỉ lệ com sale` là công thức thường trên Deals, tra đúng phiên bản theo Closing date (deal mở: Ngày dự kiến chốt). Sổ com đọc nó khi sinh dòng. Ví dụ phần POD: `SUMIFS([Chính sách com].[Tỉ lệ], [Chính sách com].[Hiệu lực từ], MAXIFS([Chính sách com].[Hiệu lực từ], [Chính sách com].[Hiệu lực từ], "<="&[Closing date]), [Chính sách com].[Nguồn lead], [Nguồn lead], [Chính sách com].[Level], [Level BC], [Chính sách com].[Performance], [Performance BC])` (dùng `IF([Closing date]="", [Ngày dự kiến chốt], [Closing date])` làm ngày tra). Không nhân tỉ lệ SoE. Template dựng sẵn công thức này; Manager sửa khi chính sách đổi cách tính.
+- Thiếu đầu vào (ví dụ chưa có Level BC) thì `Tỉ lệ com sale` và com để trống kèm lý do, không đoán; màn chốt kỳ liệt kê các deal này.
 - Ai thấy com: chính người đó, Leader của họ, Manager của cây, Admin (chỉ đọc). Guest không bao giờ thấy.
 
 ## 10. Chỉ số
@@ -412,9 +504,10 @@ Bốn cột B, A, N, T, mỗi cột: `Có bằng chứng` / `Chưa rõ` / `Âm`.
 
 | Chỉ số | Cách tính |
 |---|---|
-| Doanh thu | Tổng Doanh thu × % doanh thu, deal Won, theo Closing date |
+| Doanh thu | Tổng `Số tiền về` của các đợt × % doanh thu, theo **ngày tiền về** (bảng Đợt thanh toán) |
+| Com | Tổng Sổ com theo Kỳ: đã chốt, tạm tính; com chờ nhận theo đợt chưa về |
 | Deal size | Tuỳ chọn trung vị / trung bình / trung bình cắt đuôi; outlier theo IQR |
-| Deal cycle | Closing date − Start date của deal Won; tuỳ chọn trung vị / trung bình, kèm P75 |
+| Deal cycle | Closing date − Start date của deal Won, tức là **tới lúc tiền về đợt đầu** (dài hơn cách Manager đang nhẩm tới lúc ký; biểu đồ ghi rõ); tuỳ chọn trung vị / trung bình, kèm P75. Cycle của deal Lost, Disqualified tính được nhờ Closing date tự điền |
 | Tỉ lệ PS kèm POD | PS kèm POD Won ÷ POD Won |
 | Tỉ lệ chuyển POD | Convert to POD ÷ (POD Express nhận − Disqualified) |
 | Workload | Tổng trọng số deal đang mở theo vai trò |
@@ -422,7 +515,9 @@ Bốn cột B, A, N, T, mỗi cột: `Có bằng chứng` / `Chưa rõ` / `Âm`.
 
 ## 11. Forecast và snapshot
 
-- Forecast như file mẫu: tổng Doanh thu của deal Processing có Closing date trong kỳ, theo loại deal. Đặt cạnh KPI còn thiếu của quý.
+- Forecast theo loại deal, đặt cạnh KPI còn thiếu của quý, tách hai phần:
+  - **Đã ký, chờ tiền về** (khá chắc): tổng `Số tiền dự kiến` của các đợt chưa về có hạn trong kỳ.
+  - **Chưa ký** (ước lượng, như file mẫu): Doanh thu dự kiến của deal Processing chưa có lịch, có Ngày dự kiến chốt trong kỳ.
 - Snapshot tự động 00:05 ngày đầu mỗi quý cho deal đang mở; Manager chụp thêm được.
 - Cuối quý so với snapshot đầu quý: mỗi deal trong snapshot rơi vào Won trong quý, trượt sang quý sau, Lost/Disqualified, hoặc vẫn mở. Độ chính xác = doanh thu Won thực tế ÷ forecast lúc chụp.
 
@@ -441,7 +536,7 @@ Mọi bảng đều có ô Thời gian của Module 2 mục 5.4. Quản lý Deal
 | **Liên quan đến kỳ** (mặc định) | Start date ≤ cuối kỳ, và deal đang mở hoặc Closing date ≥ đầu kỳ. Gồm deal nhận trong kỳ, deal đóng trong kỳ và deal còn chạy trong kỳ |
 | Nhận trong kỳ | Start date trong kỳ |
 | Đóng trong kỳ | Deal đã đóng, Closing date trong kỳ |
-| Dự kiến chốt trong kỳ | Deal đang mở, Closing date trong kỳ (giống forecast) |
+| Dự kiến chốt trong kỳ | Deal đang mở, Ngày dự kiến chốt trong kỳ hoặc có đợt chưa về hạn trong kỳ (giống forecast) |
 
 **Các bảng khác**
 
@@ -454,9 +549,28 @@ Mọi bảng đều có ô Thời gian của Module 2 mục 5.4. Quản lý Deal
 
 Thẻ KPI theo kỳ: chọn quý thì hiện KPI quý; chọn năm thì hiện KPI năm; chọn tháng thì hiện tiến độ của quý chứa tháng đó (KPI chỉ commit theo năm và quý).
 
-## 12. Khoá kỳ
+## 12. Chốt kỳ
 
-Cột kỳ của Deals là **Closing date** (theo tháng). Manager khoá kỳ cho cây mình. Kỳ đã khoá: không sửa Doanh thu, Status, Closing date, Loại deal, người tham gia và tỉ lệ của deal đóng trong kỳ. Cột tuỳ chỉnh, ghi chú, BANT vẫn sửa được. Kỳ com của bảng Thanh toán tính riêng (mục 7).
+**Khoá kỳ và chốt kỳ com gộp làm một** (sửa 19/11 lần 2): kỳ theo tháng, Manager chốt cho cây mình, thường cuối tháng. Lý do gộp: khoá deal theo Closing date chỉ giữ được đợt tiền về đầu; đợt 2, đợt 3 về ở tháng khác thì không được giữ.
+
+**Một lần chốt đóng băng ba thứ của tháng:**
+
+- Dòng Đợt thanh toán có `Kỳ` là tháng đó: khoá ngày tiền về, số tiền, chia com, không huỷ xác nhận được.
+- Dòng Sổ com của kỳ: từ công thức thành **giá trị cứng**, trạng thái `Đã chốt`.
+- Deal đóng trong tháng (Closing date): khoá Status, Closing date, Loại deal. Cột tuỳ chỉnh, ghi chú, BANT vẫn sửa được. Người tham gia và % com của deal vẫn sửa được, vì chỉ ảnh hưởng các đợt chưa về; % doanh thu thì khoá (đổi doanh thu của tháng đã chốt).
+
+**Màn "Chốt kỳ tháng N"**
+
+- **Cần xử lý trước khi chốt:** đợt quá hạn chưa xác nhận; khoản trong **Tiền về chưa ghép**; đợt đã về mà tổng % com khác mức trần `Tỉ lệ SoE`; deal có tiền về mà thiếu Level BC / Performance BC (com trống); **dòng do AI hoặc API nhập chưa `Đã kiểm`**; deal Processing quá hạn đợt đầu lâu (tham số, mặc định 30 ngày). Không bắt buộc xử lý hết mới chốt được, nhưng phải xác nhận "Chốt dù còn N mục".
+- **Com theo người:** bảng tổng com của kỳ theo người (đã gồm điều chỉnh); bấm vào một người thấy từng dòng Sổ com.
+- Bấm **Chốt** → xuất XLSX bảng com cho kế toán (thay bảng team Data gửi mỗi kỳ).
+- Nhắc chốt kỳ và nhắc đợt sắp đến hạn: Module 6.
+
+**Sau khi chốt**
+
+- Tiền về có ngày thuộc tháng đã chốt (xác nhận muộn) → `Kỳ` là kỳ đang mở, nhãn `Về muộn`. Không bắt mở lại kỳ.
+- Sai sót phát hiện sau → dòng **Điều chỉnh** vào kỳ đang mở (mục 7.4). Dòng đã chốt không bao giờ sửa.
+- **Mở lại kỳ:** Manager được, ghi nhật ký, không cần người thứ hai duyệt; dùng để sửa Status, Closing date hoặc chuyển vai trò cột (mục 3.7). Mở lại **không** làm Sổ com đã chốt tính lại: dòng `Đã chốt` vẫn đứng yên, chênh lệch đi qua dòng điều chỉnh. Tiền com đã trả không có cách nào đổi ngầm.
 
 ## 13. Dashboard Deals mặc định
 
@@ -468,17 +582,25 @@ Dashboard hệ thống, khoá, đầu danh sách; nhân bản để tuỳ chỉn
 2. **Còn thiếu bao nhiêu** để đạt KPI và Goal.
 3. **Winrate hiện tại (CR2)**, kèm CR1.
 
-Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách (CR1) → Won (CR2); bảng cohort winrate; forecast quý so với KPI còn thiếu; deal size và cycle (box plot, outlier); ma trận BANT và số deal cần chấm lại; Leader/Manager có thêm workload và doanh thu, winrate theo người.
+Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách (CR1) → Won (CR2); bảng cohort winrate; forecast quý (đã ký chờ tiền về / chưa ký) so với KPI còn thiếu; com tháng này (tạm tính), com đã nhận, com chờ nhận; đợt sắp đến hạn và quá hạn; deal size và cycle (box plot, outlier); ma trận BANT và số deal cần chấm lại; Leader/Manager có thêm workload và doanh thu, winrate, com theo người.
+
+**Ai sửa, nhân bản, vai trò** (Dương chốt 19/11/2026)
+
+- User, Leader chỉ xem dashboard hệ thống. **Manager sửa cho cây mình** (thêm, bỏ, đổi biểu đồ, đổi chỉ số dùng vai trò hay cột nào), qua màn xem trước "Áp dụng cho N người", có nút **Về bản mặc định**. Admin giữ bản mặc định (sinh cho cây mới), như template (mục 3.1). Đổi **cột nào là "Doanh thu"** không làm trên dashboard mà ở trang Template (mục 3.7), vì nó ảnh hưởng cả chốt kỳ, forecast.
+- Chỉ số của dashboard hệ thống trỏ cột **theo vai trò** (`"field": {"role": "doanh_thu"}`, mở rộng nhỏ của Module 3), nên Manager chuyển vai trò sang cột khác thì dashboard tự tính theo cột mới.
+- **Nhân bản** thành dashboard riêng: bản sao **giữ nguyên chỗ trỏ theo vai trò**, đổi vai trò sau đó bản sao tự theo. Khi chọn cột cho biểu đồ, danh sách có nhóm **Vai trò** đứng trên nhóm cột, mỗi dòng ghi rõ đang trỏ vào đâu (`Doanh thu → cột "Doanh thu"`). Người dùng chọn được vai trò, không gắn, chuyển hay xoá được. Nhóm Vai trò chỉ hiện khi nguồn là bảng template có vai trò.
+- Số luôn theo phạm vi người xem: vai trò chọn cột, khoá phân chia chọn dòng (mục 3.7). KPI, còn thiếu, doanh thu theo người dùng `doanh thu được tính` (phần của người xem, không cộng trùng deal chia nhiều người); quy mô pipeline, deal size, forecast dùng `doanh thu` (giá trị cả deal).
 
 ## 14. Hệ thống ngoài và nhập lịch sử
 
-- API `deal.upsert` theo `source` + `external_id`, kèm người tham gia `{ email, role, revenue_share, com_share }`. Tài khoản hệ thống chỉ ghi vào cây được cấp.
-- Ánh xạ BPM (dùng khi nối): Tên Doanh nghiệp → Tên công ty; Loại dịch vụ + Gói dịch vụ + kết quả "Tra cứu POD trong nhóm khách hàng" → Loại deal (bảng ánh xạ do Admin/Manager sửa, vì `POD Showcase` chưa phân biệt `POD bán mới` với `POD CSM`); Deal size ước tính / Total Revenue (non VAT) → Doanh thu; Ngày dự kiến chốt / Closing Date → Closing date; Mã số thuế; Danh sách SoE tham gia deal (`Lead SoE` → Leading, `Support SoE` → Associate, `% Com`, `% Rev`); outcome → Status (mục 4.4).
-- **Nhập lịch sử** (Manager, cho cây mình): luồng import của Module 2 với mẫu ánh xạ có sẵn cho sheet `Raw PODPS` và sheet `Deals` của file mẫu. Cột không có trong template thì nhập thành cột tuỳ chỉnh của Manager.
+- API `deal.upsert` theo `source` + `external_id`, kèm người tham gia `{ email, role, revenue_share, com_share, count_deal }` (`com_share` là % trên com sale). Tài khoản hệ thống chỉ ghi vào cây được cấp.
+- Thanh toán: `payment.schedule` (lịch đợt, mỗi đợt có `external_id`), `payment.confirm` (theo `external_id` của đợt, hoặc theo thông tin UNC rồi ghép như mục 7.5), `payment.match_candidates`. Hiện tại Manager gọi qua giao diện hoặc AI; sau này request của Base đẩy qua kết nối API do Manager tạo (Module 5).
+- Ánh xạ BPM (dùng khi nối): Tên Doanh nghiệp → Tên công ty; Loại dịch vụ + Gói dịch vụ + kết quả "Tra cứu POD trong nhóm khách hàng" → Loại deal (bảng ánh xạ do Admin/Manager sửa, vì `POD Showcase` chưa phân biệt `POD bán mới` với `POD CSM`); Deal size ước tính / Revenue (Forecast) → Doanh thu (deal mở); Ngày dự kiến chốt → Ngày dự kiến chốt; Bảng chia đợt thanh toán / Bảng chia thanh toán – ver 2 → Đợt thanh toán; Mã số thuế; Danh sách SoE tham gia deal (`Lead SoE` → Leading, `Support SoE` → Associate, `% Com`, `% Rev`); outcome → Status (mục 4.4).
+- **Nhập lịch sử** (Manager, cho cây mình): luồng import của Module 2 với mẫu ánh xạ có sẵn cho sheet `Raw PODPS` và sheet `Deals` của file mẫu. Cột không có trong template thì nhập thành cột tuỳ chỉnh của Manager. Sheet cũ ghi mỗi lần tiền về một dòng: trình nhập gộp các dòng cùng deal (cùng mã số thuế + tên + loại deal, Manager xác nhận) thành một deal kèm các đợt đã về, để không đếm một deal thành nhiều deal Won (mục 5). Kỳ cũ nhập vào ở trạng thái đã chốt.
 
 ## 15. Phân quyền và tích hợp
 
-- Tạo deal, phân deal, chia tỉ lệ, `Huỷ`, chính sách com, khoá kỳ, snapshot: Manager (cây mình).
+- Tạo deal, phân deal, chia tỉ lệ, `Huỷ`, chính sách com, lập lịch thanh toán, xác nhận và ghép tiền về, chia com theo đợt, chốt kỳ, mở lại kỳ, điều chỉnh com, snapshot: Manager (cây mình), trực tiếp hoặc qua kết nối AI/API của Manager (Module 5).
 - Sửa template (lớp Cơ bản, Theo vai trò): Admin, Manager. Lớp Theo team: Leader.
 - Guest: đăng ký loại dữ liệu "Deals" với khung cấp dữ liệu Module 1 mục 5.2: chỉ cột lớp Cơ bản kiểu "giá trị chung", không bao giờ cột tuỳ chỉnh, cột theo người và com.
 - Chuyển giao: deal mở chuyển vai trò sang người đích, deal đóng giữ người cũ; datahub "Quản lý Deal" của người nguồn: bảng tự tạo chuyển sang người đích; Probation KPI giữ tên người nguồn.
@@ -486,7 +608,8 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 
 ## 16. Giao diện tối thiểu (Stage 4)
 
-- Menu Quản lý Deal: Deals, Index, Probation KPI, bảng tự tạo, Dashboard; Manager thấy thêm bảng của Manager và mục Quản lý (phân deal, chính sách com, khoá kỳ, snapshot, nhập lịch sử).
+- Menu Quản lý Deal: Deals, Index, Probation KPI, bảng tự tạo, Dashboard; Manager thấy thêm bảng của Manager và mục Quản lý (phân deal, chính sách com, chốt kỳ, snapshot, nhập lịch sử).
+- Thanh toán: bảng Đợt thanh toán với view Chờ tiền về / Đã về tháng này / Do AI nhập chưa kiểm; hộp thoại lập lịch cho một deal; công cụ **Ghép tiền về** (nhập hoặc dán thông tin UNC, danh sách gợi ý kèm lý do, chia một khoản vào nhiều đợt, hàng Tiền về chưa ghép); màn **Chốt kỳ tháng N** (mục 12). Sổ com với view Com của tôi theo kỳ.
 - Deals: grid Module 2, view hệ thống (Ưu tiên hôm nay, Đang mở, Cần chấm lại), ngăn chi tiết deal (người tham gia, BANT, lịch sử).
 - Trang Template (mục 3.8): lối vào, danh sách bảng theo phạm vi, tạo bảng template, bốn lớp, thuộc tính cột, quyền sửa ô, vai trò cột, quyền Leader theo bảng, xem trước ảnh hưởng ("áp dụng cho 18 người"), danh sách bản sửa của các team. Nhãn `Mẫu` / `Riêng` / `Team sửa` trên tiêu đề cột.
 - Datahub: datahub "Quản lý Deal" hiện trong danh sách với biểu tượng khoá.
@@ -494,7 +617,8 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 ## 17. Kiểm thử
 
 - Unit: quy tắc BANT, hàng chờ, CR1/CR2 cohort với từng mốc tuỳ chọn, chia doanh thu và com theo tỉ lệ, com theo phiên bản chính sách, ràng buộc Status, lớp template và xử lý trùng tên.
-- Ma trận quyền: vai trò × cột × kênh; template; cột theo team của Leader; Guest không thấy cột tuỳ chỉnh và com; khoá kỳ; bảo vệ datahub/bảng/cột mặc định.
+- Thanh toán: xác nhận đợt đầu → Won + Closing date; huỷ xác nhận trước chốt; về thiếu tách đợt; một khoản chia nhiều đợt; % com theo đợt khác deal; trần `Tỉ lệ SoE`; chốt kỳ đóng băng (đổi chính sách, đổi % sau chốt không đổi dòng đã chốt); về muộn vào kỳ đang mở; điều chỉnh âm; mở lại kỳ không tính lại Sổ com; idempotency (gọi xác nhận hai lần không sinh com hai lần); chấm điểm ghép (ghi nhớ số tài khoản, VAT, tên pháp nhân bỏ dấu); khoá phân chia của Đợt và Sổ com (A không thấy com của B, Leader thấy team, SSE không lộ).
+- Ma trận quyền: vai trò × cột × kênh; template; cột theo team của Leader; Guest không thấy cột tuỳ chỉnh và com; chốt kỳ; chuyển vai trò khi kỳ đã chốt bị chặn; bảo vệ datahub/bảng/cột mặc định.
 - **Golden test:** sheet Deals của file mẫu không có dòng dữ liệu nên Index trong file toàn số 0. Thay bằng: import `Raw PODPS` vào Deals, so Index của SoE Hub với một script tham chiếu đọc thẳng `examples/` trên máy, dùng đúng logic COUNTIFS/SUMIFS của sheet Index (có và không có sửa lỗi mục 4.6). Không commit dữ liệu; máy không có file thì bỏ qua.
 - Test com dùng bảng tỉ lệ tự dựng, không dùng số của chính sách thật.
 - Load test 100.000 deal: Deals, Index, dashboard mặc định.
@@ -516,6 +640,12 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 | Phạm vi xem deal là luật riêng của Deals (Module 1 mục 4.1); Leading sửa, Associate/Advisor chỉ xem (mục 4.3 cũ) | Một cơ chế chia sẻ cho mọi bảng: thành viên Xem/Sửa, **khoá phân chia** bật/tắt (thấy dòng có tên mình hoặc người mình quản lý), cho phép sửa theo cột; mọi người tham gia có cùng quyền; Manager tắt được khoá phân chia của Deals | Module 1 mục 4.1, Module 2 mục 4, 10, code 2C-4 (chia sẻ), CLAUDE.md |
 | Ô Người dùng chọn được mọi người trong hệ thống | Chỉ nhận thành viên của bảng | Module 2 mục 4, code 2C-3 |
 | Golden test so số với Excel (Module 0 mục 21) | So với script tham chiếu trên `Raw PODPS` (mục 17) | Module 0, Stage 2B |
+| Khoá kỳ theo Closing date, chỉ khoá deal (mục 12 cũ); kỳ com tính riêng ở bảng Thanh toán | **Chốt kỳ** gộp: một lần chốt đóng băng Đợt thanh toán, Sổ com và deal đóng của tháng; mở lại kỳ không tính lại com đã chốt (mục 12) | Module 0 (khoá kỳ), CLAUDE.md |
+| Bảng Thanh toán riêng của Manager, mỗi dòng một lần tiền về (mục 7 cũ, khung) | Hai bảng chung **Đợt thanh toán** và **Sổ com**, khoá phân chia; bốn command; ghép tiền về (mục 7) | Module 2 mục 10 (khoá phân chia), CLAUDE.md |
+| Won do người chọn; Closing date nhập tay, deal mở dùng làm ngày dự kiến | **Won chỉ khi tiền về đợt đầu**; Closing date hệ thống điền; thêm Ngày dự kiến chốt (mục 4.1, 4.4) | CLAUDE.md |
+| `%Com team` = tỉ lệ tra × tỉ lệ SoE; % com cá nhân cộng tới 100% | `Tỉ lệ com sale`; % com là **% trên com sale**, tổng ≤ `Tỉ lệ SoE` (trần) (mục 9) | — |
+| Cột `Không tính vào báo cáo` | Bỏ; thay bằng % doanh thu và `Tính vào số deal` trong Người tham gia (mục 4.5) | — |
+| Doanh thu Index, KPI theo Closing date | Theo ngày tiền về của từng đợt (mục 5) | Module 3 (chỉ số mặc định) |
 
 ## 19. Kiểm tra với Module 2 khi code Stage 4
 
@@ -529,11 +659,13 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 6. Kiểu **Người dùng có thuộc tính** (mỗi người chọn kèm vài ô: nhãn, phần trăm), và cơ chế tự điền cột mỗi-người-một-giá-trị từ cột đó (mục 4.5).
 7. Cột hệ thống Ngày tạo, Người tạo, Ngày sửa, Người sửa có ở mọi bảng, ẩn được.
 8. Bản sửa riêng của team (Leader) đè lên định nghĩa cột template; cột riêng được "Đưa vào template".
-9. Cột liên kết, lookup, rollup và công thức từ bảng riêng (Index, Thanh toán, bảng tự tạo) sang Deals, Probation KPI; luật "cùng chủ" của công thức phải coi các bảng này là của chủ datahub.
+9. Cột liên kết, lookup, rollup và công thức từ bảng riêng (Index, bảng tự tạo) và bảng chung (Đợt thanh toán, Sổ com) sang Deals, Probation KPI; luật "cùng chủ" của công thức phải coi các bảng này là của chủ datahub.
 10. Giới hạn bảng và cột áp đúng cho datahub "Quản lý Deal".
 11. **Vai trò cột** (mục 3.7): lưu ở định nghĩa cột; khoá kỳ, forecast, snapshot, BANT, Index, API ngoài đọc cột theo vai trò; chặn đổi kiểu/bỏ cột làm vai trò mất cột.
 12. Bảng template riêng (Index) sinh cho mọi người trong phạm vi; ẩn/hiện khi đổi team.
 13. Phần Module 2 phải sửa do các quyết định 19/11 làm ở **bước con 4.1** (mục 19a), trước mọi phần khác của Stage 4.
+14. Chỉ số trỏ cột **theo vai trò** (`"field": {"role": ...}`, mục 13) trong engine metric của Module 3: phân giải vai trò → cột lúc tính, theo cây của bảng; danh sách "đang dùng" của màn xem trước chuyển vai trò đọc được các chỉ số này. Làm cùng dashboard hệ thống, không sửa Stage 3.
+15. Thanh toán (mục 7): bốn command và query ghép là code Module 4 trên engine Datahub (ghi dòng qua `rows`, sinh dòng Sổ com, đổi công thức thành giá trị khi chốt). Kiểm `Người dùng có thuộc tính` dùng được cho `Chia com đợt này`, và cột tự điền `Người tham gia` của Đợt làm khoá phân chia được (gửi xuống từ Deals như mục 4.5).
 
 ## 19a. Bước con 4.1: bổ sung Module 2 (code đã xong ở Stage 2)
 
