@@ -51,6 +51,28 @@ Mọi bảng mặc định ở trên là **bảng template** do hệ thống sin
 
 Khách mua POD và PS là **hai deal**, liên kết với nhau. Cách này khớp với file mẫu (mỗi dòng có một `Loại deal`) và với BPM (mỗi phiếu có một `Loại dịch vụ`).
 
+### 1.5 Dữ liệu là công thức, chức năng thuộc module
+
+Nguyên tắc (Dương chốt 19/11/2026), để bảo trì và nâng cấp module đơn giản:
+
+- **Dữ liệu** (giá trị của một ô suy ra được từ ô khác) luôn là **công thức, lookup, rollup** của engine Datahub. Ví dụ: Doanh thu, Closing date, Tỉ lệ com sale, Đã thu, Thanh toán, mọi cột của Index. Sửa ở trang Template, không sửa code.
+- **Chức năng** (thao tác tạo dòng, đổi trạng thái theo sự kiện, đóng băng, kiểm tra nghiệp vụ) là **command của module Quản lý Deal** trong registry, gom một chỗ (`apps/api/src/modules/deals/`), tìm cột theo vai trò (mục 3.7). Danh sách đầy đủ:
+
+| Chức năng | Mục |
+|---|---|
+| Lập lịch thanh toán, xác nhận tiền về (kèm đặt `Won`, sinh Sổ com), huỷ xác nhận, ghép tiền về | 7.4, 7.5 |
+| Chốt kỳ, mở lại kỳ, điều chỉnh com | 12, 7.4 |
+| Commit Probation KPI | 6 |
+| Sinh dòng tháng của Index (job ngày 1) | 5 |
+| Snapshot pipeline đầu quý | 11 |
+| Lịch sử chấm BANT, hàng chờ "Cần chấm lại hôm nay" | 8 |
+| Khoá dòng chính sách đã có hiệu lực | 9 |
+| Ràng buộc: tổng % com ≤ `Tỉ lệ SoE`, tổng % doanh thu ≤ 100%, `Won` không chọn tay, người tham gia cùng cây | 4.4, 4.5 |
+| Chặn chuyển vai trò cột làm đổi số kỳ đã chốt | 3.7 |
+
+- Cơ chế dùng chung của engine (tự điền từ `Người tham gia`, khoá phân chia, kiểu cột "Ngày sửa của cột") không thuộc danh sách này: chúng ở Module 2, bảng nào cũng dùng được.
+- Thêm việc mới: nếu là giá trị suy ra được thì làm công thức; chỉ thành command khi công thức không làm được (tạo dòng, đóng băng, phản ứng theo sự kiện).
+
 ## 2. Dữ liệu dùng chung và phạm vi
 
 - **Deals:** một bản ghi mỗi deal, lưu ở `dh_rows` như mọi bảng của Datahub. **Không có bảng `deals` riêng, không có cột thật của Postgres** (sửa 19/11). Deals là bảng template chung, **khoá phân chia bật**, khoá là `Người tham gia` (mục 3.5, Module 2 mục 10). Phạm vi dưới đây là kết quả của luật khoá phân chia chung, không phải luật riêng của Deals. Manager tắt được khoá phân chia của Deals (có cảnh báo): khi đó mọi người trong cây thấy mọi deal. Bảng Deals trong datahub của mỗi người là **cùng tập bản ghi đó, đã áp phạm vi**: User thấy deal mình tham gia, Leader thấy của mình và team, Manager thấy cả cây, Admin xem mọi cây ở chế độ chỉ đọc (Module 1 mục 4.1).
@@ -226,7 +248,10 @@ Vai trò của bảng Đợt thanh toán và Sổ com: mục 7.6.
 | 2 | Loại deal | Một lựa chọn | `POD bán mới`, `POD CSM`, `POD Express`, `PS kèm POD`, `PS không kèm POD`, `Data` (Data Validation) |
 | 3 | Start date | Ngày | Ngày nhận deal. Bắt buộc |
 | 4 | Ngày dự kiến chốt | Ngày | Deal đang mở: ngày dự kiến tiền về đợt đầu. Forecast dùng. Nhập tay (BPM: `Ngày dự kiến chốt`) |
-| 5 | Closing date | Ngày | **Hệ thống điền**, deal mở để trống. Won: ngày tiền về của đợt đầu (mục 7). Lost, Disqualified, Convert to POD, Huỷ: ngày đổi trạng thái, lấy từ lịch sử dòng; sửa tay được khi biết ngày chính xác hơn |
+| 5 | Closing date | Công thức | `IF([Ngày đóng (sửa tay)]<>"", [Ngày đóng (sửa tay)], IF([Status]="Won", [Ngày tiền về đầu tiên], IF(<Status là trạng thái đóng khác>, [Ngày đổi Status], "")))`. Deal mở để trống. Điều kiện trạng thái viết theo **nghĩa** của lựa chọn (mở/thắng/thua/huỷ, mục 3.7), không theo tên |
+| 5a | Ngày đóng (sửa tay) | Ngày | Manager nhập khi biết ngày chính xác hơn; để trống thì dùng ngày tự tính |
+| 5b | Ngày tiền về đầu tiên | Rollup | MIN `Ngày tiền về` của các đợt. Ẩn mặc định |
+| 5c | Ngày đổi Status | Ngày sửa của cột (Module 2 mục 4) | Theo dõi cột Status. Ẩn mặc định |
 | 6 | Ghi chú | Văn bản dài | |
 | 7 | Sale | Văn bản | Email hoặc tên sale (sale không phải người dùng SoE Hub) |
 | 8 | Status | Một lựa chọn | Mục 4.4 |
@@ -280,7 +305,7 @@ Theo mục 3.6: thành viên có quyền Sửa; cột được cho phép thì m�
 |---|---|---|
 | Tên công ty, Start date, Ngày dự kiến chốt, Ghi chú, Sale, Doanh thu dự kiến, Nguồn lead, Level BC, Performance BC, BANT, Mã số thuế | Có | Mọi người tham gia deal sửa như nhau. Leader sửa deal của team khi thành viên bật "Cho phép leader sửa deal của tôi" |
 | Status | Có, trừ `Won` và `Huỷ` | `Won` chỉ do xác nhận tiền về đặt (mục 4.4). `Huỷ` chỉ Manager |
-| Loại deal, Closing date | Không | Manager. Closing date hệ thống điền, Manager sửa tay khi cần |
+| Loại deal, Ngày đóng (sửa tay) | Không | Manager. Closing date là công thức, Manager ghi đè qua `Ngày đóng (sửa tay)` |
 | Người tham gia | Không | Manager |
 | Cột tự điền từ Người tham gia (14, 17a–17c, 17e, cột % của team) | Không | Sửa qua Người tham gia |
 | Cột rollup, cột công thức | — | Không ai sửa ô |
@@ -425,7 +450,7 @@ Bảng template chung của cây. Mỗi người, mỗi đợt một dòng. **Kh
 Là command trong registry (giao diện, REST, MCP, API ngoài gọi chung), có `Idempotency-Key`, ghi nhật ký. Chỉ Manager của cây (và kết nối AI/API của Manager).
 
 1. **Lập lịch thanh toán** `payment.schedule`: một lần gọi cho cả lịch của deal (deal + danh sách đợt), để AI đọc một phiếu gọi một lần. Sửa lịch (thêm, bớt, đổi đợt chưa về) cũng qua command này. Không xoá đợt đã về.
-2. **Xác nhận tiền về** `payment.confirm`: một hoặc nhiều đợt. Ghi ngày, số tiền, thông tin người trả. Nếu là đợt đầu của deal: deal → `Won`, `Closing date` = ngày tiền về. Sinh dòng Sổ com `Tạm tính` cho từng người theo `Chia com đợt này`. Về thiếu thì hỏi tách phần còn lại thành đợt mới (giữ hạn). Một khoản tiền trả cho nhiều đợt hoặc nhiều deal: chia một khoản vào nhiều đợt, tổng phải bằng số tiền về. **Huỷ xác nhận** được khi kỳ chưa chốt (xoá dòng Sổ com tạm tính; đợt duy nhất thì deal về Processing).
+2. **Xác nhận tiền về** `payment.confirm`: một hoặc nhiều đợt. Ghi ngày, số tiền, thông tin người trả. Nếu là đợt đầu của deal: deal → `Won` (Closing date tự ra bằng công thức, mục 4.1). Sinh dòng Sổ com `Tạm tính` cho từng người theo `Chia com đợt này`. Về thiếu thì hỏi tách phần còn lại thành đợt mới (giữ hạn). Một khoản tiền trả cho nhiều đợt hoặc nhiều deal: chia một khoản vào nhiều đợt, tổng phải bằng số tiền về. **Huỷ xác nhận** được khi kỳ chưa chốt (xoá dòng Sổ com tạm tính; đợt duy nhất thì deal về Processing).
 3. **Chốt kỳ** `period.close` (mục 12): đóng băng Đợt, Sổ com và deal đóng của tháng.
 4. **Điều chỉnh** `commission.adjust`: thêm dòng `Điều chỉnh` vào kỳ đang mở, có lý do.
 
@@ -578,7 +603,7 @@ Thẻ KPI theo kỳ: chọn quý thì hiện KPI quý; chọn năm thì hiện K
 
 - Dòng Đợt thanh toán có `Kỳ` là tháng đó: khoá ngày tiền về, số tiền, chia com, không huỷ xác nhận được.
 - Dòng Sổ com của kỳ: từ công thức thành **giá trị cứng**, trạng thái `Đã chốt`.
-- Deal đóng trong tháng (Closing date): khoá Status, Closing date, Loại deal. Cột tuỳ chỉnh, ghi chú, BANT vẫn sửa được. Người tham gia và % com của deal vẫn sửa được, vì chỉ ảnh hưởng các đợt chưa về; % doanh thu thì khoá (đổi doanh thu của tháng đã chốt).
+- Deal đóng trong tháng (Closing date): khoá Status, Ngày đóng (sửa tay), Loại deal (Closing date là công thức nên đứng yên khi đầu vào bị khoá). Cột tuỳ chỉnh, ghi chú, BANT vẫn sửa được. Người tham gia và % com của deal vẫn sửa được, vì chỉ ảnh hưởng các đợt chưa về; % doanh thu thì khoá (đổi doanh thu của tháng đã chốt).
 
 **Màn "Chốt kỳ tháng N"**
 
@@ -725,6 +750,8 @@ Các quyết định ngày 19/11/2026 (bảng template, chia sẻ thống nhất
 19. Grid: ô của cột không cho phép sửa hiện chỉ đọc; ô Người dùng chỉ gợi ý thành viên; người đã bị gỡ hiện "không còn quyền".
 19a. **View nhóm thu gọn** (Module 2 mục 5.1, Dương chốt 19/11/2026): nút "Thu gọn tất cả / Mở tất cả" trong grid khi đang nhóm (`apps/web/src/lib/datahub/session.ts` đang giữ `closed` trong bộ nhớ, chưa lưu); lưu trạng thái thu gọn vào `config` của view (bản riêng khi người được chia sẻ đổi, như mọi thay đổi view). Nhóm đổi giá trị thì nhóm mới mở hay đóng theo chế độ "thu gọn tất cả".
 19b. **Xuất dạng tổng hợp**: `export-job.ts` nhận tuỳ chọn `groups_only`; đọc nhóm và ô tổng bằng đúng truy vấn của `rows-groups.ts` (một nơi tính, không tính lại ở export), áp phạm vi người xuất; XLSX ghi cột nhóm + Số dòng + cột tổng, nhóm lồng thụt lề hoặc thêm cột cấp. Hộp thoại xuất có lựa chọn "Dòng nhóm / Mọi dòng" khi view đang nhóm. Test: số trong file bằng số dòng tổng trên grid, kể cả khi khoá phân chia bật.
+19c. **Kiểu cột "Ngày sửa của cột…"** (Module 2 mục 4): chọn 1–5 cột theo dõi; ghi thời điểm khi người, API, form, command đổi giá trị cột đó (ghi do công thức tính lại không tính, cùng luật nhật ký); chỉ đọc. Tạo trên bảng đã có dữ liệu thì điền lại từ `row_history`. Deals dùng cho `Ngày đổi Status` (Module 4 mục 4.1).
+19d. **Đổi tên lựa chọn có công thức so chữ** (Module 2 mục 6): khi đổi tên lựa chọn của một cột, server tìm công thức có so sánh cột đó với chữ trùng tên cũ (`[Status]="Won"`, `COUNTIFS([Status], "Won")`…); hộp thoại liệt kê và mặc định "Cập nhật cả các công thức này". Không cập nhật thì công thức không lỗi mà ra sai im lặng, nên phải cảnh báo.
 
 **D. Kiểm thử**
 

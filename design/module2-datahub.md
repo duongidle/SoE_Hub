@@ -53,7 +53,7 @@ Lý do: khi viết công thức `[Datahub B].[Thanh toán].[Số tiền]`, mỗi
 | File | Đính kèm |
 | Liên kết | Liên kết dòng (sang bảng khác của cùng chủ), Lookup (kéo một cột qua liên kết), Rollup (tổng hợp qua liên kết) |
 | Tính toán | Công thức, Số tự tăng |
-| Hệ thống | Mã dòng, Ngày tạo, Người tạo, Ngày sửa, Người sửa |
+| Hệ thống | Mã dòng, Ngày tạo, Người tạo, Ngày sửa, Người sửa, **Ngày sửa của cột…** (chọn 1–5 cột theo dõi; như `LAST_MODIFIED_TIME({Cột})` của Airtable; Dương chốt 19/11/2026) |
 
 - Thuộc tính cột: bắt buộc, duy nhất, giá trị mặc định, mô tả, định dạng hiển thị (số chữ số thập phân, dấu phân cách, đơn vị), **cho phép sửa** (mục 10).
 - **Ô Người dùng chỉ nhận thành viên của bảng** (chủ bảng và người trong danh sách chia sẻ, mục 10). Ô chọn chỉ gợi ý những người này. Muốn tag người mới thì chủ thêm người đó vào danh sách chia sẻ trước. API, MCP, import, form ghi người ngoài danh sách thì nhận lỗi có cấu trúc.
@@ -130,6 +130,7 @@ Bổ sung ngày 18/11/2026 theo yêu cầu của Dương, làm ở phần 2C.
 
 - `[Cột]` là giá trị của dòng hiện tại. `[Bảng].[Cột]` và `[Datahub].[Bảng].[Cột]` là cả cột của bảng đó, dùng trong các hàm tra cứu và tổng hợp.
 - Khi lưu, tên được đổi thành mã. Đổi tên thì công thức tự hiện tên mới.
+- **Chữ trong công thức không đổi theo:** so sánh với tên lựa chọn (`[Status]="Won"`) là so chữ. Đổi tên lựa chọn thì hộp thoại liệt kê các công thức so cột đó với tên cũ và mặc định cập nhật cả chúng; bỏ chọn thì cảnh báo công thức sẽ ra sai im lặng (không báo lỗi). Áp dụng cả chỉ số, bộ lọc view lưu theo tên.
 - Không có tham chiếu ô kiểu `A1`, không có công thức theo từng ô.
 
 ### 6.2 Hàm (khoảng 100)

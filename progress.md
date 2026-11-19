@@ -16,7 +16,7 @@ Cập nhật: 19/11/2026
    - 2C: làm cả công cụ **Tìm dòng trùng** (Module 2 mục 7a).
    - 2C: làm cả ô **Lọc theo thời gian** (Module 2 mục 5.4, bổ sung 18/11): lưu trong `config.time_filter` của view, server dịch sang `between`/toán tử ngày; không cần đổi schema.
    - Bảng gộp thuộc Stage 3 (Module 3 mục 4), không làm ở Stage 2.
-4. **Module 4 đã chốt (19/11)**; CLAUDE.md và Module 1 đã ghi các thay đổi của mục 18. Khi code Stage 4 làm mục 19 (đối chiếu Module 2). **Sửa 19/11 (Dương chốt):** bảng template, khoá phân chia, vai trò cột, template theo cây/team, trang Template (Module 4 mục 3.5–3.8); bỏ cột thật của Postgres cho Deals (Module 2 mục 3 còn hai nguồn cột). Stage 4 bỏ `PhysicalSource` trong `column-source.ts`; không ảnh hưởng 2D/2E. **Chia sẻ thống nhất** (khoá phân chia, cho phép sửa theo cột, ô Người dùng chỉ nhận thành viên; Module 2 mục 10) code ở **bước con 4.1 của Stage 4** (danh sách 23 việc ở Module 4 mục 19a), không chen vào 2E.
+4. **Module 4 đã chốt (19/11)**; CLAUDE.md và Module 1 đã ghi các thay đổi của mục 18. Khi code Stage 4 làm mục 19 (đối chiếu Module 2). **Sửa 19/11 (Dương chốt):** bảng template, khoá phân chia, vai trò cột, template theo cây/team, trang Template (Module 4 mục 3.5–3.8); bỏ cột thật của Postgres cho Deals (Module 2 mục 3 còn hai nguồn cột). Stage 4 bỏ `PhysicalSource` trong `column-source.ts`; không ảnh hưởng 2D/2E. **Chia sẻ thống nhất** (khoá phân chia, cho phép sửa theo cột, ô Người dùng chỉ nhận thành viên; Module 2 mục 10) code ở **bước con 4.1 của Stage 4** (danh sách 25 việc ở Module 4 mục 19a), không chen vào 2E.
 5. **Từ 19/11 kiểm thử theo cấp** (`CLAUDE.md` mục "Kiểm thử theo cấp"): bước con Sonnet chỉ test nhanh ở desktop; Opus rà bằng diff + kết quả; kiểm thử đầy đủ (cả bộ e2e, 375px, skill, `break-ui`) làm một lần ở bước con riêng **2E** (không chạy skill giao diện, `break-ui`: Stage 12): Sonnet chạy, Opus điều phối, đọc kết quả và quyết định đạt. Chuẩn giao diện đã tách sang `design/chuan-giao-dien.md`.
 7. **Cách làm 2E (Dương dặn 19/11):** chụp màn hình chỉ cho các màn hình chủ chốt, còn lại để Stage 12 xử lý một lần. Ưu tiên kiểm bằng code: assert trong Playwright, kiểm console và network bằng script. Ảnh chụp lưu ra file làm bằng chứng, chỉ mở xem khi assert fail hoặc khi cần nhìn bố cục. Đọc log chỉ phần lỗi. Không rà chuẩn giao diện, không chạy bộ skill giao diện hay `break-ui` (Stage 12). Chia 2E thành phiên: **2E-1** chạy toàn bộ test (`pnpm test`, cả bộ e2e desktop, luồng chính ở điện thoại) và sửa lỗi; **2E-2** đi luồng thật các màn hình chủ chốt với từng vai trò + dữ liệu xấu nhất về chức năng/số liệu, kiểm điểm 3 (OpenAPI + Bruno đủ).
 6. Golden test 2B đã làm (đọc file mẫu, 3.322 công thức); số liệu và hai điểm lạ của file mẫu ở `design/module2-quyet-dinh-khi-code.md` mục 2B.
@@ -66,13 +66,14 @@ Module 3 vừa sửa sau khi Sonnet đọc (commit 36d3e03), vì Dương chốt 
 
 ## Việc đã xếp cho Stage 4 (sửa lại code Stage 2)
 
-**Bước con 4.1 làm đầu tiên của Stage 4**, trước khi dựng Deals. Danh sách đủ (23 việc, kèm file cần sửa) ở `design/module4-quan-ly-deal.md` mục 19a. Tóm tắt:
+**Bước con 4.1 làm đầu tiên của Stage 4**, trước khi dựng Deals. Danh sách đủ (25 việc, kèm file cần sửa) ở `design/module4-quan-ly-deal.md` mục 19a. Tóm tắt:
 - Khoá phân chia (lọc dòng theo người, kể cả cấp dưới), áp cho mọi chỗ đọc dòng và **SSE** (đang gửi cả dòng không được thấy).
 - Cho phép sửa theo cột; ô Người dùng chỉ nhận thành viên; gỡ thành viên đang được tag.
 - Tuỳ chọn "Thành viên được thêm dòng hàng loạt": chặn import, dán sinh dòng mới, API nhiều dòng (2D đang cho import).
 - Lookup/Rollup sang bảng có khoá phân chia tính theo từng người đọc.
 - Hạ tầng bảng template (cờ bảo vệ, lớp cột, vai trò cột); bỏ `PhysicalSource`.
 - View nhóm: thu gọn tất cả, lưu vào view; xuất dạng tổng hợp (việc 19a, 19b; Module 2 mục 5.1).
+- Kiểu cột "Ngày sửa của cột"; đổi tên lựa chọn cập nhật công thức so chữ (việc 19c, 19d).
 - Sau 4.1, Stage 4 thêm: thanh toán và com theo đợt (Module 4 mục 7, 12: bốn command, ghép tiền về, chốt kỳ), chỉ số trỏ cột theo vai trò (Module 4 mục 19 việc 14–15).
 
 
