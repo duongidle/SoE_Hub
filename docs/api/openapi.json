@@ -27445,6 +27445,1875 @@
         ]
       }
     },
+    "/api/v1/datahub/imports": {
+      "post": {
+        "operationId": "datahub.import.analyze",
+        "summary": "Bước 1–2 của import: nhận nguồn dữ liệu, trả danh sách sheet, số dòng, kiểu cột đoán được và 20 dòng xem trước.",
+        "description": "Nguồn là MỘT trong ba: `file_id` (file .xlsx hoặc .csv đã tải lên bằng `file.upload.init` + `file.upload.complete`), `url` (link Google Sheets đang để \"ai có link đều xem được\"; hệ thống tải về dạng xlsx, không dùng OAuth), hoặc `text` (dán từ Google Sheets/Excel hoặc CSV). Trả một việc ở trạng thái `draft`. Gọi `datahub.import.sheet` để đổi dòng tiêu đề của một sheet, `datahub.import.preview` để xem báo cáo trước khi chạy, `datahub.import.start` để chạy nền.",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.import.analyze",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000000
+                  },
+                  "filename": {
+                    "description": "Tên gợi ý cho nguồn `text` (đặt tên bảng mặc định).",
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "job": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "import",
+                                "export"
+                              ]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "draft",
+                                "pending",
+                                "running",
+                                "done",
+                                "failed",
+                                "cancelled"
+                              ]
+                            },
+                            "phase": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "progress": {
+                              "type": "object",
+                              "properties": {
+                                "done": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "total": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "done",
+                                "total"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "datahub_id": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "table_id": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "params": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {},
+                              "description": "Tham số đã gửi khi tạo việc."
+                            },
+                            "report": {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Báo cáo: số dòng nhập, dòng lỗi, cột công thức dịch được hay không (import); số dòng xuất (export)."
+                            },
+                            "error": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "source_name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "result": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    },
+                                    "size_bytes": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "type",
+                                    "size_bytes"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "File kết quả (export) khi đã xong và chưa hết hạn."
+                            },
+                            "created_at": {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            "started_at": {
+                              "anyOf": [
+                                {
+                                  "anyOf": [
+                                    {},
+                                    {
+                                      "type": "string"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "finished_at": {
+                              "anyOf": [
+                                {
+                                  "anyOf": [
+                                    {},
+                                    {
+                                      "type": "string"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "kind",
+                            "status",
+                            "phase",
+                            "progress",
+                            "datahub_id",
+                            "table_id",
+                            "params",
+                            "report",
+                            "error",
+                            "source_name",
+                            "result",
+                            "created_at",
+                            "started_at",
+                            "finished_at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "sheets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "hidden": {
+                                "type": "boolean"
+                              },
+                              "header_row": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "row_count": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991,
+                                "description": "Số dòng dữ liệu (dưới dòng tiêu đề, bỏ dòng trống)."
+                              },
+                              "col_count": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "has_formulas": {
+                                "type": "boolean"
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "index": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "letter": {
+                                      "type": "string"
+                                    },
+                                    "header": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    },
+                                    "config": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string"
+                                      },
+                                      "additionalProperties": {}
+                                    },
+                                    "non_empty": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "formula_count": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "sample": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "index",
+                                    "letter",
+                                    "header",
+                                    "name",
+                                    "type",
+                                    "config",
+                                    "non_empty",
+                                    "formula_count",
+                                    "sample"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "preview": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "row": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "cells": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "row",
+                                    "cells"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "hidden",
+                              "header_row",
+                              "row_count",
+                              "col_count",
+                              "has_formulas",
+                              "columns",
+                              "preview"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "job",
+                        "sheets"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/datahub/imports/{job_id}/sheet": {
+      "post": {
+        "operationId": "datahub.import.sheet",
+        "summary": "Đọc lại một sheet với dòng tiêu đề khác (khi dòng 1 không phải tiêu đề).",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.import.sheet",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sheet": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "header_row": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000
+                  }
+                },
+                "required": [
+                  "sheet",
+                  "header_row"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "hidden": {
+                          "type": "boolean"
+                        },
+                        "header_row": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "row_count": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Số dòng dữ liệu (dưới dòng tiêu đề, bỏ dòng trống)."
+                        },
+                        "col_count": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "has_formulas": {
+                          "type": "boolean"
+                        },
+                        "columns": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "index": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "letter": {
+                                "type": "string"
+                              },
+                              "header": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "config": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "non_empty": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "formula_count": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "sample": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "index",
+                              "letter",
+                              "header",
+                              "name",
+                              "type",
+                              "config",
+                              "non_empty",
+                              "formula_count",
+                              "sample"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "preview": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "row": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "cells": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "row",
+                              "cells"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "hidden",
+                        "header_row",
+                        "row_count",
+                        "col_count",
+                        "has_formulas",
+                        "columns",
+                        "preview"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/datahub/imports/{job_id}/preview": {
+      "post": {
+        "operationId": "datahub.import.preview",
+        "summary": "Bước 5: báo cáo trước khi chạy: số dòng hợp lệ, dòng lỗi và lý do, cột công thức dịch được hay không, vượt giới hạn nào.",
+        "description": "Không ghi gì. Kiểm tra 5.000 dòng đầu của mỗi sheet bằng chính bộ kiểm tra kiểu cột của hệ thống (`sampled = true` nếu file dài hơn); lỗi ở các dòng sau chỉ biết khi chạy. `blocking` không rỗng = chưa chạy được (vượt giới hạn cột/bảng/datahub, trùng tên, thiếu quyền).",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.import.preview",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mapping": {
+                    "type": "object",
+                    "properties": {
+                      "datahub": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              }
+                            },
+                            "required": [
+                              "id"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "name"
+                            ]
+                          }
+                        ],
+                        "description": "Datahub nhập vào: có sẵn (`id`) hoặc tạo mới (`name`)."
+                      },
+                      "import_formulas": {
+                        "default": false,
+                        "description": "true = các cột có công thức trong file được thử dịch thành cột công thức; cột nào không dịch được thì nhập giá trị và báo lý do.",
+                        "type": "boolean"
+                      },
+                      "sheets": {
+                        "minItems": 1,
+                        "maxItems": 30,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "sheet": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "description": "Tên sheet trong file (file CSV hoặc dán: tên đã trả ở bước phân tích)."
+                            },
+                            "header_row": {
+                              "default": 1,
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 1000
+                            },
+                            "table": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "mode": {
+                                      "type": "string",
+                                      "const": "new"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 100
+                                    }
+                                  },
+                                  "required": [
+                                    "mode",
+                                    "name"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "mode": {
+                                      "type": "string",
+                                      "const": "existing"
+                                    },
+                                    "table_id": {
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                    }
+                                  },
+                                  "required": [
+                                    "mode",
+                                    "table_id"
+                                  ]
+                                }
+                              ]
+                            },
+                            "columns": {
+                              "description": "Bỏ trống = nhập mọi cột có tiêu đề hoặc có dữ liệu, kiểu do hệ thống đoán.",
+                              "maxItems": 500,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "index": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 1000,
+                                    "description": "Cột trong file, từ 0 (A = 0)."
+                                  },
+                                  "skip": {
+                                    "description": "true = không nhập cột này.",
+                                    "type": "boolean"
+                                  },
+                                  "target": {
+                                    "description": "Nhập vào cột có sẵn của bảng (mã hoặc tên cột). Bỏ trống = tạo cột mới.",
+                                    "type": "string",
+                                    "maxLength": 100
+                                  },
+                                  "name": {
+                                    "description": "Tên cột mới (mặc định lấy từ dòng tiêu đề).",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 100
+                                  },
+                                  "type": {
+                                    "description": "Kiểu cột mới (mặc định: hệ thống đoán).",
+                                    "type": "string",
+                                    "enum": [
+                                      "text",
+                                      "long_text",
+                                      "number",
+                                      "currency",
+                                      "percent",
+                                      "date",
+                                      "datetime",
+                                      "checkbox",
+                                      "rating",
+                                      "single_select",
+                                      "multi_select",
+                                      "email",
+                                      "phone",
+                                      "url"
+                                    ]
+                                  },
+                                  "config": {
+                                    "description": "Cấu hình cột mới (ví dụ `{max: 5}` cho đánh giá sao). Lựa chọn của cột Một/Nhiều lựa chọn tự lấy từ các giá trị trong file.",
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  },
+                                  "formula": {
+                                    "description": "Cột có công thức trong file: `formula` = lấy công thức (nếu dịch được), `value` = chỉ lấy giá trị. Mặc định theo `import_formulas`.",
+                                    "type": "string",
+                                    "enum": [
+                                      "value",
+                                      "formula"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "index"
+                                ]
+                              }
+                            },
+                            "write": {
+                              "default": "add",
+                              "description": "`add` thêm dòng mới; `upsert` cập nhật theo cột khoá (chưa có thì thêm); `replace` xoá hết dòng cũ (vào thùng rác 7 ngày) rồi nhập.",
+                              "type": "string",
+                              "enum": [
+                                "add",
+                                "upsert",
+                                "replace"
+                              ]
+                            },
+                            "key": {
+                              "description": "Cột khoá cho `upsert`: tên hoặc mã cột của bảng (cột đó phải được nhập).",
+                              "type": "string",
+                              "maxLength": 100
+                            },
+                            "on_error": {
+                              "default": "skip_row",
+                              "description": "Ô sai kiểu: `skip_row` bỏ cả dòng và báo lỗi (mặc định); `blank_cell` để ô trống, vẫn nhập dòng.",
+                              "type": "string",
+                              "enum": [
+                                "skip_row",
+                                "blank_cell"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "sheet",
+                            "table"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "datahub",
+                      "sheets"
+                    ]
+                  }
+                },
+                "required": [
+                  "mapping"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        },
+                        "blocking": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "sheets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "sheet": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "new_table": {
+                                "type": "boolean"
+                              },
+                              "rows_total": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "rows_checked": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "sampled": {
+                                "type": "boolean",
+                                "description": "true = chỉ kiểm tra 5.000 dòng đầu; lỗi ở các dòng sau chỉ biết khi chạy."
+                              },
+                              "valid": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "invalid": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "errors": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "row": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "column": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "message": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "row",
+                                    "column",
+                                    "message"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    },
+                                    "source": {
+                                      "type": "string",
+                                      "enum": [
+                                        "new",
+                                        "existing",
+                                        "formula"
+                                      ]
+                                    },
+                                    "formula": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "status": {
+                                              "type": "string",
+                                              "enum": [
+                                                "formula",
+                                                "value"
+                                              ]
+                                            },
+                                            "reason": {
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            },
+                                            "code": {
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            },
+                                            "warnings": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "status",
+                                            "reason",
+                                            "code",
+                                            "warnings"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ],
+                                      "description": "Có khi cột có công thức trong file và đã chọn lấy công thức."
+                                    }
+                                  },
+                                  "required": [
+                                    "name",
+                                    "type",
+                                    "source",
+                                    "formula"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "sheet",
+                              "table",
+                              "new_table",
+                              "rows_total",
+                              "rows_checked",
+                              "sampled",
+                              "valid",
+                              "invalid",
+                              "errors",
+                              "columns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "blocking",
+                        "sheets"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/datahub/imports/{job_id}/start": {
+      "post": {
+        "operationId": "datahub.import.start",
+        "summary": "Bước 6: chạy import nền với cách ghép đã chọn. Theo dõi bằng `datahub.job.get` (tiến độ, báo cáo từng sheet, dòng lỗi).",
+        "description": "Tạo datahub/bảng/cột mới (theo giới hạn của bạn), nhập dòng theo lô 500, dòng sai kiểu bị bỏ và ghi vào báo cáo (hoặc để trống ô, theo `on_error`). `import_formulas = true`: cột có công thức trong file được dịch thành cột công thức nếu mọi dòng cùng một công thức và mọi tham chiếu dịch được; không thì nhập giá trị và báo lý do từng cột. Cần quyền: datahub mới cần quyền tạo datahub; bảng/cột mới cần là chủ datahub; nhập vào bảng có sẵn cần quyền Sửa dữ liệu.",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.import.start",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mapping": {
+                    "type": "object",
+                    "properties": {
+                      "datahub": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              }
+                            },
+                            "required": [
+                              "id"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "name"
+                            ]
+                          }
+                        ],
+                        "description": "Datahub nhập vào: có sẵn (`id`) hoặc tạo mới (`name`)."
+                      },
+                      "import_formulas": {
+                        "default": false,
+                        "description": "true = các cột có công thức trong file được thử dịch thành cột công thức; cột nào không dịch được thì nhập giá trị và báo lý do.",
+                        "type": "boolean"
+                      },
+                      "sheets": {
+                        "minItems": 1,
+                        "maxItems": 30,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "sheet": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "description": "Tên sheet trong file (file CSV hoặc dán: tên đã trả ở bước phân tích)."
+                            },
+                            "header_row": {
+                              "default": 1,
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 1000
+                            },
+                            "table": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "mode": {
+                                      "type": "string",
+                                      "const": "new"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 100
+                                    }
+                                  },
+                                  "required": [
+                                    "mode",
+                                    "name"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "mode": {
+                                      "type": "string",
+                                      "const": "existing"
+                                    },
+                                    "table_id": {
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                    }
+                                  },
+                                  "required": [
+                                    "mode",
+                                    "table_id"
+                                  ]
+                                }
+                              ]
+                            },
+                            "columns": {
+                              "description": "Bỏ trống = nhập mọi cột có tiêu đề hoặc có dữ liệu, kiểu do hệ thống đoán.",
+                              "maxItems": 500,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "index": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 1000,
+                                    "description": "Cột trong file, từ 0 (A = 0)."
+                                  },
+                                  "skip": {
+                                    "description": "true = không nhập cột này.",
+                                    "type": "boolean"
+                                  },
+                                  "target": {
+                                    "description": "Nhập vào cột có sẵn của bảng (mã hoặc tên cột). Bỏ trống = tạo cột mới.",
+                                    "type": "string",
+                                    "maxLength": 100
+                                  },
+                                  "name": {
+                                    "description": "Tên cột mới (mặc định lấy từ dòng tiêu đề).",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 100
+                                  },
+                                  "type": {
+                                    "description": "Kiểu cột mới (mặc định: hệ thống đoán).",
+                                    "type": "string",
+                                    "enum": [
+                                      "text",
+                                      "long_text",
+                                      "number",
+                                      "currency",
+                                      "percent",
+                                      "date",
+                                      "datetime",
+                                      "checkbox",
+                                      "rating",
+                                      "single_select",
+                                      "multi_select",
+                                      "email",
+                                      "phone",
+                                      "url"
+                                    ]
+                                  },
+                                  "config": {
+                                    "description": "Cấu hình cột mới (ví dụ `{max: 5}` cho đánh giá sao). Lựa chọn của cột Một/Nhiều lựa chọn tự lấy từ các giá trị trong file.",
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  },
+                                  "formula": {
+                                    "description": "Cột có công thức trong file: `formula` = lấy công thức (nếu dịch được), `value` = chỉ lấy giá trị. Mặc định theo `import_formulas`.",
+                                    "type": "string",
+                                    "enum": [
+                                      "value",
+                                      "formula"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "index"
+                                ]
+                              }
+                            },
+                            "write": {
+                              "default": "add",
+                              "description": "`add` thêm dòng mới; `upsert` cập nhật theo cột khoá (chưa có thì thêm); `replace` xoá hết dòng cũ (vào thùng rác 7 ngày) rồi nhập.",
+                              "type": "string",
+                              "enum": [
+                                "add",
+                                "upsert",
+                                "replace"
+                              ]
+                            },
+                            "key": {
+                              "description": "Cột khoá cho `upsert`: tên hoặc mã cột của bảng (cột đó phải được nhập).",
+                              "type": "string",
+                              "maxLength": 100
+                            },
+                            "on_error": {
+                              "default": "skip_row",
+                              "description": "Ô sai kiểu: `skip_row` bỏ cả dòng và báo lỗi (mặc định); `blank_cell` để ô trống, vẫn nhập dòng.",
+                              "type": "string",
+                              "enum": [
+                                "skip_row",
+                                "blank_cell"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "sheet",
+                            "table"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "datahub",
+                      "sheets"
+                    ]
+                  }
+                },
+                "required": [
+                  "mapping"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "import",
+                            "export"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "draft",
+                            "pending",
+                            "running",
+                            "done",
+                            "failed",
+                            "cancelled"
+                          ]
+                        },
+                        "phase": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "progress": {
+                          "type": "object",
+                          "properties": {
+                            "done": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "total": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "done",
+                            "total"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "datahub_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "table_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "params": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {},
+                          "description": "Tham số đã gửi khi tạo việc."
+                        },
+                        "report": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Báo cáo: số dòng nhập, dòng lỗi, cột công thức dịch được hay không (import); số dòng xuất (export)."
+                        },
+                        "error": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "source_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "result": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "size_bytes": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "name",
+                                "type",
+                                "size_bytes"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "File kết quả (export) khi đã xong và chưa hết hạn."
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "started_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "finished_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "status",
+                        "phase",
+                        "progress",
+                        "datahub_id",
+                        "table_id",
+                        "params",
+                        "report",
+                        "error",
+                        "source_name",
+                        "result",
+                        "created_at",
+                        "started_at",
+                        "finished_at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "health",

@@ -1,0 +1,40 @@
+meta {
+  name: datahub.import.start
+  type: http
+  seq: 63
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/imports/{{job_id}}/start
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "mapping": {
+      "datahub": { "name": "Lead tháng 12" },
+      "import_formulas": false,
+      "sheets": [
+        {
+          "sheet": "du-lieu",
+          "header_row": 1,
+          "table": { "mode": "new", "name": "Lead" },
+          "write": "add",
+          "on_error": "skip_row"
+        }
+      ]
+    }
+  }
+}
+
+docs {
+  Bước 6: chạy import nền với cách ghép đã chọn. Theo dõi bằng `datahub.job.get` (tiến độ, báo cáo từng sheet, dòng lỗi).
+  Quyền: `datahub:datahub:use`.
+}

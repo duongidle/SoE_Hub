@@ -176,7 +176,9 @@ export async function purgeJobFiles(db: Db, storage: StorageDriver, now = new Da
   const old = await db.select().from(dhJobs).where(and(lt(dhJobs.updatedAt, cutoff), sql`(${dhJobs.resultKey} IS NOT NULL OR ${dhJobs.sourceKey} IS NOT NULL)`)).limit(500);
   for (const j of old) {
     if (j.status === "pending" || j.status === "running") continue;
-    for (const key of [j.resultKey, j.sourceKey]) if (key) await storage.delete(key).catch(() => {});
+    // A source that came from the person's own upload (`files/<id>`) belongs to the files module, not to the job.
+    const ownSource = (j.params as { own_source?: boolean } | null)?.own_source !== false;
+    for (const key of [j.resultKey, ownSource ? j.sourceKey : null]) if (key) await storage.delete(key);
     await db.update(dhJobs).set({ resultKey: null, sourceKey: null }).where(eq(dhJobs.id, j.id));
   }
   // Old finished rows are kept 30 days for the history, then removed.

@@ -1,0 +1,29 @@
+meta {
+  name: datahub.import.sheet
+  type: http
+  seq: 61
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/imports/{{job_id}}/sheet
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "sheet": "du-lieu",
+    "header_row": 2
+  }
+}
+
+docs {
+  Đọc lại một sheet với dòng tiêu đề khác (khi dòng 1 không phải tiêu đề).
+  Quyền: `datahub:datahub:use`.
+}

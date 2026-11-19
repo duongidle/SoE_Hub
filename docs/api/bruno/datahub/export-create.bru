@@ -19,15 +19,10 @@ headers {
 body:json {
   {
     "table_id": "{{table_id}}",
-    "datahub_id": "{{datahub_id}}",
     "format": "xlsx",
-    "filter": null,
-    "sort": "sort",
-    "search": "search",
-    "time_filter": {},
-    "columns": [
-      "column"
-    ]
+    "filter": { "field": "Doanh thu", "op": "gt", "value": 0 },
+    "sort": "Doanh thu:desc",
+    "columns": ["Tên", "Doanh thu"]
   }
 }
 

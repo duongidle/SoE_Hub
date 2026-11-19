@@ -1,0 +1,31 @@
+meta {
+  name: datahub.import.analyze
+  type: http
+  seq: 60
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/imports
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "text": "Tên	Doanh thu
+Công ty A	1000000
+Công ty B	2500000",
+    "filename": "du-lieu.csv"
+  }
+}
+
+docs {
+  Bước 1–2 của import: nhận nguồn dữ liệu, trả danh sách sheet, số dòng, kiểu cột đoán được và 20 dòng xem trước.
+  Quyền: `datahub:datahub:use`.
+}
