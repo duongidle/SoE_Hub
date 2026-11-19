@@ -6,6 +6,7 @@
 > Phụ thuộc: [Module 0](module0-nen-tang.md) (registry, lịch sử dòng, khoá kỳ, snapshot, outbox), [Module 1](module1-tai-khoan-phan-quyen.md) (cây tổ chức, phạm vi deal, Guest, chuyển giao), [Module 2](module2-datahub.md) (engine bảng, nguồn cột, công thức, liên kết, view), [Module 3](module3-metric-dashboard.md) (chỉ số, dashboard, snapshot trong chỉ số).
 > Đổi bởi [Module 7](module7-dynamic-form.md) (chốt 19/11/2026): datahub "Quản lý Deal" không làm đích và không làm nguồn dữ liệu của Form (mở rộng mục 15).
 > **Sửa 19/11/2026 (Dương chốt):** bảng template (chung/riêng, khoá phân chia), quyền sửa ô do người tạo bảng cấp, vai trò cột, template theo cây và theo team, trang Template; bỏ bảng `deals` có cột thật (mục 1.2, 1.3, 2, 3.1, 3.4, 3.5–3.8, 16, 18, 19).
+> Đổi bởi [Module 5](module5-ket-noi-ai.md) (chốt 19/11/2026): hệ thống ngoài của cây dùng key API của cây (mục 7.1, 14); thao tác lớn đi qua xem trước + mã xác nhận, AI không tự đánh `Đã kiểm` (mục 7.4, 15).
 > Để module sau: tool MCP (Module 5); nhắc hạn, nhắc chấm BANT (Module 6); gắn việc vào deal (Module 10).
 
 Nguồn: `examples/Quản lý Deal SoE (Dương TVD).xlsx` (sheet **Deals** là template mẫu, **Data Validation** là danh sách lựa chọn, **Index** là bảng theo tháng), `examples/bpm-dataset-soe.md` (BPM `[SoE] Deal Management`, Dataset `SOE`), `examples/chinh_sach_base_crm_ver_2.0_01062026_.pdf` (mục 4 Commission), workspace Base Inc (KPI, Goal, quy tắc BANT H-002).
@@ -393,7 +394,7 @@ Lưu **số đã commit từ đầu năm**, nằm cạnh Deals trong Quản lý 
 - **Deal chỉ Won khi tiền về.** Có lịch thanh toán không có nghĩa là tiền đã về. Com cũng chỉ có khi tiền về, mỗi lần tiền về chia com một lần, nhận theo tháng.
 - Hiện tại: mỗi lần tiền về là một dòng trong sheet (deal 3 đợt thành 3 dòng); team Data mở từng phiếu request, tính com; cuối kỳ Manager mở lại từng phiếu, nhẩm lại tỉ lệ và số tiền. Khó nhất là tiền về từ pháp nhân có tên khác tên deal, Manager phải dò xem là deal nào, đợt nào.
 - Mục tiêu: Manager ghép tiền về nhanh và đúng, không phải nhẩm com; nhân sự SoE thấy trực tiếp deal đã thu bao nhiêu, còn bao nhiêu, com đã nhận, com chờ nhận; cuối tháng chốt kỳ, qua tháng không sửa số đã nhận.
-- Nhập liệu: hiện tại Manager điền tay hoặc nhờ AI đọc phiếu request và workflow rồi điền (qua kết nối AI của Manager, Module 5). Sau này request đẩy dữ liệu qua API (Manager tạo kết nối API). Cả ba kênh gọi cùng các command ở mục 7.4.
+- Nhập liệu: hiện tại Manager điền tay hoặc nhờ AI đọc phiếu request và workflow rồi điền (qua kết nối AI của Manager, Module 5). Sau này request đẩy dữ liệu qua API bằng **key API của cây** (Manager tạo, Module 5 mục 2.5). Cả ba kênh gọi cùng các command ở mục 7.4.
 
 **Cách giải:** ghép tiền với deal **lúc lập lịch** (lúc thông tin hợp đồng còn đủ), không phải lúc tiền về. Dữ liệu nằm ở hai bảng template trên engine Datahub; tính toán là công thức thường; hệ thống chỉ thêm bốn command công thức không làm được (mục 7.4), tìm cột theo vai trò (mục 7.6).
 
@@ -456,7 +457,7 @@ Là command trong registry (giao diện, REST, MCP, API ngoài gọi chung), có
 3. **Chốt kỳ** `period.close` (mục 12): đóng băng Đợt, Sổ com và deal đóng của tháng.
 4. **Điều chỉnh** `commission.adjust`: thêm dòng `Điều chỉnh` vào kỳ đang mở, có lý do.
 
-AI dùng kết nối của Manager được ghi thẳng (không xin duyệt từng lần) vì mọi thứ vẫn `Tạm tính` cho tới khi Manager chốt kỳ; dòng do AI nhập phải được đánh dấu `Đã kiểm` ở màn chốt kỳ (mục 12).
+AI dùng kết nối của Manager được ghi thẳng (không xin duyệt từng lần) vì mọi thứ vẫn `Tạm tính` cho tới khi Manager chốt kỳ; dòng do AI nhập phải được đánh dấu `Đã kiểm` ở màn chốt kỳ (mục 12). AI không tự đánh `Đã kiểm` từng dòng; Manager chốt kỳ qua AI sau khi xem danh sách dòng chưa kiểm thì các dòng đó ghi `Kiểm khi chốt qua AI (tên kết nối)` (Module 5 mục 3.4).
 
 ### 7.5 Ghép tiền về
 
@@ -641,14 +642,14 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 
 ## 14. Hệ thống ngoài và nhập lịch sử
 
-- API `deal.upsert` theo `source` + `external_id`, kèm người tham gia `{ email, role, revenue_share, com_share, count_deal }` (`com_share` là % trên com sale). Tài khoản hệ thống chỉ ghi vào cây được cấp.
-- Thanh toán: `payment.schedule` (lịch đợt, mỗi đợt có `external_id`), `payment.confirm` (theo `external_id` của đợt, hoặc theo thông tin UNC rồi ghép như mục 7.5), `payment.match_candidates`. Hiện tại Manager gọi qua giao diện hoặc AI; sau này request của Base đẩy qua kết nối API do Manager tạo (Module 5).
+- API `deal.upsert` theo `source` + `external_id`, kèm người tham gia `{ email, role, revenue_share, com_share, count_deal }` (`com_share` là % trên com sale). Hệ thống ngoài của một cây dùng **key API của cây** (Module 5 mục 2.5): chỉ ghi vào cây đó, vẫn chạy khi đổi Manager. Tài khoản hệ thống của Admin (Module 1 mục 7) chỉ ghi vào cây được cấp.
+- Thanh toán: `payment.schedule` (lịch đợt, mỗi đợt có `external_id`), `payment.confirm` (theo `external_id` của đợt, hoặc theo thông tin UNC rồi ghép như mục 7.5), `payment.match_candidates`. Hiện tại Manager gọi qua giao diện hoặc AI; sau này request của Base đẩy qua key API của cây (Module 5 mục 2.5).
 - Ánh xạ BPM (dùng khi nối): Tên Doanh nghiệp → Tên công ty; Loại dịch vụ + Gói dịch vụ + kết quả "Tra cứu POD trong nhóm khách hàng" → Loại deal (bảng ánh xạ do Admin/Manager sửa, vì `POD Showcase` chưa phân biệt `POD bán mới` với `POD CSM`); Deal size ước tính / Revenue (Forecast) → Doanh thu (deal mở); Ngày dự kiến chốt → Ngày dự kiến chốt; Bảng chia đợt thanh toán / Bảng chia thanh toán – ver 2 → Đợt thanh toán; Mã số thuế; Danh sách SoE tham gia deal (`Lead SoE` → Leading, `Support SoE` → Associate, `% Com`, `% Rev`); outcome → Status (mục 4.4).
 - **Nhập lịch sử** (Manager, cho cây mình): luồng import của Module 2 với mẫu ánh xạ có sẵn cho sheet `Raw PODPS` và sheet `Deals` của file mẫu. Cột không có trong template thì nhập thành cột tuỳ chỉnh của Manager. Sheet cũ ghi mỗi lần tiền về một dòng: trình nhập gộp các dòng cùng deal (cùng mã số thuế + tên + loại deal, Manager xác nhận) thành một deal kèm các đợt đã về (mục 5). Dấu hiệu chính: dòng có `Không tính vào báo cáo: Số deal` cùng mã số thuế/tên/loại deal với một dòng khác là đợt sau của deal đó. Màn đối chiếu trước khi xác nhận: số deal Won và winrate theo từng quý của sheet cũ so với SoE Hub (phải bằng nhau; lệch thì liệt kê deal gây lệch). Kỳ cũ nhập vào ở trạng thái đã chốt.
 
 ## 15. Phân quyền và tích hợp
 
-- Tạo deal, phân deal, chia tỉ lệ, `Huỷ`, chính sách com, lập lịch thanh toán, xác nhận và ghép tiền về, chia com theo đợt, chốt kỳ, mở lại kỳ, điều chỉnh com, snapshot: Manager (cây mình), trực tiếp hoặc qua kết nối AI/API của Manager (Module 5).
+- Tạo deal, phân deal, chia tỉ lệ, `Huỷ`, chính sách com, lập lịch thanh toán, xác nhận và ghép tiền về, chia com theo đợt, chốt kỳ, mở lại kỳ, điều chỉnh com, snapshot: Manager (cây mình), trực tiếp hoặc qua kết nối AI/API của Manager hoặc key API của cây (Module 5). **Thao tác lớn** (chốt kỳ, mở lại kỳ, sửa template cả cây/team, chuyển vai trò cột) đi qua xem trước + mã xác nhận, cùng một đường cho web và AI; qua AI cần mức Toàn quyền (Module 5 mục 3.4).
 - Sửa template (lớp Cơ bản, Theo vai trò): Admin, Manager. Lớp Theo team: Leader.
 - Guest: đăng ký loại dữ liệu "Deals" với khung cấp dữ liệu Module 1 mục 5.2: chỉ cột lớp Cơ bản kiểu "giá trị chung", không bao giờ cột tuỳ chỉnh, cột theo người ("của tôi") và số tiền com. `Người tham gia` mặc định chỉ hiện tên và vai trò; Manager cấp thêm **tỉ lệ** (% doanh thu, % com) cho Guest cụ thể khi cần, ví dụ bộ phận Data (Dương chốt 19/11/2026).
 - Chuyển giao: deal mở chuyển vai trò sang người đích, deal đóng giữ người cũ; datahub "Quản lý Deal" của người nguồn: bảng tự tạo chuyển sang người đích; Probation KPI giữ tên người nguồn.

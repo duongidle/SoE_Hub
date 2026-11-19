@@ -4,7 +4,7 @@ Cập nhật: 19/11/2026
 
 ## Giai đoạn hiện tại
 
-- Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11; **sửa lần 2 cùng ngày, Dương chốt**; còn mở: mẫu thông báo tiền về thật để chỉnh luật ghép (đang giả định UNC), màn so sánh phiên bản chính sách khi AI cập nhật (đề xuất, chưa chốt); thanh toán và com theo đợt, Won khi tiền về, Sổ com, chốt kỳ gộp, ghép tiền về, vai trò cột trong dashboard; xem đầu file Module 4 và mục 18). **Module 5: bản nháp vòng 2** (19/11; khớp Module 2, 4, 7 mới; còn 2 câu ở mục 11: key API của cây, thao tác lớn qua AI bằng xem trước + mã xác nhận). **Module 6: bản nháp vòng 1**, chờ Dương phản biện. Quản lý Deal không hiện trong menu Datahub (Module 4 mục 1.1, Dương chốt 19/11). **Module 7 đã chốt** (19/11; CLAUDE.md, Module 0, 4 đã ghi thay đổi; Module 2 mục 11 chưa ghi giới hạn 150 cột vì Sonnet đang sửa file đó, ghi khi rảnh). Câu hỏi ở mục cuối mỗi file.
+- Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11; **sửa lần 2 cùng ngày, Dương chốt**; còn mở: mẫu thông báo tiền về thật để chỉnh luật ghép (đang giả định UNC), màn so sánh phiên bản chính sách khi AI cập nhật (đề xuất, chưa chốt); thanh toán và com theo đợt, Won khi tiền về, Sổ com, chốt kỳ gộp, ghép tiền về, vai trò cột trong dashboard; xem đầu file Module 4 và mục 18). **Module 5 đã chốt** (19/11; CLAUDE.md, Module 0, 1, 4, 7 đã ghi thay đổi). **Module 6: bản nháp vòng 1**, chờ Dương phản biện. Quản lý Deal không hiện trong menu Datahub (Module 4 mục 1.1, Dương chốt 19/11). **Module 7 đã chốt** (19/11; CLAUDE.md, Module 0, 4 đã ghi thay đổi; Module 2 mục 11 chưa ghi giới hạn 150 cột vì Sonnet đang sửa file đó, ghi khi rảnh). Câu hỏi ở mục cuối mỗi file.
 - Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1, 2C-2 xong và Opus đã rà soát (19/11); **2C-3, 2C-4 xong, Opus đã rà (19/11)**; **Stage 2 xong (Opus quyết đạt 19/11)**. Đã push `main` + `dev` tới a07d60c (hết 2C-4, Dương yêu cầu 19/11).
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
@@ -92,7 +92,7 @@ Không chặn bước con (CLAUDE.md, "Điện thoại là ưu tiên thấp"); g
 - 2C-1 chưa thử trên điện thoại thật (chạm trong grid canvas, bàn phím ảo với khung chọn, cuộn cảm ứng) và chưa chạy `impeccable audit`.
 - 2B+: ngân sách đối soát 1.000.000 dòng/đêm và thời gian chờ mặc định 5 s là giá trị tự chọn; Dương chỉnh nếu cần.
 - 2B: cảnh báo `LEFT(ngày,2)` khi import đã làm ở 2D (báo ở bước Kiểm tra, không tự sửa công thức). Dương xem có muốn tự đổi sang `TEXT(ngày,"mm")` không.
-- Module 5 (mục 11, 2 câu; chốt xong thì sửa Module 4 mục 7.1, 14, 15), Module 6 (mục 12): câu hỏi ở mục cuối mỗi file, chờ Dương trả lời rồi chốt; chốt xong cập nhật CLAUDE.md theo mục "Thay đổi so với quy định đã chốt" của từng file.
+- Module 6 (mục 12): câu hỏi ở mục cuối mỗi file, chờ Dương trả lời rồi chốt; chốt xong cập nhật CLAUDE.md theo mục "Thay đổi so với quy định đã chốt" của từng file.
 - Stage 9 Onboarding: lúc bắt đầu stage hỏi Dương có tính là ngoại lệ (kiểm giao diện kỹ) với cách kiểm thử tiết kiệm token không; tới lúc đó giữ quy định cũ trong CLAUDE.md (kiểm kỹ).
 - Module 4: bảng Thanh toán (mục 7) chờ Dương bàn với Manager (nguồn tiền về, com POD, nguồn Level BC/Performance BC, thu hồi com, com POD Express và Data).
 - `docker-compose.yml` chưa chạy thử (máy dev không có Docker); Google chưa thử với Google thật (xem `design/ha-tang.md` mục 4).

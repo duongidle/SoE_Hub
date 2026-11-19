@@ -1,7 +1,6 @@
 # Module 5 — Kết nối AI
 
-> Trạng thái: **Bản nháp vòng 2, chờ Dương chốt** · 19/11/2026
-> Vòng 2: khớp với Module 2, 4 sửa ngày 19/11 (bảng template, khoá phân chia, vai trò cột, thanh toán theo đợt, Quản lý Deal không hiện trong menu Datahub) và Module 7 đã chốt. Dương đã đồng ý: tool chọn lọc + `soe_call`, ba mức, kết nối chờ duyệt vẫn hoàn tất OAuth, Guest mẫu Data tạo được token, AI được đổi chia sẻ như người dùng, nhóm cấm AI có phần Admin bật được. Còn chờ: mục 11.
+> Trạng thái: **Đã chốt** · 19/11/2026 (bản nháp vòng 1 sáng 19/11, vòng 2 khớp với Module 2, 4 sửa ngày 19/11 và Module 7 đã chốt; Dương chốt vòng 2, quyết định ở mục 11).
 > Phụ thuộc: [Module 0](module0-nen-tang.md) (registry, actor, audit, mục 17 khung kết nối AI), [Module 1](module1-tai-khoan-phan-quyen.md) (token cá nhân, tài khoản hệ thống, ba lớp quyền), [Module 2](module2-datahub.md) (dòng, công thức, mục 6.7 đợi tính xong, mục 10 chia sẻ và khoá phân chia), [Module 3](module3-metric-dashboard.md) (`metrics.query`), [Module 4](module4-quan-ly-deal.md) (Quản lý Deal, vai trò cột, thanh toán, chốt kỳ), [Module 7](module7-dynamic-form.md) (Form qua API/MCP).
 > Để module sau: thông báo khi có kết nối chờ duyệt (Module 6; Stage 5 dùng hộp thông báo của Module 1); tool của Form, Knowledge, AI Hub, Workspace do module đó thêm (mục 4.7).
 
@@ -73,11 +72,12 @@ Giới hạn: nguồn `claude.ai`, `chatgpt.com` xác minh được (client ch�
 - **Kết nối chờ duyệt vẫn hoàn tất OAuth** (Dương đồng ý 19/11). Client nhận token ngay (bắt client chờ Admin trong cửa sổ đăng nhập thì sẽ hết giờ). Mọi tool gọi lúc đang chờ trả lỗi `connection_pending`: "Kết nối đang chờ Admin duyệt. Báo Admin của bạn rồi thử lại." Admin duyệt xong thì dùng được ngay, không phải kết nối lại.
 - Callback được phép theo nguồn ở mục 2.3, ví dụ `https://claude.ai/api/mcp/auth_callback`, `https://claude.com/api/mcp/auth_callback` (Module 0 mục 17), callback của ChatGPT, và `http://localhost:*` / `http://127.0.0.1:*`.
 
-### 2.5 Key API của cây (đề xuất, chờ Dương)
+### 2.5 Key API của cây
 
 Cho hệ thống request của Base đẩy deal và lịch thanh toán vào (Module 4 mục 7.1, 14).
 
 - **Manager tự tạo** ở Cài đặt → Kết nối AI, như tạo token: chọn menu, mức, hạn. Admin duyệt như mọi kết nối. Không cần cấp vai trò Admin cho Manager.
+- **Admin tạo** cho một cây thì không cần Admin duyệt (Dương chốt 19/11). Nhưng key mang quyền nghiệp vụ của Manager, mà Admin không có quyền nghiệp vụ (CLAUDE.md), nên key do Admin tạo chạy khi **một Manager của cây bấm nhận** (thay cho bước duyệt, một lần bấm). Manager nhận thông báo; chưa nhận thì gọi trả `connection_pending`. Lý do: không để Admin dùng key tự tạo mà ghi deal, chốt kỳ.
 - **Chủ là cây, không phải người.** Quyền = quyền nghiệp vụ của vai trò Manager trên đúng cây đó (giao với menu và mức). Nhật ký ghi tên key ("Request BPM"), kèm người tạo.
 - Đổi Manager của cây thì key ở lại, Manager mới quản lý tiếp. Manager nghỉ hoặc bị khoá **không** làm key ngừng chạy (khác token cá nhân: bị khoá thì mọi kết nối của người đó bị thu hồi).
 - Lý do không dùng token cá nhân của Manager: tích hợp sẽ chết khi Manager rời đi, và nhật ký ghi mọi dòng tự động là "Manager X nhập".
@@ -140,9 +140,9 @@ Bật nhóm nào thì thao tác trong nhóm vẫn chỉ chạy được cho ngư
 
 **Chia sẻ không nằm trong nhóm cấm** (Dương chốt 19/11). AI đổi chia sẻ, khoá phân chia, cho phép sửa cột như người dùng, server kiểm quyền như mọi kênh. Việc không hợp lệ (tag người không phải thành viên của bảng, thêm người ngoài danh sách org chart) thì không được ghi, trả lỗi kèm lý do (mục 4.4).
 
-### 3.4 Thao tác lớn: xem trước rồi xác nhận (đề xuất, chờ Dương)
+### 3.4 Thao tác lớn: xem trước rồi xác nhận
 
-Dương muốn AI làm được cả việc lớn để tiện cho Manager. Gồm: **chốt kỳ**, **mở lại kỳ**, **sửa template cho cả cây hoặc team** (thêm, sửa, bỏ cột/bảng template, quyền sửa ô, quyền Leader), **chuyển vai trò cột**.
+Dương muốn AI làm được cả việc lớn để tiện cho Manager (chốt 19/11). Gồm: **chốt kỳ**, **mở lại kỳ**, **sửa template cho cả cây hoặc team** (thêm, sửa, bỏ cột/bảng template, quyền sửa ô, quyền Leader), **chuyển vai trò cột**.
 
 Một cơ chế chung trong registry (`confirm: true` trên thao tác), web và AI dùng cùng một đường:
 
@@ -332,12 +332,13 @@ Trang Admin → Kết nối AI → Chính sách:
 | "Tool MCP được sinh từ command registry" (Module 0 mục 17) hiểu là mọi thao tác thành tool | Tool chọn lọc + `soe_operations` / `soe_describe` / `soe_call`; mọi thao tác được phép vẫn tới được | Module 0 |
 | AI làm được mọi thứ trừ Onboarding (brief) | Thêm **nhóm cấm**: cấm cứng (token, kết nối, chính sách AI, mật khẩu, phiên) và cấm mặc định Admin bật được (tổ chức, cấp dữ liệu Guest, chuyển giao, cài đặt, nhật ký) | CLAUDE.md mục AI |
 | Registry: `aiAllowed` | Thêm menu (cố định hoặc theo đối tượng đích), `access`, nhóm cấm, `confirm` cho thao tác lớn | Module 0 mục 3.3 |
-| Tài khoản hệ thống ghi vào cây được cấp; "kết nối API do Manager tạo" (Module 4 mục 7.1, 14) | **Key API của cây** do Manager tạo, Admin duyệt (nếu Dương chốt mục 2.5) | Module 4 mục 7.1, 14 |
-| Chốt kỳ, sửa template, chuyển vai trò cột qua màn xem trước trên web (Module 4 mục 3.7, 3.8, 12) | Cùng một cơ chế xem trước + mã xác nhận cho web và AI; AI không tự đánh "Đã kiểm" (nếu Dương chốt mục 3.4) | Module 4 mục 12, 15 |
+| Tài khoản hệ thống ghi vào cây được cấp; "kết nối API do Manager tạo" (Module 4 mục 7.1, 14) | **Key API của cây** do Manager tạo, Admin duyệt; Admin tạo thì Manager của cây nhận (mục 2.5) | Module 4 mục 7.1, 14 |
+| Chốt kỳ, sửa template, chuyển vai trò cột qua màn xem trước trên web (Module 4 mục 3.7, 3.8, 12) | Cùng một cơ chế xem trước + mã xác nhận cho web và AI, cần mức Toàn quyền; AI không tự đánh "Đã kiểm" (mục 3.4) | Module 4 mục 12, 15 |
 | Batch dòng một giao dịch (Module 2) | `rows_write` của MCP ghi từng phần theo dòng; REST giữ cả lô, trừ `partial: true` | Module 2 |
 | Mỗi stage phải có OpenAPI và Bruno | Từ Stage 6 thêm: thao tác mới khai báo menu, `access`, nhóm cấm; việc hay làm có tool chọn lọc | CLAUDE.md "Định nghĩa xong" |
 
-## 11. Còn chờ Dương
+## 11. Quyết định của Dương
 
-1. **Key API của cây** (mục 2.5) thay cho token cá nhân của Manager hoặc tài khoản hệ thống, để hệ thống request đẩy deal và thanh toán vào?
-2. **Thao tác lớn qua AI bằng xem trước + mã xác nhận, cần mức Toàn quyền**, AI không tự đánh "Đã kiểm" (mục 3.4)?
+Đã chốt 19/11/2026: MCP là kênh chính, tool chọn lọc + `soe_operations` / `soe_describe` / `soe_call` (4.1); AI gọi REST bằng token của kết nối, không bằng phiên web (1); ba mức Xem / Sửa / Toàn quyền (3.2); nhóm cấm AI gồm cấm cứng và cấm mặc định Admin bật được (3.3); AI đổi chia sẻ như người dùng, việc không hợp lệ thì không ghi và báo lý do (3.3, 4.5); menu theo đối tượng, Quản lý Deal tách khỏi Datahub (3.1); kết nối chờ duyệt vẫn hoàn tất OAuth (2.4); Guest mẫu Data tạo được token (2.1); key API của cây, Admin tạo thì không cần Admin duyệt (2.5); thao tác lớn qua AI bằng xem trước + mã xác nhận, cần Toàn quyền, AI không tự đánh "Đã kiểm" (3.4); `rows_write` ghi từng phần theo dòng (4.5).
+
+Tự quyết khi chốt (chờ Dương phản biện nếu muốn khác): key do Admin tạo cần một Manager của cây bấm nhận, vì Admin không có quyền nghiệp vụ (2.5).

@@ -435,4 +435,4 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 
 Đã chốt 19/11/2026: một form ghi vào tối đa một bảng, mỗi câu hỏi một cột (1.1, 2.3a); 150 cột cho bảng có form (1.1a); bản nháp và xuất bản, phiên bản không sinh cột mới (2.2); ràng buộc cột và điền sẵn qua link (2.3b); nhóm câu theo điều kiện (2.4); component Nguồn dữ liệu (2.5), hiển thị kết quả kể cả biến thể theo giá trị (2.6), tự điền từ kết quả (2.7); datahub "Quản lý Deal" không làm đích, không làm nguồn (1.1); chống spam không captcha (5.3); form thường nộp được qua API (5.1); thẻ số, biểu đồ trên kết quả chưa làm.; Guest dùng form nội bộ khi được chọn đích danh (3.1); danh sách tự sinh ở mọi chỗ chọn (2.8).
 
-Phần nối với Module 5 (menu Form, tool MCP) và Module 6 (loại thông báo) theo bản nháp của hai module đó; đổi theo khi chúng được chốt.
+Phần nối với Module 5 (menu Form, tool MCP) khớp Module 5 đã chốt 19/11 (nộp bài kiểm tra và nhập key nguồn dữ liệu thuộc nhóm cấm cứng, Module 5 mục 3.3). Phần nối với Module 6 (loại thông báo) theo bản nháp; đổi theo khi Module 6 được chốt.

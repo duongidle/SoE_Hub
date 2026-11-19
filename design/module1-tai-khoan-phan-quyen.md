@@ -3,6 +3,7 @@
 > Trạng thái: **Đã chốt** · 18/11/2026
 > Phụ thuộc: [Module 0](module0-nen-tang.md) (registry, actor, audit, outbox, SSE).
 > Đổi bởi [Module 4](module4-quan-ly-deal.md) mục 18 (chốt 19/11/2026): template Deals do **Admin và Manager** sửa (không chỉ Admin); "ba loại cột" thành bốn lớp cột; bảng Deals và Probation KPI trong datahub "Quản lý Deal" xem theo phạm vi deal. Khi hai file lệch nhau, Module 4 thắng.
+> Đổi bởi [Module 5](module5-ket-noi-ai.md) (chốt 19/11/2026): token cá nhân là một loại kết nối, scope là **menu và mức** (thay chuỗi quyền); thêm **key API của cây** (Manager tạo, Admin duyệt; chạy tiếp khi Manager rời đi); Guest mẫu Data tạo được token, mẫu Sale thì không; nhóm cấm AI (mục 7 "token không mang `auth:*`, `onboarding:*`" nằm trong nhóm cấm cứng).
 > Các phần để module sau: scope chi tiết và trang duyệt kết nối AI, OAuth cho MCP (Module 5); thông báo đầy đủ (Module 6); chia sẻ datahub chi tiết (Module 2); hồ sơ nghiệp vụ như Level BC, KPI (Module 4).
 
 ## 1. Ba lớp quyền

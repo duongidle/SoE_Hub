@@ -59,7 +59,7 @@ Repo: `https://github.com/duongidle/SoE_Hub`.
 | 2   | `module2-datahub.md`                 | Lưu trữ, kiểu cột, công thức, lịch sử, import/export                                 | Đã chốt    |
 | 3   | `module3-metric-dashboard.md`        | Định nghĩa chỉ số, biểu đồ, bảng gộp                                                 | Đã chốt    |
 | 4   | `module4-quan-ly-deal.md`            | Template Deals, người tham gia, chính sách/com, forecast, BANT                       | Đã chốt    |
-| 5   | `module5-ket-noi-ai.md`              | REST, MCP, quản lý kết nối AI                                                        | Chưa       |
+| 5   | `module5-ket-noi-ai.md`              | REST, MCP, quản lý kết nối AI                                                        | Đã chốt    |
 | 6   | `module6-thong-bao.md`               | Thông báo, nhắc hẹn, nhắc hạn                                                        | Chưa       |
 | 7   | `module7-dynamic-form.md`            | Form kéo thả, bài test, khảo sát                                                     | Đã chốt    |
 | 8   | `module8-knowledge-aihub.md`         | Knowledge, AI Hub, engine đăng → kiểm tra → duyệt                                    | Chưa       |
@@ -81,7 +81,7 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 | 2     | M2         | 1                | Datahub, bảng, kiểu cột, engine công thức, lọc/sắp xếp/view, grid ảo hoá, import/export, thùng rác, lịch sử dòng                                                                                         | Dùng Datahub thay Google Sheet/Lark Base                            | Đã xong |
 | 3     | M3         | 2                | Engine metric, các loại biểu đồ, dashboard tuỳ chỉnh                                                                                                                                                     | Vẽ dashboard từ Datahub                                             | Đang làm (3C-2) |
 | 4     | M4         | 2, 3             | **4.1: sửa lại code Stage 2 theo quyết định 19/11 (Module 4 mục 19a)**; template Deals (bốn lớp cột), người tham gia, chính sách com có phiên bản, khoá kỳ, snapshot, forecast, BANT, dashboard Deals mặc định, API cho hệ thống ngoài                                            | **Mốc Engine v1: team SoE chạy thử quản lý deal**                   |            |
-| 5     | M5         | 1, 4             | MCP server, OAuth + DCR, token cá nhân, kết nối AI chờ duyệt, scope theo menu, hướng dẫn kết nối, bộ Bruno đầy đủ                                                                                        | Claude/Codex điều khiển được hệ thống                               |            |
+| 5     | M5         | 1, 4             | MCP server, OAuth + DCR, token cá nhân, key API của cây, kết nối AI chờ duyệt, menu và mức, nhóm cấm AI, thao tác lớn (xem trước + mã xác nhận), hướng dẫn kết nối, bộ Bruno đầy đủ                                                                                        | Claude/Codex điều khiển được hệ thống                               |            |
 | 6     | M6         | 1                | Thông báo đầy đủ, nhắc hẹn, nhắc hạn, quy tắc gửi                                                                                                                                                        |                                                                     |            |
 | 7     | M7         | 2, 3, 5, 6       | Dynamic Form: builder kéo thả, renderer công khai, lưu nháp, chấm điểm, nguồn dữ liệu, JSON import/export                                                                                                               |                                                                     |            |
 | 8     | M8         | 1, 6             | Engine đăng → kiểm tra → duyệt → xuất bản; Knowledge; AI Hub                                                                                                                                             |                                                                     |            |
@@ -97,7 +97,7 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 
 1. Chức năng đúng theo file thiết kế; mọi lệch hoặc bổ sung đã ghi vào mục "Quyết định khi code" của module đó.
 2. Test unit và test phân quyền của stage đều pass; test của các stage trước không bị hỏng.
-3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`.
+3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`. Từ Stage 6: thao tác mới khai báo menu, `access`, nhóm cấm AI (Module 5 mục 3.5); việc hay làm qua AI có tool chọn lọc.
 4. Có giao diện tối thiểu để dùng được mọi chức năng của stage (chuẩn giao diện rà ở Stage 12).
 5. **Đã qua lần kiểm thử cuối stage** (mục "Kiểm thử theo cấp" bên dưới; với stage có giao diện): chỉ kiểm **lỗi chức năng**. Chạy api + worker + web thật, mở trên trình duyệt thật (Playwright có chụp màn hình, hoặc Claude in Chrome), đi hết các luồng chính của stage với từng vai trò liên quan, kiểm tra không có lỗi console/network. Với bảng/grid: kiểm mọi chức năng hiển thị và thao tác (tải dữ liệu khi cuộn, sửa ô, kéo thả và đổi độ rộng cột, lọc, sắp xếp, nhóm, view…) chạy đúng. Thử dữ liệu xấu nhất về **chức năng và số liệu** (danh sách rỗng, 10.000 dòng, số rất lớn, số âm, giá trị trống, tên có `<b>` hiện đúng là chữ, không cắt số/tiền/ngày). Không rà chuẩn giao diện (font, cỡ chữ, màu, tương phản, khoảng cách, bộ skill giao diện): việc của Stage 12. Lỗi tìm thấy phải sửa xong mới coi là xong. Ghi kết quả kiểm thử (luồng đã đi, lỗi đã sửa) vào `progress.md`.
 6. `progress.md` đã cập nhật; cột "Trạng thái" của stage trong bảng "Stage code" ở `CLAUDE.md` đã ghi "Đã xong" (Opus ghi sau khi rà soát đạt); đã commit.
@@ -239,8 +239,12 @@ Sau đó chỉ cần nói với AI, ví dụ "tạo datahub theo dõi lead thán
 
 ### AI
 
-- Kết nối AI: user tạo kết nối, admin duyệt; scope theo menu; quyền thực tế = giao của quyền user, scope kết nối, chính sách AI chung. **Onboarding cấm AI cứng.**
-- Hỗ trợ OAuth (Claude Desktop, claude.ai, ChatGPT, Codex) và token cá nhân (Claude Code, Codex, script).
+- Kết nối AI: user tạo kết nối, admin duyệt; scope là **menu và mức** (Xem / Sửa / Toàn quyền); menu tính theo **đối tượng đích** (bảng của datahub "Quản lý Deal" thuộc menu Quản lý Deal); quyền thực tế = giao của quyền user, scope kết nối, chính sách AI chung, nhóm cấm (Module 5).
+- **Nhóm cấm AI:** cấm cứng (Onboarding; tạo/duyệt/thu hồi token và kết nối; chính sách AI; mật khẩu, phiên; nộp bài kiểm tra) và cấm mặc định Admin bật được theo nhóm (tổ chức, cấp dữ liệu Guest, chuyển giao, cài đặt hệ thống, nhật ký). Chia sẻ bảng không bị cấm: việc không hợp lệ thì không ghi, trả lỗi kèm lý do.
+- Hỗ trợ OAuth (Claude Desktop, claude.ai, ChatGPT, Codex) và token (Claude Code, Codex, script). AI gọi REST được bằng token của kết nối, **không bao giờ** bằng phiên đăng nhập web.
+- MCP: bộ tool chọn lọc (tối đa 30) + `soe_operations` / `soe_describe` / `soe_call` cho mọi thao tác còn lại.
+- **Thao tác lớn** (chốt kỳ, mở lại kỳ, sửa template cả cây/team, chuyển vai trò cột): xem trước rồi xác nhận bằng mã, một đường cho web và AI; qua AI cần mức Toàn quyền; AI không tự đánh "Đã kiểm".
+- **Key API của cây** cho hệ thống ngoài: Manager tạo, Admin duyệt (Admin tạo thì Manager của cây bấm nhận); thuộc cây, không thuộc người.
 - Hệ thống **không tiêu thụ AI**. Kiểm tra skill/knowledge bằng luật cố định ở server; sai chuẩn thì trả lỗi có cấu trúc để AI của người đăng tự sửa. Knowledge và AI Hub dùng chung engine đăng → kiểm tra → duyệt → xuất bản.
 
 ### Phạm vi
