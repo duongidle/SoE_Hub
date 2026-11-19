@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { orgMemberships } from "@soe/db";
+import { files, newId, orgMemberships } from "@soe/db";
 import { actorOf, as, drainOutbox, fails, makeTable, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
@@ -8,6 +8,7 @@ import { loadTableAccess, rowAudience, scopeKey } from "../src/modules/datahub/a
 import { datahubEvents } from "../src/modules/datahub/events";
 import { splitLockTransferHandler } from "../src/modules/datahub/transfer";
 import { processJobs } from "../src/modules/datahub";
+import { invalidateMetricCache } from "../src/modules/metrics";
 
 /**
  * Stage 4.1a: the split lock (design module2 section 10, module4 19a). Owner = userA2 (under MgrA directly). Tree A: MgrA > LeaderA > UserA1, MgrA > UserA2.
@@ -25,6 +26,9 @@ let leaderB: ReturnType<typeof as>;
 let x: Awaited<ReturnType<typeof makeTable>>;
 const rid: Record<string, string> = {};
 const env = () => ({ db: t.c.db.db, executor: t.c.executor, storage: t.c.storage, logger: t.c.logger, config: t.c.config });
+
+/** Current version of a row, read by the owner (who sees every row). */
+const ver = async (id: string) => (await owner("datahub.row.get", { table_id: x.tableId, row_id: id })).version as number;
 
 const names = async (call: ReturnType<typeof as>, tableId = x.tableId) => {
   const r = await call("datahub.row.list", { table_id: tableId, limit: 200, labels: "true" });
@@ -186,6 +190,53 @@ describe("reading: every channel shows a member only the rows they may see", () 
   });
 });
 
+describe("metrics read through the same rows() and never share a cached answer between different scopes", () => {
+  it("each reader's number is the sum of the rows they see; owner first, then members, then after a change", async () => {
+    const m = await owner("metrics.metric.create", { datahub_id: x.dhId, metric: { name: "Tổng DT", source: x.tableId, measure: { agg: "sum", field: "Doanh thu" } } });
+    const sumOf = async (c: ReturnType<typeof as>) => {
+      const r = await c("datahub.row.list", { table_id: x.tableId, limit: 200 });
+      return (r.items as { data: Record<string, number | undefined> }[]).reduce((n, i) => n + (i.data[x.cols["Doanh thu"]!.key] ?? 0), 0);
+    };
+    const val = async (c: ReturnType<typeof as>) => (await c("metrics.query", { metric_id: m.id })).rows[0].value as number;
+    // distinct revenue per row so that every scope has its own total
+    const all = (await owner("datahub.row.list", { table_id: x.tableId, limit: 200 })).items as { id: string; version: number }[];
+    for (const [i, r] of all.entries()) await owner("datahub.row.update", { table_id: x.tableId, row_id: r.id, data: { "Doanh thu": 10 ** (i % 6) * (i + 1) }, version: r.version });
+    await drainOutbox(t);
+    const ownerTotal = await val(owner); // fills the cache for the owner first
+    expect(ownerTotal).toBe(await sumOf(owner));
+    for (const c of [userA1, leaderA, mgrA, userB1]) expect(await val(c)).toBe(await sumOf(c));
+    expect(new Set([ownerTotal, await val(userA1), await val(leaderA), await val(mgrA)]).size).toBe(4);
+    // a change a reader may not see leaves their cached number alone; one they may see moves it, after the outbox ran
+    const before = await val(userA1);
+    const r1 = (await owner("datahub.row.get", { table_id: x.tableId, row_id: rid.r1! })).version;
+    await owner("datahub.row.update", { table_id: x.tableId, row_id: rid.r1!, data: { "Doanh thu": 7777 }, version: r1 });
+    await drainOutbox(t);
+    invalidateMetricCache({ tables: [x.tableId] }); // what the api process does when the worker tells it (SSE hub is not running in tests)
+    expect(await val(userA1)).not.toBe(before);
+    expect(await val(userA1)).toBe(await sumOf(userA1));
+    expect(await val(leaderA)).toBe(await sumOf(leaderA));
+  });
+});
+
+describe("files in attachment cells follow the row", () => {
+  it("a member lists and downloads only files of rows they see", async () => {
+    const mkFile = async (name: string) => {
+      const id = newId();
+      await t.c.db.db.insert(files).values({ id, ownerId: org.userA2.id, createdBy: org.userA2.id, updatedBy: org.userA2.id, storageKey: `files/${id}`, filename: name, contentType: "application/pdf", sizeBytes: 12, status: "ready" });
+      return id;
+    };
+    const col = await owner("datahub.column.create", { table_id: x.tableId, name: "Hồ sơ", type: "attachment" });
+    const mine = await mkFile("của A1.pdf");
+    const theirs = await mkFile("của B1.pdf");
+    await owner("datahub.row.update", { table_id: x.tableId, row_id: rid.r1!, data: { [col.key]: [mine] }, version: await ver(rid.r1!) });
+    await owner("datahub.row.update", { table_id: x.tableId, row_id: rid.r4!, data: { [col.key]: [theirs] }, version: await ver(rid.r4!) });
+    const list = await userA1("datahub.attachment.list", { table_id: x.tableId, ids: `${mine},${theirs}` });
+    expect(list.map((f: { id: string }) => f.id)).toEqual([mine]);
+    expect((await userA1("datahub.attachment.download_url", { table_id: x.tableId, file_id: mine })).url).toContain("sig=");
+    expect((await fails(userA1("datahub.attachment.download_url", { table_id: x.tableId, file_id: theirs }))).code).toBe("not_found");
+  });
+});
+
 describe("scope key (metrics cache) and SSE audience", () => {
   it("two readers who see different rows never share a cache key; the owner keeps the plain key; a tree change moves the key", async () => {
     const key = async (id: string) => scopeKey(await loadTableAccess({ db: t.c.db.db, actor: actorOf(id) }, x.tableId));
@@ -216,19 +267,19 @@ describe("scope key (metrics cache) and SSE audience", () => {
   });
 
   it("SSE: a write that moves a row to another person tells the old holder too (key_users in the event)", async () => {
-    await mgrA("datahub.row.update", { table_id: x.tableId, row_id: rid.r5!, data: { "Phụ trách": org.userA1.id }, version: 1 });
+    await mgrA("datahub.row.update", { table_id: x.tableId, row_id: rid.r5!, data: { "Phụ trách": org.userA1.id }, version: await ver(rid.r5!) });
     const ev = (await t.c.db.db.execute(sql`SELECT payload FROM outbox WHERE event = 'datahub.row.updated' AND aggregate_id = ${x.tableId} ORDER BY created_at DESC LIMIT 1`)).rows[0] as { payload: { key_users: string[] } };
     expect(ev.payload.key_users).toEqual(expect.arrayContaining([org.mgrA.id, org.userA1.id]));
-    await mgrA("datahub.row.update", { table_id: x.tableId, row_id: rid.r5!, data: { "Phụ trách": org.mgrA.id }, version: 2 });
+    await mgrA("datahub.row.update", { table_id: x.tableId, row_id: rid.r5!, data: { "Phụ trách": org.mgrA.id }, version: await ver(rid.r5!) });
   });
 });
 
 describe("writing", () => {
   it("a member edits their own row; a hidden row is not_found; a View member cannot write", async () => {
-    await userA1("datahub.row.update", { table_id: x.tableId, row_id: rid.r1!, data: { "Doanh thu": 10 }, version: 1 });
-    expect((await fails(userA1("datahub.row.update", { table_id: x.tableId, row_id: rid.r2!, data: { "Doanh thu": 1 }, version: 1 }))).code).toBe("not_found");
+    await userA1("datahub.row.update", { table_id: x.tableId, row_id: rid.r1!, data: { "Doanh thu": 10 }, version: await ver(rid.r1!) });
+    expect((await fails(userA1("datahub.row.update", { table_id: x.tableId, row_id: rid.r2!, data: { "Doanh thu": 1 }, version: await ver(rid.r2!) }))).code).toBe("not_found");
     expect((await fails(userA1("datahub.row.delete", { table_id: x.tableId, row_id: rid.r4! }))).code).toBe("not_found");
-    expect((await fails(leaderB("datahub.row.update", { table_id: x.tableId, row_id: rid.r4!, data: { "Doanh thu": 1 }, version: 1 }))).code).toBe("forbidden");
+    expect((await fails(leaderB("datahub.row.update", { table_id: x.tableId, row_id: rid.r4!, data: { "Doanh thu": 1 }, version: await ver(rid.r4!) }))).code).toBe("forbidden");
   });
 
   it("a Manager edits any row in their tree; a Leader edits a team member's row only when that person allows it", async () => {
@@ -242,10 +293,10 @@ describe("writing", () => {
     await userA1("datahub.prefs.set", { leader_can_edit: true });
     await leaderA("datahub.row.update", { table_id: x.tableId, row_id: rid.r1!, data: { "Doanh thu": 12 }, version: v + 1 });
     // the Leader's own row is theirs; a row of another team is not visible at all
-    await leaderA("datahub.row.update", { table_id: x.tableId, row_id: rid.r3!, data: { "Doanh thu": 5 }, version: 1 });
-    expect((await fails(leaderA("datahub.row.update", { table_id: x.tableId, row_id: rid.r4!, data: { "Doanh thu": 1 }, version: 1 }))).code).toBe("not_found");
+    await leaderA("datahub.row.update", { table_id: x.tableId, row_id: rid.r3!, data: { "Doanh thu": 5 }, version: await ver(rid.r3!) });
+    expect((await fails(leaderA("datahub.row.update", { table_id: x.tableId, row_id: rid.r4!, data: { "Doanh thu": 1 }, version: await ver(rid.r4!) }))).code).toBe("not_found");
     // a Manager cannot edit a row of another tree either
-    expect((await fails(mgrA("datahub.row.update", { table_id: x.tableId, row_id: rid.r4!, data: { "Doanh thu": 1 }, version: 1 }))).code).toBe("not_found");
+    expect((await fails(mgrA("datahub.row.update", { table_id: x.tableId, row_id: rid.r4!, data: { "Doanh thu": 1 }, version: await ver(rid.r4!) }))).code).toBe("not_found");
     await userA1("datahub.prefs.set", { leader_can_edit: false });
   });
 

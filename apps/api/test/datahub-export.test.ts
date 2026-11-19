@@ -49,6 +49,7 @@ async function seed() {
       { name: "Gấp đôi", type: "formula", config: { formula: "=[Doanh thu]*2" } },
     ],
   });
+  await a("datahub.share.set", { datahub_id: x.dhId, grantee_id: org.userA2.id, table_id: x.tableId, permission: "view" }); // user cells take only members (module2 section 10)
   const rows: Record<string, unknown>[] = [
     { "Tên": "<b>Công ty Thuận Phát</b>", "Doanh thu": 123456789012345, "Tỉ lệ": 0.07, "Ngày ký": "2026-11-18", "Giờ gọi": "2026-11-18T09:30:00+07:00", "Đã gửi": true, "Giai đoạn": "Mới", "Nhãn": ["A", "B"], "Phụ trách": org.userA2.id },
     { "Tên": "Dòng, có \"ngoặc kép\"\nvà xuống dòng", "Doanh thu": -5.5, "Giai đoạn": "Chốt, có dấu phẩy" },

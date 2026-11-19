@@ -48,6 +48,7 @@ describe("filter DSL over JSONB, every column type", () => {
         { name: "Mã", type: "row_id" },
       ],
     });
+    await a("datahub.share.set", { datahub_id: x.dhId, grantee_id: org.userA2.id, permission: "view" }); // user cells take only members (module2 section 10)
     names.today = vnToday();
     const rows = [
       { Tên: "Nguyễn Thuận", Số: 1, Tiền: 100, "Tỉ lệ": 0.1, Ngày: vnToday(), Giờ: "2026-01-01T00:00:00Z", Xong: true, Sao: 5, Mức: "P1", Nhãn: ["x", "y"], Người: org.userA1.id, Email: "a@base.vn" },

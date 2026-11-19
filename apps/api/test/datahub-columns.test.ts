@@ -43,6 +43,7 @@ describe("column types: validation on every write", () => {
         { name: "STT", type: "auto_number", config: { start: 100 } },
       ],
     });
+    await a("datahub.share.set", { datahub_id: x.dhId, grantee_id: org.userA2.id, permission: "view" }); // user cells take only members (module2 section 10)
   });
   const ok = (data: Record<string, unknown>) => create(x, data);
   const bad = async (data: Record<string, unknown>) => {
