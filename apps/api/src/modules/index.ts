@@ -6,7 +6,7 @@ import { EventRegistry } from "../core/events";
 import { Registry } from "../core/registry";
 import type { StorageDriver } from "../storage/types";
 import { authEvents } from "./auth/events";
-import { metricOperations } from "./metrics";
+import { metricOperations, metricsEvents } from "./metrics";
 import { datahubEvents, datahubOperations, exportOperations, importOperations, jobOperations } from "./datahub";
 import { attachmentOperations } from "./datahub/attachment-ops";
 import { authOperations } from "./auth/operations";
@@ -27,7 +27,7 @@ export interface ModuleDeps {
 
 /** Every module registers its commands/queries and events here. */
 export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: EventRegistry } {
-  const events = new EventRegistry().register(...systemEvents, ...authEvents, ...notificationEvents, ...guestEvents, ...transferEvents, ...datahubEvents);
+  const events = new EventRegistry().register(...systemEvents, ...authEvents, ...notificationEvents, ...guestEvents, ...transferEvents, ...datahubEvents, ...metricsEvents);
   const registry = new Registry().register(
     ...systemOperations,
     ...fileOperations(deps.config, deps.storage),

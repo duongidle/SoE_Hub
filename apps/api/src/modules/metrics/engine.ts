@@ -35,6 +35,7 @@ import {
   type MetricDef,
   type MetricRow,
   type MetricTable,
+  type MTable,
   type Outliers,
   type PlanInput,
   type QueryOverrides,
@@ -47,6 +48,7 @@ import { DH_SETTINGS } from "../datahub/limits";
 import { loadDatahubAccess, loadTableAccess } from "../datahub/access";
 import { normName } from "../datahub/table-schema";
 import { loadMTable, resolveSource, type Ctx, type ResolvedSource } from "./context";
+import { runSql } from "./runner";
 
 /** What a query computes on one source: the metric's own parts, with the call's overrides on top. */
 export interface MetricSpec {
@@ -91,7 +93,7 @@ export async function diagnoseJoins(ctx: Ctx, rs: ResolvedSource): Promise<JoinD
   const out: JoinDiagnosis[] = [];
   for (const j of rs.joins) {
     checkJoin(rs.base, j);
-    const r = await ctx.db.execute(diagnoseJoinSql(rs.base, j));
+    const r = await runSql(ctx, diagnoseJoinSql(rs.base, j), [rs.base, j.table]);
     out.push(shapeDiagnosis(j, joinKind(j), r.rows[0] as Record<string, unknown>));
   }
   return out;
@@ -101,7 +103,7 @@ export async function diagnoseJoins(ctx: Ctx, rs: ResolvedSource): Promise<JoinD
 export async function unmatchedRows(ctx: Ctx, rs: ResolvedSource, index: number, limit: number, offset: number) {
   const j = rs.joins[index];
   if (!j) throw new AppError("validation_error", "Không có phép ghép thứ tự này.", { reason: "bad_join", joins: rs.joins.length });
-  const r = await ctx.db.execute(unmatchedSql(rs.base, j, limit, offset));
+  const r = await runSql(ctx, unmatchedSql(rs.base, j, limit, offset), [rs.base, j.table]);
   const rows = r.rows as { id: string; row_no: number; total: number }[];
   return { join: j.alias, total: rows[0]?.total ?? 0, items: rows.map((x) => ({ id: x.id, row_no: x.row_no })) };
 }
@@ -122,10 +124,9 @@ const optional = (spec: MetricSpec) => ({
   ...(spec.cohort ? { cohort: spec.cohort } : {}),
 });
 
-const rowsOf = async (ctx: Ctx, built: Built): Promise<{ table: MetricTable; ms: number }> => {
-  const t0 = performance.now();
-  const res = await ctx.db.execute(built.sql);
-  return { table: shape(built, res.rows as Record<string, unknown>[]), ms: Math.round(performance.now() - t0) };
+const rowsOf = async (ctx: Ctx, built: Built, tables: MTable[]): Promise<{ table: MetricTable; ms: number }> => {
+  const res = await runSql(ctx, built.sql, tables);
+  return { table: shape(built, res.rows), ms: res.ms };
 };
 
 /**
@@ -147,6 +148,7 @@ export async function runMetric(ctx: Ctx, rs: ResolvedSource, spec: MetricSpec, 
     today: businessDate(now),
     ...(shift ? { shift } : {}),
   };
+  const tables = [rs.base, ...rs.joins.map((j) => j.table)];
   const built = buildMetricQuery(plan); // plans first: a wrong column is reported before any SQL runs
   const joins = await diagnoseJoins(ctx, rs);
   for (const d of joins) {
@@ -163,25 +165,25 @@ export async function runMetric(ctx: Ctx, rs: ResolvedSource, spec: MetricSpec, 
   let main = built;
   let outside: Built | null = null;
   if (merged.outliers) {
-    const t0 = performance.now();
-    const q = (await ctx.db.execute(buildOutlierBounds(plan))).rows[0] as { q1: number | null; q3: number | null; n: number };
-    ms += Math.round(performance.now() - t0);
+    const qr = await runSql(ctx, buildOutlierBounds(plan), tables);
+    const q = qr.rows[0] as { q1: number | null; q3: number | null; n: number };
+    ms += qr.ms;
     bounds = iqrBounds(q.q1 === null ? null : Number(q.q1), q.q3 === null ? null : Number(q.q3), Number(q.n), merged.outliers.k);
     if (bounds && merged.outliers.mode !== "include") {
       main = buildMetricQuery({ ...plan, outliers: { lower: bounds.lower, upper: bounds.upper, keep: "inside" } });
       if (merged.outliers.mode === "separate") outside = buildMetricQuery({ ...plan, outliers: { lower: bounds.lower, upper: bounds.upper, keep: "outside" } });
     }
   }
-  const r = await rowsOf(ctx, main);
+  const r = await rowsOf(ctx, main, tables);
   ms += r.ms;
   const answer: MetricAnswer = { ...r.table, diagnostics: { range: built.range, joins, ...(bounds !== undefined ? { outliers: bounds } : {}) }, ms };
   if (outside) {
-    const o = await rowsOf(ctx, outside);
+    const o = await rowsOf(ctx, outside, tables);
     answer.outlier_rows = o.table;
     answer.ms += o.ms;
   }
   if (merged.cohort) {
-    const c = await rowsOf(ctx, buildCohortSizes(plan));
+    const c = await rowsOf(ctx, buildCohortSizes(plan), tables);
     answer.cohort_sizes = c.table;
     answer.ms += c.ms;
   }
@@ -390,7 +392,7 @@ async function applyTarget(ctx: Ctx, a: MetricAnswer, eff: Effective, datahubId:
   const t = eff.target!;
   if (t.value !== undefined) return { ...a, ...attachTarget(a, () => t.value!) };
   const plan = await targetPlan(ctx, t, eff, datahubId, fiscal, today);
-  const r = await rowsOf(ctx, buildMetricQuery(plan));
+  const r = await rowsOf(ctx, buildMetricQuery(plan), [plan.base]);
   // The metric's groups are [time bucket?, ...group_by]; so are the target table's: the keys meet column by column.
   const timeIdx = eff.time?.bucket ? 0 : null;
   const map = new Map<string, number | null>();

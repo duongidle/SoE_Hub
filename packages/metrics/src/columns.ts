@@ -34,6 +34,8 @@ export interface MTable {
   columns: MColumn[];
   /** `table_id = <this table>` for rows aliased `alias`, with the scope marker (`TableAccess.scope`). */
   scope: (alias: string) => SQL;
+  /** Who-sees-which-rows key of this table for the reader (`scopeKey` in the Datahub's access.ts); the API sets it, the answer cache uses it. */
+  scopeKey?: string;
 }
 
 const KEY_RE = /^[a-z_][a-z0-9_]{0,40}$/;

@@ -22,6 +22,8 @@ import { AccessContext, scopeIncludes } from "../auth/access";
 import type { HttpResponder } from "../core/types";
 import { registerGoogleRoutes } from "../modules/auth/google";
 import type { SseHub, SseSignal } from "./sse";
+import { invalidateMetricCache } from "../modules/metrics";
+import type { InvalidateMessage } from "../modules/metrics/runner";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -257,6 +259,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
 
   // ---- SSE ----------------------------------------------------------------------------------------
+  deps.sse?.subscribeCache((m) => invalidateMetricCache(m as InvalidateMessage));
   app.get("/api/v1/events", async (req, reply) => {
     const actor = await requireAccess(req, "events:subscribe", "events.subscribe");
     if (!deps.sse) throw new AppError("unavailable", "Luồng sự kiện chưa bật.");

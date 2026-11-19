@@ -54,6 +54,16 @@ export class TableAccess {
   }
 }
 
+/**
+ * The ONE place that says which rows of a table a reader sees, as a string: two readers with the same key see the same rows of that
+ * table, so they may share a cached answer; different keys never do. Today: the table and the level (the owner and people it is shared
+ * with see every row). When the split lock (module2 section 10) is on, rows depend on the person: Stage 4.1 changes ONLY this function
+ * (add the reader and the columns of the lock), and every cache (metrics, later others) follows. Callers never build their own key.
+ */
+export function scopeKey(a: TableAccess): string {
+  return `${a.tableId}:${a.level}`;
+}
+
 export interface LoadOptions {
   /** `alive` (default): table and datahub both live. `trashed`: the table itself is in the trash (restore flows). */
   state?: "alive" | "trashed";

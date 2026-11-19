@@ -7,3 +7,5 @@ for (const t of ["mt_sources", "mt_metrics", "mt_dashboards", "mt_charts"]) regi
 export { metricOperations };
 export { runMetric, runDefinition, validateDefinition, mergeSpec, diagnoseJoins, unmatchedRows, validateSpec } from "./engine";
 export { resolveSource } from "./context";
+export { metricsEvents, metricCacheSubscriber, METRIC_CACHE_CHANNEL } from "./invalidate";
+export { invalidateMetricCache, metricCacheStats, resetMetricCache, metricLimits, runSql } from "./runner";

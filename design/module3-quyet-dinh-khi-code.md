@@ -103,3 +103,26 @@ Phần còn lại của 3A-2 (mục 4–9) chưa làm.
 ### Test
 
 - `packages/metrics/test/post.test.ts` (unit thuần: `shiftRange`, `parseDerived`, `combineDerived`, `cumulate`, `compareTables`, `attachTarget`, `iqrBounds`, SQL của shift/cohort/outlier). `apps/api/test/metrics-advanced.test.ts` (27 test so với tính tay bằng JavaScript trên cùng dữ liệu; gồm phân quyền: người ngoài, người chỉ được chia sẻ một bảng, bảng mục tiêu không đọc được).
+
+## Stage 3A-2: chịu tải và xoá cache (mục 4–5, phiên Sonnet B, 19/11)
+
+### Một cửa chạy câu SQL: `apps/api/src/modules/metrics/runner.ts`
+
+- Mọi câu SQL lấy dữ liệu của engine (câu gom nhóm, chẩn đoán ghép, tứ phân vị outlier, cỡ cohort, bảng mục tiêu, danh sách dòng không khớp) đi qua **`runSql(ctx, sql, tables)`**; `ctx.db.execute` chỉ còn dùng cho việc tra định nghĩa (`mt_*`, tên bảng). Thứ tự trong `runSql`: cache → gộp yêu cầu trùng đang chạy → xếp hàng 6 câu/người → `statement_timeout`.
+- **Khoá cache = câu SQL đúng như gửi cho database (text + tham số) + `scopeKey` của mọi bảng nó đọc** (băm SHA-256). Lệch nhỏ so với dòng đề bài ("khoá của câu trả lời đầy đủ"): cache **theo từng câu SQL lá**, không theo câu trả lời cuối. Lý do: câu SQL đã chứa mọi thứ quyết định kết quả (định nghĩa chỉ số, các chỉ số phái sinh được tham chiếu mỗi cái một câu, `compare`/`cumulative`/`target`/`outliers`/bộ lọc, các ngày mà khoảng tương đối đã đổi ra tức là cả "ngày hôm nay", tháng bắt đầu năm tài chính, biểu thức đọc cột); nên không thể quên một thành phần của khoá. Phần ghép các câu lá (phái sinh, so kỳ, luỹ kế, mục tiêu) chỉ làm trên bảng nhỏ, không đáng cache. Phạm vi của bảng ghép và bảng mục tiêu có trong khoá vì mỗi câu lá khai báo đủ bảng nó đọc.
+- **`scopeKey(access)` ở `apps/api/src/modules/datahub/access.ts`** là nơi duy nhất nói "ai thấy dòng nào": hôm nay `<tableId>:<level>`. `MTable.scopeKey` (do `loadMTable` điền) mang nó vào engine; bảng không có `scopeKey` thì không bao giờ vào cache. Stage 4.1 chỉ cần sửa hàm này (thêm người đọc và cột khoá của khoá phân chia).
+- Quyền được kiểm trước cache (`resolveSource`/`loadTableAccess` chạy ở mỗi lời gọi): người bị gỡ chia sẻ nhận `not_found` dù cache còn câu trả lời cũ; hai người cùng mức quyền trên cùng bảng dùng chung câu trả lời; khác mức thì tính riêng.
+- Câu trả lời đang tính khi bảng đổi (sự kiện xoá cache tới giữa chừng) **không được lưu** (bộ đếm thế hệ theo bảng); lời gọi tới sau sự kiện không nối vào câu đang chạy từ trước. Cache giữ tối đa 2.000 câu (dùng gần nhất giữ lại), TTL 5 phút làm lưới an toàn, `ms` = 0 khi lấy từ cache hoặc nối vào câu đang chạy. Cache nằm trong bộ nhớ từng tiến trình api (không dùng Redis).
+- **Giới hạn đồng thời:** 6 câu/người (theo `actor.userId`), phần còn lại xếp hàng FIFO; slot trả lại cả khi lỗi. Pool kết nối vẫn là 10 như cũ; chưa đặt trần toàn hệ thống riêng (3D xem có cần).
+- **Giới hạn thời gian:** mỗi câu chạy trong một transaction ngắn với `set_config('statement_timeout', 10000, true)` (chỉ áp cho câu đó, không rò sang kết nối trong pool). Quá thời gian → `validation_error`, `details.reason = "query_too_heavy"` kèm `hint`, thông báo "Truy vấn quá nặng…". Không thêm mã lỗi mới (đã chốt ở 3A-1). Giá trị chỉnh được trong `metricLimits` (chưa đưa lên cài đặt hệ thống).
+- Số đo `metricCacheStats()` (hits, joined, executed, entries) có để test và để 3D đo.
+
+### Xoá cache bằng outbox + SSE (mục 5)
+
+- Subscriber `metrics.cache` (worker; `modules/metrics/invalidate.ts`, đăng ký trong `core/subscribers.ts`) nghe: `datahub.row.*`, `datahub.formula.recalculated` (trừ `state = pending`, chưa đổi gì), `datahub.structure.changed`, `datahub.share.changed`, `org.member.changed`. Chỉ số/nguồn đổi không cần sự kiện: định nghĩa nằm trong câu SQL nên khoá đổi theo.
+- Cách báo cho api: worker `pg_notify` kênh `soe_metric_cache` (`{tables:[...]}` hoặc `{all:true}`, chia 100 mã bảng mỗi gói vì giới hạn 8.000 byte); `SseHub` nghe thêm kênh này (`subscribeCache`), `buildApp` nối vào `invalidateMetricCache`. Mất kết nối rồi nối lại thì xoá hết cache (thông báo gửi lúc đứt bị mất).
+- Chia sẻ đổi → xoá mọi bảng của datahub đó; cây tổ chức đổi (`org.member.changed`) → xoá hết; cấu trúc đổi → bảng đó (hoặc cả datahub khi không có `table_id`); công thức tính lại → bảng của cột.
+- Sau khi xoá cache, worker phát tín hiệu SSE **`metrics.data.changed`** (đã đăng ký trong danh mục sự kiện, chỉ mang mã: `datahub_id`, `table_ids`, `reason`) cho chủ + người được chia sẻ của datahub; sự kiện cây tổ chức không có datahub nên gửi cho mọi người giữ quyền `datahub:datahub:use`. Dashboard 3C nghe chủ đề `metrics` để tải lại. Mỗi sự kiện dòng sinh một tín hiệu (ghi hàng loạt = nhiều tín hiệu): client nên gộp (debounce) khi tải lại.
+- **Độ trễ:** cache chỉ bị xoá sau khi worker xử lý sự kiện (cùng độ trễ với SSE hiện có); trong khoảng đó một lời gọi có thể nhận số cũ. Chấp nhận: dashboard tải lại ngay khi có tín hiệu.
+- **Chỗ cắm Stage 4 (chưa làm):** snapshot thật (câu SQL đọc bảng snapshot, `scopeKey` kèm mã snapshot) và "team tại thời điểm" (nguồn cột). Cả hai đổi câu SQL/`scopeKey` nên cache theo chúng mà không sửa `runner.ts`.
+- Test: `apps/api/test/metrics-load.test.ts` (22 test).

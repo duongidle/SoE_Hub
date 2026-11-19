@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { AppError } from "@soe/shared";
 import { SourceDefSchema, parseJson, type MColumn, type MTable, type PlanJoin, type SourceDef } from "@soe/metrics";
 import type { HandlerCtx } from "../../core/types";
-import { loadTableAccess, type TableAccess } from "../datahub/access";
+import { loadTableAccess, scopeKey, type TableAccess } from "../datahub/access";
 import { sourceOf } from "../datahub/column-source";
 import { effectiveType } from "../datahub/cell-values";
 import { columnTypeDef } from "../datahub/column-types";
@@ -56,7 +56,7 @@ const STANDARD: MColumn[] = [
 export async function loadMTable(ctx: Ctx, access: TableAccess): Promise<MTable> {
   const schema = await TableSchema.load(ctx.db, access);
   const cols = schema.alive.map(toMColumn).filter((c): c is MColumn => !!c);
-  return { id: access.tableId, name: access.table.name, columns: [...cols, ...STANDARD], scope: (alias) => access.scope(alias) };
+  return { id: access.tableId, name: access.table.name, columns: [...cols, ...STANDARD], scope: (alias) => access.scope(alias), scopeKey: scopeKey(access) };
 }
 
 export interface ResolvedSource {
