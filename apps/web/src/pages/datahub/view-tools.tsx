@@ -263,7 +263,7 @@ function ColumnsButton({ columns, config, change, hiddenCount }: { columns: Colu
             const vi = visible.findIndex((v) => v.key === k);
             return (
               <li key={k} className="flex items-center gap-1">
-                <label className="flex min-h-9 min-w-0 flex-1 items-center gap-2">
+                <label className="flex min-h-11 sm:min-h-9 min-w-0 flex-1 items-center gap-2">
                   <input type="checkbox" className="h-5 w-5 shrink-0" checked={on} onChange={() => toggle(k)} aria-label={`Hiện cột ${c.name}`} />
                   <span className="min-w-0 [overflow-wrap:anywhere]">{c.name}</span>
                 </label>
@@ -440,7 +440,7 @@ function TimeButton({ columns, dateCols, config, change }: { columns: Column[]; 
               {choices.map((c) => {
                 const on = tf.columns.includes(c.key);
                 return (
-                  <label key={c.key} className="flex min-h-9 items-center gap-2 [overflow-wrap:anywhere]">
+                  <label key={c.key} className="flex min-h-11 sm:min-h-9 items-center gap-2 [overflow-wrap:anywhere]">
                     <input type="checkbox" className="h-5 w-5 shrink-0" checked={on} disabled={on && tf.columns.length === 1} onChange={() => set({ ...tf, columns: on ? tf.columns.filter((k) => k !== c.key) : [...tf.columns, c.key] })} />
                     {c.name}
                   </label>
@@ -500,7 +500,7 @@ function ActiveChips({ columns, config, change }: { columns: Column[]; config: V
           {names.join(" hoặc ")}: <strong className="font-medium">{rangeName(tf.range, info.data?.fiscal_start_month)}</strong>
           {dates && <span className="text-muted-foreground"> ({dates})</span>}
         </span>
-        <button type="button" aria-label="Bỏ lọc theo thời gian" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-muted sm:h-6 sm:w-6" onClick={() => change({ time_filter: undefined })}>
+        <button type="button" aria-label="Bỏ lọc theo thời gian" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-muted sm:h-6 sm:w-6" onClick={() => change({ time_filter: undefined })}>
           <X size={16} aria-hidden />
         </button>
       </span>

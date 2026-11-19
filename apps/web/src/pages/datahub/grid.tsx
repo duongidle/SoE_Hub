@@ -170,6 +170,8 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
     (line: HeaderLine): string => `${groupCols[line.group.depth]?.name ?? ""}: ${keyText(line.group.depth, line.group.path[line.group.depth] ?? null)} · ${formatCount(line.group.count, "dòng")}`,
     [groupCols, keyText],
   );
+  /** The short text drawn on the line (the name of the column is in the tooltip). */
+  const headerLabel = useCallback((line: HeaderLine): string => `${keyText(line.group.depth, line.group.path[line.group.depth] ?? null)} · ${formatCount(line.group.count, "dòng")}`, [keyText]);
   /** The total of one column on a group line, or null when the view asks none for it. */
   const aggOf = useCallback(
     (line: HeaderLine, col: Column): { label: string; text: string } | null => {
@@ -519,7 +521,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
       const col = columns[args.col];
       const line = lineAt(args.row);
       if (line?.type === "header") {
-        drawHeaderLine(args.ctx, args.rect, line, args.col === 0 && col ? headerText(line) : null, col ? aggOf(line, col) : null, !!col && NUMERIC.has(typeOf(col)));
+        drawHeaderLine(args.ctx, args.rect, line, args.col === 0 && col ? headerLabel(line) : null, col ? aggOf(line, col) : null, !!col && NUMERIC.has(typeOf(col)));
         return;
       }
       draw();
@@ -537,7 +539,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
       c.stroke();
       c.restore();
     },
-    [columns, store, lineAt, headerText, aggOf],
+    [columns, store, lineAt, headerLabel, aggOf],
   );
 
   const onHeaderClick = useCallback(

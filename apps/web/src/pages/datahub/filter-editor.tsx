@@ -197,7 +197,7 @@ function ValueInput({ col, kind, cond, names, set, onBlur, id }: { col: Column; 
           <legend className="px-1 text-xs text-muted-foreground">Chọn một hoặc nhiều</legend>
           {options.length === 0 && <span className="text-muted-foreground">Cột chưa có lựa chọn nào.</span>}
           {options.map((o) => (
-            <label key={o.id} className="flex min-h-9 items-center gap-2 [overflow-wrap:anywhere]">
+            <label key={o.id} className="flex min-h-11 sm:min-h-9 items-center gap-2 [overflow-wrap:anywhere]">
               <input type="checkbox" className="h-5 w-5 shrink-0" checked={cond.ids.includes(o.id)} onChange={(e) => set({ ids: e.target.checked ? [...cond.ids, o.id] : cond.ids.filter((x) => x !== o.id) })} />
               {o.name}
             </label>

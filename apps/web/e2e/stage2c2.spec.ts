@@ -90,7 +90,6 @@ test.afterAll(async () => {
 
 const url = () => `/datahub/${dhId}/${tableId}`;
 const lines = async (g: GridDriver) => Number(await g.root.getAttribute("data-lines"));
-const count = (page: Page, text: string) => expect(page.getByText(text, { exact: true })).toBeVisible();
 const panel = (page: Page, name: string): Locator => page.getByRole("dialog", { name });
 const toolbar = (page: Page) => page.getByRole("toolbar", { name: "Công cụ view" });
 async function open(s: Session): Promise<GridDriver> {
@@ -383,15 +382,16 @@ test("bảng rất lớn: kéo thanh cuộn tới đâu cũng dưới 1 giây, �
       el.scrollTop = (el.scrollHeight - el.clientHeight) * f;
     }, fraction);
     await answer;
+    const fetched = Date.now() - t0;
     // The canvas shows the rows: the cell no longer says "loading".
     await expect.poll(async () => g.read(0, 2).catch(() => ""), { timeout: 5000 }).toMatch(/^Dòng thử \d+$/);
-    return Date.now() - t0;
+    return fetched;
   };
   const times: number[] = [];
   for (const f of [1, 0.5, 0.9, 0.1, 0.77]) times.push(await jump(f));
-  // Request + draw (the read itself costs a few hundred ms in the test); the server side is 130 ms (see the api tests).
-  console.log(`jump times (ms): ${times.join(", ")}`);
-  for (const t of times) expect(t).toBeLessThan(1000 + 700);
+  // From the move of the scroll bar to the answer of the server (the canvas draws it in the next frame); the test's own read of a cell comes after.
+  test.info().annotations.push({ type: "jump (ms)", description: times.join(", ") });
+  for (const t of times) expect(t).toBeLessThan(1000);
   await expect.poll(async () => Number((await g.read(0, 2)).replace("Dòng thử ", "")), { timeout: 5000 }).toBeGreaterThan(70_000);
   await owner.shot("view-100k");
   // Sorted by money, high to low: the bottom of the table holds the smallest.
@@ -410,6 +410,43 @@ test("bảng rất lớn: kéo thanh cuộn tới đâu cũng dưới 1 giây, �
   await expect.poll(() => lines(g), { timeout: 30_000 }).toBe(100_004);
   await jump(1);
   await owner.shot("view-100k-grouped");
+});
+
+test("nhóm có rất nhiều nhóm: cắt ở 1.000 nhóm và báo rõ; 10.000 dòng lọc và sắp xếp", async () => {
+  test.setTimeout(120_000);
+  const t = await ownerApi.call<{ id: string }>("POST", `/datahubs/${dhId}/tables`, { name: "Mười nghìn dòng" });
+  await ownerApi.call("POST", `/tables/${t.id}/columns`, { name: "Mã", type: "text" });
+  await ownerApi.call("POST", `/tables/${t.id}/columns`, { name: "Tiền", type: "currency" });
+  await seedMany(ownerApi, t.id, 10_000, (i) => ({ Mã: `KH-${String(i).padStart(5, "0")}`, Tiền: ((i * 7919) % 10_000) * 1000 }));
+  const pg = owner.page;
+  await pg.goto(`/datahub/${dhId}/${t.id}`);
+  await expect(pg.getByText("10.000 dòng", { exact: true })).toBeVisible({ timeout: 30_000 });
+  const g = new GridDriver(pg);
+  const gp = await openTool(pg, "Nhóm", "Nhóm dòng");
+  await gp.getByRole("button", { name: "Thêm cấp nhóm" }).click();
+  await gp.getByLabel("Cột nhóm cấp 1").selectOption({ label: "Mã" });
+  await pg.keyboard.press("Escape");
+  await expect(pg.getByText(/Có hơn 1\.000 nhóm/)).toBeVisible({ timeout: 20_000 });
+  // 1.000 groups of one row each: 2.000 lines.
+  await expect.poll(() => lines(g), { timeout: 10_000 }).toBe(2000);
+  await owner.shot("view-many-groups");
+  const gp2 = await openTool(pg, "Nhóm", "Nhóm dòng");
+  await gp2.getByRole("button", { name: "Bỏ cấp nhóm 1" }).click();
+  await pg.keyboard.press("Escape");
+  // Filter "Tiền lớn hơn 9.000.000" and sort by money: 999 rows (values 9.001.000 .. 9.999.000 step 1.000 each appear once).
+  const f = await openTool(pg, "Lọc", "Lọc dòng");
+  await f.getByRole("button", { name: "Thêm điều kiện" }).click();
+  await f.getByLabel("Cột", { exact: true }).selectOption({ label: "Tiền" });
+  await f.getByLabel("Toán tử").selectOption({ label: "lớn hơn" });
+  await f.getByLabel("Giá trị").fill("9.000.000");
+  await pg.keyboard.press("Escape");
+  await expect(pg.getByText("999 dòng", { exact: true })).toBeVisible({ timeout: 20_000 });
+  const s = await openTool(pg, "Sắp xếp", "Sắp xếp");
+  await s.getByRole("button", { name: "Thêm cấp sắp xếp" }).click();
+  await s.getByLabel("Cột sắp xếp cấp 1").selectOption({ label: "Tiền" });
+  await pg.keyboard.press("Escape");
+  await expect.poll(async () => g.read(1, 0), { timeout: 10_000 }).toBe("9.001.000 ₫");
+  await owner.shot("view-10k-filtered");
 });
 
 test("dữ liệu xấu nhất của thanh công cụ: tên cột dài, danh sách cột nhiều, 375px không tràn ngang", async () => {

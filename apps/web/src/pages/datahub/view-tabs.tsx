@@ -155,7 +155,7 @@ function NameDialog({ title, submit, initial = "", offerShared, save, onClose }:
         </Field>
         {err && <p role="alert" className="-mt-3 text-xs text-bad">{err}</p>}
         {offerShared && (
-          <label className="flex min-h-9 items-center gap-2">
+          <label className="flex min-h-11 sm:min-h-9 items-center gap-2">
             <input type="checkbox" className="h-5 w-5" checked={shared} onChange={(e) => setShared(e.target.checked)} />
             View chung: mọi người có quyền xem bảng đều thấy
           </label>

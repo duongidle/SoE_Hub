@@ -528,3 +528,38 @@ Làm theo mục 5.2, 7, 13. Phần 2C-2 (thanh công cụ view), 2C-3 (quản l�
 **Lệch hoặc bổ sung so với thiết kế**
 - Mục 5.2 (view tự lưu) và 7a chưa có giao diện (2C-2, 2C-4). Mục 7: hoàn tác/làm lại làm ở máy khách chứ không "dựa trên lịch sử dòng" của server (lịch sử dòng chỉ ghi cũ → mới theo cột, không có thao tác đảo ngược an toàn khi dòng đã đổi tiếp).
 - Đổi thứ tự bảng bằng menu chứ không kéo thả (đã nêu ở trên).
+
+### Stage 2C-2 (thanh công cụ view, tự lưu, nhảy cuộn, nhóm)
+
+Làm theo mục 5.1–5.4. Phần server đã xong (đọc cửa sổ `offset`/`reverse`, `time_filter`, `row-groups`, `marks`); đây là giao diện và lớp đọc dòng ở máy khách.
+
+**Đọc dòng theo vị trí, không theo con trỏ**
+- `RowsStore` (`lib/datahub/rows-store.ts`) viết lại: danh sách `total` vị trí, thưa; mỗi khối 200 dòng là một request theo `offset`. Khối ở nửa sau của danh sách đọc bằng `offset` tính từ cuối + `reverse` để server không phải bỏ qua xa. Chỉ các khối gần màn hình (±30/60 dòng) được đọc, tối đa 2 request cùng lúc, giữ tối đa 40 khối (khoảng 8.000 dòng) trong bộ nhớ, khối xa nhất bị bỏ trước. Request cũ không lặp lại khi người dùng đã kéo đi chỗ khác.
+- Kéo thanh cuộn tới đâu cũng chỉ đọc đúng chỗ đó: bảng 100.000 dòng nhảy tới cuối, giữa, 10%… mất 70–120 ms tới khi server trả lời (e2e), đúng cả khi lọc, sắp xếp, nhóm. Trước đây kéo xuống cuối mất 5,8 s.
+- Thêm/xoá/khôi phục dòng làm vị trí dịch: giao diện sửa ngay trên dữ liệu đang có rồi đánh dấu mọi khối "cũ" và đọc lại các khối gần màn hình (màn hình giữ dòng cũ tới khi dòng mới về). Dòng mới tạo xếp cuối bảng chỉ khi view không lọc, không sắp, không nhóm, không tìm; còn lại server cho biết vị trí (đọc lại).
+- Không còn "Đã tải X / N dòng": luôn là `N dòng`.
+
+**View và tự lưu**
+- Cột trong view dùng **key** (đổi tên cột không làm hỏng view). View tạo bằng API hay AI có thể ghi **tên** cột: lúc nạp view, tên được đổi sang key (`normalizeConfig`). Thiết lập trỏ tới cột đã xoá: bỏ qua khi đọc dòng, hiện dải cảnh báo "View này dùng N thiết lập trỏ tới cột đã bị xoá" kèm nút "Xoá khỏi view".
+- Mỗi thay đổi hiện ngay và gửi sau 400 ms nghỉ, gộp nhiều thay đổi thành một request, chỉ gửi mục đổi (mục đã bỏ gửi `null`); thay đổi tới trong lúc đang gửi thì gửi tiếp ngay sau đó; server từ chối thì quay về giá trị server và báo lỗi (`ViewAutosave`, có test). Dòng trạng thái "Đang lưu view… / Đã lưu view", thêm "(chỉ cho bạn)" khi người được chia sẻ đổi view chung (server lưu thành bản riêng; menu view có "Về mặc định").
+- Địa chỉ giữ view đang chọn qua `?view=<id>`; chọn view gọi `datahub.view.open` (nhớ view cuối). Không có `view` trong địa chỉ: dùng view cuối đã mở, rồi view đầu tiên.
+- Tab view: thêm (chủ bảng có thể đánh dấu "View chung"), đổi tên, sao chép, xoá, **chuyển trái/phải bằng menu** (như tab bảng, không kéo thả), "Về mặc định". Mỗi bảng luôn có view chung "Dạng bảng"; thiếu thì giao diện tự tạo view cá nhân.
+- Đổi view, bộ lọc, sắp xếp, nhóm, tìm kiếm: tạo **phiên mới** (`TableSession` nhận `SessionQuery`); mất hoàn tác của phiên cũ. Ẩn/hiện/đổi thứ tự/độ rộng/cố định cột, chiều cao dòng, màu **không** tạo phiên mới (không đọc lại dòng). Tìm kiếm chờ 350 ms sau phím cuối; tìm kiếm không lưu vào view (view không có trường này).
+
+**Thanh công cụ** (`view-tools.tsx`, `filter-editor.tsx`; Popover Radix qua cổng, thêm `@radix-ui/react-popover` 1.1.15)
+- Thời gian (chỉ khi bảng có cột Ngày/Ngày giờ), Lọc, Sắp xếp, Nhóm, Cột, Dòng, Tô màu, ô Tìm. Nút có số đếm khi đang bật.
+- **Lọc:** cây điều kiện lồng nhau (nhóm "tất cả"/"một trong", tối đa 3 tầng). Cột, toán tử, lựa chọn, người đều là danh sách chọn; chỉ chữ, số, ngày là gõ. Điều kiện chưa đủ hoặc sai kiểu **chưa gửi lên server** (không làm hỏng bảng), báo lỗi dưới ô khi rời ô. Phần trăm gõ theo điểm phần trăm (`12,5` = 12,5%) như khi sửa ô. Cột liên kết, đính kèm, mã dòng không lọc được. Một điều kiện không bọc trong nhóm.
+- **Sắp xếp:** tối đa 5 cấp, chiều có chữ theo kiểu cột ("Nhỏ → lớn", "Cũ → mới", "Theo thứ tự lựa chọn"), chọn ô trống đầu/cuối (luôn lưu `nulls` rõ). Cột công thức chọn được như cột thường. Cột Nhiều lựa chọn không sắp được.
+- **Nhóm:** tối đa 3 cấp; khi có nhóm, dòng được sắp theo cột nhóm trước (ô trống **luôn cuối**, khớp thứ tự danh sách nhóm của server), rồi theo sắp xếp của view. Dòng tổng: mỗi cột chọn Đếm/Tổng/Trung bình/Nhỏ nhất/Lớn nhất (theo kiểu cột). Dòng nhóm vẽ trong canvas: mũi tên mở/đóng, tên giá trị + số dòng, tổng của cột nằm đúng cột (kèm nhãn "Tổng" khi vừa chỗ), tooltip có tên cột đầy đủ. Mở/đóng nhóm bằng bấm vào ô đầu của dòng nhóm hoặc Enter/Space; trạng thái đóng chỉ giữ trong phiên. Quá 1.000 nhóm ở một cấp: chỉ hiện 1.000 nhóm đầu và có dải báo. Không dán/điền qua dòng nhóm; không có dòng "Thêm dòng" cuối bảng khi nhóm (nút "Thêm dòng" trên thanh vẫn dùng được).
+- **Cột:** danh sách có ô hiện/ẩn, nút lên/xuống (thay cho kéo thả, bàn phím dùng được) và nút ghim "Cố định đến cột này"; kéo mép tiêu đề đổi độ rộng, kéo tiêu đề đổi chỗ (Glide). Menu của tiêu đề cột (mũi tên ở tiêu đề): sắp xếp, nhóm theo cột, cố định, ẩn. Luôn còn ít nhất một cột hiện.
+- **Chiều cao dòng:** Gọn 32 px, Vừa 36 px (mặc định, không lưu), Cao 56 px (chữ xuống tối đa 2 dòng).
+- **Tô màu:** tối đa 20 quy tắc, mỗi quy tắc là một bộ lọc đầy đủ + màu (chín màu `--opt-*`); server báo dòng nào khớp (`marks`), dòng khớp nhiều quy tắc lấy màu quy tắc đầu. Quy tắc chưa đủ điều kiện chưa lưu.
+- **Thời gian:** theo mục 5.4. Khoảng có sẵn, "N ngày qua", "Một kỳ cụ thể" (tháng, quý, năm tài chính, có ‹ ›), "Từ ngày – đến ngày"; chọn nhiều cột ngày (kể cả Ngày tạo/Ngày sửa của dòng `_created_at`/`_updated_at`); chip phía trên bảng có khoảng ngày cụ thể **do server tính** (`datahub.time_filter.resolve`) và nút ×. Giao diện không tự tính ngày.
+- Lọc rỗng: "Không có dòng nào khớp" + nút **Xoá bộ lọc** (bỏ lọc điều kiện, thời gian và từ khoá).
+
+**Test:** `apps/web/test/view-config.test.ts` (query của view, bộ lọc nháp, tên cột, cột ẩn/thứ tự/cố định, tự lưu và bản riêng, bước kỳ, bố cục nhóm), `apps/web/e2e/stage2c2.spec.ts` (10 luồng × 1280 và 375).
+
+**Lệch hoặc bổ sung so với thiết kế**
+- Kéo thả tab view và cố định cột bằng kéo "vạch" chưa có; thay bằng menu/nút (đã nêu). 
+- Tìm kiếm không lưu theo view.
+- Khi có nhóm, ô "Tìm trong bảng" và bộ lọc vẫn tính theo server cho cả số dòng của nhóm.

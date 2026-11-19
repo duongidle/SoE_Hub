@@ -17,7 +17,7 @@ export function Button({ className, variant = "primary", loading, disabled, chil
       type="button"
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn("inline-flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-transform duration-100 ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:min-h-9", styles, className)}
+      className={cn("inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-transform duration-100 ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:min-h-9 sm:min-w-0", styles, className)}
       {...props}
     >
       {loading && <Loader2 size={16} aria-hidden className="animate-spin motion-reduce:animate-none" />}

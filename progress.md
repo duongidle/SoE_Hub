@@ -32,7 +32,7 @@ Cập nhật: 19/11/2026
 ## Đang làm: Stage 2C (giao diện Datahub), Sonnet code
 
 - **2C-1 xong**: danh sách datahub, trang datahub (tab bảng, URL gửi được), grid Glide ảo hoá đọc keyset (100.000 dòng cuộn 60 fps), mọi kiểu cột, ô "đang tính", sửa ô/dán/điền xuống/sửa hàng loạt/xoá + Hoàn tác/hoàn tác-làm lại, khung chi tiết dòng + lịch sử, SSE; API mới `datahub.people.lookup`, `datahub.relation.labels`, `datahub.row.restore_batch`.
-- **2C-2 (server xong, đang làm giao diện — Sonnet)**: sửa nhảy cuộn < 1 s; thanh công cụ view (tab view, lọc lồng nhau, ô Thời gian mục 5.4, sắp xếp nhiều cấp, nhóm + dòng tổng, ẩn/cố định/kéo thứ tự/độ rộng cột, chiều cao dòng, tô màu theo điều kiện), tự lưu theo mục 5.2.
+- **2C-2 xong phần giao diện (Sonnet, chờ Opus rà soát)**: nhảy cuộn bảng 100.000 dòng 70–120 ms; tab view, lọc lồng nhau, ô Thời gian, sắp xếp nhiều cấp, nhóm + dòng tổng, cột (ẩn/cố định/thứ tự/độ rộng), chiều cao dòng, tô màu, tìm kiếm, tự lưu và bản riêng. Chi tiết `design/module2-datahub.md` mục "Stage 2C-2".
 - 2C-3: quản lý cột (thêm/sửa/xoá, kiểu, thuộc tính, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện công thức mẫu; ô chọn dòng đích cho cột Liên kết.
 - 2C-4: Tìm dòng trùng (mục 7a), chia sẻ, thùng rác, cài đặt giới hạn Admin; kiểm thử giao diện cả 2C theo "Định nghĩa xong" điểm 5.
 - 2D: import/export, import công thức, load test 100k dòng, e2e cả stage.
