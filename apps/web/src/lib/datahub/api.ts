@@ -24,12 +24,12 @@ export const getLimits = () => api<Limits>("GET", "/datahub/limits");
 export const createDatahub = (name: string, description?: string) => api<DatahubBrief>("POST", "/datahubs", { name, description: description || undefined });
 export const updateDatahub = (id: string, body: { name?: string; description?: string | null; version?: number }) => api<DatahubBrief>("PATCH", `/datahubs/${id}`, body);
 export const deleteDatahub = (id: string) => api("DELETE", `/datahubs/${id}`);
-export const restoreDatahub = (id: string) => api("POST", `/datahubs/${id}/restore`, {});
+export const restoreDatahub = (id: string, name?: string) => api("POST", `/datahubs/${id}/restore`, name ? { name } : {});
 
 export const createTable = (datahubId: string, name: string) => api<{ id: string; name: string }>("POST", `/datahubs/${datahubId}/tables`, { name });
 export const updateTable = (id: string, body: { name?: string; position?: number; version?: number }) => api("PATCH", `/tables/${id}`, body);
 export const deleteTable = (id: string) => api("DELETE", `/tables/${id}`);
-export const restoreTable = (id: string) => api("POST", `/tables/${id}/restore`, {});
+export const restoreTable = (id: string, name?: string) => api("POST", `/tables/${id}/restore`, name ? { name } : {});
 
 export interface RowQuery {
   filter?: unknown;
@@ -177,3 +177,37 @@ export interface ResolveResult {
 }
 export const resolveDuplicates = (tableId: string, body: { groups: { keep_id: string; remove_ids: string[]; values?: Record<string, unknown> }[] } | { all: { columns: string[]; keep: "first" | "last" | "most_filled"; fill_empty: boolean } }) =>
   api<ResolveResult>("POST", `/tables/${tableId}/duplicates/resolve`, body);
+
+export interface Share {
+  id: string;
+  datahub_id: string;
+  table_id: string | null;
+  grantee_id: string;
+  grantee_name: string | null;
+  grantee_email: string | null;
+  permission: "view" | "edit_data";
+}
+export const listShares = (datahubId: string) => api<Share[]>("GET", `/datahubs/${datahubId}/shares`);
+export const setShare = (datahubId: string, body: { grantee_id: string; table_id: string | null; permission: "view" | "edit_data" }) => api<Share>("PUT", `/datahubs/${datahubId}/shares`, body);
+export const removeShare = (datahubId: string, shareId: string) => api("DELETE", `/datahubs/${datahubId}/shares/${shareId}`);
+
+export interface TrashList {
+  retention_days: number;
+  datahubs: { id: string; name: string; deleted_at: string; purge_at: string }[];
+  tables: { id: string; datahub_id: string; datahub_name: string; name: string; deleted_at: string; purge_at: string }[];
+  columns: { id: string; key: string; name: string; type: string; deleted_at: string; purge_at: string }[];
+  rows: { id: string; row_no: number; deleted_at: string; deleted_by: string | null; purge_at: string }[];
+}
+export const getTrash = (tableId?: string) => api<TrashList>("GET", `/datahub/trash${qs({ table_id: tableId })}`);
+export const restoreRow = (tableId: string, rowId: string) => api("POST", `/tables/${tableId}/rows/${rowId}/restore`, {});
+
+export interface UserLimit {
+  user_id: string;
+  full_name: string;
+  email: string | null;
+  max_datahubs: number | null;
+  max_tables: number | null;
+  max_columns: number | null;
+}
+export const listUserLimits = () => api<UserLimit[]>("GET", "/admin/datahub/limits");
+export const setUserLimit = (userId: string, body: { max_datahubs?: number | null; max_tables?: number | null; max_columns?: number | null }) => api("PUT", `/admin/datahub/limits/${userId}`, body);

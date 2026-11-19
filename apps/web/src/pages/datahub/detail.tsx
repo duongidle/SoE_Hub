@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Share2, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SHARE_PERMISSION_LABELS } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { createTable, deleteTable, dhKeys, getDatahub, restoreTable, updateTable
 import type { DatahubBrief, TableBrief } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
 import { nameError } from "./list";
+import { ShareDialog } from "./share-dialog";
 import { TableView } from "./table-view";
 
 /** `/datahub/:datahubId/:tableId` — the tabs of the tables of one datahub, and the open table below them. */
@@ -43,6 +44,11 @@ export function DatahubPage() {
   if (q.error || !dh) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được datahub" />;
 
   const current = dh.tables.find((t) => t.id === tableId);
+  return <DatahubBody dh={dh} tableId={tableId} current={current} />;
+}
+
+function DatahubBody({ dh, tableId, current }: { dh: DatahubBrief; tableId?: string; current?: TableBrief }) {
+  const [sharing, setSharing] = useState(false);
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -50,6 +56,9 @@ export function DatahubPage() {
           <ArrowLeft size={16} aria-hidden /> Datahub
         </Link>
         <h1 className="min-w-0 text-xl font-semibold [overflow-wrap:anywhere] sm:text-2xl">{dh.name}</h1>
+        {dh.access === "owner" && (
+          <Button variant="secondary" onClick={() => setSharing(true)} className="ml-auto"><Share2 size={16} aria-hidden /> Chia sẻ</Button>
+        )}
         {dh.access !== "owner" && (
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
             Chủ: <span className="[overflow-wrap:anywhere]">{dh.owner_name ?? "—"}</span>
@@ -57,6 +66,7 @@ export function DatahubPage() {
           </span>
         )}
       </div>
+      {sharing && <ShareDialog dh={dh} onClose={() => setSharing(false)} />}
       <TableTabs dh={dh} currentId={tableId} />
       {dh.tables.length === 0 ? (
         <EmptyState title="Datahub chưa có bảng nào" hint={dh.access === "owner" ? "Tạo bảng đầu tiên để thêm dữ liệu." : "Chủ datahub chưa chia sẻ bảng nào cho bạn."} />
