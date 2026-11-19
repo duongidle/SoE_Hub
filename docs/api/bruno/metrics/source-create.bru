@@ -1,0 +1,46 @@
+meta {
+  name: metrics.source.create
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/metric-sources
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "source": {
+      "name": "Deal và thanh toán",
+      "table": "Deals",
+      "joins": [
+        {
+          "table": "Thanh toán",
+          "as": "TT",
+          "on": [
+            {
+              "left": "Mã deal",
+              "right": "Mã deal"
+            }
+          ],
+          "collapse": {
+            "Số tiền": "sum"
+          }
+        }
+      ]
+    }
+  }
+}
+
+docs {
+  Lưu một nguồn dữ liệu (bảng, hoặc bảng ghép với bảng khác cùng datahub).
+  Quyền: `datahub:datahub:use`.
+}

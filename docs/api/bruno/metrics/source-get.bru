@@ -1,0 +1,20 @@
+meta {
+  name: metrics.source.get
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/metric-sources/{{source_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Xem một nguồn dữ liệu đã lưu (JSON).
+  Quyền: `datahub:datahub:use`.
+}

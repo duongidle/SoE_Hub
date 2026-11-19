@@ -17,7 +17,7 @@ import { defineCommand, defineQuery } from "../../core/registry";
 import { loadDatahubAccess } from "../datahub/access";
 import { rethrowNameConflict } from "../datahub/errors";
 import { Id, Ts } from "../datahub/shared";
-import { diagnoseJoins, mergeSpec, runMetric, unmatchedRows, validateSpec } from "./engine";
+import { diagnoseJoins, runMetric, unmatchedRows, validateSpec } from "./engine";
 import { resolveSource, type Ctx, type ResolvedSource } from "./context";
 
 type Raw = Record<string, unknown>;
@@ -352,4 +352,3 @@ export const metricOperations = [
   }),
 ];
 
-export { mergeSpec };

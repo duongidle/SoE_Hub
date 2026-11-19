@@ -1,0 +1,26 @@
+meta {
+  name: metrics.source.diagnose
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/v1/metric-source-diagnosis
+  body: none
+  auth: none
+}
+
+params:query {
+  ~source_id: {{source_id}}
+  ~source: {"name":"Deal và thanh toán","table":"Deals","joins":[{"table":"Thanh toán","as":"TT","on":[{"left":"Mã deal","right":"Mã deal"}],"collapse":{"Số tiền":"sum"}}]}
+  ~datahub_id: {{datahub_id}}
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Chẩn đoán nguồn: mỗi phép ghép ghép được bao nhiêu dòng, bao nhiêu không khớp, khoá nào trùng. Gửi source_id HOẶC source.
+  Quyền: `datahub:datahub:use`.
+}

@@ -1,0 +1,32 @@
+meta {
+  name: metrics.query
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/metric-query
+  body: none
+  auth: none
+}
+
+params:query {
+  ~metric_id: {{metric_id}}
+  ~metric: {"name":"Tổng doanh thu","source":"{{table_id}}","measure":{"agg":"sum","field":"Doanh thu"},"time":{"field":"Ngày chốt","bucket":"month","range":"this_year"}}
+  ~datahub_id: {{datahub_id}}
+  ~time: {"range":{"kind":"last_n_months","n":6}}
+  ~group_by: ["Loại deal"]
+  ~filter: {"field":"Loại deal","op":"eq","value":"POD"}
+  ~order: value_desc
+  ~limit: 100
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Tính một chỉ số: gửi metric_id (đã lưu) HOẶC metric (JSON tại chỗ), không gửi cả hai. Các tham số JSON (metric, time, group_by, filter) gửi dạng chuỗi JSON.
+  Ví dụ phân vị: measure {"agg":"p90","field":"Doanh thu"}.
+  Quyền: `datahub:datahub:use`.
+}

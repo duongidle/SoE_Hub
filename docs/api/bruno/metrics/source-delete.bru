@@ -1,0 +1,21 @@
+meta {
+  name: metrics.source.delete
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/metric-sources/{{source_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xoá nguồn dữ liệu (xoá mềm).
+  Quyền: `datahub:datahub:use`.
+}

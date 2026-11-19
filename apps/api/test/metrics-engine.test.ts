@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { as, actorOf, fails, makeTable, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
@@ -206,8 +207,8 @@ describe("time buckets in Vietnam time", () => {
   });
 
   it("quarters and years follow the fiscal start month setting", async () => {
-    const adm = as(t, org.admin.id);
-    const s = await adm("system.setting.set", { key: "datahub.fiscal_start_month", value: 4 });
+    // Written straight into the table and removed again, so the setting is as untouched as other test files expect (they create it with no version).
+    await t.c.db.db.execute(sql`INSERT INTO system_settings (id, key, value) VALUES (gen_random_uuid(), 'datahub.fiscal_start_month', '4'::jsonb) ON CONFLICT (key) DO UPDATE SET value = '4'::jsonb`);
     try {
       const qr = await q({ measure: { agg: "count" }, time: { field: "Ngày chốt", bucket: "quarter" } });
       const m = Object.fromEntries(qr.rows.map((row: { groups: { value: string; label: string }[]; count: number }) => [row.groups[0]!.value, [row.groups[0]!.label, row.count]]));
@@ -219,7 +220,7 @@ describe("time buckets in Vietnam time", () => {
       expect(ym["2025-04-01"]).toBe(3); // 2025-11-19, 2026-01-15, 2026-03-31
       expect(ym["2026-04-01"]).toBe(7);
     } finally {
-      await adm("system.setting.set", { key: "datahub.fiscal_start_month", value: 1, version: s.version });
+      await t.c.db.db.execute(sql`DELETE FROM system_settings WHERE key = 'datahub.fiscal_start_month'`);
     }
   });
 });

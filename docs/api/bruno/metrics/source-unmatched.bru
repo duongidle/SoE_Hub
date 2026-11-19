@@ -1,0 +1,29 @@
+meta {
+  name: metrics.source.unmatched
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/v1/metric-source-unmatched
+  body: none
+  auth: none
+}
+
+params:query {
+  ~source_id: {{source_id}}
+  ~source: {"name":"Deal và thanh toán","table":"Deals","joins":[{"table":"Thanh toán","as":"TT","on":[{"left":"Mã deal","right":"Mã deal"}],"collapse":{"Số tiền":"sum"}}]}
+  ~datahub_id: {{datahub_id}}
+  join: 0
+  limit: 100
+  offset: 0
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Các dòng của bảng chính không ghép được trong một phép ghép (join = thứ tự phép ghép, 0 là phép đầu).
+  Quyền: `datahub:datahub:use`.
+}
