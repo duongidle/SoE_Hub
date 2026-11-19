@@ -42,7 +42,7 @@ Cập nhật: 19/11/2026
 
 ## Bước tiếp theo
 
-**2E-1 (Sonnet)**: chạy toàn bộ test và sửa lỗi; rồi **2E-2**. Cách làm ở Ghi chú điều phối mục 7.
+**2E-1 (Sonnet) ĐANG CHẠY** (typecheck, eslint, pnpm test, e2e desktop, phone): chạy toàn bộ test và sửa lỗi; rồi **2E-2**. Cách làm ở Ghi chú điều phối mục 7.
 
 Test 2D (desktop, test nhanh): `pnpm -r typecheck`, `pnpm exec eslint .` sạch; `pnpm exec vitest run apps packages` 688 pass (54 file, 296 s); `pnpm test:e2e stage2d --project=desktop` 5/5 pass, 3 lần liền (~20 s); `pnpm test:e2e stage2c1 stage2c2 stage2c3 stage2c4 --project=desktop` 35/35 pass (3,1 phút). Không có test chập chờn ở 2D. Tải 100.000 dòng: import 12 s, export XLSX 7,8 s, CSV 8,3 s.
 Chưa làm/để sau: thử link Google Sheet thật; nhập cột Liên kết/Người/Đính kèm; tự thêm lựa chọn vào cột lựa chọn có sẵn; chưa chạy 375px (theo quy trình).
