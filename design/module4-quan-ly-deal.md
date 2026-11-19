@@ -248,7 +248,7 @@ Vai trò của bảng Đợt thanh toán và Sổ com: mục 7.6.
 | 2 | Loại deal | Một lựa chọn | `POD bán mới`, `POD CSM`, `POD Express`, `PS kèm POD`, `PS không kèm POD`, `Data` (Data Validation) |
 | 3 | Start date | Ngày | Ngày nhận deal. Bắt buộc |
 | 4 | Ngày dự kiến chốt | Ngày | Deal đang mở: ngày dự kiến tiền về đợt đầu. Forecast dùng. Nhập tay (BPM: `Ngày dự kiến chốt`) |
-| 5 | Closing date | Công thức | `IF([Ngày đóng (sửa tay)]<>"", [Ngày đóng (sửa tay)], IF([Status]="Won", [Ngày tiền về đầu tiên], IF(<Status là trạng thái đóng khác>, [Ngày đổi Status], "")))`. Deal mở để trống. Điều kiện trạng thái viết theo **nghĩa** của lựa chọn (mở/thắng/thua/huỷ, mục 3.7), không theo tên |
+| 5 | Closing date | Công thức | `IF([Ngày đóng (sửa tay)]<>"", [Ngày đóng (sửa tay)], IF([Status]="Won", [Ngày tiền về đầu tiên], IF(OR([Status]="Lost", [Status]="Disqualified", [Status]="Convert to POD", [Status]="Huỷ"), [Ngày đổi Status], "")))`. Deal mở để trống. Công thức so tên lựa chọn; đổi tên lựa chọn thì công thức được cập nhật theo (Module 2 mục 6) |
 | 5a | Ngày đóng (sửa tay) | Ngày | Manager nhập khi biết ngày chính xác hơn; để trống thì dùng ngày tự tính |
 | 5b | Ngày tiền về đầu tiên | Rollup | MIN `Ngày tiền về` của các đợt. Ẩn mặc định |
 | 5c | Ngày đổi Status | Ngày sửa của cột (Module 2 mục 4) | Theo dõi cột Status. Ẩn mặc định |
