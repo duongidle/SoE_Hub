@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { formatCount } from "@soe/shared";
-import { Maximize2, Pencil, Plus, Redo2, Trash2, Undo2 } from "lucide-react";
+import { Columns3, Maximize2, Pencil, Plus, Redo2, Trash2, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, errorMessage, Field, Input, Modal, Select } from "@/components/ui/form";
@@ -18,6 +18,8 @@ import { buildQuery, DEFAULT_ROW_HEIGHT, fullOrder, layoutColumns, moveColumn, n
 import { liveBus, type LiveSignal } from "@/lib/session";
 import { TableGrid, type GridApi } from "./grid";
 import { PersonPicker, RatingPicker } from "./pickers";
+import { ColumnEditor } from "./column-editor";
+import { ColumnManager, useColumnDelete } from "./column-manager";
 import { RowPanel } from "./row-panel";
 import { ViewTabs } from "./view-tabs";
 import { ViewTools } from "./view-tools";
@@ -63,7 +65,9 @@ export interface GridView {
   colors: ColorRule[];
   onWidth: (key: string, width: number) => void;
   onMove: (key: string, toIndex: number) => void;
-  onHeaderAction: (key: string, action: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group") => void;
+  /** Only the owner changes the structure: the header menu shows "Sửa cột" and "Xoá cột" when this is set. */
+  canEditColumns: boolean;
+  onHeaderAction: (key: string, action: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group" | "edit" | "delete") => void;
 }
 
 /** Owns the current view: which one is open (the address keeps it), its settings (saved as they change) and the session of rows it reads. */
@@ -110,6 +114,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   useEffect(() => () => void auto.flush(), [auto]);
 
   const config = auto.config;
+  const [colUI, setColUI] = useState<{ kind: "manage" } | { kind: "add" } | { kind: "edit"; col: Column } | null>(null);
+  const deleteCol = useColumnDelete(table);
   const [search, setSearch] = useState("");
   const debounced = useDebounced(search, 350);
   const { dead } = useMemo(() => pruneConfig(config, table.columns), [config, table.columns]);
@@ -134,7 +140,15 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
         const target = visible[to]?.key;
         auto.change({ order: moveColumn(order, key, target ? order.indexOf(target) : order.length) });
       },
+      canEditColumns: table.access === "owner",
       onHeaderAction: (key, action) => {
+        if (action === "edit" || action === "delete") {
+          const target = table.columns.find((x) => x.key === key);
+          if (!target || table.access !== "owner") return;
+          if (action === "edit") setColUI({ kind: "edit", col: target });
+          else void deleteCol(target);
+          return;
+        }
         const c = auto.config;
         const visible = layoutColumns(c, table.columns).columns;
         const at = visible.findIndex((x) => x.key === key);
@@ -146,7 +160,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
         else auto.change({ sort: [{ field: key, dir: action, nulls: "last" }, ...(c.sort ?? []).filter((s) => s.field !== key)].slice(0, 5) });
       },
     }),
-    [auto, colLayout, config.colors, rowHeightName, table.columns],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [auto, colLayout, config.colors, rowHeightName, table.columns, table.access],
   );
 
   const cleanDead = () => {
@@ -162,7 +177,24 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <ViewTabs tableId={table.id} views={views} currentId={view.id} access={table.access} onSelect={onSelect} currentConfig={config} />
-      <ViewTools columns={table.columns} config={config} dead={dead} change={change} search={search} onSearch={setSearch} onCleanDead={cleanDead} />
+      <ViewTools
+        columns={table.columns}
+        config={config}
+        dead={dead}
+        change={change}
+        search={search}
+        onSearch={setSearch}
+        onCleanDead={cleanDead}
+        extra={
+          <>
+            <Button variant="secondary" onClick={() => setColUI({ kind: "manage" })}><Columns3 size={16} aria-hidden /> Cột của bảng</Button>
+            {table.access === "owner" && <Button variant="secondary" onClick={() => setColUI({ kind: "add" })} disabled={table.columns.length >= table.max_columns}><Plus size={16} aria-hidden /> Thêm cột</Button>}
+          </>
+        }
+      />
+      {colUI?.kind === "manage" && <ColumnManager table={table} level={table.access} onClose={() => setColUI(null)} onAdd={() => setColUI({ kind: "add" })} onEdit={(c) => setColUI({ kind: "edit", col: c })} onDelete={(c) => void deleteCol(c)} />}
+      {colUI?.kind === "add" && <ColumnEditor table={table} onClose={() => setColUI(null)} />}
+      {colUI?.kind === "edit" && <ColumnEditor key={colUI.col.id} table={table} column={colUI.col} onClose={() => setColUI(null)} />}
       <p className="-mt-1 min-h-4 text-xs text-muted-foreground" aria-live="polite">
         {saveText}
         {saveText && view.shared && table.access !== "owner" ? " (chỉ cho bạn)" : ""}

@@ -49,12 +49,13 @@ export function Textarea({ className, ...props }: React.ComponentProps<"textarea
   return <textarea className={cn("w-full rounded-md border border-border bg-card px-3 py-1.5 text-base sm:text-sm", className)} {...props} />;
 }
 
-export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+export function Field({ label, hint, error, required, name, children }: { label: string; hint?: string; error?: string | null; required?: boolean; name?: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
+    <label className="flex flex-col gap-1 text-sm" data-field={name}>
+      <span className="font-medium">{label}{required && <span className="text-bad" aria-hidden> *</span>}</span>
       {children}
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+      {error && <span role="alert" className="text-xs text-bad">{error}</span>}
     </label>
   );
 }

@@ -21,9 +21,17 @@ export function readOnlyReason(col: Column, level: Level): string | null {
   if (col.type === "auto_number") return "Số tự tăng do hệ thống điền.";
   if (SYSTEM_TYPES.has(col.type)) return "Cột hệ thống, không sửa được.";
   if (col.type === "relation" && level !== "owner") return "Chỉ chủ datahub được sửa cột liên kết.";
-  if (col.type === "relation") return "Chưa sửa được cột liên kết ở màn hình này.";
-  if (col.type === "attachment") return "Chưa sửa được cột đính kèm ở màn hình này.";
+  if (col.type === "relation") return "Chọn dòng liên kết trong ô, không gõ hay dán được.";
+  if (col.type === "attachment") return "Tải file lên trong ô, không gõ hay dán được.";
   return null;
+}
+
+/** Columns whose cells are changed with a picker (choose linked rows, upload files) instead of typing or pasting. */
+export const PICKER_TYPES = new Set(["relation", "attachment"]);
+
+/** The person may change this picker cell: files by anyone who may edit data, links only by the owner (design module2 section 10). */
+export function pickerEditable(col: Pick<Column, "type">, level: Level): boolean {
+  return level !== "view" && (col.type === "attachment" || (col.type === "relation" && level === "owner"));
 }
 
 /** Error codes of the formula engine that can sit in a computed cell. */

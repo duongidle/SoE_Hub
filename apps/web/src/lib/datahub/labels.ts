@@ -39,6 +39,11 @@ export class LabelCache {
     this.people.set(id, name);
   }
 
+  /** A linked row is known (picked from the list). */
+  learnLinked(id: string, label: string): void {
+    this.linked.set(id, label);
+  }
+
   private schedule(): void {
     if (this.timer) return;
     this.timer = setTimeout(() => void this.flush(), 80);

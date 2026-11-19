@@ -2,14 +2,20 @@ import { createPortal } from "react-dom";
 import { GridCellKind, type CustomCell, type CustomRenderer, type ProvideEditorComponent } from "@glideapps/glide-data-grid";
 import type { SelectOption } from "@/lib/datahub/types";
 import { optionColor, token } from "@/lib/theme";
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/form";
+import { AttachmentField } from "./attachment-field";
 import { PersonPicker, RatingPicker, SelectPicker } from "./pickers";
+import { RelationPicker, type Linked } from "./relation-picker";
 
 /** Cells the grid draws itself: select chips, stars, a person. Their editors are the pickers shared with the detail panel. */
 
 export type SoeData =
   | { t: "select"; ids: string[]; options: SelectOption[]; multi: boolean; readonly: boolean }
   | { t: "rating"; value: number | null; max: number; readonly: boolean }
-  | { t: "person"; id: string | null; name: string; readonly: boolean };
+  | { t: "person"; id: string | null; name: string; readonly: boolean }
+  | { t: "relation"; ids: string[]; names: string[]; multiple: boolean; readonly: boolean; tableId: string; column: string; learn: (id: string, label: string) => void }
+  | { t: "files"; ids: string[]; max: number; readonly: boolean; tableId: string };
 export type SoeCell = CustomCell<SoeData>;
 
 const isSoe = (c: CustomCell): c is SoeCell => typeof (c.data as { t?: unknown })?.t === "string";
@@ -81,6 +87,48 @@ const PersonEditor: ProvideEditorComponent<SoeCell> = ({ value, onFinishedEditin
   );
 };
 
+const RelationEditor: ProvideEditorComponent<SoeCell> = ({ value, onChange, onFinishedEditing, target }) => {
+  const d = value.data as Extract<SoeData, { t: "relation" }>;
+  const [sel, setSel] = useState<Linked[]>(d.ids.map((id, i) => ({ id, label: d.names[i] ?? "…" })));
+  const latest = useRef(sel);
+  const make = (list: Linked[]) => ({ ...value, data: { ...d, ids: list.map((x) => x.id), names: list.map((x) => x.label) }, copyData: list.map((x) => x.label).join(", ") });
+  return (
+    <Overlay target={target}>
+      <RelationPicker
+        tableId={d.tableId}
+        column={d.column}
+        selected={sel}
+        multiple={d.multiple}
+        onToggle={(row, on) => {
+          if (on) d.learn(row.id, row.label);
+          const next = on ? (d.multiple ? [...latest.current.filter((x) => x.id !== row.id), row] : [row]) : latest.current.filter((x) => x.id !== row.id);
+          latest.current = next;
+          setSel(next);
+          onChange(make(next));
+        }}
+        onDone={() => onFinishedEditing(make(latest.current), [0, 0])}
+        onCancel={() => onFinishedEditing(undefined)}
+      />
+    </Overlay>
+  );
+};
+
+const FilesEditor: ProvideEditorComponent<SoeCell> = ({ value, onChange, onFinishedEditing, target }) => {
+  const d = value.data as Extract<SoeData, { t: "files" }>;
+  const [ids, setIds] = useState(d.ids);
+  const make = (list: string[]) => ({ ...value, data: { ...d, ids: list }, copyData: `${list.length} tệp` });
+  return (
+    <Overlay target={target}>
+      <div className="w-80 max-w-[calc(100vw-2rem)] rounded-md border border-border bg-card p-3 shadow-md" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onFinishedEditing(undefined); } }}>
+        <AttachmentField tableId={d.tableId} ids={ids} max={d.max} readonly={d.readonly} onChange={(list) => { setIds(list); onChange(make(list)); }} />
+        <div className="mt-3 flex justify-end">
+          <Button onClick={() => (d.readonly ? onFinishedEditing(undefined) : onFinishedEditing(make(ids), [0, 0]))}>{d.readonly ? "Đóng" : "Xong"}</Button>
+        </div>
+      </div>
+    </Overlay>
+  );
+};
+
 export const soeRenderer: CustomRenderer<SoeCell> = {
   kind: GridCellKind.Custom,
   isMatch: isSoe,
@@ -110,6 +158,30 @@ export const soeRenderer: CustomRenderer<SoeCell> = {
           ctx.stroke();
         }
       }
+    } else if (d.t === "files") {
+      ctx.textAlign = "left";
+      ctx.fillStyle = d.ids.length ? theme.textDark : theme.textLight;
+      ctx.fillText(d.ids.length ? `${d.ids.length} tệp` : "—", rect.x + padX, midY + 1);
+    } else if (d.t === "relation") {
+      let x = rect.x + padX;
+      const max = rect.x + rect.width - padX;
+      ctx.textAlign = "left";
+      if (d.ids.length === 0) {
+        ctx.fillStyle = theme.textLight;
+        ctx.fillText("—", x, midY + 1);
+      }
+      d.names.forEach((name, i) => {
+        const label = fitText(ctx, name, Math.max(24, max - x - 16));
+        const w = ctx.measureText(label).width + 12;
+        if (x + w > max + 1 && i > 0) return;
+        ctx.fillStyle = optionColor("gray");
+        ctx.beginPath();
+        ctx.roundRect(x, midY - 10, w, 20, 4);
+        ctx.fill();
+        ctx.fillStyle = theme.textDark;
+        ctx.fillText(label, x + 6, midY + 1);
+        x += w + 4;
+      });
     } else if (d.t === "person") {
       ctx.fillStyle = theme.textDark;
       ctx.textAlign = "left";
@@ -145,8 +217,8 @@ export const soeRenderer: CustomRenderer<SoeCell> = {
   },
   provideEditor: (cell) => {
     const d = cell.data;
-    if (d.readonly) return undefined;
-    return { editor: d.t === "select" ? SelectEditor : d.t === "rating" ? RatingEditor : PersonEditor, disablePadding: true, disableStyling: true };
+    if (d.readonly && d.t !== "files") return undefined;
+    return { editor: d.t === "select" ? SelectEditor : d.t === "rating" ? RatingEditor : d.t === "relation" ? RelationEditor : d.t === "files" ? FilesEditor : PersonEditor, disablePadding: true, disableStyling: true };
   },
   onPaste: () => undefined,
 };

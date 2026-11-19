@@ -9,11 +9,13 @@ import { notify } from "@/components/ui/toast";
 import { ErrorState } from "@/components/ui/states";
 import { Tip } from "@/components/ui/tooltip";
 import { fetchRowsByIds, getHistory } from "@/lib/datahub/api";
-import { cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
+import { cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, PICKER_TYPES, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
 import type { TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
+import { AttachmentField } from "./attachment-field";
 import { OptionChip, PersonPicker, RatingPicker } from "./pickers";
+import { RelationPicker } from "./relation-picker";
 
 const OP_LABEL: Record<string, string> = { create: "Tạo dòng", update: "Sửa", delete: "Xoá vào thùng rác", restore: "Khôi phục", upsert: "Cập nhật" };
 const VIA_LABEL: Record<string, string> = { web: "", api: "qua API", mcp: "qua AI", form: "qua form", import: "qua import", automation: "tự động", system: "hệ thống" };
@@ -88,13 +90,15 @@ export function RowPanel({ session, rowId, level, onClose }: { session: TableSes
 function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level: Level; session: TableSession; ctx: CellCtx }) {
   // Why this field cannot be typed into. A person who may only view gets one notice at the top of the panel, not one per field.
   const viewOnly = level === "view";
-  const reason = viewOnly ? null : readOnlyReason(col, level);
+  const picker = PICKER_TYPES.has(col.type);
+  const reason = viewOnly ? null : picker && pickerEditable(col, level) ? null : readOnlyReason(col, level);
   const type = typeOf(col);
   const value = cellValue(col, row);
   const err = cellError(col, value);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [person, setPerson] = useState(false);
+  const [linking, setLinking] = useState(false);
   const stored = editText(col, row);
   // While the person types, `draft` holds their text; otherwise the field follows the stored value (another person, a recalculation).
   const [draft, setDraft] = useState<string | null>(null);
@@ -134,7 +138,38 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
   const errorText = error ? <span role="alert" className="text-xs text-bad">{error}</span> : null;
 
   let control: React.ReactNode;
-  if (viewOnly || reason || type === "relation" || type === "attachment") {
+  if (type === "attachment") {
+    const ids = Array.isArray(value) ? (value as string[]) : [];
+    control = <AttachmentField tableId={session.table.id} ids={ids} max={(col.config.max_files as number | undefined) ?? 20} readonly={viewOnly || !!reason} onChange={(list) => void save(list.length ? list : null)} />;
+  } else if (type === "relation" && !viewOnly && !reason) {
+    const ids = Array.isArray(value) ? (value as string[]) : [];
+    ids.forEach((x) => session.labels.wantLinked(col.key, x));
+    const selected = ids.map((x) => ({ id: x, label: ctx.linked.get(x) ?? "…" }));
+    const multiple = col.config.multiple !== false;
+    control = (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-start justify-between gap-2">
+          <span id={id} className="min-h-9 py-1.5 text-sm [overflow-wrap:anywhere]">{selected.length ? selected.map((x) => x.label).join(", ") : "—"}</span>
+          <Button variant="secondary" onClick={() => setLinking((v) => !v)} className="shrink-0">{linking ? "Đóng" : "Chọn dòng"}</Button>
+        </div>
+        {linking && (
+          <RelationPicker
+            tableId={session.table.id}
+            column={col.key}
+            selected={selected}
+            multiple={multiple}
+            onToggle={(r, on) => {
+              if (on) session.labels.learnLinked(r.id, r.label);
+              const next = on ? (multiple ? [...ids.filter((x) => x !== r.id), r.id] : [r.id]) : ids.filter((x) => x !== r.id);
+              void save(next.length ? next : null);
+            }}
+            onDone={() => setLinking(false)}
+            onCancel={() => setLinking(false)}
+          />
+        )}
+      </div>
+    );
+  } else if (viewOnly || reason || type === "relation") {
     const shown = err ? `${err}. ${ERROR_HELP[err] ?? ""}` : displayText(col, row, ctx);
     const pend = row.pending?.includes(col.key);
     control = (

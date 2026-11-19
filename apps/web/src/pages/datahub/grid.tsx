@@ -3,7 +3,7 @@ import "@glideapps/glide-data-grid/dist/index.css";
 import { formatCount, formatNumber } from "@soe/shared";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { notify } from "@/components/ui/toast";
-import { cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
+import { cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
 import { planPaste } from "@/lib/datahub/paste";
 import type { CellEdit, TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
@@ -231,9 +231,18 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
         case "modified_by":
           if (typeof v === "string") labels.wantPerson(v);
           break;
-        case "relation":
-          if (Array.isArray(v)) v.forEach((id) => labels.wantLinked(col.key, String(id)));
-          break;
+        case "relation": {
+          const ids = Array.isArray(v) ? (v as string[]) : [];
+          ids.forEach((id) => labels.wantLinked(col.key, String(id)));
+          const names = ids.map((id) => labels.linked.get(id) ?? "…");
+          const rel: SoeCell = { kind: GridCellKind.Custom, allowOverlay: pickerEditable(col, level), copyData: names.join(", "), data: { t: "relation", ids, names, multiple: col.config.multiple !== false, readonly: !pickerEditable(col, level), tableId: session.table.id, column: col.key, learn: (id, label) => labels.learnLinked(id, label) }, themeOverride: tint };
+          return rel;
+        }
+        case "attachment": {
+          const ids = Array.isArray(v) ? (v as string[]) : [];
+          const files: SoeCell = { kind: GridCellKind.Custom, allowOverlay: true, copyData: text === "—" ? "" : text, data: { t: "files", ids, max: (col.config.max_files as number | undefined) ?? 20, readonly: !pickerEditable(col, level), tableId: session.table.id }, themeOverride: tint };
+          return files;
+        }
       }
       return {
         kind: GridCellKind.Text,
@@ -284,6 +293,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
         const d = (cell as SoeCell).data;
         if (d.t === "select") return { ok: true, value: d.multi ? (d.ids.length ? d.ids : null) : (d.ids[0] ?? null) };
         if (d.t === "rating") return { ok: true, value: d.value };
+        if (d.t === "relation" || d.t === "files") return { ok: true, value: d.ids.length ? d.ids : null };
         return { ok: true, value: d.id };
       }
       if (cell.kind === GridCellKind.Text) return parseCellText(col, cell.data, peopleByName());
@@ -623,7 +633,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
         />
       )}
       <PointPopover at={menu} label={menu ? `Cột ${menu.col.name}` : "Cột"} onClose={() => setMenu(null)}>
-        {menu && <HeaderMenu col={menu.col} frozen={view.frozen} index={columns.findIndex((c) => c.id === menu.col.id)} sole={columns.length <= 1} onAction={(a) => { view.onHeaderAction(menu.col.key, a); setMenu(null); }} />}
+        {menu && <HeaderMenu col={menu.col} canEdit={view.canEditColumns} frozen={view.frozen} index={columns.findIndex((c) => c.id === menu.col.id)} sole={columns.length <= 1} onAction={(a) => { view.onHeaderAction(menu.col.key, a); setMenu(null); }} />}
       </PointPopover>
       {tip && tip.v === version && (
         <div role="tooltip" className="pointer-events-none fixed z-[70] max-w-xs -translate-x-1/2 rounded-md bg-foreground px-2 py-1 text-xs text-background shadow-md [overflow-wrap:anywhere]" style={{ left: tip.x, top: tip.y }}>
@@ -638,7 +648,7 @@ const clampWidth = (w: number) => Math.max(70, Math.min(600, Math.round(w)));
 
 const AGG_SHORT = { count: "Đếm", sum: "Tổng", avg: "TB", min: "Nhỏ nhất", max: "Lớn nhất" } as const;
 
-function HeaderMenu({ col, frozen, index, sole, onAction }: { col: Column; frozen: number; index: number; sole: boolean; onAction: (a: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group") => void }) {
+function HeaderMenu({ col, canEdit, frozen, index, sole, onAction }: { col: Column; canEdit: boolean; frozen: number; index: number; sole: boolean; onAction: (a: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group" | "edit" | "delete") => void }) {
   const item = "flex min-h-11 w-full items-center rounded px-2 text-left hover:bg-muted sm:min-h-9 disabled:opacity-50";
   const kind = kindOf(col);
   const [asc, desc] = kind === "date" || kind === "datetime" ? ["Sắp xếp cũ → mới", "Sắp xếp mới → cũ"] : kind === "number" ? ["Sắp xếp nhỏ → lớn", "Sắp xếp lớn → nhỏ"] : kind === "select" ? ["Sắp xếp theo thứ tự lựa chọn", "Sắp xếp ngược thứ tự lựa chọn"] : ["Sắp xếp A → Z", "Sắp xếp Z → A"];
@@ -653,6 +663,13 @@ function HeaderMenu({ col, frozen, index, sole, onAction }: { col: Column; froze
       {isGroupable(col) && <button type="button" role="menuitem" className={item} onClick={() => onAction("group")}>Nhóm theo cột này</button>}
       <button type="button" role="menuitem" className={item} onClick={() => onAction(index + 1 === frozen ? "unfreeze" : "freeze")}>{index + 1 === frozen ? "Bỏ cố định" : "Cố định đến cột này"}</button>
       <button type="button" role="menuitem" className={item} disabled={sole} onClick={() => onAction("hide")}>Ẩn cột</button>
+      {canEdit && (
+        <>
+          <div role="separator" className="my-1 h-px bg-border" />
+          <button type="button" role="menuitem" className={item} onClick={() => onAction("edit")}>Sửa cột…</button>
+          <button type="button" role="menuitem" className={`${item} text-bad`} onClick={() => onAction("delete")}>Xoá cột</button>
+        </>
+      )}
     </div>
   );
 }

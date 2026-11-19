@@ -1,5 +1,7 @@
 import { api, apiList, qs, type Page } from "@/lib/api";
 import type { TimeFilter, TimeRange } from "@soe/shared";
+import type { ConversionReport, TypeInfo } from "./column-config";
+import type { FnInfo } from "./formula-assist";
 import type { BatchResult, Column, DatahubBrief, GroupResult, HistoryItem, Limits, Person, Row, TableDetail, TimeRangeInfo } from "./types";
 import type { GroupFn, ViewConfig, ViewDto } from "./view-config";
 
@@ -84,3 +86,69 @@ export const lookupPeople = (opts: { ids?: string[]; q?: string }) => api<Person
 export const relationLabels = (tableId: string, column: string, ids: string[]) => api<{ id: string; row_no: number; label: string }[]>("GET", `/tables/${tableId}/relation-labels${qs({ column, ids: ids.join(",") })}`);
 
 export type { Column };
+
+// ---- columns (design module2 sections 4 and 6; only the owner changes structure)
+export interface ColumnBody {
+  name?: string;
+  type?: string;
+  config?: Record<string, unknown>;
+  required?: boolean;
+  unique?: boolean;
+  default_value?: unknown;
+  description?: string | null;
+  display?: Record<string, unknown>;
+  version?: number;
+}
+export const columnTypes = () => api<TypeInfo[]>("GET", "/datahub/column-types");
+export const createColumn = (tableId: string, body: ColumnBody) => api<Column>("POST", `/tables/${tableId}/columns`, body);
+export const updateColumn = (tableId: string, column: string, body: ColumnBody) => api<Column>("PATCH", `/tables/${tableId}/columns/${encodeURIComponent(column)}`, body);
+export const deleteColumn = (tableId: string, column: string) => api<{ id: string; deleted: true }>("DELETE", `/tables/${tableId}/columns/${encodeURIComponent(column)}`);
+export const restoreColumn = (tableId: string, column: string, name?: string) => api<Column>("POST", `/tables/${tableId}/columns/${encodeURIComponent(column)}/restore`, name ? { name } : {});
+export const previewTypeChange = (tableId: string, column: string, type: string, config?: Record<string, unknown>) =>
+  api<ConversionReport & { new_config: Record<string, unknown> }>("POST", `/tables/${tableId}/columns/${encodeURIComponent(column)}/type-preview`, { type, config });
+export const changeColumnType = (tableId: string, column: string, type: string, config: Record<string, unknown> | undefined, acceptDataLoss: boolean) =>
+  api<{ column: Column; report: ConversionReport }>("POST", `/tables/${tableId}/columns/${encodeURIComponent(column)}/type`, { type, config, accept_data_loss: acceptDataLoss });
+
+export interface FormulaPreview {
+  ok: boolean;
+  formula: string | null;
+  errors: { message: string; start: number; end: number }[];
+  result_type: string | null;
+  volatile: "today" | "now" | null;
+  reads: { columns: string[]; tables: string[]; grouped_calls: number; scanned_tables: { name: string; rows: number }[] };
+  rows: { row_id: string; row_no: number; value: unknown; error: string | null; error_message: string | null }[];
+}
+export const formulaFunctions = () => api<{ functions: FnInfo[]; errors: { code: string; message: string }[] }>("GET", "/datahub/formula-functions");
+export const previewFormula = (tableId: string, body: { formula: string; result_type?: string; column?: string }) => api<FormulaPreview>("POST", `/tables/${tableId}/formula/preview`, body);
+
+// ---- linked rows and attached files
+export const searchRelation = (tableId: string, column: string, o: { q?: string; after?: number | null; limit?: number } = {}) =>
+  api<{ data: { id: string; row_no: number; label: string }[]; next_after: number | null }>("GET", `/tables/${tableId}/relation-search${qs({ column, q: o.q, after: o.after ?? undefined, limit: o.limit })}`);
+
+export interface FileBrief {
+  id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+}
+export const attachmentInfo = (tableId: string, ids: string[]) => api<FileBrief[]>("GET", `/tables/${tableId}/attachments${qs({ ids: ids.join(",") })}`);
+export const attachmentUrl = (tableId: string, fileId: string) => api<{ url: string; expires_at: string; filename: string }>("GET", `/tables/${tableId}/attachments/${fileId}/download-url`);
+
+/** The local (dev) storage driver signs addresses with the API's own host; the page reaches it through its own origin. S3 addresses are left alone. */
+export function storageAddress(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.pathname.startsWith("/api/v1/storage/local/") ? `${u.pathname}${u.search}` : url;
+  } catch {
+    return url;
+  }
+}
+
+/** Uploads one file with the storage flow of Stage 0 (init, PUT to the signed address, complete) and returns its record. */
+export async function uploadFile(file: File): Promise<FileBrief> {
+  const init = await api<{ file: FileBrief; upload: { url: string; method: "PUT"; headers: Record<string, string> } }>("POST", "/files", { filename: file.name, content_type: file.type || "application/octet-stream", size_bytes: file.size });
+  const put = await fetch(storageAddress(init.upload.url), { method: "PUT", headers: init.upload.headers, body: file });
+  if (!put.ok) throw new Error("Không tải được file lên. Thử lại sau ít phút.");
+  await api("POST", `/files/${init.file.id}/complete`, {});
+  return init.file;
+}

@@ -35,7 +35,7 @@ import { FilterEditor } from "./filter-editor";
 export type Change = (patch: Partial<Record<keyof ViewConfig, unknown>>) => void;
 
 /** The buttons of the view toolbar: each one opens a panel and saves what the person changes at once (design module2 section 5). */
-export function ViewTools({ columns, config, dead, change, search, onSearch, onCleanDead }: { columns: Column[]; config: ViewConfig; dead: DeadRefs; change: Change; search: string; onSearch: (s: string) => void; onCleanDead: () => void }) {
+export function ViewTools({ columns, config, dead, change, search, onSearch, onCleanDead, extra }: { extra?: React.ReactNode; columns: Column[]; config: ViewConfig; dead: DeadRefs; change: Change; search: string; onSearch: (s: string) => void; onCleanDead: () => void }) {
   const dateCols = useMemo(() => columns.filter(isDateColumn), [columns]);
   const hiddenCount = (config.hidden ?? []).filter((k) => columns.some((c) => c.key === k)).length;
   const rowHeight = config.row_height ?? DEFAULT_ROW_HEIGHT;
@@ -50,6 +50,7 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
         <RowHeightButton value={rowHeight} change={change} />
         <ColorsButton columns={columns} config={config} change={change} />
         <SearchBox value={search} onChange={onSearch} />
+        {extra}
       </div>
       <ActiveChips columns={columns} config={config} change={change} />
       {dead.total > 0 && (
