@@ -48,9 +48,10 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 
 **3A-1, 3A-2, 3B xong, Opus rà đạt 19/11** (chi tiết, số đo: `design/module3-quyet-dinh-khi-code.md`; git log). 882 unit, 69 e2e desktop pass sau 3B. Ghi cho sau từ 3B: (1) **4.1:** `loadSource` đòi mức `owner` trên nguồn; kiểm lại khi nguồn là bảng template có khoá phân chia (Module 3 mục 4.1), sửa ở `requestRescope`/`readableRows`. (2) **3D:** mỗi lần sửa một dòng nguồn, worker đọc lại cả nguồn để so (150k dòng ~1,2 s); đo khi nhiều người sửa cùng lúc, cân nhắc đồng bộ theo `row_ids`.
 
-**3C-1 đang làm (Sonnet, 19/11):**
-- [x] Server: ops dashboard/biểu đồ (`metrics/dashboard-ops.ts`), `packages/metrics/src/chart.ts`, thùng rác, giới hạn 20/30 (cài đặt), OpenAPI + 13 Bruno, test `apps/api/test/metrics-dashboard.test.ts` (12 pass). Chi tiết ở file quyết định mục 3C-1.
-- [ ] Web: lưới kéo thả (tự viết, `lib/dashboard/layout.ts`), danh sách dashboard, khung cấu hình, các loại biểu đồ (ECharts đã thêm vào `apps/web`), thư viện chỉ số/nguồn, SSE `metrics.data.changed` (debounce), e2e `stage3c1`.
+**3C-1 xong (Sonnet, 19/11), chờ Opus rà.** Server: `metrics/dashboard-ops.ts` (dashboard, biểu đồ, thùng rác, giới hạn 20/30 là cài đặt), `packages/metrics/src/chart.ts`, OpenAPI + 13 Bruno. Web: `pages/datahub/dashboard/*` (lưới tự viết, khung cấu hình tự lưu, 11 loại biểu đồ ECharts, thùng rác), `lib/dashboard/*`. Quyết định + việc chưa làm: `design/module3-quyet-dinh-khi-code.md` mục 3C-1. Chỉ chủ datahub dùng dashboard (chia sẻ là 3C-2).
+- Test: `pnpm -r typecheck`, `pnpm lint` sạch; `vitest run packages/metrics apps/api/test/metrics apps/api/test/datahub apps/api/test/openapi apps/api/test/registry apps/api/test/worker apps/web/test`: 45 file, 575 pass (gồm `metrics-dashboard.test.ts` 12 test, `apps/web/test/dashboard-lib.test.ts`); `pnpm test:e2e stage3c1 stage3b stage2c1 stage2c2 --project=desktop`: 41 pass (stage3c1 9/9).
+- Đụng phần dùng chung (Opus nên tự chạy lại): `lib/session.tsx` (thêm tín hiệu `metrics.data.changed`), `pages/datahub/detail.tsx` (tab Dashboard), `router.tsx`, `datahub/trash.ts` (đăng ký `mt_*`), `datahub/errors.ts`.
+- **Tiếp theo: 3C-2** (bộ lọc chung, lọc chéo, xem các dòng, CSV/PNG, JSON xuất/nhập, chia sẻ dashboard, các loại biểu đồ còn lại).
 
 ## Điều chỉnh Stage 3 so với Module 3 đã đọc (Dương chốt 19/11)
 
