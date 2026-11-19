@@ -5,7 +5,7 @@ Cập nhật: 19/11/2026
 ## Giai đoạn hiện tại
 
 - Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11, mục 7 Thanh toán còn là khung). **Module 5, 6: bản nháp vòng 1 xong** (`design/module5-ket-noi-ai.md`, `design/module6-thong-bao.md`, 19/11), chờ Dương phản biện. **Module 7 đã chốt** (19/11; CLAUDE.md, Module 0, 4 đã ghi thay đổi; Module 2 mục 11 chưa ghi giới hạn 150 cột vì Sonnet đang sửa file đó, ghi khi rảnh). Câu hỏi ở mục cuối mỗi file.
-- Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1 xong và Opus đã rà soát (19/11); **2C-2 đang làm dở (Sonnet, hết quota giữa chừng)**; 2C-3, 2C-4, 2D chưa làm. Dương yêu cầu: làm xong 2B+ và 2C rồi push lên `main` và báo.
+- Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1 xong và Opus đã rà soát (19/11); **2C-2 xong (server + giao diện, Sonnet, chờ Opus rà soát)**; 2C-3, 2C-4, 2D chưa làm. Dương yêu cầu: làm xong 2B+ và 2C rồi push lên `main` và báo.
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
@@ -45,9 +45,18 @@ Cập nhật: 19/11/2026
 
 ## Bước tiếp theo
 
-**Làm giao diện 2C-2** (server đã xong, điều phối điểm 2): dùng `data-slot="view-tools"` trong `apps/web/src/pages/datahub/table-view.tsx` làm thanh công cụ view; `TableSession` (`apps/web/src/lib/datahub/session.ts`) nhận `query` (`filter`, `sort`, `search`) khi tạo, đổi view thì tạo phiên mới; lưu view qua `datahub.view.update` (API đã có), đọc `datahub.view.list`. Chạy test nhanh: `pnpm exec vitest run apps/web packages/shared apps/api/test/datahub-lookup`; giao diện: `pnpm test:e2e stage2c1`.
+Opus rà soát 2C-2 (diff từ `8e9ca42`, `pnpm test:e2e stage2c2`). Sau đó **2C-3**: quản lý cột (thêm/sửa/xoá, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện mẫu, ô chọn dòng đích cho cột Liên kết. Chạy nhanh: `pnpm exec vitest run apps/web`; giao diện: `pnpm test:e2e stage2c2 --project=desktop`.
+
+### Kết quả kiểm thử 2C-2
+
+- `pnpm lint`, `typecheck` sạch; `pnpm test` 606 pass (21 mới ở `apps/web/test/view-config.test.ts`); `pnpm test:e2e`: stage1 + stage2c1 + `stage2c2.spec.ts` (10 luồng) ở 1280x800 và 375x812, không lỗi console/network (chạy đầy đủ lần cuối: 74 pass, 8 bỏ qua; một lần trước đó stage1 phone hết giờ, chạy lại thì pass).
+- Đã đi (chủ, người Xem, người Sửa): tab view (thêm tên 100 ký tự có `<b>`, đổi tên, sao chép, xoá, URL giữ view), lọc lồng nhau + lọc rỗng + "Xoá bộ lọc", sắp xếp theo cột công thức, nhóm + dòng tổng + đóng/mở nhóm, ô Thời gian (số dòng khớp server, kỳ cụ thể ‹ ›, chip), cột (ẩn, thứ tự, cố định), chiều cao dòng, tô màu (server trả `marks`), tìm kiếm, view dùng cột đã xoá, người Xem/Sửa đổi view chung thành bản riêng + "Về mặc định", 10.000 dòng lọc + sắp, nhóm quá 1.000 nhóm, 100.000 dòng nhảy tới cuối/giữa/10%/77% (70–120 ms tới khi server trả lời; đúng cả khi sắp xếp và nhóm), 40 cột tên dài ở 375px.
+- Lỗi tìm thấy và đã sửa: view ghi tên cột (API/AI) bị coi là cột đã xoá (nay đổi sang key khi nạp); danh sách tên người tra cả mã lựa chọn (400); bộ lọc một điều kiện bị bọc thừa trong nhóm; bấm dòng nhóm mở rồi đóng ngay (click + activate cùng bắn); nhãn dòng nhóm bị cắt (nay chỉ giá trị + số dòng, tên cột trong tooltip); vùng chạm dưới 44px ở nút icon, ô tích, nút × của chip trên điện thoại.
+- `impeccable audit`: bộ dò mã nguồn (`impeccable detect`) không báo gì ở `pages/datahub` và popover; rà tay (a11y, vùng chạm, tương phản bằng token, tab/focus, 375px, không animation mới). `ui-ux-pro-max` mục 1–3, 8 và `break-ui` đã rà. **Chưa dò trang thật bằng `detect --url`** (chưa có máy chủ dev chạy sau test) và chưa thử trên máy thật.
 
 ## Câu hỏi còn mở
+
+- 2C-2: (1) Kéo thả tab view và "vạch cố định" thay bằng menu/nút (khớp cách đã làm với tab bảng). (2) Tìm kiếm không lưu theo view (schema view không có trường này). (3) Nhóm: trạng thái đóng/mở nhóm chỉ giữ trong phiên. (4) Số hàng "Cao" 56 px và "Gọn" 32 px là giá trị tự chọn.
 
 - 2C-1: (1) Cây truy cập (bảng ẩn cho trình đọc màn hình) của Glide không dựng trên React 19 nên grid chưa đọc được bằng trình đọc màn hình; khung chi tiết dòng là DOM thường nên đọc được. Cần Dương quyết có bắt buộc không (bắt buộc thì phải thêm bảng DOM song song hoặc đổi thư viện). (2) Cột Mã dòng hiện `#<số dòng>` (dễ đọc), trong khi export/API trả mã dòng dạng uuid. (3) Không có "nhảy tới dòng thứ N" của bảng rất lớn (keyset); lọc/sắp xếp/tìm ở 2C-2 thay cho việc đó. (4) Cột Liên kết và Đính kèm mới chỉ xem; sửa cần ô chọn dòng đích và tải file (2C-3). (5) Hoàn tác/làm lại chỉ trong phiên mở bảng (máy khách), không đọc lịch sử dòng của server.
 - 2C-1 chưa thử trên điện thoại thật (chạm trong grid canvas, bàn phím ảo với khung chọn, cuộn cảm ứng) và chưa chạy `impeccable audit`.
