@@ -12,5 +12,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: { "/api": api, "/health": api },
+    // The browser tests write traces, screenshots and results under e2e/ while a page is open; a change there must not reload the page.
+    watch: { ignored: ["**/e2e/**"] },
   },
 });
