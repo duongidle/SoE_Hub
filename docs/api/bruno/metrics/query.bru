@@ -19,6 +19,8 @@ params:query {
   ~filter: {"field":"Loại deal","op":"eq","value":"POD"}
   ~order: value_desc
   ~limit: 100
+  ~top: 5
+  ~totals: true
 }
 
 headers {
@@ -27,6 +29,7 @@ headers {
 
 docs {
   Tính một chỉ số: gửi metric_id (đã lưu) HOẶC metric (JSON tại chỗ), không gửi cả hai. Các tham số JSON (metric, time, group_by, filter) gửi dạng chuỗi JSON.
+  top=N: giữ N nhóm lớn nhất và gộp phần còn lại thành dòng "Khác" (other: true), phép tổng hợp tính lại trên các dòng còn lại; đúng một cột nhóm. totals=true: thêm totals {by_first, by_rest, grand} cho bảng có cột nhóm, mỗi giá trị tính bằng chính phép tổng hợp. Cả hai không dùng với chỉ số phái sinh, so sánh, cộng dồn, mục tiêu, cohort.
   Ví dụ phân vị: measure {"agg":"p90","field":"Doanh thu"}.
   Quyền: `datahub:datahub:use`.
 }

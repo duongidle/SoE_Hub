@@ -1,5 +1,5 @@
 import { formatPercent } from "@soe/shared";
-import { isAdditive, toPivot } from "@/lib/dashboard/chart-data";
+import { toPivot } from "@/lib/dashboard/chart-data";
 import { heatLevel } from "@/lib/dashboard/chart-data";
 import { formatValue } from "@/lib/dashboard/format";
 import type { FormatName, MetricRow, QueryResult } from "@/lib/dashboard/types";
@@ -92,7 +92,6 @@ export function PivotTable({ result, format, heat, totals }: { result: QueryResu
           </tfoot>
         )}
       </table>
-      {totals && !isAdditive(result) && <p className="px-2 py-2 text-xs text-muted-foreground">Phép tính này không cộng được nên không có dòng/cột tổng.</p>}
       {result.truncated && <p className="px-2 py-2 text-xs text-muted-foreground">Còn nhiều nhóm hơn số hiển thị. Thu hẹp bộ lọc hoặc khoảng thời gian.</p>}
     </div>
   );

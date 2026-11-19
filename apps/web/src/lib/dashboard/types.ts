@@ -42,6 +42,9 @@ export interface SeriesDef {
   compare?: "previous_period" | "year_ago";
   cumulative?: boolean;
   target?: { value?: number; [k: string]: unknown };
+  /** Asked of the server at draw time (not stored in the chart JSON): top N with "Khác", and totals. */
+  top?: number;
+  totals?: boolean;
 }
 
 export interface ChartOptions {
@@ -100,6 +103,8 @@ export interface MetricRow {
   target?: number | null;
   achieved?: number | null;
   gap?: number | null;
+  /** The "Khác" row of `top`, computed by the server over the rows outside the top. */
+  other?: boolean;
   error?: string;
 }
 
@@ -110,6 +115,9 @@ export interface QueryResult {
   value_type: "number" | "text";
   rows: MetricRow[];
   truncated: boolean;
+  /** `totals=true`: the measure over each wider group, from the server. */
+  totals?: { by_first: MetricRow[] | null; by_rest: MetricRow[] | null; grand: MetricRow | null };
+  other_groups?: number;
   diagnostics?: { joins: { alias: string; matched: number; base_total: number; unmatched: number }[] };
   ms?: number;
 }

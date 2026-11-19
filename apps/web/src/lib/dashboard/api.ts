@@ -45,6 +45,8 @@ export function queryParams(s: SeriesDef, datahubId: string): Record<string, unk
     compare: s.compare,
     cumulative: s.cumulative === undefined ? undefined : String(s.cumulative),
     target: s.target,
+    top: s.top,
+    totals: s.totals === undefined ? undefined : String(s.totals),
   };
 }
 

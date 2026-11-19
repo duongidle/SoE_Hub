@@ -33456,6 +33456,32 @@
               "additionalProperties": false
             },
             "description": "Giá trị ngoại lai theo IQR: {mode: include|exclude|separate, k?}."
+          },
+          {
+            "name": "top",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Giữ N nhóm lớn nhất (theo giá trị) và gộp phần còn lại thành một dòng \"Khác\" (`other: true`) mà phép tổng hợp được tính lại trên các dòng còn lại (đúng cho mọi phép: sum, avg, median, count_distinct...). Đúng một cột nhóm. `other_groups` = số nhóm đã gộp.",
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 50
+            },
+            "description": "Giữ N nhóm lớn nhất (theo giá trị) và gộp phần còn lại thành một dòng \"Khác\" (`other: true`) mà phép tổng hợp được tính lại trên các dòng còn lại (đúng cho mọi phép: sum, avg, median, count_distinct...). Đúng một cột nhóm. `other_groups` = số nhóm đã gộp."
+          },
+          {
+            "name": "totals",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Thêm `totals` cho bảng có cột nhóm: `by_first` (mỗi nhóm thứ nhất), `by_rest` (mỗi tổ hợp các nhóm còn lại), `grand` (tất cả), mỗi giá trị tính bằng chính phép tổng hợp trên các dòng tương ứng, không cộng kết quả nhóm.",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "description": "Thêm `totals` cho bảng có cột nhóm: `by_first` (mỗi nhóm thứ nhất), `by_rest` (mỗi tổ hợp các nhóm còn lại), `grand` (tất cả), mỗi giá trị tính bằng chính phép tổng hợp trên các dòng tương ứng, không cộng kết quả nhóm."
           }
         ],
         "responses": {

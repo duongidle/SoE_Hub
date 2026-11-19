@@ -216,7 +216,7 @@ Phần còn lại của 3A-2 (mục 4–9) chưa làm.
 
 - Route: `/datahub/:id/dashboard` và `/datahub/:id/dashboard/:dashboardId` (cùng `DatahubPage`); tab "Dashboard" chỉ hiện với chủ datahub. Lần đầu vào, nếu chưa có dashboard nào (kể cả thùng rác trống) thì tự tạo "Dashboard 1" (một lần mỗi phiên).
 - Thư viện vẽ: **ECharts 5** (`echarts/core`, nạp lazy), lưới kéo thả **tự viết** (`lib/dashboard/layout.ts` thuần, có test; `pages/datahub/dashboard/grid.tsx`) thay `react-grid-layout`: lưới 12 cột, hàng 76px, đẩy xuống rồi dồn lên; kéo bằng chuột/cảm ứng ở tay nắm, đổi kích thước ở góc, **bàn phím** (mũi tên trên tay nắm/góc) là cách làm thay thế. Dưới 640px xếp một cột, không kéo. Bố cục lưu bằng `metrics.chart.layout` sau 400 ms; màn hình cập nhật ngay qua cache.
-- Biểu đồ chỉ hiển thị kết quả `metrics.query` (mỗi chuỗi số liệu một lần gọi, song song, mỗi biểu đồ có trạng thái tải/rỗng/lỗi riêng). Chỉ có hai phép cộng ở client, vì ECharts không tự làm và chỉ làm khi cộng đúng: phần "Khác" của biểu đồ tròn và dòng/cột tổng của pivot, **chỉ với `sum`/`count`** (trung bình, trung vị... không bao giờ cộng; biểu đồ tròn khi đó hiện top N và ghi "còn N nhóm không hiện"). Chồng 100% đổi mỗi cột thành tỉ lệ của tổng cột đó (chỉ để vẽ; tooltip vẫn là số thật).
+- Biểu đồ chỉ hiển thị kết quả `metrics.query` (mỗi chuỗi số liệu một lần gọi, song song, mỗi biểu đồ có trạng thái tải/rỗng/lỗi riêng). **Không có phép cộng nào ở client** (sửa sau rà của Opus): phần "Khác" của biểu đồ tròn và tổng dòng/cột/tổng chung của pivot do engine tính, xem mục "Sửa sau rà" bên dưới. Chồng 100% đổi mỗi cột thành tỉ lệ của tổng cột đó (chỉ để vẽ; tooltip vẫn là số thật).
 - Biểu đồ tròn mặc định tối đa 8 phần (Module 3 mục 7; `chuan-giao-dien.md` ghi 5, lấy theo Module 3, chỉnh được 2–8).
 - Số liệu của biểu đồ canvas cũng có một bảng ẩn (`sr-only`, `data-testid="chart-data"`) cho trình đọc màn hình và để test; tooltip dựng HTML đã escape (tên có `<b>` hiện là chữ).
 - Số lớn của thẻ KPI: `FitText` chọn cỡ chữ lớn nhất để cả số nằm trên một dòng (không ngắt giữa số, không cắt).
@@ -224,3 +224,15 @@ Phần còn lại của 3A-2 (mục 4–9) chưa làm.
 - SSE: `metrics.data.changed` được chuyển lên `liveBus` (sửa `lib/session.tsx`); dashboard gộp tín hiệu (600 ms) rồi tải lại mọi truy vấn của mình.
 - Lọc ở khung cấu hình dùng lại `FilterEditor` của Datahub (chỉ cột của bảng chính).
 - Chưa làm (để 3C-2 hoặc sau): bộ lọc chung và lọc chéo (`EChart` đã có `onPick`), xem các dòng, xuất CSV/PNG, JSON xuất/nhập, chia sẻ dashboard, dashboard hệ thống khoá, trình ghép bảng trong khung cấu hình, sparkline chỉ chạy khi series có cột ngày rõ (chỉ số đã lưu không có `time.field` ở series thì không hiện).
+
+### Sửa sau rà của Opus: "Khác" và tổng pivot do engine tính (19/11)
+
+- Lỗi: client cộng kết quả nhóm cho "Khác" và tổng pivot, sai với avg/median/đếm không trùng và vi phạm "một số liệu chỉ có một nơi tính". Đã xoá; web chỉ vẽ.
+- `metrics.query` thêm hai tham số (`QueryOverridesSchema`, OpenAPI, Bruno `query.bru`):
+  - `top=N` (2–50): engine chạy câu chính sắp theo giá trị giảm dần lấy N nhóm; nếu còn nhóm nữa thì chạy **một câu thứ hai trên chính các dòng ngoài top** (điều kiện `excludeFirst` của kế hoạch: nhóm khác các giá trị top, số so bằng `numeric`, chuỗi/bool so bằng `text`, null xử lý riêng) với cùng phép tổng hợp, không nhóm. Kết quả thêm dòng `other: true` (nhãn "Khác") và `other_groups` (số nhóm đã gộp, đếm bằng một câu `GROUP BY`). Đúng một cột nhóm (hoặc một trục thời gian), không cohort.
+  - `totals=true`: engine chạy thêm câu với `keepGroups` (chỉ giữ một phần các cột nhóm): `by_first` (theo nhóm thứ nhất), `by_rest` (theo tổ hợp các nhóm còn lại), `grand` (không nhóm). Mỗi giá trị là phép tổng hợp trên chính các dòng của nhóm rộng hơn, đúng cho mọi phép (kể cả trimmed_mean, median). Một cột nhóm thì chỉ có `grand`; không có cột nhóm thì lỗi `bad_totals`.
+- Mọi câu đi qua `runSql` (cache theo câu SQL, giới hạn đồng thời, hết giờ 10 giây). Dùng chung kế hoạch với câu chính nên cùng phạm vi dữ liệu, bộ lọc, khoảng thời gian và (với `top`/`totals`) cùng cách xử lý ngoại lai.
+- Không hỗ trợ với chỉ số phái sinh (`unsupported_for_derived`, vì tỉ số của các tổng khác tổng của các tỉ số), và không dùng cùng so sánh, cộng dồn, mục tiêu, cohort (`unsupported_combo`): báo lỗi rõ thay vì tính sai.
+- Web: biểu đồ tròn/donut gọi với `top = max_slices` (mặc định 8) và `order=value_desc`; pivot gọi với `totals=true` khi bật "Tổng dòng và cột". Hai tham số này sinh lúc vẽ, không lưu trong JSON biểu đồ. Đã xoá `isAdditive`; ghi chú "không cộng gộp được" đổi thành "Khác gộp N nhóm".
+- Test: `apps/api/test/metrics-top-totals.test.ts` (12 test: sum, avg, median, count_distinct, count so với tính tay trên toàn bộ dòng), `apps/web/test/dashboard-lib.test.ts`.
+- Câu hỏi để Stage 12: `chuan-giao-dien.md` ghi tròn tối đa 5 phần, Module 3 ghi 8 (đang dùng 8).

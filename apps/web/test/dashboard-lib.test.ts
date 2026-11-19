@@ -56,22 +56,23 @@ describe("chart data", () => {
     const c = toCartesian([inp(mk([[["A"], 1], [["B"], 0], [["C"], -1]]), "x"), inp(mk([[["A"], 3], [["B"], 0], [["C"], 4]]), "y")]);
     expect(toShares(c)).toEqual([[25, null, null], [75, null, null]]);
   });
-  it("slices: top N and an exact 'Khác' for sums; top N with a count of hidden groups for averages; skips non-positive", () => {
-    const rows: [string[], number][] = [[["a"], 10], [["b"], 9], [["c"], 8], [["d"], 7], [["z"], 0], [["n"], -3]];
-    const s = toSlices(mk(rows), 3);
-    expect(s.slices.map((x) => [x.name, x.value])).toEqual([["a", 10], ["b", 9], ["Khác", 15]]);
+  it("slices come in the server's order with its Khác row; non-positive are skipped, nothing is added here", () => {
+    const r = mk([[["a"], 10], [["b"], 9], [["z"], 0], [["n"], -3], [["Khác"], 15]]);
+    r.rows[4]!.other = true;
+    r.other_groups = 4;
+    const s = toSlices(r);
+    expect(s.slices.map((x) => [x.name, x.value, x.other])).toEqual([["a", 10, false], ["b", 9, false], ["Khác", 15, true]]);
     expect(s.skipped).toBe(2);
-    const avg = toSlices(mk(rows, { metric: { id: null, name: "m", agg: "avg", field: "x", formula: null, format: null } }), 3);
-    expect(avg.slices.map((x) => x.name)).toEqual(["a", "b", "c"]);
-    expect(avg.hidden).toBe(1);
+    expect(s.folded).toBe(4);
   });
-  it("pivot totals only for sums and counts", () => {
+  it("pivot totals are the server's; none when not asked", () => {
     const rows: [string[], number][] = [[["A", "x"], 1], [["A", "y"], 2], [["B", "x"], 3]];
-    const p = toPivot(mk(rows));
-    expect(p.rowTotals).toEqual([3, 3]);
-    expect(p.colTotals).toEqual([4, 2]);
-    expect(p.grand).toBe(6);
-    expect(toPivot(mk(rows, { metric: { id: null, name: "m", agg: "avg", field: "x", formula: null, format: null } })).rowTotals).toBeNull();
+    expect(toPivot(mk(rows)).rowTotals).toBeNull();
+    const t = (g: string[], v: number): MetricRow => ({ groups: g.map((l) => ({ value: l, label: l })), value: v, count: 1 });
+    const p = toPivot(mk(rows, { totals: { by_first: [t(["A"], 1.5), t(["B"], 3)], by_rest: [t(["x"], 2), t(["y"], 2)], grand: t([], 2) } }));
+    expect(p.rowTotals).toEqual([1.5, 3]);
+    expect(p.colTotals).toEqual([2, 2]);
+    expect(p.grand).toBe(2);
   });
   it("heat level", () => {
     expect(heatLevel(5, [0, 10])).toBe(0.5);

@@ -7,6 +7,7 @@ import {
   attachTarget,
   buildCohortSizes,
   buildMetricQuery,
+  countGroupsSql,
   buildOutlierBounds,
   checkJoin,
   combineDerived,
@@ -74,6 +75,10 @@ export interface MetricAnswer extends MetricTable {
   outlier_rows?: MetricTable;
   /** `cohort`: rows of each cohort (start period), to turn counts into shares. */
   cohort_sizes?: MetricTable;
+  /** `totals`: the measure over each wider group, computed by the engine (never a sum of group results). `by_first`: one row per first group; `by_rest`: one row per combination of the other groups; `grand`: all rows. */
+  totals?: { by_first: MetricRow[] | null; by_rest: MetricRow[] | null; grand: MetricRow | null };
+  /** `top`: how many groups were folded into the "Khác" row (0 when there were no more than N). */
+  other_groups?: number;
   /** Milliseconds the grouped statements took. */
   ms: number;
 }
@@ -174,13 +179,41 @@ export async function runMetric(ctx: Ctx, rs: ResolvedSource, spec: MetricSpec, 
       if (merged.outliers.mode === "separate") outside = buildMetricQuery({ ...plan, outliers: { lower: bounds.lower, upper: bounds.upper, keep: "outside" } });
     }
   }
+  if (ov.top && merged.cohort) bad("bad_top", 'Cohort không dùng "top".');
+  // The plan the main statement runs (with the outlier bounds when they cut values out): "top" and "Khác" read the same rows.
+  const mainPlan: PlanInput = bounds && merged.outliers && merged.outliers.mode !== "include" ? { ...plan, outliers: { lower: bounds.lower, upper: bounds.upper, keep: "inside" } } : plan;
+  if (ov.top) main = buildMetricQuery({ ...mainPlan, order: "value_desc", limit: ov.top });
   const r = await rowsOf(ctx, main, tables);
   ms += r.ms;
-  const answer: MetricAnswer = { ...r.table, diagnostics: { range: built.range, joins, ...(bounds !== undefined ? { outliers: bounds } : {}) }, ms };
+  let otherGroups: number | undefined;
+  if (ov.top) {
+    otherGroups = 0;
+    if (r.table.truncated) {
+      const kept = r.table.rows.map((x) => x.groups[0]!.value);
+      const rest = await rowsOf(ctx, buildMetricQuery({ ...mainPlan, order: undefined, keepGroups: [], excludeFirst: kept, limit: 1 }), tables);
+      ms += rest.ms;
+      const row = rest.table.rows[0];
+      r.table = { ...r.table, truncated: false, rows: [...r.table.rows, { groups: [{ value: null, label: "Khác" }], value: row?.value ?? null, count: row?.count ?? 0, other: true }] };
+      const cnt = await runSql(ctx, countGroupsSql(mainPlan), tables);
+      ms += cnt.ms;
+      otherGroups = Number((cnt.rows[0] as { n: number }).n) - ov.top;
+    }
+  }
+  const answer: MetricAnswer = { ...r.table, ...(otherGroups !== undefined ? { other_groups: otherGroups } : {}), diagnostics: { range: built.range, joins, ...(bounds !== undefined ? { outliers: bounds } : {}) }, ms };
   if (outside) {
     const o = await rowsOf(ctx, outside, tables);
     answer.outlier_rows = o.table;
     answer.ms += o.ms;
+  }
+  if (ov.totals) {
+    const k = built.groups.length;
+    if (k === 0 || merged.cohort) bad("bad_totals", 'Tổng chỉ dùng cho bảng có cột nhóm (và không dùng với cohort).', { reason: "bad_totals", groups: k });
+    const one = async (keep: number[]) => (await rowsOf(ctx, buildMetricQuery({ ...mainPlan, keepGroups: keep, limit: MAX_GROUPS }), tables));
+    const byFirst = k >= 2 ? await one([0]) : null;
+    const byRest = k >= 2 ? await one(Array.from({ length: k - 1 }, (_, i) => i + 1)) : null;
+    const grand = await one([]);
+    answer.totals = { by_first: byFirst?.table.rows ?? null, by_rest: byRest?.table.rows ?? null, grand: grand.table.rows[0] ?? null };
+    answer.ms += grand.ms + (byFirst?.ms ?? 0) + (byRest?.ms ?? 0);
   }
   if (merged.cohort) {
     const c = await rowsOf(ctx, buildCohortSizes(plan), tables);
@@ -288,6 +321,12 @@ export async function runDefinition(ctx: Ctx, def: MetricDef, ov: QueryOverrides
     if (def.measure!.agg !== "count" && def.measure!.agg !== "sum") bad("bad_cumulative", `Cộng dồn chỉ dùng cho đếm (count) và tổng (sum), không dùng cho "${def.measure!.agg}".`, { agg: def.measure!.agg });
     if (!bucketed) bad("bad_cumulative", "Cộng dồn cần nhóm theo thời gian (time.field và time.bucket).");
     if (def.cohort) bad("bad_cumulative", "Cohort không cộng dồn.");
+  }
+
+  if (ov.top || ov.totals) {
+    const what = ov.top ? 'nhóm "Khác" (top)' : "tổng";
+    if (formula) bad("unsupported_for_derived", `Chưa hỗ trợ ${what} cho chỉ số phái sinh (tỉ số của các tổng không bằng tổng của tỉ số). Dùng chỉ số gốc.`);
+    if (eff.compare || eff.cumulative || eff.target || def.cohort) bad("unsupported_combo", `Không dùng ${what} cùng so sánh, cộng dồn, mục tiêu hay cohort.`);
   }
 
   const series = async (shift?: Shift): Promise<MetricAnswer> => {

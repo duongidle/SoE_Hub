@@ -39,6 +39,10 @@ export interface PlanInput {
   cohort?: Cohort;
   /** Keep only values inside (`inside`) or outside (`outside`) these bounds of the measure column (IQR outliers). */
   outliers?: { lower: number; upper: number; keep: "inside" | "outside" };
+  /** Totals: group only by these positions of the groups (the aggregate runs over all rows of each wider group, so it is right for every measure). */
+  keepGroups?: number[];
+  /** "Khác": read only the rows whose FIRST group is not one of these values (the groups kept as the top N). Needs exactly one group. */
+  excludeFirst?: (string | number | boolean | null)[];
 }
 
 export interface GroupInfo {
@@ -380,6 +384,23 @@ function prepare(p: PlanInput, mode: "main" | "cohort_sizes" | "outlier_bounds" 
   // `OFFSET 0` keeps Postgres from flattening the subquery back into the join (then the key would be evaluated per probe again).
   const base = fence.length ? sql`(SELECT b.*, ${sql.join(fence, sql`, `)} FROM dh_rows b WHERE ${p.base.scope("b")} AND b.deleted_at IS NULL OFFSET 0) b` : sql`dh_rows b`;
   const from = sql`${base} ${sql.join(joins.map((j) => j.join), sql` `)}`;
+  if (p.excludeFirst && mode === "main") {
+    if (gSql.length !== 1) bad('"top" (nhóm "Khác") cần đúng một cột nhóm (hoặc đúng một trục thời gian).', { reason: "bad_top", groups: gSql.length });
+    const g = gSql[0]!;
+    const vals = p.excludeFirst.filter((v) => v !== null);
+    const hasNull = p.excludeFirst.includes(null);
+    const arr = groups[0]!.kind === "number"
+      ? sql`((${g})::numeric <> ALL (ARRAY[${sql.join(vals.map((v) => sql`${Number(v)}`), sql`, `)}]::numeric[]))`
+      : sql`((${g})::text <> ALL (ARRAY[${sql.join(vals.map((v) => sql`${String(v)}`), sql`, `)}]::text[]))`;
+    where.push(hasNull ? sql`((${g}) IS NOT NULL AND ${arr})` : sql`((${g}) IS NULL OR ${arr})`);
+  }
+  if (p.keepGroups && mode === "main") {
+    const keep = p.keepGroups;
+    const kept = groups.filter((_, i) => keep.includes(i));
+    const keptSql = gSql.filter((_, i) => keep.includes(i));
+    groups.splice(0, groups.length, ...kept);
+    gSql.splice(0, gSql.length, ...keptSql);
+  }
   return { rs, mCol, x, agg, groups, gSql, from, where, range, sm };
 }
 
@@ -417,6 +438,14 @@ export function buildMetricQuery(p: PlanInput): Built {
 }
 
 
+/** Number of groups the plan would return (for "top": how many were folded into "Khác"). */
+export function countGroupsSql(p: PlanInput): SQL {
+  const { gSql, from, where } = prepare({ ...p, excludeFirst: undefined, keepGroups: undefined });
+  const sel = sql.join(gSql.map((g, i) => sql`${g} AS ${sql.raw(`g${i}`)}`), sql`, `);
+  const by = sql.join(gSql.map((_, i) => sql.raw(String(i + 1))), sql`, `);
+  return sql`SELECT count(*)::int AS n FROM (SELECT ${sel} FROM ${from} WHERE ${sql.join(where, sql` AND `)} GROUP BY ${by}) s`;
+}
+
 /** Sizes of the cohorts: rows of each start period (same filters, mature cohorts only), by `group_by`. Same shape as a metric without `measure`. */
 export function buildCohortSizes(p: PlanInput): Built {
   const { groups, gSql, from, where, range, sm } = prepare({ ...p, measure: { agg: "count" }, outliers: undefined }, "cohort_sizes");
@@ -446,6 +475,8 @@ export interface MetricRow {
   target?: number | null;
   achieved?: number | null;
   gap?: number | null;
+  /** The row that folds every group outside the top N (`top`): the measure computed over those rows, not a sum of group results. */
+  other?: boolean;
   /** Derived metric: the error of the formula for this group (`#DIV/0!`...); `value` is null then. */
   error?: string;
 }

@@ -202,6 +202,10 @@ export const QueryOverridesSchema = z.strictObject({
   cumulative: z.boolean().optional(),
   target: TargetSchema.nullable().optional(),
   outliers: OutliersSchema.nullable().optional(),
+  /** Keep the N largest groups and fold the rest into one "Khác" row (the measure computed over the rest). Exactly one group column. */
+  top: z.number().int().min(2).max(50).optional(),
+  /** Add the totals of a table with two group columns: by the first, by the rest, and the grand total (the measure computed over each wider group). */
+  totals: z.boolean().optional(),
 });
 export type QueryOverrides = z.output<typeof QueryOverridesSchema>;
 

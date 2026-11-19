@@ -117,13 +117,15 @@ export const metricOperations = [
       cumulative: z.enum(["true", "false"]).optional().transform((v) => (v === undefined ? undefined : v === "true")).describe("Cộng dồn theo thời gian (chỉ count và sum; cần time.bucket)."),
       target: jsonParam(TargetSchema).describe("Mục tiêu: {value} hằng số, hoặc {table, value_field, period_field?, by?} lấy từ bảng mục tiêu."),
       outliers: jsonParam(OutliersSchema).describe("Giá trị ngoại lai theo IQR: {mode: include|exclude|separate, k?}."),
+      top: z.coerce.number().int().min(2).max(50).optional().describe("Giữ N nhóm lớn nhất (theo giá trị) và gộp phần còn lại thành một dòng \"Khác\" (`other: true`) mà phép tổng hợp được tính lại trên các dòng còn lại (đúng cho mọi phép: sum, avg, median, count_distinct...). Đúng một cột nhóm. `other_groups` = số nhóm đã gộp."),
+      totals: z.enum(["true", "false"]).optional().transform((v) => (v === undefined ? undefined : v === "true")).describe("Thêm `totals` cho bảng có cột nhóm: `by_first` (mỗi nhóm thứ nhất), `by_rest` (mỗi tổ hợp các nhóm còn lại), `grand` (tất cả), mỗi giá trị tính bằng chính phép tổng hợp trên các dòng tương ứng, không cộng kết quả nhóm."),
     }),
     http: { method: "GET", path: "/metric-query" },
     handler: async (ctx, i) => {
       if (!!i.metric_id === !!i.metric) throw new AppError("validation_error", "Truyền đúng một trong `metric_id` hoặc `metric`.", { reason: "metric_required" });
       const ov = parseJson(
         QueryOverridesSchema,
-        { time: i.time, group_by: i.group_by, filter: i.filter, order: i.order, limit: i.limit, compare: i.compare === "none" ? null : i.compare, cumulative: i.cumulative, target: i.target, outliers: i.outliers },
+        { time: i.time, group_by: i.group_by, filter: i.filter, order: i.order, limit: i.limit, compare: i.compare === "none" ? null : i.compare, cumulative: i.cumulative, target: i.target, outliers: i.outliers, top: i.top, totals: i.totals },
         "Tham số truy vấn",
       );
       let def: MetricDef;

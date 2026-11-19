@@ -35,10 +35,20 @@ function errorView(e: unknown) {
 
 const seriesLabel = (s: SeriesDef, r: QueryResult | undefined, i: number) => s.label?.trim() || r?.metric.name || s.metric?.name || `Chuỗi ${i + 1}`;
 
+/** What the server is asked on top of the saved series: the top N with "Khác" for a pie, the totals for a pivot. */
+function asked(chart: ChartDef): SeriesDef[] {
+  const o = chart.options ?? {};
+  return chart.series.map((s) => {
+    if (chart.type === "pie" || chart.type === "donut") return { ...s, top: o.max_slices ?? 8, order: "value_desc" as const };
+    if (chart.type === "pivot" && o.totals !== false) return { ...s, totals: true };
+    return s;
+  });
+}
+
 /** Numbers of a chart: one `metrics.query` per series, in parallel, each with its own loading and error state. */
 export function useChartResults(chart: ChartDef, datahubId: string) {
   const qs = useQueries({
-    queries: chart.series.map((s) => ({
+    queries: asked(chart).map((s) => ({
       queryKey: queryKey(s, datahubId),
       queryFn: () => runQuery(s, datahubId),
       staleTime: 30_000,
@@ -86,9 +96,9 @@ function Loaded({ chart, results, datahubId, onPick }: { chart: ChartDef; result
       return first.rows.length === 0 ? <ChartMessage title="Chưa có dữ liệu" hint="Không có dòng nào khớp bộ lọc và khoảng thời gian của biểu đồ này." /> : wrap(<PivotTable result={first} format={format} heat={!!o.heat} totals={o.totals !== false} />);
     case "pie":
     case "donut": {
-      const sl = toSlices(first, o.max_slices ?? 8);
+      const sl = toSlices(first);
       if (!sl.slices.length) return <ChartMessage title="Chưa có dữ liệu" hint={sl.skipped ? "Mọi nhóm có giá trị bằng 0 hoặc âm, không vẽ được tỉ trọng." : "Không có dòng nào khớp bộ lọc và khoảng thời gian của biểu đồ này."} />;
-      const note = [sl.skipped ? `${sl.skipped} nhóm bằng 0 hoặc âm không hiện.` : "", sl.hidden ? `Còn ${sl.hidden} nhóm nhỏ hơn không hiện (không cộng gộp được với phép tính này).` : ""].filter(Boolean).join(" ");
+      const note = [sl.skipped ? `${sl.skipped} nhóm bằng 0 hoặc âm không hiện.` : "", sl.folded ? `"Khác" gộp ${sl.folded} nhóm nhỏ hơn.` : ""].filter(Boolean).join(" ");
       return (
         <div className="flex h-full min-h-0 flex-col">
           <div className="min-h-0 flex-1">

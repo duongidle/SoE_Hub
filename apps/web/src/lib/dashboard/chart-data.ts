@@ -2,14 +2,11 @@ import type { MetricRow, QueryResult } from "./types";
 
 /**
  * Turns the answers of `metrics.query` into what a chart draws. Only arranging: rows become categories, series, slices or a matrix.
- * The numbers are the server's. Two small sums are made here and only where the arithmetic is exact: the "Khác" slice and the
- * totals of a pivot, both only for `count` and `sum` (a sum of averages or medians would be wrong, so those are never added).
+ * Every number is the server's, including the "Khác" slice (`top`) and the totals of a pivot (`totals`): nothing is added up here.
  */
 
 export const EMPTY_LABEL = "(Trống)";
 const SEP = " · ";
-
-export const isAdditive = (r: Pick<QueryResult, "metric">): boolean => r.metric.formula === null && (r.metric.agg === "sum" || r.metric.agg === "count");
 
 const num = (v: number | string | null): number | null => (v === null ? null : typeof v === "number" ? v : Number.isFinite(Number(v)) ? Number(v) : null);
 
@@ -109,39 +106,29 @@ export function toShares(c: Cartesian): (number | null)[][] {
 export interface Slice {
   name: string;
   value: number;
-  /** Real rows behind the slice (none for the folded "Khác"). */
-  row: MetricRow | null;
+  /** The server's "Khác" row. */
+  other: boolean;
 }
 export interface Slices {
   slices: Slice[];
   /** Groups with zero or negative values cannot be drawn as a share. */
   skipped: number;
-  /** Groups left out because the numbers cannot be added up into one "Khác" slice. */
-  hidden: number;
-  total: number;
+  /** Groups the server folded into "Khác". */
+  folded: number;
 }
 
-export function toSlices(result: QueryResult, max = 8): Slices {
-  const all = result.rows
-    .map((r) => ({ name: r.groups.map((g) => g.label).join(SEP) || "Tổng", value: num(r.value), row: r }))
-    .filter((s): s is { name: string; value: number; row: MetricRow } => s.value !== null);
-  const pos = all.filter((s) => s.value > 0).sort((a, b) => b.value - a.value);
-  const skipped = all.length - pos.length;
-  const total = pos.reduce((a, b) => a + b.value, 0);
-  if (pos.length <= max) return { slices: pos, skipped, hidden: 0, total };
-  if (isAdditive(result)) {
-    const keep = pos.slice(0, max - 1);
-    const rest = pos.slice(max - 1);
-    return { slices: [...keep, { name: "Khác", value: rest.reduce((a, b) => a + b.value, 0), row: null }], skipped, hidden: 0, total };
-  }
-  return { slices: pos.slice(0, max), skipped, hidden: pos.length - max, total };
+/** Slices in the server's order (largest first, "Khác" last). Only positive values are drawn. */
+export function toSlices(result: QueryResult): Slices {
+  const all = result.rows.map((r) => ({ name: r.other ? "Khác" : r.groups.map((g) => g.label).join(SEP) || "Tổng", value: num(r.value), other: !!r.other }));
+  const slices = all.filter((s): s is Slice => s.value !== null && s.value > 0);
+  return { slices, skipped: all.filter((s) => s.value !== null).length - slices.length, folded: result.other_groups ?? 0 };
 }
 
 export interface PivotData {
   rowLabels: string[];
   colLabels: string[];
   cells: (MetricRow | null)[][];
-  /** Totals only when the numbers can be added up. */
+  /** Totals from the server (null when it was not asked for). */
   rowTotals: (number | null)[] | null;
   colTotals: (number | null)[] | null;
   grand: number | null;
@@ -160,11 +147,11 @@ export function toPivot(result: QueryResult): PivotData {
     cell.set(`${rl}\u0000${cl}`, r);
   }
   const cells = rowLabels.map((rl) => colLabels.map((cl) => cell.get(`${rl}\u0000${cl}`) ?? null));
-  if (!isAdditive(result)) return { rowLabels, colLabels, cells, rowTotals: null, colTotals: null, grand: null };
-  const sum = (xs: (MetricRow | null)[]) => xs.reduce<number>((a, r) => a + (num(r?.value ?? null) ?? 0), 0);
-  const rowTotals = cells.map(sum);
-  const colTotals = colLabels.map((_, j) => sum(cells.map((row) => row[j]!)));
-  return { rowLabels, colLabels, cells, rowTotals, colTotals, grand: rowTotals.reduce((a, b) => a + b, 0) };
+  const t = result.totals;
+  if (!t || !t.by_first || !t.by_rest) return { rowLabels, colLabels, cells, rowTotals: null, colTotals: null, grand: null };
+  const byRow = new Map(t.by_first.map((r) => [r.groups[0]?.label ?? "Tổng", num(r.value)]));
+  const byCol = new Map(t.by_rest.map((r) => [r.groups.map((g) => g.label).join(SEP) || "Giá trị", num(r.value)]));
+  return { rowLabels, colLabels, cells, rowTotals: rowLabels.map((l) => byRow.get(l) ?? null), colTotals: colLabels.map((l) => byCol.get(l) ?? null), grand: num(t.grand?.value ?? null) };
 }
 
 /** Position of `v` between the smallest and largest of the matrix, 0 to 1 (for the colour scale). */
