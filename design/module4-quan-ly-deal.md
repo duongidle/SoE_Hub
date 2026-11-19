@@ -723,6 +723,8 @@ Các quyết định ngày 19/11/2026 (bảng template, chia sẻ thống nhất
 17. Hộp thoại Chia sẻ (2C-4): bật/tắt khoá phân chia, chọn cột khoá và cột khoá chính, tuỳ chọn "Thành viên được thêm dòng hàng loạt", cảnh báo khi gỡ thành viên đang được tag.
 18. Ngăn sửa cột (2C-3): tuỳ chọn "Cho phép sửa"; khi chọn cột khoá chỉ liệt kê cột kiểu Người dùng.
 19. Grid: ô của cột không cho phép sửa hiện chỉ đọc; ô Người dùng chỉ gợi ý thành viên; người đã bị gỡ hiện "không còn quyền".
+19a. **View nhóm thu gọn** (Module 2 mục 5.1, Dương chốt 19/11/2026): nút "Thu gọn tất cả / Mở tất cả" trong grid khi đang nhóm (`apps/web/src/lib/datahub/session.ts` đang giữ `closed` trong bộ nhớ, chưa lưu); lưu trạng thái thu gọn vào `config` của view (bản riêng khi người được chia sẻ đổi, như mọi thay đổi view). Nhóm đổi giá trị thì nhóm mới mở hay đóng theo chế độ "thu gọn tất cả".
+19b. **Xuất dạng tổng hợp**: `export-job.ts` nhận tuỳ chọn `groups_only`; đọc nhóm và ô tổng bằng đúng truy vấn của `rows-groups.ts` (một nơi tính, không tính lại ở export), áp phạm vi người xuất; XLSX ghi cột nhóm + Số dòng + cột tổng, nhóm lồng thụt lề hoặc thêm cột cấp. Hộp thoại xuất có lựa chọn "Dòng nhóm / Mọi dòng" khi view đang nhóm. Test: số trong file bằng số dòng tổng trên grid, kể cả khi khoá phân chia bật.
 
 **D. Kiểm thử**
 

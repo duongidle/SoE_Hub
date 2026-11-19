@@ -72,6 +72,9 @@ Lý do: khi viết công thức `[Datahub B].[Thanh toán].[Số tiền]`, mỗi
 - **Lọc theo điều kiện:** nhiều điều kiện, chọn "thoả tất cả" hoặc "thoả một trong", có nhóm lồng nhau. Dùng cú pháp lọc của Module 0, có toán tử ngày tương đối (tháng này, quý trước, 30 ngày qua…).
 - **Sắp xếp nhiều cấp:** ví dụ theo Ưu tiên, rồi theo Hạn việc tiếp theo, rồi theo Doanh thu.
 - Nhóm theo một hoặc nhiều cột, có dòng tổng của mỗi nhóm (đếm, tổng, trung bình…).
+  - **Thu gọn tất cả** (Dương chốt 19/11/2026): một nút thu mọi nhóm, chỉ còn dòng nhóm (giá trị cột nhóm, số dòng, các ô tổng), thành một bảng tổng hợp. Trạng thái thu gọn (tất cả, hoặc từng nhóm) **lưu vào view** như lọc, sắp xếp. Mỗi cột một phép tính như Lark Base; không làm loại view riêng.
+  - **Xuất theo dạng đang xem:** view đang thu gọn tất cả thì XLSX/CSV xuất các dòng nhóm (cột nhóm, số dòng, ô tổng, giữ thứ tự nhóm lồng nhau), không xuất dòng chi tiết; hộp thoại xuất cho chọn "Dòng nhóm" hoặc "Mọi dòng". Ví dụ nhóm Sổ com theo Người, thu gọn, xuất bảng com tháng.
+  - Dòng tổng và xuất tổng hợp chỉ tính trên dòng người xem thấy (mục 10).
 - Bản đầu chỉ có **dạng bảng**. Kanban và Lịch làm ở giai đoạn làm đẹp.
 
 ### 5.2 Tự lưu
