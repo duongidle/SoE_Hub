@@ -4,6 +4,7 @@
 > Không ghi số của chính sách thật vào file này (repo public); số nằm trong `examples/` và trong dữ liệu chính sách của hệ thống.
 > Phụ thuộc: [Module 0](module0-nen-tang.md) (registry, lịch sử dòng, khoá kỳ, snapshot, outbox), [Module 1](module1-tai-khoan-phan-quyen.md) (cây tổ chức, phạm vi deal, Guest, chuyển giao), [Module 2](module2-datahub.md) (engine bảng, nguồn cột, công thức, liên kết, view), [Module 3](module3-metric-dashboard.md) (chỉ số, dashboard, snapshot trong chỉ số).
 > Đổi bởi [Module 7](module7-dynamic-form.md) (chốt 19/11/2026): datahub "Quản lý Deal" không làm đích và không làm nguồn dữ liệu của Form (mở rộng mục 15).
+> **Sửa 19/11/2026 (Dương chốt):** bảng template (chung/riêng, khoá phân chia), quyền sửa ô do người tạo bảng cấp, vai trò cột, template theo cây và theo team, trang Template; bỏ bảng `deals` có cột thật (mục 1.2, 1.3, 2, 3.1, 3.4, 3.5–3.8, 16, 18, 19).
 > Để module sau: tool MCP (Module 5); nhắc hạn, nhắc chấm BANT (Module 6); gắn việc vào deal (Module 10).
 
 Nguồn: `examples/Quản lý Deal SoE (Dương TVD).xlsx` (sheet **Deals** là template mẫu, **Data Validation** là danh sách lựa chọn, **Index** là bảng theo tháng), `examples/bpm-dataset-soe.md` (BPM `[SoE] Deal Management`, Dataset `SOE`), `examples/chinh_sach_base_crm_ver_2.0_01062026_.pdf` (mục 4 Commission), workspace Base Inc (KPI, Goal, quy tắc BANT H-002).
@@ -35,12 +36,12 @@ Quản lý Deal và Datahub là **cùng một engine, cùng một nguồn dữ l
 | **Chính sách com**, **Tham số com** | Xem | Xem | Xem, sửa | Bảng hệ thống dùng chung (mục 9). **Chỉ Manager** thêm, sửa, cập nhật; mọi người khác chỉ xem, không sửa, không xoá. Admin xem |
 | **Thanh toán** | – | – | ✓ | Khung ở mục 7, chi tiết chốt sau khi Dương bàn với Manager |
 
-Manager cần quản lý thêm việc gì thì **thêm một bảng mặc định** cho vai trò Manager, nối với Deals bằng cột liên kết, lookup, rollup. Engine đã có sẵn những thứ này, nên không phải viết tính năng riêng cho từng bài toán.
+Mọi bảng mặc định ở trên là **bảng template** do hệ thống sinh sẵn (mục 3.5), không có code riêng cho từng bảng. Manager hoặc Leader cần quản lý thêm việc gì thì **tạo một bảng template** ở trang Template (mục 3.8), nối với Deals bằng cột liên kết, lookup, rollup. Không cần đụng code.
 
 ### 1.3 Bảo vệ
 
-- Không xoá, không đổi tên datahub "Quản lý Deal" và các bảng mặc định.
-- Cột mặc định (từ template) không đổi tên, không xoá, không đổi kiểu từ trang bảng. Chỉ đổi được qua **template** (mục 3).
+- Không xoá, không đổi tên datahub "Quản lý Deal".
+- Bảng template và cột template không xoá, không đổi tên, không đổi kiểu **từ trang bảng**. Chỉ người có quyền sửa template đổi được, ở **trang Template** (mục 3.8). Bỏ bảng hoặc cột template là lưu trữ, không xoá hẳn.
 - Bảng tự tạo trong "Quản lý Deal" là bảng thường: của riêng người tạo, xoá và sửa tự do, chia sẻ như Module 2.
 
 ### 1.4 Một deal ứng với một loại dịch vụ
@@ -49,7 +50,7 @@ Khách mua POD và PS là **hai deal**, liên kết với nhau. Cách này khớ
 
 ## 2. Dữ liệu dùng chung và phạm vi
 
-- **Deals:** một bản ghi mỗi deal trong bảng `deals` (cột cơ bản là cột thật của Postgres). Bảng Deals trong datahub của mỗi người là **cùng tập bản ghi đó, đã áp phạm vi**: User thấy deal mình tham gia, Leader thấy của mình và team, Manager thấy cả cây, Admin xem mọi cây ở chế độ chỉ đọc (Module 1 mục 4.1).
+- **Deals:** một bản ghi mỗi deal, lưu ở `dh_rows` như mọi bảng của Datahub. **Không có bảng `deals` riêng, không có cột thật của Postgres** (sửa 19/11). Deals là bảng template chung, khoá phân chia là `Người tham gia` (mục 3.5). Bảng Deals trong datahub của mỗi người là **cùng tập bản ghi đó, đã áp phạm vi**: User thấy deal mình tham gia, Leader thấy của mình và team, Manager thấy cả cây, Admin xem mọi cây ở chế độ chỉ đọc (Module 1 mục 4.1).
 - **Probation KPI:** một bản ghi mỗi (người, năm), phạm vi giống Deals.
 - **Index, Thanh toán, bảng tự tạo:** của riêng chủ datahub, theo luật riêng tư của Datahub (Module 1 mục 4.2).
 - Mỗi deal thuộc **một cây** (đặt lúc tạo). Team của deal để báo cáo = team của người Leading **tại Start date**.
@@ -61,17 +62,18 @@ Khách mua POD và PS là **hai deal**, liên kết với nhau. Cách này khớ
 
 | Lớp | Ai sửa | Áp dụng cho | Ví dụ |
 |---|---|---|---|
-| **Cơ bản** | Admin, Manager | Mọi người | Các cột của sheet Deals |
+| **Cơ bản** | Admin, Manager (cây mình) | Mọi người trong phạm vi của bảng | Các cột của sheet Deals |
 | **Theo vai trò** | Admin, Manager | Mọi người có vai trò đó | Leader: `Com của team`. Manager: `Com của deal` |
-| **Theo team** | Leader | Thành viên team của Leader đó | Một cột Leader muốn cả team điền |
+| **Theo team** | Leader, nếu bảng cho phép (mục 3.8) | Thành viên team của Leader đó | Một cột Leader muốn cả team điền |
 | **Tuỳ chỉnh** | Từng người | Chỉ người đó | `Thời gian showcase`, cột công thức riêng |
 
-- Template áp dụng cho mọi bảng mặc định (Deals, Index, Probation KPI, Thanh toán).
+- Template áp dụng cho mọi bảng template: bảng mặc định (Deals, Index, Probation KPI, Thanh toán, Chính sách com, Tham số com) và bảng template Manager, Leader tạo thêm (mục 3.5).
 - **Sửa template thì áp dụng ngay cho mọi người trong phạm vi.** Ví dụ tháng 12 Manager thêm một cột vào lớp Cơ bản của Deals: mọi người thấy cột đó ngay. Cột tuỳ chỉnh của từng người **không bị ảnh hưởng**.
 - Cột template mới trùng tên với cột tuỳ chỉnh của ai đó: cột tuỳ chỉnh được đổi tên thành `<tên> (riêng)` và người đó nhận thông báo. Dữ liệu và công thức giữ nguyên (công thức trỏ theo mã cột).
 - Bỏ một cột template: cột bị ẩn và lưu trữ, dữ liệu và lịch sử giữ nguyên, khôi phục được. Không xoá hẳn.
 - Đổi kiểu cột template: theo luồng đổi kiểu của Module 2 (xem trước, báo giá trị không chuyển được).
-- Template dùng chung cả hệ thống (hiện chỉ có một team SoE). Mọi lần sửa ghi nhật ký và báo cho mọi Manager. Khi có cây thứ hai cần template khác thì thêm phạm vi theo cây.
+- **Template theo cây** (sửa 19/11). Hệ thống có một **bộ mặc định**. Khi có cây mới, cây đó được sinh một bộ template từ bộ mặc định. Admin sửa bộ mặc định và template của mọi cây. Manager sửa template của cây mình. Sửa bộ mặc định chỉ ảnh hưởng cây tạo sau. Cột có vai trò (mục 3.7) có ở mọi cây.
+- Mọi lần sửa đều ghi nhật ký. Manager của cây nhận thông báo; Leader sửa thì Manager của Leader đó nhận thông báo.
 
 ### 3.2 Cột template và cột riêng phải luôn phân biệt được
 
@@ -110,10 +112,95 @@ Cột mặc định không có logic viết cứng trong code. Nó là cột th�
 | Thuộc tính | Lựa chọn |
 |---|---|
 | Cách lưu giá trị | **Một giá trị chung mỗi deal** (ví dụ `Status`), hoặc **mỗi người một giá trị** (ví dụ ghi chú riêng của từng người) |
-| Ai sửa | Người Leading / mọi người tham gia / Leader / chỉ Manager / chỉ hệ thống (công thức) |
+| Ai sửa ô | Do người tạo bảng cấp (mục 3.6). Cột công thức: chỉ hệ thống |
+| Vai trò cột | Không có, hoặc một vai trò trong bộ cố định (mục 3.7) |
 | Hiển thị mặc định | Hiện hoặc ẩn trong view mặc định |
 
 Cột cách lưu "mỗi người một giá trị" (ví dụ `Vai trò của tôi`, `% Com cá nhân`) và cột công thức dùng chúng (ví dụ `Com`) có giá trị riêng cho từng người, vẫn tính sẵn và lưu (Module 2 mục 6.5). Mỗi deal chỉ vài người thấy nên số bản ghi nhỏ.
+
+### 3.5 Bảng template
+
+Bảng template là bảng **có sẵn cột**, do người có quyền dựng ở trang Template, rồi sinh vào datahub "Quản lý Deal" của mọi người trong phạm vi. Khác bảng tự tạo ở một điểm: người nhận **chỉ thêm được cột riêng**, không sửa, không đổi tên, không xoá bảng hay cột sẵn có. Bảng template là bảng thường của engine Datahub, chỉ bị giới hạn quyền tuỳ chỉnh. Không có code riêng cho từng bảng.
+
+**Phạm vi theo người tạo**
+
+| Người tạo | Áp dụng cho |
+|---|---|
+| Admin | Bộ mặc định (sinh cho cây mới) |
+| Manager | Mọi người trong cây của Manager |
+| Leader | Thành viên team của Leader. Template gắn với **team**, không gắn với người: đổi Leader thì template ở lại cho Leader mới |
+
+- Người đổi team: bảng template của team cũ bị ẩn và lưu trữ, dữ liệu giữ nguyên; bảng của team mới hiện ra. Về lại team cũ thì hiện lại.
+- Bảng template trùng tên với bảng tự tạo của ai đó: bảng tự tạo đổi thành `<tên> (riêng)`, người đó nhận thông báo.
+- Bỏ bảng template: lưu trữ, không xoá hẳn, khôi phục được.
+- Bảng template không tính vào giới hạn số bảng của người nhận. Admin đặt giới hạn số bảng template mỗi cây và mỗi team (mặc định 20).
+
+**Hai kiểu, chọn khi tạo, không đổi sau**
+
+| Kiểu | Dữ liệu | Ví dụ |
+|---|---|---|
+| **Bảng chung** | Một bộ dòng. Cột **khoá phân chia** quyết định dòng hiện ở bảng của ai | Deals (khoá = `Người tham gia`), Probation KPI (khoá = người được đánh giá), bảng Leader tạo cho team |
+| **Bảng riêng** | Mỗi người một bảng cùng cấu trúc, dữ liệu riêng tư theo luật Datahub. Người tạo bảng không xem dữ liệu | Index |
+
+**Bảng chung**
+
+- **Khoá phân chia** là một cột kiểu Người dùng, có thể kèm thuộc tính (nhãn vai trò, phần trăm), như `Người tham gia` (mục 4.5). Mỗi bảng chung có đúng một khoá.
+- **Ai thấy dòng:** người có tên trong khoá; người tạo bảng thấy mọi dòng trong phạm vi; Leader thấy dòng có người trong team mình; Manager thấy mọi dòng trong cây, kể cả bảng do Leader trong cây tạo (chỉ đọc nếu không phải người tạo); Admin xem chỉ đọc như Deals. Giống luật xem deal (mục 2).
+- **Bị gỡ khỏi khoá:** dòng biến mất khỏi bảng của người đó. Giá trị cột riêng họ đã nhập được giữ lại và ẩn đi; gắn lại thì hiện lại.
+- **Cột "của tôi"** tự điền từ thuộc tính của chính người đó trong khoá. Mục 4.5 (`Vai trò của tôi`, `% Com cá nhân`…) là một trường hợp của cơ chế này.
+- **Ai thêm dòng:** người tạo bảng chọn khi tạo. (a) Chỉ người tạo bảng (mặc định; Deals dùng cách này, người tạo là Manager của cây). (b) Mọi người trong phạm vi; người thêm tự có tên trong khoá (ví dụ bảng "mỗi người tự báo cáo" của Leader).
+- Xoá dòng: xoá mềm theo Module 2, chỉ người tạo bảng. Deals giữ luật riêng: không xoá cứng, chỉ `Huỷ`.
+
+### 3.6 Quyền sửa ô trong bảng template
+
+- **Người tạo bảng cấp quyền sửa cho từng cột template.** Cột không cấp thì người khác chỉ xem. Mặc định không cấp.
+- Lựa chọn khi cấp: mọi người thấy dòng; người có nhãn vai trò X trong khoá (ví dụ chỉ Leading); Leader của người trong khoá.
+- Cột công thức không ai sửa ô; chỉ sửa công thức ở trang Template.
+- Bảng do Manager tạo: Manager luôn sửa được. Bảng Deals giữ luật đã chốt: Leader sửa được khi thành viên bật "Cho phép leader sửa deal của tôi". Bảng mục 4.3 là cấu hình mặc định của Deals theo luật này.
+- **Cột riêng** (lớp Tuỳ chỉnh) của mỗi người: chỉ người đó thấy và sửa. Không ai cấp, không ai khác xem.
+
+### 3.7 Vai trò cột
+
+Một số chức năng cần biết cột nào mang nghĩa gì. Thay vì viết cứng cột, cột được gắn **vai trò**, và chức năng tìm cột theo vai trò, không theo tên hay mã cố định.
+
+| Vai trò (bảng Deals) | Kiểu cần có | Chức năng dùng |
+|---|---|---|
+| `ngày chốt` (Closing date) | Ngày | Khoá kỳ, forecast, Index, snapshot |
+| `ngày bắt đầu` (Start date) | Ngày | Team của deal, cohort CR1/CR2 |
+| `doanh thu` | Tiền | Index, forecast, com |
+| `trạng thái` (Status) | Một lựa chọn; mỗi lựa chọn gắn nghĩa mở / thắng / thua / huỷ | Khoá kỳ, forecast, BANT, Index |
+| `loại deal` | Một lựa chọn | Com, Index |
+| `người tham gia` | Người dùng có thuộc tính (khoá phân chia) | Phạm vi xem, chia doanh thu và com |
+| `mã deal` | Công thức ra chữ | API ngoài, liên kết |
+
+- Bộ vai trò là cố định, do chức năng khai báo khi cần. Người dùng không tạo vai trò mới. Bảng template do Manager, Leader tạo không có vai trò bắt buộc, trừ khoá phân chia của bảng chung.
+- **Đổi tên cột, sửa công thức, đổi định dạng, đổi tên lựa chọn:** được, kèm cảnh báo liệt kê nơi đang dùng ("Khoá kỳ, forecast, Dashboard X dùng cột này"). Lựa chọn của `trạng thái` gắn nghĩa theo mã, nên đổi tên lựa chọn không làm vỡ chức năng.
+- **Đổi kiểu, bỏ cột:** chỉ được khi cột vẫn đúng kiểu vai trò cần. Nếu không, phải chuyển vai trò sang một cột khác đúng kiểu trước. **Không bao giờ để một vai trò không có cột.**
+- Chỉ người sửa được template của bảng đó mới gắn hoặc chuyển vai trò.
+- API ngoài và nhập lịch sử ánh xạ theo vai trò hoặc mã cột, không theo tên cột.
+
+### 3.8 Trang Template
+
+**Một trang, nhiều lối vào**
+
+- Menu Quản lý Deal → **Template**: Manager và Leader thấy.
+- Nút ở đầu trang datahub "Quản lý Deal".
+- Menu của cột template → **Sửa trong template**: mở đúng cột đó.
+- Cài đặt → Datahub → **Template Quản lý Deal**: lối vào của Admin (Admin không có datahub "Quản lý Deal", mục 1.1).
+
+**Bố cục**
+
+- Trái: danh sách bảng nhóm theo phạm vi (Bộ mặc định / Cây của tôi / Team X), mỗi bảng có nhãn ai sửa.
+- Phải: danh sách cột của bảng theo lớp, dùng lại phần quản lý cột của Module 2. Không có grid dữ liệu (template không có dữ liệu).
+- Leader thấy bảng do Manager tạo ở chế độ chỉ xem, kèm lý do vì sao không sửa được.
+
+**Chức năng**
+
+- Tạo bảng template: tên, kiểu (chung / riêng), khoá phân chia, ai thêm dòng (mục 3.5).
+- Đổi tên bảng, bỏ bảng (lưu trữ), khôi phục.
+- Thêm, sửa, đổi tên, bỏ cột; thuộc tính cột (mục 3.4); quyền sửa ô (mục 3.6); vai trò cột (mục 3.7).
+- **Quyền theo bảng nằm ngay trên trang này**, không tách ra Cài đặt: mỗi bảng có tuỳ chọn "Leader được thêm cột team: có / không", Admin và Manager đặt. Mặc định **tắt** với Deals, Chính sách com, Tham số com, Thanh toán; **bật** với Index, Probation KPI. Leader không bao giờ đổi tên, bỏ, đổi kiểu cột của lớp khác; với bảng chung chỉ thêm cột lớp Theo team và sửa công thức cho team (mục 3.3).
+- Mọi thay đổi đi qua màn xem trước "Áp dụng cho N người" rồi mới xác nhận.
 
 ## 4. Bảng Deals
 
@@ -170,7 +257,7 @@ Không đưa vào template ban đầu (Manager thêm khi cần, hoặc mỗi ng�
 | Cột công thức | — | — | — | — |
 | Cột tuỳ chỉnh của mình | Sửa | Sửa | Sửa | Sửa |
 
-"Thành viên cho phép" = tuỳ chọn "Cho phép leader sửa deal của tôi" (Module 1 mục 4.1). Admin, Manager đổi quyền từng cột trong template.
+"Thành viên cho phép" = tuỳ chọn "Cho phép leader sửa deal của tôi" (Module 1 mục 4.1). Đây là cấu hình mặc định của Deals theo mục 3.6; Admin, Manager đổi quyền từng cột ở trang Template.
 
 ### 4.4 Status
 
@@ -386,7 +473,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 
 - Menu Quản lý Deal: Deals, Index, Probation KPI, bảng tự tạo, Dashboard; Manager thấy thêm bảng của Manager và mục Quản lý (phân deal, chính sách com, khoá kỳ, snapshot, nhập lịch sử).
 - Deals: grid Module 2, view hệ thống (Ưu tiên hôm nay, Đang mở, Cần chấm lại), ngăn chi tiết deal (người tham gia, BANT, lịch sử).
-- Trình sửa template (trang riêng): bốn lớp, thuộc tính cột, xem trước ảnh hưởng ("áp dụng cho 18 người"), danh sách bản sửa của các team. Nhãn `Mẫu` / `Riêng` / `Team sửa` trên tiêu đề cột.
+- Trang Template (mục 3.8): lối vào, danh sách bảng theo phạm vi, tạo bảng template, bốn lớp, thuộc tính cột, quyền sửa ô, vai trò cột, quyền Leader theo bảng, xem trước ảnh hưởng ("áp dụng cho 18 người"), danh sách bản sửa của các team. Nhãn `Mẫu` / `Riêng` / `Team sửa` trên tiêu đề cột.
 - Datahub: datahub "Quản lý Deal" hiện trong danh sách với biểu tượng khoá.
 
 ## 17. Kiểm thử
@@ -406,6 +493,11 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 | Brief: datahub Deals không cho tạo thêm bảng | Datahub "Quản lý Deal" **được tạo thêm bảng**; datahub, bảng và cột mặc định được bảo vệ | Module 2 |
 | Datahub là của riêng, Leader/Manager không xem | Giữ nguyên cho bảng tự tạo và Index. **Ngoại lệ:** Deals và Probation KPI theo phạm vi deal (Leader xem team, Manager xem cây) | Module 1 mục 4 |
 | Cột hệ thống của Deals là cột cố định trong code | Cột mặc định là **cột thường do template sinh sẵn**; cột tính toán là công thức, Admin/Manager sửa cho mọi người, Leader sửa cho team, User không sửa (mục 3.3) | Module 2, CLAUDE.md |
+| Deals là bảng `deals` riêng, cột cơ bản là cột thật của Postgres (mục 2 cũ); Module 2 có nguồn cột "cột thật của bảng hệ thống" | Mọi bảng mặc định lưu ở `dh_rows`, là **bảng template**; chức năng lõi tìm cột theo **vai trò cột** (mục 3.5, 3.7) | Module 2 mục 3 (còn hai nguồn cột), code `column-source.ts` (bỏ `PhysicalSource`), CLAUDE.md |
+| Template dùng chung cả hệ thống (mục 3.1 cũ) | **Theo cây**, sinh từ bộ mặc định; Leader tạo template cho team | CLAUDE.md |
+| Chỉ có các bảng mặc định cố định | Manager, Leader **tạo bảng template** (chung có khoá phân chia, hoặc riêng) | Module 2, CLAUDE.md |
+| Quyền sửa ô theo danh sách cố định (mục 3.4 cũ) | **Người tạo bảng cấp** quyền sửa từng cột | — |
+| Leader thêm cột team vào mọi bảng mặc định | Bật/tắt theo bảng; tắt mặc định với Deals, Chính sách com, Tham số com, Thanh toán | CLAUDE.md |
 | Golden test so số với Excel (Module 0 mục 21) | So với script tham chiếu trên `Raw PODPS` (mục 17) | Module 0, Stage 2B |
 
 ## 19. Kiểm tra với Module 2 khi code Stage 4
@@ -413,8 +505,8 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 Đối chiếu lại Module 2 và code Stage 2; chỗ nào chưa có thì bổ sung vào Module 2, có rồi thì thôi:
 
 1. Datahub, bảng, cột có cờ **được bảo vệ** (không xoá, không đổi tên, không đổi kiểu từ giao diện thường).
-2. Một **bảng hệ thống dùng chung** (Deals, Probation KPI) xuất hiện trong datahub của từng người, đã áp phạm vi.
-3. Cột theo **lớp template** và hai cách lưu giá trị (chung mỗi deal / mỗi người một giá trị), khớp với "ba nguồn cột" của Module 2 mục 3.
+2. **Bảng template chung** (Deals, Probation KPI, bảng Manager/Leader tạo) lưu ở `dh_rows`, xuất hiện trong datahub của từng người, lọc dòng theo **khoá phân chia** và phạm vi (mục 3.5). Bỏ `PhysicalSource` khỏi `apps/api/src/modules/datahub/column-source.ts`.
+3. Cột theo **lớp template** và hai cách lưu giá trị (chung mỗi deal / mỗi người một giá trị), khớp với "hai nguồn cột" của Module 2 mục 3.
 4. Cột **mỗi người một giá trị** (`Vai trò của tôi`, `% Com cá nhân`) và công thức dùng chúng (`Com`) tính sẵn, lưu theo từng người.
 5. Cột mặc định là cột thường do template sinh sẵn (mục 3.3): cột tính toán là công thức chỉ dùng hàm kiểu Excel, không có hàm riêng. Công thức ở bảng của một người (Index, bảng tự tạo) đọc cột mỗi-người-một-giá-trị của Deals theo **chủ bảng** (ví dụ `[Deals].[Vai trò của tôi]` là vai trò của chủ Index).
 6. Kiểu **Người dùng có thuộc tính** (mỗi người chọn kèm vài ô: nhãn, phần trăm), và cơ chế tự điền cột mỗi-người-một-giá-trị từ cột đó (mục 4.5).
@@ -422,3 +514,5 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 8. Bản sửa riêng của team (Leader) đè lên định nghĩa cột template; cột riêng được "Đưa vào template".
 9. Cột liên kết, lookup, rollup và công thức từ bảng riêng (Index, Thanh toán, bảng tự tạo) sang Deals, Probation KPI; luật "cùng chủ" của công thức phải coi các bảng này là của chủ datahub.
 10. Giới hạn bảng và cột áp đúng cho datahub "Quản lý Deal".
+11. **Vai trò cột** (mục 3.7): lưu ở định nghĩa cột; khoá kỳ, forecast, snapshot, BANT, Index, API ngoài đọc cột theo vai trò; chặn đổi kiểu/bỏ cột làm vai trò mất cột.
+12. Bảng template riêng (Index) sinh cho mọi người trong phạm vi; ẩn/hiện khi đổi team.

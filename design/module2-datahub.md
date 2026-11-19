@@ -40,7 +40,7 @@ Lý do: khi viết công thức `[Datahub B].[Thanh toán].[Số tiền]`, mỗi
 - Cột chữ được gom vào một trường tìm kiếm, có index trigram và không phân biệt dấu.
 - Cột hay bị lọc hoặc sắp xếp trên bảng lớn được tự tạo index (Module 0 mục 6.2).
 - **Xuất bằng một câu SQL:** mỗi bảng có một view tự sinh trong schema `dh_views`, tên cột đúng tên người dùng đặt. Ví dụ: `SELECT * FROM dh_views."linh.nguyen – Theo dõi lead – Bảng 1";`. Đổi cấu trúc bảng thì worker sinh lại view. Chỉ tài khoản database quản trị đọc được schema này.
-- **Ba nguồn cột** (để Module 4 dùng): cột lưu trong `data` (mặc định); cột thật của bảng hệ thống; giá trị riêng theo từng người (cột cá nhân). Engine đọc, ghi, lọc, sắp xếp, tính công thức như nhau với cả ba nguồn.
+- **Hai nguồn cột** (để Module 4 dùng): cột lưu trong `data` (mặc định); giá trị riêng theo từng người (cột cá nhân). Engine đọc, ghi, lọc, sắp xếp, tính công thức như nhau với cả hai nguồn. (Sửa 19/11/2026: bỏ nguồn "cột thật của bảng hệ thống". Bảng Deals và mọi bảng template của Module 4 cũng lưu ở `dh_rows`; chức năng lõi tìm cột theo vai trò cột, Module 4 mục 3.5, 3.7.)
 
 ## 4. Kiểu cột
 
