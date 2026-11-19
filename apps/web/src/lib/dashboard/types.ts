@@ -1,6 +1,9 @@
 /** Shapes of the dashboard API (see docs/api/openapi.json). The chart JSON is the same the server stores; numbers come only from `metrics.query`. */
 
-export const CHART_TYPES = ["kpi", "column", "bar", "line", "area", "combo", "pie", "donut", "table", "pivot", "note"] as const;
+export const CHART_TYPES = [
+  "kpi", "column", "bar", "line", "area", "combo", "pie", "donut", "table", "pivot", "note",
+  "bullet", "gauge", "funnel", "boxplot", "histogram", "scatter", "matrix", "heatmap", "waterfall", "ranking", "cohort",
+] as const;
 export type ChartType = (typeof CHART_TYPES)[number];
 
 export const GRID_COLUMNS = 12;
@@ -34,6 +37,7 @@ export interface SeriesDef {
   label?: string;
   axis?: "left" | "right";
   kind?: "bar" | "line";
+  step?: "start" | "add" | "subtract";
   time?: { field?: string; bucket?: Bucket; range?: unknown };
   group_by?: { field: string; bucket?: Bucket }[];
   filter?: unknown;
@@ -42,9 +46,6 @@ export interface SeriesDef {
   compare?: "previous_period" | "year_ago";
   cumulative?: boolean;
   target?: { value?: number; [k: string]: unknown };
-  /** Asked of the server at draw time (not stored in the chart JSON): top N with "Khác", and totals. */
-  top?: number;
-  totals?: boolean;
 }
 
 export interface ChartOptions {
@@ -58,6 +59,16 @@ export interface ChartOptions {
   heat?: boolean;
   totals?: boolean;
   max_slices?: number;
+  bins?: number;
+  bands?: { label: string; value: number }[];
+  gauge_min?: number;
+  gauge_max?: number;
+  x_split?: number;
+  y_split?: number;
+  top_n?: number;
+  total?: boolean;
+  ignore_filters?: boolean;
+  ignore_cross?: boolean;
 }
 
 export interface ChartDef {
@@ -89,8 +100,71 @@ export interface ChartRecord {
   updated_at: string;
 }
 
+export interface FilterField {
+  name: string;
+  kind: "enum" | "text" | "boolean";
+  options?: string[];
+}
+
+/** The common filters of a dashboard (Module 3 section 8): a date range and conditions on columns. */
+export interface DashCondition {
+  field: string;
+  op: "eq" | "neq" | "contains" | "in";
+  value: string | number | boolean | (string | number)[];
+}
+export interface DashFilters {
+  range?: unknown;
+  conditions?: DashCondition[];
+}
+/** A click on a chart element: "this group of this column" (a period when the chart groups by time). */
+export interface CrossFilter {
+  chart_id?: string;
+  field: string;
+  kind: "number" | "date" | "datetime" | "text" | "enum" | "boolean" | "uuid" | "set";
+  bucket?: Bucket;
+  value: string | number | boolean | null;
+}
+export interface ViewFilters extends DashFilters {
+  cross?: CrossFilter[];
+}
+
+export type DashRole = "owner" | "shared" | "guest";
+
 export interface DashboardFull extends DashboardBrief {
   charts: ChartRecord[];
+  role: DashRole;
+  guest_visible: boolean;
+  default_filters: DashFilters;
+  my_filters: DashFilters | null;
+  fields: FilterField[];
+  owner_name: string | null;
+  datahub_name: string;
+}
+
+export interface SharedDashboard {
+  id: string;
+  name: string;
+  datahub_id: string;
+  datahub_name: string;
+  owner_name: string | null;
+  role: "shared" | "guest";
+  updated_at: string;
+}
+
+export interface DashShare {
+  id: string;
+  grantee_id: string;
+  full_name: string | null;
+  email: string | null;
+  created_at: string;
+}
+
+/** Where a click landed: the group columns and values of the row (for cross filtering and for "xem các dòng"). */
+export interface PickInfo {
+  /** Index of the series of the chart the row belongs to. */
+  series: number;
+  columns: { column: string; kind: string; bucket?: Bucket }[];
+  groups: { value: string | number | boolean | null; label: string }[];
 }
 
 export interface MetricRow {
@@ -120,6 +194,53 @@ export interface QueryResult {
   other_groups?: number;
   diagnostics?: { joins: { alias: string; matched: number; base_total: number; unmatched: number }[] };
   ms?: number;
+}
+
+// ---- what `metrics.chart.data` computes for the types that need more than the rows of a series (3C-2) ----
+export interface FunnelView { kind: "funnel"; steps: { label: string; value: number | null; pct_of_first: number | null; pct_of_prev: number | null }[]; truncated?: boolean }
+export interface WaterfallView { kind: "waterfall"; steps: { label: string; kind: "start" | "add" | "subtract" | "total"; delta: number; start: number; end: number }[]; truncated?: boolean }
+export interface HistogramView { kind: "histogram"; column: string; bins: { from: number; to: number; count: number }[]; total: number; min: number | null; max: number | null }
+export interface BoxGroupView { label: string; n: number; min: number; q1: number; median: number; q3: number; max: number; lower_whisker: number; upper_whisker: number; outliers: number[]; outlier_count: number }
+export interface BoxplotView { kind: "boxplot"; column: string; groups: BoxGroupView[]; truncated: boolean }
+export interface ScatterPointView { label: string; x: number; y: number; color: string | null; quadrant?: "hh" | "hl" | "lh" | "ll" }
+export interface ScatterView {
+  kind: "scatter" | "matrix";
+  x_label: string;
+  y_label: string;
+  points: ScatterPointView[];
+  dropped: number;
+  truncated: boolean;
+  split?: { x: number | null; y: number | null; x_median: boolean; y_median: boolean };
+  quadrants?: Record<"hh" | "hl" | "lh" | "ll", number>;
+}
+export interface RankingView { kind: "ranking"; items: { rank: number; label: string; value: number | null; pct_of_max: number | null; change_pct: number | null; groups: { value: string | number | boolean | null; label: string }[] }[]; truncated: boolean }
+export interface CohortView {
+  kind: "cohort";
+  bucket: Bucket;
+  offsets: number[];
+  rows: { start: string; label: string; size: number; cells: { offset: number; value: number | null; rate: number | null; pending: boolean }[] }[];
+  rates: boolean;
+  truncated: boolean;
+}
+export type ChartView = FunnelView | WaterfallView | HistogramView | BoxplotView | ScatterView | RankingView | CohortView;
+
+export interface ChartDataResult {
+  type: ChartType;
+  can_view_rows: boolean;
+  series: QueryResult[];
+  spark: QueryResult | null;
+  view: ChartView | null;
+  notes: string[];
+  rows_series: number | null;
+  ms: number;
+}
+
+export interface RowsResult {
+  columns: { key: string; name: string; type: string }[];
+  items: { id: string; row_no: number; data: Record<string, unknown> }[];
+  total_visible: number;
+  total_owner: number;
+  note: string;
 }
 
 export interface SavedMetric {

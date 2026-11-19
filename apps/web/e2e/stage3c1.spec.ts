@@ -93,7 +93,7 @@ test.beforeAll(async ({ browser }, info) => {
   viewer = await Session.open(browser, p, "viewer");
   sessions = [owner, viewer];
   viewer.allow(403, /\/api\/v1\/(dashboards|datahubs)\//).allow(404, /\/api\/v1\/(dashboards|datahubs)\//);
-  owner.allow(400, /\/metric-query/).allow(409, /\/api\/v1\/dashboards\//).allow(422, /\/api\/v1\/(dashboards|datahubs)\//);
+  owner.allow(400, /\/(metric-query|chart-data)/).allow(409, /\/api\/v1\/dashboards\//).allow(422, /\/api\/v1\/(dashboards|datahubs)\//);
   for (const [s, who] of [[owner, "owner"], [viewer, "viewer"]] as const) {
     await s.login(email(who), PASSWORD());
     await expect(s.page.getByRole("button", { name: "Đăng xuất" })).toBeVisible();
@@ -337,10 +337,11 @@ test("dữ liệu rỗng, một biểu đồ lỗi và lỗi quá nặng không 
   // A column that is deleted after the chart was saved: only this chart shows the error.
   const doomed = await ownerApi.call<{ key: string }>("POST", `/tables/${dealsId}/columns`, { name: "Tạm", type: "number" });
   await mk({ type: "kpi", title: "KPI hỏng", series: [{ metric: { name: "S", source: dealsId, measure: { agg: "sum", field: "Tạm" } } }] });
-  await mk({ type: "kpi", title: "KPI nặng", series: [{ metric: { name: "Nặng", source: dealsId, measure: { agg: "count" } }, limit: 77 }] });
+  const heavy = await mk({ type: "kpi", title: "KPI nặng", series: [{ metric: { name: "Nặng", source: dealsId, measure: { agg: "count" } } }] });
   await mk({ type: "kpi", title: "KPI âm", series: [{ metric: { name: "Âm", source: dealsId, measure: { agg: "min", field: "Số tiền" } } }] });
   await ownerApi.call("DELETE", `/tables/${dealsId}/columns/${doomed.key}`);
-  await pg.route(/metric-query.*limit%22?=?77|metric-query\?.*limit=77/, (route) =>
+  const heavyUrl = new RegExp(`chart-data\\?.*chart_id=${heavy.id}`);
+  await pg.route(heavyUrl, (route) =>
     route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: { code: "validation_error", message: "Truy vấn quá nặng (quá 10 giây).", details: { reason: "query_too_heavy", hint: "Thu hẹp khoảng thời gian hoặc thêm bộ lọc." } } }) }),
   );
   await pg.goto(`/datahub/${hubId}/dashboard/${dash.id}`);
@@ -352,7 +353,7 @@ test("dữ liệu rỗng, một biểu đồ lỗi và lỗi quá nặng không 
   await expect(cardOf(pg, "KPI nặng")).toContainText("Thu hẹp khoảng thời gian");
   await expect(cardOf(pg, "KPI âm").getByTestId("kpi-value")).toHaveText("-50");
   await owner.shot("dashboard-bad-cases");
-  await pg.unroute(/metric-query/);
+  await pg.unroute(heavyUrl);
 });
 
 test("dữ liệu bảng đổi thì dashboard tự tải lại (SSE, gộp tín hiệu), không cần mở lại trang", async () => {

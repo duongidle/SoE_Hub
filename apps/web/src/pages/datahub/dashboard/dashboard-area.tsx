@@ -1,18 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, Copy, MoreHorizontal, Pencil, Plus, RotateCcw, Trash, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, FileDown, FileUp, MoreHorizontal, Pencil, Plus, RotateCcw, Share2, Trash, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button, ConfirmDialog, ErrorText, Field, Input, Modal } from "@/components/ui/form";
+import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, Textarea } from "@/components/ui/form";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
-import { createDashboard, dashKeys, deleteDashboard, duplicateDashboard, listDashboardTrash, listDashboards, renameDashboard, reorderDashboards, restoreDashboard } from "@/lib/dashboard/api";
+import { createDashboard, dashKeys, deleteDashboard, duplicateDashboard, exportDashboard, importDashboard, listDashboardTrash, listDashboards, renameDashboard, reorderDashboards, restoreDashboard } from "@/lib/dashboard/api";
 import type { DashboardBrief } from "@/lib/dashboard/types";
 import type { DatahubBrief } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
 import { DashboardView } from "./dashboard-view";
+import { downloadText } from "./rows-dialog";
+import { DashboardShareDialog } from "./share-dialog";
 
 /** Datahubs whose first dashboard was already made in this session: one visit never makes it twice. */
 const autoMade = new Set<string>();
@@ -92,13 +94,49 @@ function AskName({ d, busy, onClose, onSubmit }: { d: DashboardBrief; busy: bool
   );
 }
 
+function ImportDialog({ dhId, onDone, onClose }: { dhId: string; onDone: (d: { id: string; name: string }) => void; onClose: () => void }) {
+  const [text, setText] = useState("");
+  const m = useMutation({
+    mutationFn: () => {
+      let json: Record<string, unknown>;
+      try {
+        json = JSON.parse(text) as Record<string, unknown>;
+      } catch {
+        throw new Error("Nội dung không phải JSON hợp lệ.");
+      }
+      return importDashboard(dhId, json);
+    },
+    onSuccess: (d) => {
+      notify.ok(`Đã nhập dashboard "${d.name}"`);
+      onDone(d);
+    },
+  });
+  const pick = async (f: File | undefined) => {
+    if (f) setText(await f.text());
+  };
+  return (
+    <Modal title="Nhập dashboard từ JSON" open onClose={onClose} wide dirty={text.trim() !== "" && !m.isPending}>
+      <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); if (text.trim()) m.mutate(); }}>
+        <p className="text-sm text-muted-foreground">Dán JSON xuất từ một dashboard (hoặc do AI dựng), hoặc chọn file. Bảng và cột nêu trong JSON phải có trong datahub này.</p>
+        <Field label="File JSON"><Input type="file" accept="application/json,.json" onChange={(e) => void pick(e.target.files?.[0])} data-testid="import-file" /></Field>
+        <Field label="JSON dashboard *"><Textarea rows={10} value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} className="font-mono text-xs" data-testid="import-text" /></Field>
+        <ErrorText error={m.error} />
+        <div className="flex flex-wrap justify-between gap-2">
+          <Button variant="secondary" onClick={onClose}>Huỷ</Button>
+          <Button type="submit" loading={m.isPending} disabled={!text.trim()}>Nhập dashboard</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 /** Dashboard tab of a datahub: the list of dashboards (tabs) and the open one. Owner only. */
 export function DashboardArea({ dh, dashboardId }: { dh: DatahubBrief; dashboardId?: string }) {
   const qc = useQueryClient();
   const nav = useNavigate();
   const q = useQuery({ queryKey: dashKeys.list(dh.id), queryFn: () => listDashboards(dh.id) });
   const trash = useQuery({ queryKey: dashKeys.trash(dh.id), queryFn: () => listDashboardTrash(dh.id) });
-  const [dialog, setDialog] = useState<{ kind: "new" } | { kind: "rename"; d: DashboardBrief } | { kind: "delete"; d: DashboardBrief } | { kind: "trash" } | null>(null);
+  const [dialog, setDialog] = useState<{ kind: "new" } | { kind: "rename"; d: DashboardBrief } | { kind: "delete"; d: DashboardBrief } | { kind: "share"; d: DashboardBrief } | { kind: "trash" } | { kind: "import" } | null>(null);
   const list = q.data ?? [];
   const current = list.find((d) => d.id === dashboardId);
 
@@ -137,6 +175,14 @@ export function DashboardArea({ dh, dashboardId }: { dh: DatahubBrief; dashboard
     },
     onError: (e) => notify.error(e instanceof Error ? e.message : "Không nhân bản được dashboard."),
   });
+  const exp = useMutation({
+    mutationFn: async (d: DashboardBrief) => ({ d, json: await exportDashboard(d.id) }),
+    onSuccess: ({ d, json }) => {
+      downloadText(`${d.name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "dashboard"}.json`, JSON.stringify(json, null, 2), "application/json");
+      notify.ok("Đã xuất JSON");
+    },
+    onError: (e) => notify.error(e instanceof Error ? e.message : "Không xuất được JSON."),
+  });
   const del = useMutation({
     mutationFn: (d: DashboardBrief) => deleteDashboard(d.id),
     onSuccess: (_r, d) => {
@@ -166,6 +212,8 @@ export function DashboardArea({ dh, dashboardId }: { dh: DatahubBrief; dashboard
                 <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn dashboard ${d.name}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
                   <MenuItem onSelect={() => setDialog({ kind: "rename", d })}><Pencil size={16} aria-hidden /> Đổi tên</MenuItem>
                   <MenuItem onSelect={() => dup.mutate(d)}><Copy size={16} aria-hidden /> Nhân bản</MenuItem>
+                  <MenuItem onSelect={() => setDialog({ kind: "share", d })}><Share2 size={16} aria-hidden /> Chia sẻ…</MenuItem>
+                  <MenuItem onSelect={() => exp.mutate(d)}><FileDown size={16} aria-hidden /> Xuất JSON</MenuItem>
                   <MenuItem disabled={i === 0} onSelect={() => move.mutate({ d, to: i - 1 })}><ChevronLeft size={16} aria-hidden /> Chuyển sang trái</MenuItem>
                   <MenuItem disabled={i === list.length - 1} onSelect={() => move.mutate({ d, to: i + 1 })}><ChevronRight size={16} aria-hidden /> Chuyển sang phải</MenuItem>
                   <MenuSeparator />
@@ -176,6 +224,7 @@ export function DashboardArea({ dh, dashboardId }: { dh: DatahubBrief; dashboard
           );
         })}
         <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "new" })}><Plus size={16} aria-hidden /> Dashboard mới</Button>
+        <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "import" })} data-testid="import-json"><FileUp size={16} aria-hidden /> Nhập JSON</Button>
         <Button variant="ghost" className="ml-auto shrink-0" onClick={() => setDialog({ kind: "trash" })}><Trash size={16} aria-hidden /> Thùng rác{trash.data?.length ? ` (${trash.data.length})` : ""}</Button>
       </div>
 
@@ -194,6 +243,8 @@ export function DashboardArea({ dh, dashboardId }: { dh: DatahubBrief; dashboard
         <NameDialog title="Đổi tên dashboard" submit="Lưu" initial={dialog.d.name} save={async (name) => { await renameDashboard(dialog.d.id, dialog.d.version, name); refresh(); void qc.invalidateQueries({ queryKey: dashKeys.one(dialog.d.id) }); notify.ok("Đã lưu"); }} onClose={() => setDialog(null)} />
       )}
       {dialog?.kind === "delete" && <ConfirmDialog title="Xoá dashboard?" message={<>Dashboard "{dialog.d.name}" cùng các biểu đồ của nó sẽ vào thùng rác. Bạn khôi phục được trong 7 ngày.</>} confirmLabel="Xoá dashboard" busy={del.isPending} onConfirm={() => del.mutate(dialog.d)} onClose={() => setDialog(null)} />}
+      {dialog?.kind === "share" && <DashboardShareDialog dashboard={dialog.d} ownerId={dh.owner_id} datahubId={dh.id} onClose={() => setDialog(null)} />}
+      {dialog?.kind === "import" && <ImportDialog dhId={dh.id} onClose={() => setDialog(null)} onDone={(d) => { setDialog(null); refresh(); go(d.id); }} />}
       {dialog?.kind === "trash" && <TrashDialog dhId={dh.id} onClose={() => setDialog(null)} />}
     </div>
   );

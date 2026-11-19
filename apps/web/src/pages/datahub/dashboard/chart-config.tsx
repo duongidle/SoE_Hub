@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, ErrorText, Field, Input, Modal, Select, Textarea } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createChart, dashKeys, listMetrics, listSources, saveMetric, saveSource, updateChart } from "@/lib/dashboard/api";
-import { AGG_LABELS, BUCKET_LABELS, FORMAT_LABELS, MAX_SERIES_PER_CHART, RANGES, TYPE_HINTS, TYPE_LABELS, allowsManySeries, chartReady, emptySeries, isDateCol, isGroupCol, isNumberCol, newChart, rangeToken, retype, usesGroups, usesTime } from "@/lib/dashboard/config";
+import { AGG_LABELS, BUCKET_LABELS, FORMAT_LABELS, MAX_SERIES_PER_CHART, RANGES, TYPE_HINTS, TYPE_LABELS, allowsManySeries, chartReady, emptySeries, isDateCol, isGroupCol, isNumberCol, mirrorGroups, needsTwoSeries, newChart, rangeToken, retype, usesGroups, usesRawValues, usesTime } from "@/lib/dashboard/config";
 import { bottom, defaultSizeOf } from "@/lib/dashboard/layout";
 import { CHART_TYPES, type Agg, type Bucket, type ChartDef, type ChartRecord, type ChartType, type SavedMetric, type SavedSource, type SeriesDef } from "@/lib/dashboard/types";
 import { dhKeys, getTable } from "@/lib/datahub/api";
@@ -63,6 +63,69 @@ function SaveAsDialog({ title, hint, initial, busy, error, onSave, onClose }: { 
         </div>
       </form>
     </Modal>
+  );
+}
+
+interface CohortDef {
+  start: string;
+  event: string;
+  bucket?: Bucket;
+  mature_after?: number;
+  max_offset?: number;
+}
+
+/** Cohort of a metric: the date a row starts (the cohort), the date of the event, the period, and which cohorts count. */
+function CohortEditor({ cols, value, onChange }: { cols: Cols; value: CohortDef | undefined; onChange: (c: CohortDef | undefined) => void }) {
+  const dates = cols.all.filter((c) => isDateCol(c.col));
+  const c = value ?? { start: "", event: "" };
+  const set = (p: Partial<CohortDef>) => {
+    const next = { ...c, ...p };
+    for (const k of Object.keys(next) as (keyof CohortDef)[]) if (next[k] === undefined || next[k] === "") delete next[k];
+    onChange(next.start || next.event ? (next as CohortDef) : undefined);
+  };
+  return (
+    <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="cohort-editor">
+      <legend className="px-1 text-sm font-semibold">Cohort</legend>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Cột ngày bắt đầu" required hint="Dòng thuộc cohort của kỳ chứa ngày này.">
+          <Select value={c.start} onChange={(e) => set({ start: e.target.value })}>
+            <option value="">Chọn cột…</option>
+            {dates.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
+          </Select>
+        </Field>
+        <Field label="Cột ngày sự kiện" required hint="Ngày xảy ra sự kiện (ví dụ ngày chốt).">
+          <Select value={c.event} onChange={(e) => set({ event: e.target.value })}>
+            <option value="">Chọn cột…</option>
+            {dates.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
+          </Select>
+        </Field>
+        <Field label="Kỳ">
+          <Select value={c.bucket ?? "month"} onChange={(e) => set({ bucket: e.target.value as Bucket })}>
+            {(Object.keys(BUCKET_LABELS) as Bucket[]).map((b) => <option key={b} value={b}>{BUCKET_LABELS[b]}</option>)}
+          </Select>
+        </Field>
+        <Field label="Chỉ tính cohort đã qua (kỳ)" hint="Để trống: tính mọi cohort.">
+          <Input type="number" min={0} value={c.mature_after ?? ""} onChange={(e) => set({ mature_after: e.target.value === "" ? undefined : Math.max(0, Math.round(Number(e.target.value))) })} />
+        </Field>
+      </div>
+    </fieldset>
+  );
+}
+
+/** Reference bands of a bullet chart (for example KPI, Goal, Out performance). */
+function BandsEditor({ value, onChange }: { value: { label: string; value: number }[]; onChange: (b: { label: string; value: number }[]) => void }) {
+  return (
+    <div className="flex flex-col gap-2" data-testid="bands-editor">
+      <span className="text-sm font-medium">Các mốc (tối đa 4)</span>
+      {value.map((b, i) => (
+        <div key={i} className="flex items-end gap-2">
+          <Field label={`Tên mốc ${i + 1}`}><Input value={b.label} maxLength={40} onChange={(e) => onChange(value.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)))} /></Field>
+          <Field label="Giá trị"><Input type="number" value={b.value} onChange={(e) => onChange(value.map((x, k) => (k === i ? { ...x, value: Number(e.target.value) } : x)))} /></Field>
+          <Button variant="ghost" className="!px-2" aria-label={`Gỡ mốc ${i + 1}`} onClick={() => onChange(value.filter((_, k) => k !== i))}><X size={16} aria-hidden /></Button>
+        </div>
+      ))}
+      {value.length < 4 && <Button variant="secondary" className="self-start" onClick={() => onChange([...value, { label: `Mốc ${value.length + 1}`, value: 0 }])}><Plus size={16} aria-hidden /> Thêm mốc</Button>}
+    </div>
   );
 }
 
@@ -164,13 +227,25 @@ function SeriesEditor({ dh, chart, index, series: s, metrics, sources, onChange,
           {sel && cols.loading && <Skeleton className="h-9 w-full" aria-label="Đang tải cột" />}
           {sel && !cols.loading && (
             <>
-              <Field label="Cách tính" required>
-                <Select value={measure?.agg ?? ""} onChange={(e) => patchMetric({ measure: e.target.value ? { agg: e.target.value as Agg, ...(e.target.value === "percentile" ? { p: 90 } : {}) } : undefined })}>
-                  <option value="">Chọn cách tính…</option>
-                  {AGGS.map((a) => <option key={a} value={a}>{AGG_LABELS[a]}</option>)}
-                </Select>
-              </Field>
-              {measure && measure.agg !== "count" && (
+              {usesRawValues(chart.type) ? (
+                <Field label="Cột số cần xem phân bố" required hint="Mỗi dòng là một giá trị; số liệu do server tính.">
+                  <Select value={measure?.field ?? ""} onChange={(e) => patchMetric({ measure: e.target.value ? { agg: "sum", field: e.target.value } : undefined })}>
+                    <option value="">Chọn cột…</option>
+                    {cols.all.filter((c) => isNumberCol(c.col)).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+                  </Select>
+                </Field>
+              ) : (
+                <Field label="Cách tính" required>
+                  <Select value={measure?.agg ?? ""} onChange={(e) => patchMetric({ measure: e.target.value ? { agg: e.target.value as Agg, ...(e.target.value === "percentile" ? { p: 90 } : {}) } : undefined })}>
+                    <option value="">Chọn cách tính…</option>
+                    {(chart.type === "cohort" ? (["count", "count_distinct"] as Agg[]) : AGGS).map((a) => <option key={a} value={a}>{AGG_LABELS[a]}</option>)}
+                  </Select>
+                </Field>
+              )}
+              {chart.type === "cohort" && (
+                <CohortEditor cols={cols} value={(m?.cohort ?? undefined) as CohortDef | undefined} onChange={(c) => patchMetric({ cohort: c })} />
+              )}
+              {!usesRawValues(chart.type) && measure && measure.agg !== "count" && (
                 <Field label="Cột giá trị" required>
                   <Select value={measure.field ?? ""} onChange={(e) => patchMetric({ measure: { ...measure, ...(e.target.value ? { field: e.target.value } : { field: undefined }) } })}>
                     <option value="">Chọn cột…</option>
@@ -219,9 +294,10 @@ function SeriesEditor({ dh, chart, index, series: s, metrics, sources, onChange,
             </div>
           )}
 
-          {usesGroups(chart.type) && (
+          {usesGroups(chart.type) && needsTwoSeries(chart.type) && index === 1 && <p className="text-xs text-muted-foreground">Mỗi điểm là một nhóm: dùng đúng cột nhóm của số liệu 1.</p>}
+          {usesGroups(chart.type) && !(needsTwoSeries(chart.type) && index === 1) && (
             <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium">Nhóm theo cột</span>
+              <span className="text-sm font-medium">{needsTwoSeries(chart.type) ? "Mỗi điểm là một nhóm theo cột (cột thứ hai: màu)" : chart.type === "heatmap" ? "Hai cột nhóm: dòng, rồi cột" : chart.type === "waterfall" || chart.type === "funnel" ? "Nhóm theo cột (mỗi nhóm một bước, hoặc để trống và dùng nhiều số liệu)" : "Nhóm theo cột"}</span>
               {groups.map((g, i) => (
                 <div key={i} className="flex items-end gap-2">
                   <Field label={`Cột nhóm ${i + 1}`}>
@@ -285,9 +361,18 @@ function SeriesEditor({ dh, chart, index, series: s, metrics, sources, onChange,
             </div>
           )}
 
-          {(allowsManySeries(chart.type) || chart.type === "combo") && (
-            <Field label="Tên trong chú giải">
+          {(allowsManySeries(chart.type) || chart.type === "combo" || needsTwoSeries(chart.type)) && (
+            <Field label={needsTwoSeries(chart.type) ? (index === 0 ? "Tên trục ngang" : "Tên trục dọc") : chart.type === "funnel" || chart.type === "waterfall" ? "Tên bước" : "Tên trong chú giải"}>
               <Input value={s.label ?? ""} onChange={(e) => onChange({ ...s, label: e.target.value || undefined })} maxLength={100} />
+            </Field>
+          )}
+          {chart.type === "waterfall" && (
+            <Field label="Bước này" hint="Giá trị đầu đặt mức xuất phát; cộng thêm hoặc trừ đi thay đổi mức luỹ kế (server tính).">
+              <Select value={s.step ?? (index === 0 ? "start" : "add")} onChange={(e) => onChange({ ...s, step: e.target.value as SeriesDef["step"] })}>
+                <option value="start">Giá trị đầu</option>
+                <option value="add">Cộng thêm</option>
+                <option value="subtract">Trừ đi</option>
+              </Select>
             </Field>
           )}
           {chart.type === "combo" && (
@@ -403,7 +488,7 @@ export function ChartConfigPanel({ dh, dashboardId, record, startType, siblings,
     for (const k of Object.keys(options) as (keyof typeof options)[]) if (options[k] === undefined) delete options[k];
     return { ...d, options };
   });
-  const setSeries = (i: number, s: SeriesDef) => setDraft((d) => ({ ...d, series: d.series.map((x, k) => (k === i ? s : x)) }));
+  const setSeries = (i: number, s: SeriesDef) => setDraft((d) => mirrorGroups({ ...d, series: d.series.map((x, k) => (k === i ? s : x)) }));
   const o = draft.options ?? {};
   const t = draft.type;
 
@@ -443,7 +528,7 @@ export function ChartConfigPanel({ dh, dashboardId, record, startType, siblings,
             <SeriesEditor key={i} dh={dh} chart={draft} index={i} series={s} metrics={metrics.data ?? []} sources={sources.data ?? []} onChange={(x) => setSeries(i, x)} onRemove={draft.series.length > 1 ? () => setDraft((d) => ({ ...d, series: d.series.filter((_, k) => k !== i) })) : undefined} />
           ))}
           {allowsManySeries(t) && draft.series.length < MAX_SERIES_PER_CHART && (
-            <Button variant="secondary" className="self-start" onClick={() => setDraft((d) => ({ ...d, series: [...d.series, { ...emptySeries(), ...(t === "combo" ? { kind: "line" as const, axis: "right" as const } : {}) }] }))}>
+            <Button variant="secondary" className="self-start" onClick={() => setDraft((d) => ({ ...d, series: [...d.series, { ...emptySeries(), ...(t === "waterfall" ? { step: "add" as const } : {}), ...(t === "combo" ? { kind: "line" as const, axis: "right" as const } : {}) }] }))}>
               <Plus size={16} aria-hidden /> Thêm số liệu
             </Button>
           )}
@@ -482,9 +567,39 @@ export function ChartConfigPanel({ dh, dashboardId, record, startType, siblings,
                 <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!o.labels} onChange={(e) => setOpt({ labels: e.target.checked || undefined })} /> Hiện nhãn số</label>
                 <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={o.legend ?? draft.series.length > 1} onChange={(e) => setOpt({ legend: e.target.checked })} /> Chú giải</label>
                 {["line", "area", "combo"].includes(t) && <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!o.smooth} onChange={(e) => setOpt({ smooth: e.target.checked || undefined })} /> Đường mềm</label>}
-                {!["pie", "donut"].includes(t) && <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!o.log} onChange={(e) => setOpt({ log: e.target.checked || undefined })} /> Trục log</label>}
+                {["column", "bar", "line", "area", "combo"].includes(t) && <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!o.log} onChange={(e) => setOpt({ log: e.target.checked || undefined })} /> Trục log</label>}
               </div>
             )}
+            {t === "histogram" && (
+              <Field label="Số khoảng" hint="2 đến 50 khoảng đều nhau giữa giá trị nhỏ nhất và lớn nhất.">
+                <Input type="number" min={2} max={50} value={o.bins ?? 10} onChange={(e) => setOpt({ bins: Math.min(50, Math.max(2, Math.round(Number(e.target.value) || 10))) })} />
+              </Field>
+            )}
+            {t === "ranking" && (
+              <Field label="Số vị trí" hint="Hiện bao nhiêu nhóm đứng đầu (tối đa 50).">
+                <Input type="number" min={1} max={50} value={o.top_n ?? 10} onChange={(e) => setOpt({ top_n: Math.min(50, Math.max(1, Math.round(Number(e.target.value) || 10))) })} />
+              </Field>
+            )}
+            {t === "waterfall" && (
+              <label className="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" checked={o.total !== false} onChange={(e) => setOpt({ total: e.target.checked ? undefined : false })} /> Thêm cột tổng cuối cùng</label>
+            )}
+            {t === "gauge" && (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Mốc nhỏ nhất" hint="Chỉ dùng khi không có mục tiêu."><Input type="number" value={o.gauge_min ?? ""} onChange={(e) => setOpt({ gauge_min: e.target.value === "" ? undefined : Number(e.target.value) })} /></Field>
+                <Field label="Mốc lớn nhất"><Input type="number" value={o.gauge_max ?? ""} onChange={(e) => setOpt({ gauge_max: e.target.value === "" ? undefined : Number(e.target.value) })} /></Field>
+              </div>
+            )}
+            {t === "matrix" && (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Mốc chia trục ngang" hint="Để trống: trung vị."><Input type="number" value={o.x_split ?? ""} onChange={(e) => setOpt({ x_split: e.target.value === "" ? undefined : Number(e.target.value) })} /></Field>
+                <Field label="Mốc chia trục dọc" hint="Để trống: trung vị."><Input type="number" value={o.y_split ?? ""} onChange={(e) => setOpt({ y_split: e.target.value === "" ? undefined : Number(e.target.value) })} /></Field>
+              </div>
+            )}
+            {t === "bullet" && <BandsEditor value={o.bands ?? []} onChange={(b) => setOpt({ bands: b.length ? b : undefined })} />}
+            <div className="flex flex-wrap gap-4 text-sm">
+              <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!o.ignore_filters} onChange={(e) => setOpt({ ignore_filters: e.target.checked || undefined })} /> Bỏ qua bộ lọc chung</label>
+              <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!o.ignore_cross} onChange={(e) => setOpt({ ignore_cross: e.target.checked || undefined })} /> Không nhận lọc chéo</label>
+            </div>
             {t === "pivot" && (
               <div className="flex flex-wrap gap-4 text-sm">
                 <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={!!o.heat} onChange={(e) => setOpt({ heat: e.target.checked || undefined })} /> Tô màu theo giá trị</label>

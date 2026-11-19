@@ -16,6 +16,17 @@ export const TYPE_LABELS: Record<ChartType, string> = {
   table: "Bảng",
   pivot: "Bảng pivot",
   note: "Ô ghi chú",
+  bullet: "Bullet (so với mục tiêu)",
+  gauge: "Đồng hồ",
+  funnel: "Phễu",
+  boxplot: "Box plot",
+  histogram: "Histogram",
+  scatter: "Scatter",
+  matrix: "Ma trận 2×2",
+  heatmap: "Heatmap",
+  waterfall: "Waterfall",
+  ranking: "Bảng xếp hạng",
+  cohort: "Cohort",
 };
 
 export const TYPE_HINTS: Record<ChartType, string> = {
@@ -30,6 +41,17 @@ export const TYPE_HINTS: Record<ChartType, string> = {
   table: "Các nhóm và số liệu dạng bảng.",
   pivot: "Dòng theo nhóm thứ nhất, cột theo nhóm thứ hai, có tổng.",
   note: "Chú thích hoặc hướng dẫn đọc dashboard.",
+  bullet: "Giá trị thực tế trên các mốc (KPI, Goal, Out performance) và mục tiêu.",
+  gauge: "Phần trăm đạt mục tiêu, hoặc giá trị trên thang tự đặt.",
+  funnel: "Các bước chuyển đổi, kèm tỉ lệ từ bước đầu và từ bước trước.",
+  boxplot: "Phân bố của một cột số: tứ phân vị, râu và ngoại lai, theo nhóm.",
+  histogram: "Phân bố của một cột số theo các khoảng đều nhau.",
+  scatter: "Hai số liệu của cùng một nhóm: mỗi nhóm một điểm, tô màu theo cột nhóm thứ hai.",
+  matrix: "Như scatter, chia bốn góc theo mốc tự đặt hoặc trung vị.",
+  heatmap: "Một số liệu theo hai cột nhóm, tô màu theo giá trị (người × tháng).",
+  waterfall: "Từ giá trị đầu cộng trừ từng bước đến giá trị cuối.",
+  ranking: "Các nhóm xếp theo giá trị, lớn nhất trước.",
+  cohort: "Tam giác cohort: nhóm theo kỳ bắt đầu, cột là số kỳ sau đó.",
 };
 
 export const AGG_LABELS: Record<Agg, string> = {
@@ -70,25 +92,31 @@ export const rangeToken = (r: unknown): string => {
 };
 
 export const MAX_SERIES_PER_CHART = 4;
-const MULTI = new Set<ChartType>(["column", "bar", "line", "area", "combo"]);
+const MULTI = new Set<ChartType>(["column", "bar", "line", "area", "combo", "funnel", "waterfall"]);
 export const allowsManySeries = (t: ChartType) => MULTI.has(t);
-export const usesGroups = (t: ChartType) => t !== "kpi" && t !== "note";
-export const usesTime = (t: ChartType) => t !== "note";
+/** Exactly two series: the horizontal axis, then the vertical one. */
+export const needsTwoSeries = (t: ChartType) => t === "scatter" || t === "matrix";
+/** Types that read the values of one number column (no choice of calculation). */
+export const usesRawValues = (t: ChartType) => t === "histogram" || t === "boxplot";
+export const usesGroups = (t: ChartType) => t !== "kpi" && t !== "note" && t !== "histogram" && t !== "cohort" && t !== "gauge";
+export const usesTime = (t: ChartType) => t !== "note" && t !== "cohort";
 
 export const emptySeries = (): SeriesDef => ({ metric: { name: "Biểu đồ" } });
 
 export function newChart(type: ChartType): ChartDef {
-  return { type, title: "", series: type === "note" ? [] : [emptySeries()], ...(type === "note" ? { text: "" } : {}), options: {} };
+  return { type, title: "", series: type === "note" ? [] : needsTwoSeries(type) ? [emptySeries(), emptySeries()] : [emptySeries()], ...(type === "note" ? { text: "" } : {}), options: {} };
 }
 
 /** Typing a type change keeps what still makes sense. */
 export function retype(c: ChartDef, type: ChartType): ChartDef {
-  const series = type === "note" ? [] : c.series.length ? (allowsManySeries(type) ? c.series : c.series.slice(0, 1)) : [emptySeries()];
+  const base = c.series.length ? (needsTwoSeries(type) ? c.series.slice(0, 2) : allowsManySeries(type) ? c.series : c.series.slice(0, 1)) : [emptySeries()];
+  const series = type === "note" ? [] : needsTwoSeries(type) && base.length < 2 ? [...base, emptySeries()] : base;
   const options: ChartOptions = { ...c.options };
   if (type !== "combo") for (const s of series) {
     delete s.axis;
     delete s.kind;
   }
+  if (type !== "waterfall") for (const s of series) delete s.step;
   return { ...c, type, series, options };
 }
 
@@ -102,7 +130,19 @@ export function seriesReady(s: SeriesDef): boolean {
 
 export function chartReady(c: ChartDef): boolean {
   if (c.type === "note") return true;
+  if (needsTwoSeries(c.type) && c.series.length !== 2) return false;
+  if (c.type === "cohort" && !(c.series[0]?.metric?.cohort)) return false;
+  if (usesRawValues(c.type)) return c.series.length > 0 && c.series.every((s) => !!s.metric?.source && !!s.metric.measure?.field);
   return c.series.length > 0 && c.series.every(seriesReady);
+}
+
+/** Scatter and matrix pair the groups of their two series, so both read the same group columns: copy those of the first onto the second. */
+export function mirrorGroups(c: ChartDef): ChartDef {
+  if (!needsTwoSeries(c.type) || c.series.length !== 2) return c;
+  const [a, b] = c.series as [SeriesDef, SeriesDef];
+  const groups = a.metric_id ? a.group_by : a.metric?.group_by;
+  const next: SeriesDef = b.metric_id ? { ...b, group_by: groups as SeriesDef["group_by"] } : { ...b, metric: { ...(b.metric ?? { name: "Biểu đồ" }), group_by: groups } };
+  return JSON.stringify(next) === JSON.stringify(b) ? c : { ...c, series: [a, next] };
 }
 
 export function chartTitle(c: ChartDef, index?: number): string {

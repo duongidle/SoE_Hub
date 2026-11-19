@@ -80,7 +80,7 @@ function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; ta
       {importing && <ImportDialog target={{ datahub: { id: dh.id, name: dh.name, access: dh.access, tables: dh.tables.filter((t) => t.kind !== "merged").map((t) => ({ id: t.id, name: t.name })) } }} onClose={() => setImporting(false)} />}
       <TableTabs dh={dh} currentId={dashboard ? undefined : tableId} dashboardOn={!!dashboard} />
       {dashboard ? (
-        dh.access === "owner" ? <DashboardArea dh={dh} dashboardId={dashboard.id} /> : <NoAccessState title="Không mở được dashboard" hint="Chỉ chủ datahub xem và sửa dashboard. Chia sẻ dashboard sẽ có ở bước sau." />
+        dh.access === "owner" ? <DashboardArea dh={dh} dashboardId={dashboard.id} /> : <NoAccessState title="Không mở được dashboard" hint="Chỉ chủ datahub dựng và sửa dashboard. Dashboard được chia sẻ cho bạn nằm ở mục Dashboard chia sẻ." />
       ) : dh.tables.length === 0 ? (
         <EmptyState title="Datahub chưa có bảng nào" hint={dh.access === "owner" ? "Tạo bảng đầu tiên để thêm dữ liệu." : "Chủ datahub chưa chia sẻ bảng nào cho bạn."} />
       ) : !current ? (

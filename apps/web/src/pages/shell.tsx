@@ -12,6 +12,7 @@ const PUBLIC_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
 const NAV: { to: string; label: string; permission: string | null }[] = [
   { to: "/", label: "Tổng quan", permission: null },
   { to: "/datahub", label: "Datahub", permission: "datahub:datahub:use" },
+  { to: "/dashboard", label: "Dashboard chia sẻ", permission: null },
   { to: "/to-chuc", label: "Org chart", permission: "org:member:read" },
   { to: "/cap-du-lieu", label: "Cấp dữ liệu Guest", permission: "guest:grant:manage" },
   { to: "/quan-tri/token", label: "Duyệt token", permission: "auth:token:approve" },

@@ -1,4 +1,4 @@
-import type { MetricRow, QueryResult } from "./types";
+import type { CrossFilter, MetricRow, PickInfo, QueryResult } from "./types";
 
 /**
  * Turns the answers of `metrics.query` into what a chart draws. Only arranging: rows become categories, series, slices or a matrix.
@@ -160,4 +160,26 @@ export function heatLevel(v: number | null, values: number[]): number {
   const lo = Math.min(...values);
   const hi = Math.max(...values);
   return hi === lo ? 1 : (v - lo) / (hi - lo);
+}
+
+/** Where a click on a row of series `series` lands: its group columns and values. Rows with no group, and the "Khác" row, cannot filter anything. */
+export function pickOf(series: number, columns: PickInfo["columns"], row: MetricRow | null | undefined): PickInfo | undefined {
+  if (!row || row.other || !row.groups.length) return undefined;
+  return { series, columns, groups: row.groups };
+}
+
+/** Per series and category of a cartesian chart: the pick of its row. */
+export function cartesianPicks(inputs: SeriesInput[], c: Cartesian): (PickInfo | undefined)[][] {
+  const deep = inputs.length === 1 && inputs[0]!.result.columns.length >= 2;
+  return c.series.map((s, i) => s.rows.map((r) => pickOf(deep ? 0 : i, inputs[deep ? 0 : i]?.result.columns ?? [], r)));
+}
+
+/** Cross filters a pick makes: one per group column of the row (a period when the column is a date grouped by a bucket). */
+export function crossFiltersOf(pick: PickInfo, chartId: string | undefined): CrossFilter[] {
+  return pick.groups.flatMap((g, i) => {
+    const col = pick.columns[i];
+    if (!col) return [];
+    const kind = (["number", "date", "datetime", "text", "enum", "boolean", "uuid", "set"].includes(col.kind) ? col.kind : "text") as CrossFilter["kind"];
+    return [{ ...(chartId ? { chart_id: chartId } : {}), field: col.column, kind, ...(col.bucket ? { bucket: col.bucket } : {}), value: g.value }];
+  });
 }

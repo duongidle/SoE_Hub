@@ -1,29 +1,166 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, Download, Image as ImageIcon, MoreHorizontal, Pencil, Plus, Rows3, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, ConfirmDialog } from "@/components/ui/form";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
-import { createChart, dashKeys, deleteChart, getDashboard, saveLayout } from "@/lib/dashboard/api";
+import { createChart, dashKeys, deleteChart, getChartCsv, getDashboard, resetMyFilters, saveLayout, saveMyFilters, updateDashboard, viewDashboard } from "@/lib/dashboard/api";
+import { crossFiltersOf } from "@/lib/dashboard/chart-data";
 import { TYPE_LABELS, chartTitle } from "@/lib/dashboard/config";
 import { bottom, defaultSizeOf, minSizeOf, type Item } from "@/lib/dashboard/layout";
-import { CHART_TYPES, type ChartRecord, type ChartType, type DashboardFull } from "@/lib/dashboard/types";
+import { CHART_TYPES, type ChartRecord, type ChartType, type DashFilters, type DashboardFull, type PickInfo, type ViewFilters } from "@/lib/dashboard/types";
 import type { DatahubBrief } from "@/lib/datahub/types";
 import { liveBus, type LiveSignal } from "@/lib/session";
-import { ChartBody } from "./chart-body";
+import { ChartBody, useChartData } from "./chart-body";
 import { ChartConfigPanel } from "./chart-config";
+import { FilterBar } from "./filter-bar";
 import { DashboardGrid, type GridCard } from "./grid";
+import type { ChartExport } from "./echart";
+import { RowsDialog, downloadText } from "./rows-dialog";
 
 const DEFAULT_LAYOUT = { x: 0, y: 0, w: 6, h: 5 };
+/** Types drawn on an ECharts canvas: they can be saved as a picture. */
+const CANVAS_TYPES = new Set<ChartType>(["column", "bar", "line", "area", "combo", "pie", "donut", "bullet", "gauge", "funnel", "boxplot", "histogram", "scatter", "matrix", "heatmap", "waterfall", "ranking", "cohort"]);
 
-/** One dashboard: the grid of charts, the panel that configures one, and the reload when the numbers change. */
-export function DashboardView({ dh, dashboardId }: { dh: DatahubBrief; dashboardId: string }) {
+interface RowsTarget {
+  chartId: string;
+  title: string;
+  series: number;
+  group: (string | number | boolean | null)[];
+}
+
+/** The menu of a chart card: viewing actions for everyone who may see the dashboard, editing actions for its owner. */
+function CardMenu({ record, index, datahubId, filters, pick, owner, onEdit, onDuplicate, onRemove, onRows, onClearPick, exportRef }: {
+  record: ChartRecord;
+  index: number;
+  datahubId: string;
+  filters: ViewFilters;
+  pick: PickInfo | undefined;
+  owner: boolean;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+  onRows: (t: RowsTarget) => void;
+  onClearPick: () => void;
+  exportRef: { current: ChartExport | null };
+}) {
+  const chart = record.chart;
+  const title = chartTitle(chart, index);
+  const q = useChartData(chart, { datahubId, chartId: record.id, version: record.version, filters });
+  const canRows = !!q.data?.can_view_rows;
+  const series = pick?.series ?? q.data?.rows_series ?? 0;
+  const group = pick ? pick.groups.map((g) => g.value) : [];
+  const csv = useMutation({
+    mutationFn: () => getChartCsv(record.id, series, group, filters),
+    onSuccess: (r) => {
+      downloadText(r.filename, r.csv, "text/csv;charset=utf-8");
+      notify.ok(`Đã xuất ${r.rows} dòng. ${r.note}${r.truncated ? " File dừng ở 5.000 dòng đầu." : ""}`);
+    },
+    onError: (e) => notify.error(e instanceof Error ? e.message : "Không xuất được CSV."),
+  });
+  const png = () => {
+    const x = exportRef.current;
+    if (!x) {
+      notify.error("Biểu đồ chưa vẽ xong, thử lại sau một chút.");
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = x.png();
+    a.download = `${title.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "bieu-do"}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+  return (
+    <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn biểu đồ ${title}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>}>
+      {canRows && <MenuItem onSelect={() => onRows({ chartId: record.id, title, series, group })}><Rows3 size={16} aria-hidden /> Xem các dòng{pick ? " của phần đang chọn" : ""}</MenuItem>}
+      {canRows && <MenuItem onSelect={() => csv.mutate()}><Download size={16} aria-hidden /> Xuất CSV</MenuItem>}
+      {CANVAS_TYPES.has(chart.type) && <MenuItem onSelect={png}><ImageIcon size={16} aria-hidden /> Xuất PNG</MenuItem>}
+      {pick && <MenuItem onSelect={onClearPick}><X size={16} aria-hidden /> Bỏ lọc chéo từ biểu đồ này</MenuItem>}
+      {owner && (canRows || CANVAS_TYPES.has(chart.type) || pick) && <MenuSeparator />}
+      {owner && <MenuItem onSelect={onEdit}><Pencil size={16} aria-hidden /> Sửa biểu đồ</MenuItem>}
+      {owner && <MenuItem onSelect={onDuplicate}><Copy size={16} aria-hidden /> Nhân bản</MenuItem>}
+      {owner && <MenuSeparator />}
+      {owner && <MenuItem danger onSelect={onRemove}><Trash2 size={16} aria-hidden /> Xoá biểu đồ</MenuItem>}
+      {!owner && !canRows && !CANVAS_TYPES.has(chart.type) && !pick && <MenuItem disabled>Không có thao tác</MenuItem>}
+    </Menu>
+  );
+}
+
+/**
+ * One dashboard: the grid of charts, the common filters, cross filtering, the rows behind a number, and (for the owner) editing.
+ * `mode = "viewer"` is for a person it was shared with, or a Guest: the same page without any editing.
+ */
+export function DashboardView({ dh, dashboardId, mode = "owner" }: { dh?: DatahubBrief; dashboardId: string; mode?: "owner" | "viewer" }) {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: dashKeys.one(dashboardId), queryFn: () => getDashboard(dashboardId) });
+  const owner = mode === "owner";
+  const q = useQuery({ queryKey: owner ? dashKeys.one(dashboardId) : ["mt-dashboard-view", dashboardId], queryFn: () => (owner ? getDashboard(dashboardId) : viewDashboard(dashboardId)) });
   const [editing, setEditing] = useState<{ record: ChartRecord | null; type: ChartType; key: number } | null>(null);
   const [removing, setRemoving] = useState<ChartRecord | null>(null);
+  const [rows, setRows] = useState<RowsTarget | null>(null);
+  const datahubId = q.data?.datahub_id ?? dh?.id ?? "";
+
+  // ---- the common filters: the viewer's own copy when there is one, else the default of the owner ----
+  const [filters, setFilters] = useState<DashFilters | null>(null);
+  const [custom, setCustom] = useState(false);
+  const [picks, setPicks] = useState<Record<string, PickInfo>>({});
+  const d0 = q.data;
+  useEffect(() => {
+    if (!d0) return;
+    setFilters(d0.my_filters ?? d0.default_filters ?? {});
+    setCustom(d0.my_filters !== null);
+    // the filters are read once per dashboard (and again after "Về mặc định"); later answers must not overwrite what the person is typing
+  }, [dashboardId, d0?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const changeFilters = (next: DashFilters) => {
+    setFilters(next);
+    setCustom(true);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => void saveMyFilters(dashboardId, next).catch(() => notify.error("Không lưu được bộ lọc của bạn.")), 500);
+  };
+  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
+  const reset = useMutation({
+    mutationFn: async () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      await resetMyFilters(dashboardId);
+    },
+    onSuccess: () => {
+      setFilters(d0?.default_filters ?? {});
+      setCustom(false);
+      void qc.invalidateQueries({ queryKey: owner ? dashKeys.one(dashboardId) : ["mt-dashboard-view", dashboardId] });
+    },
+  });
+  const saveDefault = useMutation({
+    mutationFn: async () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      const fresh = await getDashboard(dashboardId);
+      await updateDashboard(dashboardId, fresh.version, { filters: (filters && (filters.range || filters.conditions?.length) ? filters : null) as DashFilters | null });
+      await resetMyFilters(dashboardId);
+    },
+    onSuccess: () => {
+      setCustom(false);
+      notify.ok("Đã lưu làm bộ lọc mặc định");
+      void qc.invalidateQueries({ queryKey: dashKeys.one(dashboardId) });
+    },
+    onError: (e) => notify.error(e instanceof Error ? e.message : "Không lưu được."),
+  });
+
+  const cross = useMemo(() => Object.entries(picks).flatMap(([chartId, p]) => crossFiltersOf(p, chartId)), [picks]);
+  const viewFilters: ViewFilters = useMemo(() => ({ ...(filters?.range ? { range: filters.range } : {}), ...(filters?.conditions?.length ? { conditions: filters.conditions } : {}), ...(cross.length ? { cross } : {}) }), [filters, cross]);
+  const pickChart = useCallback((chartId: string) => (pick: PickInfo) => {
+    setPicks((p) => {
+      const cur = p[chartId];
+      // a second click on the same element lifts the filter
+      if (cur && JSON.stringify(cur.groups) === JSON.stringify(pick.groups) && cur.series === pick.series) {
+        const { [chartId]: _gone, ...rest } = p;
+        void _gone;
+        return rest;
+      }
+      return { ...p, [chartId]: pick };
+    });
+  }, []);
 
   // The numbers change when rows, formulas, sharing or the tree change: the worker clears the cache and signals. One import sends many
   // signals, so reload once after they stop.
@@ -41,9 +178,9 @@ export function DashboardView({ dh, dashboardId }: { dh: DatahubBrief; dashboard
     };
   }, [qc]);
 
-  // Layout: the screen shows the new layout at once (cache), and one save follows when the moves stop.
+  // Layout (owner): the screen shows the new layout at once (cache), and one save follows when the moves stop.
   const pending = useRef<Item[] | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const layoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flush = useCallback(() => {
     const items = pending.current;
     pending.current = null;
@@ -54,20 +191,20 @@ export function DashboardView({ dh, dashboardId }: { dh: DatahubBrief; dashboard
     });
   }, [dashboardId, qc]);
   useEffect(() => () => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (layoutTimer.current) clearTimeout(layoutTimer.current);
     flush();
   }, [flush]);
   const commit = (items: Item[]) => {
     const by = new Map(items.map((i) => [i.id, i]));
     qc.setQueryData<DashboardFull>(dashKeys.one(dashboardId), (d) => (d ? { ...d, charts: d.charts.map((c) => ({ ...c, chart: { ...c.chart, layout: by.has(c.id) ? { x: by.get(c.id)!.x, y: by.get(c.id)!.y, w: by.get(c.id)!.w, h: by.get(c.id)!.h } : c.chart.layout } })) } : d));
     pending.current = items;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(flush, 400);
+    if (layoutTimer.current) clearTimeout(layoutTimer.current);
+    layoutTimer.current = setTimeout(flush, 400);
   };
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: dashKeys.one(dashboardId) });
-    void qc.invalidateQueries({ queryKey: dashKeys.list(dh.id) });
+    if (dh) void qc.invalidateQueries({ queryKey: dashKeys.list(dh.id) });
   };
   const dup = useMutation({
     mutationFn: async (r: ChartRecord) => {
@@ -83,12 +220,24 @@ export function DashboardView({ dh, dashboardId }: { dh: DatahubBrief; dashboard
   });
   const del = useMutation({
     mutationFn: (r: ChartRecord) => deleteChart(r.id),
-    onSuccess: () => {
+    onSuccess: (_r, r) => {
       notify.ok("Đã xoá biểu đồ");
       setRemoving(null);
+      setPicks((p) => {
+        const { [r.id]: _gone, ...rest } = p;
+        void _gone;
+        return rest;
+      });
       refresh();
     },
   });
+
+  const exportRefs = useRef(new Map<string, { current: ChartExport | null }>());
+  const refOf = (id: string) => {
+    let r = exportRefs.current.get(id);
+    if (!r) exportRefs.current.set(id, (r = { current: null }));
+    return r;
+  };
 
   const cards: GridCard[] = useMemo(
     () =>
@@ -98,43 +247,84 @@ export function DashboardView({ dh, dashboardId }: { dh: DatahubBrief; dashboard
         min: minSizeOf(r.chart.type),
         title: chartTitle(r.chart, i),
         menu: (
-          <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn biểu đồ ${chartTitle(r.chart, i)}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>}>
-            <MenuItem onSelect={() => setEditing({ record: r, type: r.chart.type, key: Date.now() })}><Pencil size={16} aria-hidden /> Sửa biểu đồ</MenuItem>
-            <MenuItem onSelect={() => dup.mutate(r)}><Copy size={16} aria-hidden /> Nhân bản</MenuItem>
-            <MenuSeparator />
-            <MenuItem danger onSelect={() => setRemoving(r)}><Trash2 size={16} aria-hidden /> Xoá biểu đồ</MenuItem>
-          </Menu>
+          <CardMenu
+            record={r}
+            index={i}
+            datahubId={datahubId}
+            filters={viewFilters}
+            pick={picks[r.id]}
+            owner={owner}
+            exportRef={refOf(r.id)}
+            onEdit={() => setEditing({ record: r, type: r.chart.type, key: Date.now() })}
+            onDuplicate={() => dup.mutate(r)}
+            onRemove={() => setRemoving(r)}
+            onRows={setRows}
+            onClearPick={() => setPicks((p) => { const { [r.id]: _g, ...rest } = p; void _g; return rest; })}
+          />
         ),
-        body: <ChartBody chart={r.chart} datahubId={dh.id} />,
+        body: (
+          <ChartBody
+            chart={r.chart}
+            datahubId={datahubId}
+            chartId={r.id}
+            version={r.version}
+            filters={viewFilters}
+            onPick={r.chart.options?.ignore_cross === true ? undefined : pickChart(r.id)}
+            exportRef={refOf(r.id)}
+            onOpenRows={() => setRows({ chartId: r.id, title: chartTitle(r.chart, i), series: 0, group: [] })}
+          />
+        ),
       })),
-    [q.data, dh.id, dup],
+    [q.data, datahubId, viewFilters, picks, owner, dup, pickChart],
   );
 
   if (q.isLoading) return <Skeleton className="h-64 w-full" aria-busy="true" aria-label="Đang tải dashboard" />;
   if (q.error || !q.data) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được dashboard" />;
   const d = q.data;
+  const pickList = Object.entries(picks).flatMap(([chartId, pick]) => {
+    const i = d.charts.findIndex((c) => c.id === chartId);
+    return i < 0 ? [] : [{ chartId, title: chartTitle(d.charts[i]!.chart, i), pick }];
+  });
+  const defaults = d.default_filters ?? {};
 
   return (
     <div className={editing ? "shrink-0 lg:pr-[30rem]" : "shrink-0"}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="min-w-0 text-lg font-semibold [overflow-wrap:anywhere]">{d.name}</h2>
         <span className="text-sm text-muted-foreground">{d.charts.length} biểu đồ</span>
-        <Menu trigger={<Button className="ml-auto" data-testid="add-chart"><Plus size={16} aria-hidden /> Thêm biểu đồ</Button>}>
-          {CHART_TYPES.map((t) => (
-            <MenuItem key={t} onSelect={() => setEditing({ record: null, type: t as ChartType, key: Date.now() })}>{TYPE_LABELS[t]}</MenuItem>
-          ))}
-        </Menu>
+        {!owner && <span className="text-sm text-muted-foreground" data-testid="dash-owner">Của {d.owner_name ?? "người khác"} · {d.datahub_name}. Số liệu tính theo quyền của họ.</span>}
+        {owner && (
+          <Menu trigger={<Button className="ml-auto" data-testid="add-chart"><Plus size={16} aria-hidden /> Thêm biểu đồ</Button>}>
+            {CHART_TYPES.map((t) => (
+              <MenuItem key={t} onSelect={() => setEditing({ record: null, type: t as ChartType, key: Date.now() })}>{TYPE_LABELS[t]}</MenuItem>
+            ))}
+          </Menu>
+        )}
       </div>
+      {d.charts.length > 0 && (
+        <FilterBar
+          fields={d.fields}
+          value={filters ?? defaults}
+          onChange={changeFilters}
+          custom={custom}
+          onReset={() => reset.mutate()}
+          onSaveDefault={owner ? () => saveDefault.mutate() : undefined}
+          picks={pickList}
+          onClearPick={(id) => setPicks((p) => { const { [id]: _g, ...rest } = p; void _g; return rest; })}
+          onClearPicks={() => setPicks({})}
+        />
+      )}
       {d.charts.length === 0 ? (
-        <EmptyState title="Dashboard chưa có biểu đồ" hint="Bấm Thêm biểu đồ, chọn loại, rồi chọn bảng và cách tính." />
+        <EmptyState title="Dashboard chưa có biểu đồ" hint={owner ? "Bấm Thêm biểu đồ, chọn loại, rồi chọn bảng và cách tính." : "Chủ dashboard chưa thêm biểu đồ nào."} />
       ) : (
         <>
           <h2 className="sr-only">Các biểu đồ</h2>
-          <DashboardGrid cards={cards} onCommit={commit} />
+          <DashboardGrid cards={cards} onCommit={commit} readOnly={!owner} />
         </>
       )}
-      {editing && <ChartConfigPanel key={editing.key} dh={dh} dashboardId={dashboardId} record={editing.record} startType={editing.type} siblings={d.charts} onClose={() => { setEditing(null); refresh(); }} />}
+      {owner && editing && dh && <ChartConfigPanel key={editing.key} dh={dh} dashboardId={dashboardId} record={editing.record} startType={editing.type} siblings={d.charts} onClose={() => { setEditing(null); refresh(); }} />}
       {removing && <ConfirmDialog title="Xoá biểu đồ?" message={<>Biểu đồ "{chartTitle(removing.chart)}" sẽ bị xoá khỏi dashboard này.</>} confirmLabel="Xoá biểu đồ" busy={del.isPending} onConfirm={() => del.mutate(removing)} onClose={() => setRemoving(null)} />}
+      {rows && <RowsDialog chartId={rows.chartId} title={rows.title} series={rows.series} group={rows.group} filters={viewFilters} onClose={() => setRows(null)} />}
     </div>
   );
 }

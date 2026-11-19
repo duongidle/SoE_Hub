@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from "
 import { AuditLogPage, DatahubLimitsPage, ServiceAccountsPage, SettingsPage, TokenApprovalPage, TransferPage } from "@/pages/admin";
 import { AccountPage, NotificationsPage, TokensPage } from "@/pages/account";
 import { CodeFlowPage, LoginPage, SetPasswordPage } from "@/pages/auth";
+import { SharedDashboardPage, SharedDashboardsPage } from "@/pages/dashboard/shared";
 import { GuestGrantsPage } from "@/pages/guest";
 import { Home } from "@/pages/home";
 import { OrgPage } from "@/pages/org";
@@ -33,6 +34,8 @@ export const router = createRouter({
     lazyPage("/datahub/$datahubId/dashboard", () => import("@/pages/datahub/detail"), "DatahubPage"),
     lazyPage("/datahub/$datahubId/dashboard/$dashboardId", () => import("@/pages/datahub/detail"), "DatahubPage"),
     lazyPage("/datahub/$datahubId/$tableId", () => import("@/pages/datahub/detail"), "DatahubPage"),
+    r("/dashboard", SharedDashboardsPage),
+    r("/dashboard/$dashboardId", SharedDashboardPage),
     r("/to-chuc", OrgPage),
     r("/tai-khoan", AccountPage),
     r("/tai-khoan/token", TokensPage),

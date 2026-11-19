@@ -2,7 +2,7 @@ import { token, FONT_STACK } from "@/lib/theme";
 import { formatPercent } from "@soe/shared";
 import { toShares, type Cartesian, type Slices } from "./chart-data";
 import { formatCompact, formatValue } from "./format";
-import type { ChartDef, FormatName } from "./types";
+import type { ChartDef, FormatName, PickInfo } from "./types";
 
 /** ECharts options for the cartesian and pie charts. Pure apart from reading the design tokens; the numbers are the server's. */
 
@@ -26,9 +26,11 @@ export interface CartesianArgs {
   format: FormatName | null;
   /** Per series (same order as `data.series`): draw the earlier period / the target too. */
   compare: boolean[];
+  /** Per series and category: where a click lands (for cross filtering). */
+  picks?: (PickInfo | undefined)[][];
 }
 
-export function cartesianOption({ chart, data, format, compare }: CartesianArgs): Record<string, unknown> {
+export function cartesianOption({ chart, data, format, compare, picks }: CartesianArgs): Record<string, unknown> {
   const t = base();
   const o = chart.options ?? {};
   const horizontal = chart.type === "bar";
@@ -52,7 +54,7 @@ export function cartesianOption({ chart, data, format, compare }: CartesianArgs)
       ...(chart.type === "combo" ? { yAxisIndex: s.axis === "right" ? 1 : 0 } : {}),
       ...(stackName ? { stack: stackName } : {}),
       ...(isLine ? { smooth: !!o.smooth, symbolSize: 6, ...(chart.type === "area" ? { areaStyle: { opacity: 0.25 } } : {}) } : { barMaxWidth: 40 }),
-      data: values.map((v, k) => (v === null ? null : { value: v, real: real(k) })),
+      data: values.map((v, k) => (v === null ? null : { value: v, real: real(k), pick: picks?.[i]?.[k] })),
       itemStyle: { color },
       lineStyle: { color, width: 2 },
       label: { show: !!o.labels, position: horizontal ? "right" : stackName ? "inside" : "top", color: t.text, fontSize: 11, formatter: (p: { data?: { real?: number | null } }) => formatValue(p.data?.real ?? null, format === "percent" ? "percent" : "compact") },
@@ -125,9 +127,10 @@ export interface PieArgs {
   chart: ChartDef;
   slices: Slices;
   format: FormatName | null;
+  picks?: (PickInfo | undefined)[];
 }
 
-export function pieOption({ chart, slices, format }: PieArgs): Record<string, unknown> {
+export function pieOption({ chart, slices, format, picks }: PieArgs): Record<string, unknown> {
   const t = base();
   const donut = chart.type === "donut";
   const o = chart.options ?? {};
@@ -147,7 +150,7 @@ export function pieOption({ chart, slices, format }: PieArgs): Record<string, un
         type: "pie",
         radius: donut ? ["48%", "72%"] : ["0%", "72%"],
         center: ["50%", o.legend === false ? "50%" : "46%"],
-        data: slices.slices.map((s) => ({ name: s.name, value: s.value })),
+        data: slices.slices.map((s, i) => ({ name: s.name, value: s.value, pick: picks?.[i] })),
         itemStyle: { borderColor: token("--card"), borderWidth: 2 },
         label: { show: !!o.labels, color: t.text, formatter: (p: { name?: string; value?: number }) => `${p.name ?? ""}: ${formatValue(p.value ?? null, format === "percent" ? "percent" : "compact")}` },
         labelLine: { show: !!o.labels },
