@@ -272,3 +272,30 @@ Phần còn lại của 3A-2 (mục 4–9) chưa làm.
 - PNG xuất bằng `getDataURL` của ECharts ở trình duyệt; thẻ KPI, bảng, pivot, ghi chú không có PNG.
 - Người xem qua chia sẻ dashboard (không có chia sẻ datahub) chưa tự tải lại khi dữ liệu đổi: tín hiệu `metrics.data.changed` chỉ gửi cho chủ và người được chia sẻ datahub. Họ tải lại trang để lấy số mới (số vẫn đúng, cache của api đã bị xoá). Để sau nếu cần.
 - Dev build gắn tay cầm `__echart` lên phần tử canvas để e2e bấm đúng cột (`import.meta.env.DEV`).
+
+## Stage 3D: load test (Sonnet, 20/11)
+
+Không sửa engine: tiêu chí đạt ngay ở lần đo đầu, nên không có tối ưu và không có số "trước/sau".
+
+**Chạy lại:** `LOAD_TEST=1 pnpm exec vitest run apps/api/test/metrics-load-3d.test.ts` (~3 phút; không có `LOAD_TEST` thì file tự bỏ qua để `pnpm test` không nặng thêm). Đổi cỡ: `LOAD_ROWS`, `LOAD_USERS`, `LOAD_PARALLEL` (mặc định 100.000 / 20 / 6), `LOAD_DISTINCT` (số bộ lọc chung khác nhau ở ca xấu nhất; mặc định = số người). Số đo ghi ra stderr, dòng bắt đầu `[load]`.
+
+**Kịch bản** (dữ liệu tự sinh bằng SQL, không dùng `examples/`): bảng 100.000 dòng (văn bản, số, 3 cột chọn, 2 ngày, cột công thức `=[Doanh thu]*2`) và bảng Thanh toán 100.000 dòng để ghép theo khoá. Dashboard 30 biểu đồ: 4 KPI (so kỳ, sparkline, cột công thức), 3 cột, thanh, 2 đường (luỹ kế, theo tuần), vùng, kết hợp, tròn, donut, 2 bảng, 2 pivot, phễu, waterfall, histogram, box plot, scatter, ma trận, heatmap, xếp hạng, cohort, đồng hồ, bullet, 2 biểu đồ ghép bảng, 1 chỉ số phái sinh. 20 người = chủ + 19 người được chia sẻ dashboard (đi đường tính bằng quyền chủ). Mỗi người gọi `metrics.dashboard.view` rồi `metrics.chart.data` cho 30 biểu đồ, tối đa 6 lời gọi cùng lúc (mức song song của trình duyệt với một host), cả 20 người cùng lúc, `resetMetricCache()` trước mỗi lượt lạnh. Máy dev 8 nhân, Postgres, api, worker và test cùng một máy.
+
+**Số đo** (ms; mỗi lượt 600 lời gọi `chart.data`):
+
+| Kịch bản | p50 | p95 | max | mở cả dashboard (max) | lỗi |
+|---|---|---|---|---|---|
+| Lạnh, mọi người cùng dashboard (tiêu chí) | 277 | 846 | 900 | 2.336 | 0 |
+| Nóng (cache có) | 119 | 160 | 164 | 778 | 0 |
+| Lạnh + 6 người sửa dòng nguồn liên tục (66 lần sửa trong lượt) | 453 | 931 | 1.519 | 3.539 | 0 |
+| Ca xấu nhất: 20 bộ lọc chung khác nhau, không dùng chung gì | 2.990 | 6.688 | 8.830 | 21.625 | 0 |
+
+Theo loại biểu đồ, lượt lạnh (max): box plot 806, cohort 693, heatmap 478, scatter 354, ma trận 351, ranking 322, histogram 292, KPI 880 (KPI ghép bảng là chậm nhất), cột 901 (cột ghép bảng), còn lại dưới 420. Lượt nóng mọi loại dưới 170. **Đạt tiêu chí Module 3 mục 6.1 điểm 5** (mọi biểu đồ dưới 3 s, không lỗi, không `statement_timeout`).
+
+**Vì sao lượt lạnh nhanh:** 20 người cùng dashboard chỉ chạy 44 câu SQL (`executed=44`; 647 lời gọi nối vào câu đang chạy, 309 lấy từ cache), vì số tính theo quyền chủ nên khoá cache giống nhau. Một người mở một dashboard lạnh một mình: 44 câu, tổng ~4,2 s tuần tự (mỗi câu 10 đến 150 ms; box plot 505, ghép bảng 270 đến 390 mỗi câu).
+
+**Ca xấu nhất (thêm, không phải tiêu chí):** mỗi bộ lọc chung khác nhau là cả bộ 44 câu quét lại 100.000 dòng, nên thời gian tăng theo **số bộ lọc khác nhau cùng lúc**, không theo số người: 3 bộ lọc: max 1.941; 6 bộ lọc: max 2.956 (vừa trong 3 s); 12: max ~5.200; 20: max 8.830. Không lỗi, không chạm 10 s. Giới hạn là CPU của Postgres (8 nhân), không phải hàng đợi: mỗi chủ dashboard có 6 câu cùng lúc (người xem dùng chung 6 chỗ của chủ, đúng thiết kế) và pool 10; thử không cần nới. Test chỉ yêu cầu không lỗi và dưới 10 s cho ca này.
+
+**Ghi chú 3B (bảng gộp 120.000 dòng từ 100.000 + 50.000):** đồng bộ lần đầu ~10 s. Sửa 1, 5 hoặc 20 dòng nguồn **cùng lúc** đều ra đúng **một lượt đồng bộ ~1,3 s** (các yêu cầu gộp lại nhờ `request_seq`), không nhân theo số người sửa. 10 người sửa liên tục 6 s (180 lần sửa): 5 lượt đồng bộ, 6,4 s CPU liên tục (một bảng gộp bận ~100% một nhân khi bị sửa liên tục, mỗi lượt đọc lại 150.000 dòng). Không có lỗi, bảng gộp về `ok`. **Chưa đồng bộ theo `row_ids`:** chi phí bị chặn ở một lượt mỗi ~1,3 s mỗi bảng gộp, chưa cần; nên làm nếu có nhiều bảng gộp lớn bị sửa liên tục cùng lúc (Stage sau).
+
+**Chưa đo / ghi cho sau:** cache nằm trong bộ nhớ từng tiến trình api (chạy nhiều api thì mỗi cái tự tính lần đầu); phép ghép theo khoá vẫn là câu chậm nhất (khoá chuẩn hoá tính lại mỗi câu, ~120 ms mỗi bên), nếu cần: dùng cột Liên kết hoặc bảng gộp (Module 3 mục 6.1 điểm 5); bảng nguồn có khoá phân chia (Stage 4.1) sẽ khiến mỗi người một phạm vi, tức giống ca "nhiều bộ lọc khác nhau" ở trên: đo lại khi 4.1 xong.
