@@ -109,27 +109,98 @@ export type SourceDef = z.output<typeof SourceDefSchema>;
 
 export const MetricNameSchema = z.string().normalize("NFC").trim().min(1).max(100).refine((s) => !/[[\]]/.test(s), "Tên không chứa [ hoặc ].");
 
-export const MetricDefSchema = z.strictObject({
-  name: MetricNameSchema,
-  description: z.string().max(500).optional(),
-  /** Saved source (id or name), a table (id or name) or an inline source. */
-  source: z.union([Ref, SourceDefSchema]),
-  measure: MeasureSchema,
-  filter: FilterSchema.optional(),
-  time: TimeSpecSchema.optional(),
-  group_by: z.array(GroupSchema).max(MAX_GROUP_FIELDS).optional(),
-  /** How a number is shown. The server never rounds; this is only a hint for screens. */
-  format: z.enum(["number", "money", "percent", "days"]).optional(),
-});
-export type MetricDef = z.output<typeof MetricDefSchema>;
+/** Comparison with an earlier period (design module3 section 5.3). */
+export const COMPARES = ["previous_period", "year_ago"] as const;
+export type CompareKind = (typeof COMPARES)[number];
+export const CompareSchema = z.enum(COMPARES);
 
-/** What a call to `metrics.query` may change on top of a metric. */
+/**
+ * Cohort (section 5.3): rows are grouped by the period their `start` date falls in, and by how many periods later their `event`
+ * date falls (0 = the same period). `mature_after` keeps only cohorts that started at least that many periods ago.
+ */
+export const CohortSchema = z.strictObject({
+  start: Ref,
+  event: Ref,
+  bucket: z.enum(BUCKETS).optional(),
+  mature_after: z.number().int().min(0).max(1000).optional(),
+  /** Largest relative period kept (later events are dropped). */
+  max_offset: z.number().int().min(0).max(1000).optional(),
+});
+export type Cohort = z.output<typeof CohortSchema>;
+
+/** Target (section 5.4): a constant, or a table of the same datahub holding targets by period and/or by a grouping column. */
+export const TargetSchema = z
+  .strictObject({
+    value: z.number().finite().optional(),
+    table: Ref.optional(),
+    value_field: Ref.optional(),
+    /** Date column of the target table that says which period the target is for (matched to the time bucket). */
+    period_field: Ref.optional(),
+    /** `{ "<group column of the metric>": "<column of the target table>" }`. */
+    by: z.record(Ref, Ref).optional(),
+  })
+  .superRefine((t, ctx) => {
+    const table = t.table !== undefined || t.value_field !== undefined || t.period_field !== undefined || t.by !== undefined;
+    if (t.value !== undefined && table) ctx.addIssue({ code: "custom", message: 'Mục tiêu là hằng số ("value") hoặc lấy từ bảng ("table" + "value_field"), không cả hai.' });
+    if (t.value === undefined && !(t.table && t.value_field)) ctx.addIssue({ code: "custom", message: 'Mục tiêu cần "value" (hằng số) hoặc "table" + "value_field" (bảng mục tiêu).' });
+  });
+export type Target = z.output<typeof TargetSchema>;
+
+/** Outliers by IQR of the measure column (section 5.4): outside [Q1 - k*IQR, Q3 + k*IQR]. */
+export const OutliersSchema = z.strictObject({
+  /** `include` counts everything (the bounds are still reported), `exclude` drops them, `separate` returns two sets of numbers. */
+  mode: z.enum(["include", "exclude", "separate"]),
+  k: z.number().min(0).max(10).optional(),
+});
+export type Outliers = z.output<typeof OutliersSchema>;
+
+export const MetricDefSchema = z
+  .strictObject({
+    name: MetricNameSchema,
+    description: z.string().max(500).optional(),
+    /** Saved source (id or name), a table (id or name) or an inline source. Not for a derived metric. */
+    source: z.union([Ref, SourceDefSchema]).optional(),
+    measure: MeasureSchema.optional(),
+    /** Derived metric (section 5.2): a formula of the formula engine over other metrics of the datahub, `=[A] / [B]`. */
+    formula: z.string().min(1).max(2000).optional(),
+    filter: FilterSchema.optional(),
+    time: TimeSpecSchema.optional(),
+    group_by: z.array(GroupSchema).max(MAX_GROUP_FIELDS).optional(),
+    /** How a number is shown. The server never rounds; this is only a hint for screens. */
+    format: z.enum(["number", "money", "percent", "days"]).optional(),
+    compare: CompareSchema.optional(),
+    /** Running total over the time buckets (counts and sums only). */
+    cumulative: z.boolean().optional(),
+    cohort: CohortSchema.optional(),
+    target: TargetSchema.optional(),
+    outliers: OutliersSchema.optional(),
+  })
+  .superRefine((m, ctx) => {
+    const issue = (path: string, message: string) => ctx.addIssue({ code: "custom", path: [path], message });
+    if (m.formula !== undefined) {
+      for (const k of ["source", "measure", "cohort", "cumulative", "outliers"] as const) if (m[k] !== undefined) issue(k, `Chỉ số phái sinh (formula) không dùng "${k}".`);
+    } else {
+      if (m.source === undefined) issue("source", 'Chỉ số cần "source" (hoặc "formula" cho chỉ số phái sinh).');
+      if (m.measure === undefined) issue("measure", 'Chỉ số cần "measure" (hoặc "formula" cho chỉ số phái sinh).');
+    }
+    if (m.cohort && (m.compare !== undefined || m.cumulative !== undefined || m.time?.bucket)) issue("cohort", "Cohort không dùng chung với compare, cumulative hay time.bucket.");
+  });
+export type MetricDef = z.output<typeof MetricDefSchema>;
+/** A metric that reads a source (not a formula). */
+export type BaseMetricDef = MetricDef & { source: NonNullable<MetricDef["source"]>; measure: NonNullable<MetricDef["measure"]> };
+export const isFormulaMetric = (d: MetricDef): d is MetricDef & { formula: string } => d.formula !== undefined;
+
+/** What a call to `metrics.query` may change on top of a metric. `null` switches an option of the saved metric off. */
 export const QueryOverridesSchema = z.strictObject({
   time: TimeSpecSchema.optional(),
   group_by: z.array(GroupSchema).max(MAX_GROUP_FIELDS).optional(),
   filter: FilterSchema.optional(),
   order: z.enum(["group", "value_desc", "value_asc"]).optional(),
   limit: z.number().int().min(1).max(MAX_GROUPS).optional(),
+  compare: CompareSchema.nullable().optional(),
+  cumulative: z.boolean().optional(),
+  target: TargetSchema.nullable().optional(),
+  outliers: OutliersSchema.nullable().optional(),
 });
 export type QueryOverrides = z.output<typeof QueryOverridesSchema>;
 

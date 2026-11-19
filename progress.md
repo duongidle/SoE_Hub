@@ -51,7 +51,7 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 **Opus quyết khi rà:** ghép bảng đổi từ inner sang **left** (dòng bảng chính không có đối tác vẫn vào số liệu, cột bảng ghép là rỗng; ghép thêm bảng không bao giờ làm đổi số của bảng chính; chẩn đoán vẫn báo dòng không khớp, 0 khớp vẫn báo lỗi). Làm đầu 3A-2.
 Ghi chú Stage 4: chia sẻ thống nhất (khoá phân chia, Module 2 mục 10, commit 74777ca) đổi `access.scope()`; engine metric đọc dòng qua `scope()` nên tự theo; khoá cache của 3A-2 phải gồm phạm vi dòng thực tế của người đọc.
 
-**3A-2 đang làm (Sonnet)**: [x] 0 ghép left (test pass); [ ] 1 phái sinh; [ ] 2 thời gian; [ ] 3 mục tiêu + outlier; [ ] 4 chịu tải; [ ] 5 xoá cache outbox + SSE; [ ] 6 hiệu năng ghép; [ ] 7 API/OpenAPI/Bruno; [ ] 8-9 test + quyết định. Bước kế: mục 1 (phái sinh) trong `packages/metrics` + `apps/api/src/modules/metrics/engine.ts`.
+**3A-2 tạm dừng 19/11 (Dương bảo ngưng)**: [x] 0 ghép left (4b15996, test pass); [ ] 1 phái sinh **đang dở**: `packages/metrics/src/schema.ts` đã sửa một phần (commit WIP, **typecheck đang fail** ở `apps/api/src/modules/metrics/engine.ts:73,83` và `ops.ts:77,79,128`: kiểu `PlanInput`/`MetricSpec` chưa khớp schema mới); [ ] 2 thời gian; [ ] 3 mục tiêu + outlier; [ ] 4 chịu tải; [ ] 5 xoá cache outbox + SSE; [ ] 6 hiệu năng ghép; [ ] 7 API/OpenAPI/Bruno; [ ] 8-9 test + quyết định. **Làm tiếp:** giao Sonnet 3A-2 từ mục 1 (đọc diff `schema.ts` của commit WIP, sửa cho typecheck sạch rồi làm tiếp), phạm vi đủ ở prompt cũ = mục "Đang làm: Stage 3" + `design/module3-metric-dashboard.md` mục 5.2–6.1.
 
 ## Việc đã xếp cho Stage 4 (sửa lại code Stage 2)
 
