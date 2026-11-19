@@ -42,7 +42,7 @@ Cập nhật: 19/11/2026
 
 ## Bước tiếp theo
 
-**2E-1 (Sonnet) ĐANG CHẠY** (typecheck, eslint, pnpm test, e2e desktop, phone): chạy toàn bộ test và sửa lỗi; rồi **2E-2**. Cách làm ở Ghi chú điều phối mục 7.
+**2E-1 (Sonnet) xong (19/11)**: `pnpm -r typecheck`, `pnpm exec eslint .` sạch; `pnpm test` 688/688 (54 file); `pnpm test:e2e --project=desktop` 56/56 (3,8 phút, không chập chờn, không lỗi chức năng); `pnpm test:e2e --project=phone` 25 pass, 1 fail (lỗi giao diện điện thoại, ghi ở mục bên dưới). Không thấy `stage2c3` luồng 2 chập chờn lần nào. Tiếp: **2E-2** (luồng thật các màn hình chủ chốt, vai trò, dữ liệu xấu nhất, OpenAPI + Bruno).
 
 Test 2D (desktop, test nhanh): `pnpm -r typecheck`, `pnpm exec eslint .` sạch; `pnpm exec vitest run apps packages` 688 pass (54 file, 296 s); `pnpm test:e2e stage2d --project=desktop` 5/5 pass, 3 lần liền (~20 s); `pnpm test:e2e stage2c1 stage2c2 stage2c3 stage2c4 --project=desktop` 35/35 pass (3,1 phút). Không có test chập chờn ở 2D. Tải 100.000 dòng: import 12 s, export XLSX 7,8 s, CSV 8,3 s.
 Chưa làm/để sau: thử link Google Sheet thật; nhập cột Liên kết/Người/Đính kèm; tự thêm lựa chọn vào cột lựa chọn có sẵn; chưa chạy 375px (theo quy trình).
@@ -59,6 +59,8 @@ Chi tiết (luồng đã đi, lỗi đã sửa, số test) ở git log (`2C-2`, 
 ## Lỗi điện thoại để sau
 
 Không chặn bước con (CLAUDE.md, "Điện thoại là ưu tiên thấp"); gom sửa một đợt, Opus quyết khi nào.
+
+- `stage2c2.spec.ts:188` phone "sắp xếp nhiều cấp..." fail 4/4 lần (ổn định, không chập chờn). Lệnh: `pnpm test:e2e stage2c2 --project=phone -g "sắp xếp nhiều cấp"`. Nguyên nhân: ở 375px thanh công cụ view (thêm Nhập, Xuất, Tìm dòng trùng, Thùng rác, Thêm cột ở 2C-4/2D) xuống nhiều hàng, khung grid chỉ còn cao 73 px (1 dòng), nên `GridDriver.read(5,0)` bấm trượt. Chỉ là bố cục điện thoại; desktop pass. Sửa: gọn thanh công cụ ở điện thoại (gom vào menu "...") hoặc cho grid chiều cao tối thiểu.
 
 - `stage1.spec.ts` phone "cài đặt hệ thống" hết giờ 1 lần, chạy lại pass; nghi cùng nguyên nhân Vite tải lại trang (đã sửa ở f8835de), chưa xác minh. Lệnh: `pnpm test:e2e stage1 --project=phone`. Sau f8835de: 3 lần liền 16/16 pass (19/11, chạy trong 2C-3), chưa thấy fail lại.
 
