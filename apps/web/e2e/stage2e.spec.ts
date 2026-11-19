@@ -483,7 +483,7 @@ test("phân quyền theo vai trò: chủ, người Xem, người Sửa, Leader, 
   expect(await present(viewer)).toEqual([]);
   await shot(viewer, "4-nguoi-xem");
   await open(editor);
-  expect(await present(editor)).toEqual(["Tìm dòng trùng", "Nhập"]);
+  expect(await present(editor)).toEqual(["Tìm dòng trùng", "Thùng rác", "Nhập"]); // the editor restores rows he deleted; no Chia sẻ, no Thêm cột
   // Viewer and editor see the value of the formula but never the formula text.
   for (const s of [viewer, editor]) await expect(s.page.getByText("=LEN(")).toHaveCount(0);
   await shot(editor, "4-nguoi-sua");
@@ -678,15 +678,22 @@ test("tìm dòng trùng trên bảng 10.000 dòng nhiều nhóm; xử lý hết 
   await dd.getByRole("button", { name: "Đóng" }).first().click();
   await expect(pg.getByText("2.600 dòng", { exact: true })).toBeVisible({ timeout: 30_000 });
 
-  // Trash: a deleted row, a deleted column and a deleted table come back with their content.
-  const cell = await rpc<{ id: string }>("owner", "POST", `/tables/${t}/rows`, { data: { Mã: "Dòng sẽ xoá <b>x</b>", "Số thứ tự": 123456789012 } });
+  // Trash: a row deleted after the bulk clean-up comes back with its values, by the button of the dialog.
+  const cell = await rpc<{ id: string }>("owner", "POST", `/tables/${t}/rows`, { data: { Mã: "Dòng sẽ xoá <b>x</b>", "Số thứ tự": 123_456_789_012 } });
   await rpc("owner", "DELETE", `/tables/${t}/rows/${cell.id}`);
   await pg.reload();
   await expect(pg.getByText("2.600 dòng", { exact: true })).toBeVisible({ timeout: 30_000 });
+  const inTrash = await ownerApi.call<{ rows: { id: string; row_no: number }[] }>("GET", `/datahub/trash?table_id=${t}`);
+  const mine = inTrash.rows.find((r) => r.id === cell.id);
+  expect(mine, "dòng vừa xoá phải nằm trong thùng rác").toBeDefined();
   await pg.getByRole("button", { name: "Thùng rác" }).click();
   const td = dialog(pg, "Thùng rác của bảng");
   await expect(td.getByTestId("trash-row").first()).toBeVisible();
   await shot(owner, "6-thung-rac");
-  await td.getByRole("button", { name: /^Khôi phục/ }).first().click();
-  await expect.poll(async () => (await ownerApi.raw<{ total: number }>(`/tables/${t}/rows?limit=1&include_total=true`)).total, { timeout: 30_000 }).toBeGreaterThan(2600);
+  await td.getByRole("button", { name: `Khôi phục dòng #${mine!.row_no}` }).click();
+  const byId = async () => (await ownerApi.raw<{ data: { id: string; data: Record<string, unknown> }[] }>(`/tables/${t}/rows?limit=1&filter=${encodeURIComponent(JSON.stringify({ field: "_id", op: "eq", value: cell.id }))}`)).data;
+  await expect.poll(async () => (await byId()).length, { timeout: 30_000 }).toBe(1);
+  const back = (await byId())[0]!;
+  expect(Object.values(back.data)).toEqual(expect.arrayContaining(["Dòng sẽ xoá <b>x</b>", 123_456_789_012]));
+  expect((await ownerApi.raw<{ total: number }>(`/tables/${t}/rows?limit=1&include_total=true`)).total).toBe(2601);
 });
