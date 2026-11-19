@@ -236,3 +236,38 @@ Phần còn lại của 3A-2 (mục 4–9) chưa làm.
 - Web: biểu đồ tròn/donut gọi với `top = max_slices` (mặc định 8) và `order=value_desc`; pivot gọi với `totals=true` khi bật "Tổng dòng và cột". Hai tham số này sinh lúc vẽ, không lưu trong JSON biểu đồ. Đã xoá `isAdditive`; ghi chú "không cộng gộp được" đổi thành "Khác gộp N nhóm".
 - Test: `apps/api/test/metrics-top-totals.test.ts` (12 test: sum, avg, median, count_distinct, count so với tính tay trên toàn bộ dòng), `apps/web/test/dashboard-lib.test.ts`.
 - Câu hỏi để Stage 12: `chuan-giao-dien.md` ghi tròn tối đa 5 phần, Module 3 ghi 8 (đang dùng 8).
+
+## Stage 3C-2: biểu đồ còn lại, tương tác, chia sẻ (Sonnet, 20/11)
+
+### Một cửa lấy số của biểu đồ: `metrics.chart.data`
+
+- Mỗi biểu đồ gọi **một** `metrics.chart.data` (GET `/chart-data`) thay cho một `metrics.query` mỗi chuỗi như 3C-1. Server (`apps/api/src/modules/metrics/chart-run.ts`) chạy từng chuỗi bằng `runDefinition`, rồi tính nốt những gì loại biểu đồ cần ở `packages/metrics/src/chart-view.ts`. Web chỉ vẽ: không cộng, chia, chia khoảng hay xếp hạng ở client (CLAUDE.md "Phân vai" điểm 6). `metrics.query` giữ nguyên cho API/AI.
+- Gọi bằng `chart_id` (biểu đồ đã lưu, server đọc JSON đã lưu nên người xem không gửi được định nghĩa tuỳ ý) hoặc `chart` + `datahub_id` (xem trước khi cấu hình, chỉ chủ). Trả `series` (kết quả từng chuỗi, cùng dạng `metrics.query`), `spark` (thẻ KPI), `view` (số đã tính cho loại cần), `notes`, `rows_series`, `can_view_rows`.
+- `view` theo loại: **funnel** (`pct_of_first`, `pct_of_prev`; một chuỗi có nhóm thì mỗi nhóm một bước, sắp giá trị giảm dần), **waterfall** (`start/add/subtract` theo `series.step`, luỹ kế `start → end`, thanh tổng cuối `options.total` mặc định bật; một chuỗi có nhóm thì mỗi nhóm một bước cộng, âm thì giảm), **histogram** (`width_bucket` ở SQL, `bins` 2–50, bin rỗng giữ 0, một giá trị lặp lại là một bin), **boxplot** (SQL một câu: Q1/trung vị/Q3, min/max, râu theo 1,5·IQR, ngoại lai tối đa 60 giá trị mỗi nhóm, `outlier_count` đủ), **scatter/matrix** (ghép hai chuỗi theo khoá nhóm; nhóm thứ hai trở đi là màu; ma trận chia góc theo `x_split/y_split` hoặc trung vị các điểm do server tính, kèm số điểm mỗi góc), **ranking** (`rank`, `pct_of_max` chỉ để vẽ thanh), **cohort** (tam giác: hàng là kỳ bắt đầu, cột là số kỳ sau; ô của kỳ chưa tới là `pending`; `rate = value / cỡ cohort` chỉ khi phép đo là count/count_distinct). Bullet, đồng hồ, heatmap dùng `series` (đã có `target/achieved/gap` của engine).
+- Quyết định: histogram và boxplot cần **chỉ số gốc có `measure.field` là cột số** (không dùng chỉ số phái sinh): báo `unsupported_for_derived`/`bad_measure`. Cohort cần chỉ số có `cohort`. Scatter/matrix đúng hai chuỗi. Giới hạn 5.000 điểm (MAX_GROUPS), `truncated` báo khi cắt.
+- Bố cục ECharts cho cả 11 loại mới (để xuất PNG chung một đường); DOM chỉ cho thẻ KPI, bảng, pivot, ghi chú (không có PNG).
+
+### Bộ lọc chung và lọc chéo
+
+- `ViewFilters` = `{range?, conditions?:[{field, op: eq|neq|contains|in, value}], cross?:[{chart_id?, field, kind, bucket?, value}]}` (`packages/metrics/src/dash-filter.ts`). Server đổi thành `soft_filter` + `soft_range` của `QueryOverrides` cho từng truy vấn. **Mềm**: điều kiện nào bảng của biểu đồ không có cột đó (hoặc cột Một lựa chọn không có lựa chọn đó) thì bị bỏ qua cho biểu đồ ấy và nêu ở `notes` ("Bộ lọc chung "Loại" không áp dụng cho biểu đồ này"), không làm biểu đồ lỗi. Khoảng thời gian chỉ áp cho chuỗi có cột ngày (`time.field`); `compare` dịch theo khoảng này. Với chỉ số phái sinh, bộ lọc đi xuống từng chỉ số thành phần.
+- Lọc chéo: bấm một cột/điểm/phần → cho mỗi cột nhóm của dòng đó một điều kiện `eq` (kỳ thời gian thì khoảng ngày của kỳ, nhóm trống thì `is_empty`); biểu đồ vừa bấm không tự lọc mình (`chart_id`); bấm lại đúng phần đó thì bỏ. Dòng "Khác" không bấm được. `options.ignore_filters` / `ignore_cross` cho từng biểu đồ. Trạng thái lọc chéo chỉ ở trình duyệt (không lưu).
+- Bản riêng: bảng mới `mt_dashboard_prefs` (migration 0012). `metrics.dashboard.filters.save/reset` (mọi người xem, không ghi nhật ký vì tự lưu mỗi lần đổi). Mặc định do chủ đặt: `metrics.dashboard.update {filters}` (nút "Lưu làm mặc định", xoá luôn bản riêng của chủ). Các cột lọc được (`fields`: Một lựa chọn, văn bản, checkbox) gộp theo tên từ các bảng nguồn của biểu đồ, đọc bằng quyền chủ.
+
+### Chia sẻ: số tính bằng quyền chủ, dòng bằng quyền người xem
+
+- `mt_dashboard_shares` (migration 0012). `viewDash` (`dashboard-access.ts`) trả vai trò: `owner`, `shared`, hoặc `guest`; người khác `not_found` (Leader, Manager, Admin không có gì thêm). Số luôn tính trong ngữ cảnh **chủ** (`computeCtx`): cache dùng chung vì `scopeKey` là của chủ.
+- Người nhận không nhận định nghĩa: `metrics.dashboard.view` chỉ trả cách vẽ (loại, tiêu đề, tuỳ chọn, vị trí, nhãn chuỗi). `view` ghi nhật ký mỗi lần mở (`audit: always`); chia sẻ/bỏ chia sẻ cũng ghi. **Chưa ghi**: từng lần `metrics.chart.data` (30 biểu đồ mỗi lần mở sẽ ngập nhật ký); người cố tình bỏ qua `view` mà gọi thẳng `chart.data` thì không có dòng nhật ký, chỉ có `chart.rows/csv`.
+- Xem các dòng / CSV (`metrics.chart.rows`, `metrics.chart.csv`, `audit: always`): đọc bảng nguồn bằng quyền **người xem**; người xem không đọc được bảng thì `forbidden` (`no_source_access`), giao diện không hiện nút. Trả `total_visible` / `total_owner` ("Bạn thấy x/y dòng tạo nên con số này"). Hôm nay (chưa có khoá phân chia) người xem có quyền xem bảng thì x = y; khi có khoá phân chia (Stage 4.1) chỉ cần `scopeKey`/`scope()` đổi, không sửa chỗ này. Chỉ số phái sinh không có dòng riêng (`no_rows_for_derived`). CSV: UTF-8 có BOM, tối đa 5.000 dòng, ô bắt đầu bằng `= + @` hoặc `-` + chữ được thêm dấu `'` (chống chèn công thức).
+- Guest: loại dữ liệu `dashboard` (kênh web) đăng ký ở khung cấp dữ liệu Guest (Module 1 mục 5.2). **Tự đặt (an toàn):** loại dữ liệu theo cây nên nếu chỉ cần có lần cấp thì Guest xem được mọi dashboard của mọi người trong cây; thêm cờ `guest_visible` (mặc định tắt, chủ bật ở hộp chia sẻ) để chủ chọn từng dashboard. Bản nhân bản không mang cờ. Người chia sẻ trực tiếp không được là Guest. Ghi vào "Câu hỏi còn mở" của progress.md để Dương duyệt.
+- Trang người nhận: `/dashboard` (danh sách chia sẻ cho mình, mọi người đã đăng nhập thấy mục menu) và `/dashboard/:id` (cùng `DashboardView` ở chế độ `viewer`: không kéo thả, không sửa; menu thẻ có Xem các dòng/CSV khi có quyền bảng, PNG với biểu đồ canvas).
+
+### JSON xuất/nhập
+
+- `metrics.dashboard.export`: `{format:"soe-dashboard", version:1, name, filters?, charts}`; chỉ số đã lưu được viết thẳng vào chuỗi (bỏ `metric_id`), bảng và nguồn gọi bằng TÊN (nên nhập được vào datahub khác có bảng cùng tên). `metrics.dashboard.import`: mỗi biểu đồ kiểm như `chart.create`; sai thì `validation_error` "Biểu đồ thứ N của JSON: …" (kể cả bảng không tồn tại), không tạo nửa chừng; tên trùng thì thêm "(bản sao)" (hoặc gửi `name`); tính vào giới hạn 20 dashboard / 30 biểu đồ.
+
+### Chưa làm / ghi chú
+
+- Trình ghép bảng trong khung cấu hình: **không làm** (Module 3 mục 11 để ở "Trình tạo bảng gộp" của 3B; nguồn ghép tạo bằng API `metrics.source.*` như 3C-1). Dashboard hệ thống khoá (Module 4). PDF cả dashboard (Module 3 mục 8: để sau).
+- PNG xuất bằng `getDataURL` của ECharts ở trình duyệt; thẻ KPI, bảng, pivot, ghi chú không có PNG.
+- Người xem qua chia sẻ dashboard (không có chia sẻ datahub) chưa tự tải lại khi dữ liệu đổi: tín hiệu `metrics.data.changed` chỉ gửi cho chủ và người được chia sẻ datahub. Họ tải lại trang để lấy số mới (số vẫn đúng, cache của api đã bị xoá). Để sau nếu cần.
+- Dev build gắn tay cầm `__echart` lên phần tử canvas để e2e bấm đúng cột (`import.meta.env.DEV`).

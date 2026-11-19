@@ -142,7 +142,14 @@ function Loaded({ chart, data, onPick, exportRef, onOpenRows }: { chart: ChartDe
         max = o.gauge_max;
       } else return <ChartMessage title="Chưa có thang đo" hint="Đặt mục tiêu, hoặc mốc tối đa của đồng hồ ở phần Hiển thị." />;
       const cap = hasTarget ? `Giá trị ${formatValue(row.value, format === "compact" ? "number" : format)} trên mục tiêu ${formatValue(row.target ?? null, format === "compact" ? "number" : format)}` : null;
-      return wrap(canvas(gaugeOption({ value, min, max, percent, format }), `${title}: ${formatValue(value, "number")}${percent ? "%" : ""}`, false), cap);
+      const f = (x: number | string | null | undefined) => formatValue(x ?? null, format === "compact" ? "number" : format);
+      return wrap(
+        <>
+          {canvas(gaugeOption({ value, min, max, percent, format }), `${title}: ${formatValue(value, "number")}${percent ? "%" : ""}`, false)}
+          <A11yTable caption={title} head={["Chỉ số", "Giá trị", "Mục tiêu", "Đạt"]} rows={[[seriesLabel(chart.series[0], first, 0), f(row.value), hasTarget ? f(row.target) : "—", row.achieved === null || row.achieved === undefined ? "—" : formatPercent(row.achieved, { decimals: 1 })]]} />
+        </>,
+        cap,
+      );
     }
     case "bullet": {
       const rows = first!.rows.filter((r) => typeof r.value === "number");

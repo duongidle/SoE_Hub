@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compact, place, clampRect, type Item } from "../src/lib/dashboard/layout";
-import { heatLevel, toCartesian, toPivot, toShares, toSlices } from "../src/lib/dashboard/chart-data";
+import { cartesianPicks, crossFiltersOf, heatLevel, pickOf, toCartesian, toPivot, toShares, toSlices } from "../src/lib/dashboard/chart-data";
 import { formatCompact, formatValue } from "../src/lib/dashboard/format";
 import type { MetricRow, QueryResult } from "../src/lib/dashboard/types";
 
@@ -89,5 +89,31 @@ describe("number formats", () => {
     expect(formatValue(null, "money")).toBe("—");
     expect(formatValue(0.125, "percent")).toBe("12,5%");
     expect(formatValue(12_345_678_901_234, "number")).toBe("12.345.678.901.234");
+  });
+});
+
+describe("picks and cross filters", () => {
+  const cols = [{ column: "Loại", kind: "enum" }, { column: "Ngày", kind: "date", bucket: "month" as const }];
+  const row = (g: [string | null, string][], extra: Partial<MetricRow> = {}): MetricRow => ({ groups: g.map(([v, l]) => ({ value: v, label: l })), value: 1, count: 1, ...extra });
+  it("a row with no group and the Khác row cannot be picked", () => {
+    expect(pickOf(0, cols, row([]))).toBeUndefined();
+    expect(pickOf(0, cols, row([[null, "Khác"]], { other: true }))).toBeUndefined();
+    expect(pickOf(0, cols, null)).toBeUndefined();
+  });
+  it("one cross filter per group column, a period keeps its bucket, an empty group stays null", () => {
+    const pick = pickOf(1, cols, row([["opt1", "POD"], ["2026-02-01", "2026-02"]]))!;
+    expect(crossFiltersOf(pick, "c1")).toEqual([
+      { chart_id: "c1", field: "Loại", kind: "enum", value: "opt1" },
+      { chart_id: "c1", field: "Ngày", kind: "date", bucket: "month", value: "2026-02-01" },
+    ]);
+    expect(crossFiltersOf(pickOf(0, [{ column: "Loại", kind: "enum" }], row([[null, "(Trống)"]]))!, undefined)).toEqual([{ field: "Loại", kind: "enum", value: null }]);
+  });
+  it("cartesian picks follow the categories and the series of two group columns", () => {
+    const r = mk([[["T1", "POD"], 1], [["T1", "DCC"], 2], [["T2", "POD"], 3]]);
+    const inputs = [inp(r)];
+    const c = toCartesian(inputs);
+    const picks = cartesianPicks(inputs, c);
+    expect(picks.map((s) => s.map((p) => p?.groups.map((g) => g.label)))).toEqual([[["T1", "POD"], ["T2", "POD"]], [["T1", "DCC"], undefined]]);
+    expect(picks[0]![0]!.series).toBe(0);
   });
 });

@@ -39,6 +39,6 @@ body:json {
 }
 
 docs {
-  Thêm biểu đồ. type: kpi, column, bar, line, area, combo, pie, donut, table, pivot, note. Mỗi series gọi metrics.query (metric_id đã lưu hoặc metric viết tại chỗ). Tối đa 30 biểu đồ mỗi dashboard.
+  Thêm biểu đồ. type: kpi, column, bar, line, area, combo, pie, donut, table, pivot, note, bullet, gauge, funnel, boxplot, histogram, scatter, matrix, heatmap, waterfall, ranking, cohort. Mỗi series là một chỉ số (metric_id đã lưu hoặc metric viết tại chỗ); số liệu lấy bằng metrics.chart.data. scatter và matrix cần đúng hai series; options mới: bins, bands, gauge_min, gauge_max, x_split, y_split, top_n, total, ignore_filters, ignore_cross; series.step (start|add|subtract) cho waterfall. Tối đa 30 biểu đồ mỗi dashboard.
   Quyền: `datahub:datahub:use`; chỉ chủ datahub.
 }

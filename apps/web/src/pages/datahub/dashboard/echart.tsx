@@ -28,6 +28,8 @@ export default function EChart({ option, onPick, label, exportRef }: { option: E
     const el = box.current!;
     const c = echarts.init(el, undefined, { renderer: "canvas" });
     chart.current = c;
+    // Browser tests find the drawn marks through this handle (only in the dev build).
+    if (import.meta.env.DEV) (el as HTMLDivElement & { __echart?: unknown }).__echart = c;
     if (exportRef) exportRef.current = { png: () => c.getDataURL({ type: "png", pixelRatio: 2, backgroundColor: token("--card") }) };
     const ro = new ResizeObserver(() => c.resize());
     ro.observe(el);

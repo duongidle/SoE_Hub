@@ -455,7 +455,8 @@ export const chartOperations = [
           await checkChart(ctx, i.datahub_id, c);
           charts.push(c);
         } catch (e) {
-          if (e instanceof AppError) throw new AppError(e.code, `Biểu đồ thứ ${k + 1} của JSON: ${e.message}`, { ...(e.details ?? {}), chart: k });
+          // Whatever is wrong with a chart of the JSON is a problem of the JSON the caller sent (a table that does not exist included).
+          if (e instanceof AppError) throw new AppError("validation_error", `Biểu đồ thứ ${k + 1} của JSON: ${e.message}`, { ...(e.details ?? {}), reason: ((e.details as { reason?: string } | undefined)?.reason) ?? "bad_chart", chart: k });
           throw e;
         }
       }

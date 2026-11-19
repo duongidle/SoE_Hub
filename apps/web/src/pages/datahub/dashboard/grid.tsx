@@ -11,7 +11,7 @@ export interface GridCard {
   layout: { x: number; y: number; w: number; h: number };
   min: { w: number; h: number };
   title: string;
-  /** Menu button of the card (Sửa, Nhân bản, Xoá). */
+  /** Menu button of the card (view actions for everyone; Sửa, Nhân bản, Xoá for the owner). */
   menu: React.ReactNode;
   body: React.ReactNode;
 }
@@ -110,7 +110,7 @@ export function DashboardGrid({ cards, onCommit, readOnly }: { cards: GridCard[]
                 </button>
               )}
               <h3 className="min-w-0 flex-1 truncate text-sm font-semibold" title={c.title}>{c.title}</h3>
-              {!readOnly && c.menu}
+              {c.menu}
             </header>
             <div className="min-h-0 flex-1">{c.body}</div>
             {wide && !readOnly && (

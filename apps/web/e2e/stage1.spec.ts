@@ -231,11 +231,12 @@ test("tài khoản hệ thống: tạo, cấp token (hiện một lần), dùng,
   expect((await request.get(`${API}/api/v1/system/whoami`, { headers: { authorization: `Bearer ${token}` } })).status()).toBe(401);
 });
 
-test("Manager: trang cấp dữ liệu Guest chỉ là khung, hiện trạng thái trống", async () => {
+test("Manager: trang cấp dữ liệu Guest có loại Dashboard (Stage 3C-2 đã đăng ký), chưa cấp cho ai", async () => {
   await manager.page.goto("/");
   await manager.clickMenu("Cấp dữ liệu Guest");
-  await expect(manager.page.getByTestId("grants-empty")).toContainText("Chưa có loại dữ liệu nào");
-  await expect(manager.page.getByRole("button", { name: "Cấp dữ liệu" })).toBeDisabled();
+  // Stage 1 had no data type yet (an empty frame); since 3C-2 a Manager can grant "Dashboard".
+  await expect(manager.page.getByTestId("grants-empty")).toHaveCount(0);
+  await expect(manager.page.getByRole("button", { name: "Cấp dữ liệu" })).toBeEnabled();
   await expect(manager.page.getByText("Chưa cấp dữ liệu cho Guest nào.")).toBeVisible();
   await manager.shot("12-guest-grants-empty");
   expect(await manager.hasMenu("Nhật ký")).toBe(false);
