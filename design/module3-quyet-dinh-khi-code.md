@@ -71,3 +71,35 @@
 - `MColumn.read?` (`packages/metrics/src/columns.ts`): API điền từ `sourceOf(col).cellExpr` trong `toMColumn`; `valueExpr` dùng nó. Không có `read` (test thuần của package) thì đọc JSONB dưới `key` như trước. Package `metrics` không biết dữ liệu nằm ở đâu.
 - Cột công thức: vẫn đọc giá trị lưu (`->>`), không dùng chỗ chuyển lỗi ô như `readExpr` (metric bỏ ô lỗi như ô rỗng, như 3A-1).
 - Test: `packages/metrics/test/build.test.ts` (`MColumn.read` giả, SQL dùng biểu thức đó); test 3A-1 pass nguyên.
+
+## Stage 3A-2: engine metric nâng cao (server), mục 1–3 (phiên 19/11)
+
+Phần còn lại của 3A-2 (mục 4–9) chưa làm.
+
+### Chỉ số phái sinh (Module 3 mục 5.2)
+
+- `{ name, formula: "=[A] / [B]" }`, không có `source`/`measure`/`cohort`/`cumulative`/`outliers`, không có `time.field` (schema từ chối). `[Tên chỉ số]` là chỉ số đã lưu cùng datahub (tên không phân biệt hoa thường); chỉ một thành phần (`[Bảng].[Cột]` bị từ chối `bad_formula`). Công thức chạy bằng `evaluate` của `@soe/formula` (đủ hàm kiểu Excel); `packages/metrics/src/post.ts`: `parseDerived` đổi `[Tên]` thành khoá `m0, m1...`, `combineDerived` tính theo từng nhóm.
+- Chạy: mỗi chỉ số được tham chiếu chạy đầy đủ (mọi tuỳ chọn của nó) với `time.range`, `time.bucket`, `group_by`, `filter` của chỉ số phái sinh / của lời gọi đè lên (mỗi chỉ số giữ `time.field` của mình); rồi gộp theo khoá nhóm. Nhóm mà một chỉ số không có dòng thì chỉ số đó coi là rỗng (0 trong phép tính, như bảng tính). Lỗi công thức (`#DIV/0!`, `#VALUE!`...) nằm ở `rows[].error`, `value = null`; không làm hỏng cả câu trả lời. `count` của dòng = lớn nhất trong các chỉ số.
+- Lồng tối đa 5 tầng (`formula_too_deep`), vòng tròn báo `formula_cycle` kèm chuỗi tên (kiểm lúc lưu và lúc chạy), chỉ số không có hoặc người gọi không đọc được các bảng của nó báo `unknown_metric` kèm danh sách chỉ số có thật (`available`). `table_ids` của chỉ số phái sinh = hợp các bảng các chỉ số nó đọc, nên người chỉ được chia sẻ một bảng không thấy và không tính được chỉ số phái sinh đọc bảng khác.
+- Chỉ số phái sinh cần `datahub_id` khi gọi tại chỗ (`datahub_required`). So kỳ, mục tiêu dùng được; cộng dồn không (tỉ số cộng dồn vô nghĩa, `bad_cumulative`). Lệch nhỏ so với thiết kế: thiết kế không nói tới cột ngày của chỉ số phái sinh; chốt như trên để một bộ `time` của lời gọi áp được cho các chỉ số dùng cột ngày khác nhau.
+
+### Thời gian (mục 5.3)
+
+- **So sánh** `compare: "previous_period" | "year_ago"` (đặt trong chỉ số hoặc tham số `compare`, `none` tắt cái đã lưu). Cần `time.range` (`bad_compare`). `year_ago`: cùng các ngày lùi 12 tháng. `previous_period`: khoảng gồm cả tháng thì lùi đúng số tháng đó (tháng này → tháng trước, quý → quý trước); khoảng khác lùi bằng độ dài của nó theo ngày (`shiftRange`, `packages/metrics/src/time.ts`). Kỳ trước chạy cùng câu SQL với khoảng ngày dịch; **ngày của dòng được dịch tới kỳ hiện tại trước khi cắt kỳ** (`+ interval`) nên khoá nhóm hai bên khớp nhau (không phải so theo vị trí). Mỗi dòng có `previous`, `change`, `change_pct` (tỉ số 0,25 = +25%; `null` khi kỳ trước bằng 0 hoặc trống); nhóm chỉ có ở kỳ trước vẫn hiện (value null). `diagnostics.compare` ghi ngày thật của kỳ trước. 29/2 lùi một năm rơi vào 28/2.
+- **Luỹ kế** `cumulative`: chỉ `count` và `sum`, cần `time.field` + `time.bucket` (`bad_cumulative`); cộng dồn riêng cho từng tổ hợp nhóm còn lại, theo thứ tự thời gian; ép `order = group`, `limit = 5000`, nhiều nhóm hơn thì lỗi `too_many_groups` (cộng dồn trên nhóm bị cắt sẽ sai). Kỳ không có dòng nào không được điền (chưa vẽ đường liên tục: việc của biểu đồ ở 3C). Kết hợp được với `compare` (cộng dồn từng chuỗi rồi mới ghép).
+- **Cohort** `cohort: { start, event, bucket (mặc định month), mature_after?, max_offset? }`: nhóm theo kỳ của `start` và số kỳ từ `start` tới `event` (cột `Kỳ sau <start>`, 0 = cùng kỳ), rồi `group_by` nếu có; dùng được mọi phép đo. Dòng không có `event` không nằm trong ma trận; dòng có `event` trước `start` (kỳ âm) bị bỏ. `mature_after: n` chỉ giữ cohort có kỳ bắt đầu cách kỳ hôm nay ít nhất n kỳ. `time.range` (trên `time.field`) vẫn lọc dòng. Trả thêm `cohort_sizes` (số dòng mỗi cohort, kể cả dòng chưa có `event`, cùng điều kiện lọc/trưởng thành) để biến số đếm thành tỉ lệ. Không dùng với compare/cumulative/target. Chỉ số kỳ (`periodIndex`): ngày, tuần từ thứ Hai, tháng, quý/năm theo năm tài chính.
+
+### Mục tiêu và giá trị ngoại lai (mục 5.4)
+
+- **Mục tiêu** `target`: `{ value }` (hằng số) hoặc `{ table, value_field, period_field?, by? }` (bảng cùng datahub, gọi bằng tên hoặc mã; người gọi phải đọc được bảng đó: `not_found`). Bảng mục tiêu đọc bằng chính engine (tổng `value_field` theo kỳ của `period_field` khi chỉ số có `time.bucket`, và theo các cột `by`), rồi ghép theo khoá: kỳ theo ngày đầu kỳ, các cột nhóm theo **nhãn không phân biệt hoa thường và dấu** (hai dòng "POD" và "Pod" cộng chung một mục tiêu). Mỗi nhóm của chỉ số phải có cột tương ứng trong `by` (`bad_target`), có `time.bucket` thì phải có `period_field`. Chỉ số không nhóm theo kỳ mà có `time.range` thì mục tiêu là tổng các kỳ trong khoảng đó. Mỗi dòng có `target`, `achieved` (tỉ số 0,85 = 85%, null khi mục tiêu trống hoặc 0), `gap` (mục tiêu − giá trị, âm khi vượt); nhóm không có dòng mục tiêu thì `null`. Kiểm lúc lưu chỉ số. Mục tiêu thêm bảng mục tiêu vào `table_ids` của chỉ số.
+- **Outlier** `outliers: { mode: include | exclude | separate, k (1,5) }`: cần phép đo có `field` là cột số (`bad_outliers`). Q1, Q3 tính trên **toàn bộ dòng sau lọc và khoảng thời gian** (không theo nhóm, không theo kỳ), bằng `percentile_cont` (cùng cách phân vị của 5.1); khoảng `[Q1 − k·IQR, Q3 + k·IQR]`, biên trong khoảng được giữ. `include`: số liệu như thường, báo `diagnostics.outliers` (`q1, q3, iqr, k, lower, upper, n`); `exclude`: bỏ dòng ngoài khoảng; `separate`: số liệu của dòng trong khoảng, thêm `outlier_rows` cho dòng ngoài khoảng. Dưới 4 giá trị thì không có khoảng (`diagnostics.outliers = null`, không loại gì). Ô trống không bị coi là ngoại lai. Thêm một câu SQL (quartile) khi dùng outlier.
+
+### Chỗ cắm và API
+
+- `runDefinition` (engine.ts) là điểm vào đầy đủ (phái sinh, luỹ kế, so kỳ, mục tiêu); `runMetric` vẫn là một chỉ số trên một nguồn (kèm outlier, cohort, `shift`). Bước 4 (cache, gộp yêu cầu trùng, giới hạn đồng thời, `statement_timeout`) bọc quanh `ctx.db.execute` của các câu SQL lá trong `runMetric`/`rowsOf` và quanh `runDefinition`.
+- `metrics.query` thêm tham số `compare`, `cumulative`, `target`, `outliers`; trả thêm `metric.formula`. OpenAPI mô tả tự sinh từ registry; request Bruno làm ở mục 7.
+- `QueryOverridesSchema` đã có sẵn các khoá này từ commit WIP.
+
+### Test
+
+- `packages/metrics/test/post.test.ts` (unit thuần: `shiftRange`, `parseDerived`, `combineDerived`, `cumulate`, `compareTables`, `attachTarget`, `iqrBounds`, SQL của shift/cohort/outlier). `apps/api/test/metrics-advanced.test.ts` (27 test so với tính tay bằng JavaScript trên cùng dữ liệu; gồm phân quyền: người ngoài, người chỉ được chia sẻ một bảng, bảng mục tiêu không đọc được).

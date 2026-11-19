@@ -394,7 +394,12 @@ async function applyTarget(ctx: Ctx, a: MetricAnswer, eff: Effective, datahubId:
   // The metric's groups are [time bucket?, ...group_by]; so are the target table's: the keys meet column by column.
   const timeIdx = eff.time?.bucket ? 0 : null;
   const map = new Map<string, number | null>();
-  for (const row of r.table.rows) map.set(targetKey(row.groups, timeIdx), typeof row.value === "number" ? row.value : null);
+  // Target rows whose labels differ only in case or accents ("POD", "Pod") are the same group: their targets add up.
+  for (const row of r.table.rows) {
+    const k = targetKey(row.groups, timeIdx);
+    const v = typeof row.value === "number" ? row.value : null;
+    map.set(k, v === null ? (map.get(k) ?? null) : (map.get(k) ?? 0) + v);
+  }
   const withTarget = attachTarget(a, (row: MetricRow) => map.get(targetKey(row.groups, timeIdx)) ?? null);
   return { ...a, ...withTarget, ms: a.ms + r.ms };
 }

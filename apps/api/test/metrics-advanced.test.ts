@@ -235,3 +235,107 @@ describe("cohort", () => {
     expect((await fails(run({ ...def(), compare: "year_ago", time: { field: "Ngày chốt", range: between("2026-01-01", "2026-02-01") } }))).code).toBe("validation_error");
   });
 });
+
+describe("target", () => {
+  const sumM = (extra: Record<string, unknown> = {}) => ({ name: "i", source: x.tableId, measure: { agg: "sum", field: "Tiền" }, time: { field: "Ngày chốt", bucket: "month", range: between("2026-01-01", "2026-03-31") }, ...extra });
+
+  it("a constant: share reached and what is missing", async () => {
+    const r = byGroup(await run(sumM({ target: { value: 1000 } })));
+    const feb = 500;
+    expect(r.get("2026-02-01")).toMatchObject({ value: feb, target: 1000, achieved: 0.5, gap: 500 });
+    expect(r.get("2026-03-01")).toMatchObject({ value: 6050, target: 1000, gap: 1000 - 6050 });
+    expect(r.get("2026-03-01")!.achieved).toBeCloseTo(6.05, 9);
+  });
+
+  it("from a table, by period and by a column, matching names without regard to case; none where the table has no row", async () => {
+    const target = { table: "Mục tiêu", value_field: "Chỉ tiêu", period_field: "Kỳ", by: { Loại: "Loại" } };
+    const r = byGroup(await run(sumM({ group_by: ["Loại"], target })));
+    expect(r.get("2026-02-01|POD")).toMatchObject({ value: 200, target: 150, gap: -50 });
+    expect(r.get("2026-02-01|POD")!.achieved).toBeCloseTo(200 / 150, 9);
+    expect(r.get("2026-02-01|DCC")).toMatchObject({ value: 300, target: 400, achieved: 0.75, gap: 100 });
+    // Two target rows (POD and Pod) for March add up.
+    expect(r.get("2026-03-01|POD")).toMatchObject({ value: 6000, target: 6000, achieved: 1, gap: 0 });
+    expect(r.get("2026-03-01|DCC")).toMatchObject({ value: 50, target: null, achieved: null, gap: null });
+    expect(r.get("2026-01-01|POD")).toMatchObject({ value: 100, target: null });
+  });
+
+  it("without groups it sums the target of the whole range; a saved target can be switched off", async () => {
+    const target = { table: "Mục tiêu", value_field: "Chỉ tiêu", period_field: "Kỳ" };
+    const one = await run({ name: "i", source: x.tableId, measure: { agg: "sum", field: "Tiền" }, time: { field: "Ngày chốt", range: between("2026-02-01", "2026-03-31") }, target });
+    expect(one.rows[0]).toMatchObject({ value: 6550, target: 150 + 400 + 5000 + 1000 });
+    const saved = await a("metrics.metric.create", { datahub_id: x.dhId, metric: sumM({ name: "Có mục tiêu", target: { value: 10 } }) });
+    expect((await a("metrics.query", { metric_id: saved.id })).rows[0].target).toBe(10);
+    expect((await a("metrics.query", { metric_id: saved.id, target: JSON.stringify({ value: 20 }) })).rows[0].target).toBe(20);
+  });
+
+  it("works on a derived metric too, and says what is wrong when the table does not fit", async () => {
+    const r = await run({ name: "i", formula: "=[Tổng tiền] / [Số deal]", target: { value: 100 } }, { time: JSON.stringify({ bucket: "month", range: between("2026-02-01", "2026-02-28") }) });
+    expect(r.rows[0]).toMatchObject({ value: 250, target: 100, achieved: 2.5 });
+    expect((await fails(run(sumM({ group_by: ["Loại"], target: { table: "Mục tiêu", value_field: "Chỉ tiêu", period_field: "Kỳ" } })))).details.reason).toBe("bad_target");
+    expect((await fails(run(sumM({ target: { table: "Mục tiêu", value_field: "Chỉ tiêu" } })))).details.reason).toBe("bad_target");
+    expect((await fails(run(sumM({ target: { table: "Không có", value_field: "Chỉ tiêu", period_field: "Kỳ" } })))).details.reason).toBe("target_table_not_found");
+    expect((await fails(run(sumM({ target: { table: "Mục tiêu", value_field: "Cột lạ", period_field: "Kỳ" } })))).details.reason).toBe("unknown_column");
+    expect((await fails(a("metrics.metric.create", { datahub_id: x.dhId, metric: sumM({ name: "Sai", target: { table: "Mục tiêu", value_field: "Cột lạ", period_field: "Kỳ" } }) }))).details.reason).toBe("unknown_column");
+  });
+
+  it("is not computed for a person who may not read the target table", async () => {
+    const other = await makeTable(a, { name: "Riêng", columns: [{ name: "N", type: "number" }] });
+    await a("datahub.share.set", { datahub_id: other.dhId, grantee_id: org.userA2.id, table_id: other.tableId, permission: "view" });
+    // userA2 is a viewer of the other datahub only; the target table lives in the first datahub.
+    const v = as(t, org.userA2.id);
+    expect((await fails(v("metrics.query", { datahub_id: x.dhId, metric: sumM({ target: { table: "Mục tiêu", value_field: "Chỉ tiêu", period_field: "Kỳ" } }) }))).code).toBe("not_found");
+  });
+});
+
+describe("outliers by IQR", () => {
+  const sorted = ROWS.map((r) => r.money).sort((p, q) => p - q);
+  const pct = (p: number) => {
+    const pos = (sorted.length - 1) * p;
+    const lo = Math.floor(pos);
+    return sorted[lo]! + (sorted[Math.min(lo + 1, sorted.length - 1)]! - sorted[lo]!) * (pos - lo);
+  };
+  const q1 = pct(0.25);
+  const q3 = pct(0.75);
+  const upper = q3 + 1.5 * (q3 - q1);
+  const lower = q1 - 1.5 * (q3 - q1);
+  const inside = ROWS.filter((r) => r.money >= lower && r.money <= upper);
+  const outside = ROWS.filter((r) => r.money < lower || r.money > upper);
+  const m = (mode: string, extra: Record<string, unknown> = {}) => ({ name: "i", source: x.tableId, measure: { agg: "sum", field: "Tiền" }, outliers: { mode, ...extra } });
+
+  it("include counts everything and reports the bounds", async () => {
+    const r = await run(m("include"));
+    expect(r.rows[0].value).toBe(sum(ROWS.map((p) => p.money)));
+    expect(r.diagnostics.outliers).toMatchObject({ q1, q3, iqr: q3 - q1, lower, upper, n: ROWS.length, k: 1.5 });
+    expect(outside.map((o) => o.name)).toEqual(["F", "J"]);
+  });
+  it("exclude drops the rows outside the bounds", async () => {
+    const r = await run(m("exclude"));
+    expect(r.rows[0].value).toBe(sum(inside.map((p) => p.money)));
+    expect(r.rows[0].count).toBe(inside.length);
+  });
+  it("separate returns the inside numbers and, apart, the outside ones", async () => {
+    const r = await run(m("separate"));
+    expect(r.rows[0].value).toBe(sum(inside.map((p) => p.money)));
+    expect(r.outlier_rows.rows[0].value).toBe(sum(outside.map((p) => p.money)));
+  });
+  it("k widens or narrows the bounds, per group queries use the bounds of the whole set", async () => {
+    // k = 10 moves the upper bound to Q3 + 3200: only J (5000) is still outside.
+    const wide = await run(m("exclude", { k: 10 }));
+    expect(wide.rows[0].value).toBe(sum(ROWS.map((p) => p.money)) - 5000);
+    // k = 0: the bounds are the quartiles themselves.
+    const tight = await run(m("exclude", { k: 0 }));
+    expect(tight.rows[0].value).toBe(sum(ROWS.filter((p) => p.money >= q1 && p.money <= q3).map((p) => p.money)));
+    const g = byGroup(await run({ ...m("exclude"), group_by: ["Loại"] }));
+    expect(g.get("POD")!.value).toBe(sum(inside.filter((p) => p.kind === "POD").map((p) => p.money)));
+  });
+  it("applies to the filtered rows, can be set by the call, and is refused on a count or a non-number", async () => {
+    const f = await run(m("exclude"), { filter: JSON.stringify({ field: "Loại", op: "eq", value: "DCC" }) });
+    // Only 3 DCC rows: fewer than 4 values, no bounds, nothing is dropped.
+    expect(f.rows[0].value).toBe(420);
+    expect(f.diagnostics.outliers).toBeNull();
+    const call = await run({ name: "i", source: x.tableId, measure: { agg: "sum", field: "Tiền" } }, { outliers: JSON.stringify({ mode: "exclude" }) });
+    expect(call.rows[0].value).toBe(sum(inside.map((p) => p.money)));
+    expect((await fails(run({ name: "i", source: x.tableId, measure: { agg: "count" }, outliers: { mode: "exclude" } }))).details.reason).toBe("bad_outliers");
+    expect((await fails(run({ name: "i", source: x.tableId, measure: { agg: "count", field: "Tên" }, outliers: { mode: "exclude" } }))).details.reason).toBe("bad_outliers");
+  });
+});
