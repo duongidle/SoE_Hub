@@ -7,10 +7,13 @@ import { cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optio
 import { planPaste } from "@/lib/datahub/paste";
 import type { CellEdit, TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
-import { FONT_STACK, fontsReady, token } from "@/lib/theme";
+import { PointPopover } from "@/components/ui/popover";
+import { type Line } from "@/lib/datahub/group-layout";
+import { isGroupable, isSortable, kindOf } from "@/lib/datahub/view-config";
+import { FONT_STACK, fontsReady, optionColor, token } from "@/lib/theme";
 import { isInsidePopup, soeRenderer, type SoeCell } from "./grid-cells";
+import type { GridView } from "./table-view";
 
-const ROW_HEIGHT = 36;
 const MARKER_WIDTH = 56;
 const NUMERIC = new Set(["number", "currency", "percent", "auto_number", "row_id"]);
 
@@ -89,13 +92,14 @@ export interface GridApi {
   /** The row of the active cell. */
   activeRowId: () => string | null;
   scrollToRow: (index: number) => void;
-  /** First and last row index on screen. */
+  /** First and last row POSITION (in the list the server reads) on screen. */
   visibleRange: () => [number, number];
 }
 
-export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAddRow }: { session: TableSession; level: Level; onOpenRow: (rowId: string) => void; onSelection: (rowIds: string[], activeRowId: string | null) => void; apiRef: React.MutableRefObject<GridApi | null>; onAddRow: () => Promise<void> }) {
-  const { store, labels, table } = session;
+export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef, onAddRow }: { session: TableSession; level: Level; view: GridView; onOpenRow: (rowId: string) => void; onSelection: (rowIds: string[], activeRowId: string | null) => void; apiRef: React.MutableRefObject<GridApi | null>; onAddRow: () => Promise<void> }) {
+  const { store, labels } = session;
   useSyncExternalStore(store.subscribe, store.getVersion);
+  const layoutVersion = useSyncExternalStore(session.subscribeLayout, session.getLayoutVersion);
   const [labelVersion, setLabelVersion] = useState(0);
   useEffect(() => labels.subscribe(() => setLabelVersion((v) => v + 1)), [labels]);
 
@@ -107,10 +111,34 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
   }, []);
   const theme = useMemo(() => (ready ? gridTheme() : undefined), [ready]);
 
-  const columns = table.columns;
+  const columns = view.columns;
   const canWrite = level !== "view";
-  const [widths, setWidths] = useState<Record<string, number>>({});
-  const gridColumns: GridColumn[] = useMemo(() => columns.map((c) => ({ id: c.id, title: c.name, width: widths[c.id] ?? defaultWidth(c) })), [columns, widths]);
+  // While a column is being dragged wider the new width shows at once; the view saves it when the drag ends.
+  const [drag, setDrag] = useState<Record<string, number>>({});
+  const widthOf = useCallback((c: Column) => drag[c.id] ?? view.widths[c.key] ?? defaultWidth(c), [drag, view.widths]);
+  const gridColumns: GridColumn[] = useMemo(() => columns.map((c) => ({ id: c.id, title: c.name, width: widthOf(c), hasMenu: true })), [columns, widthOf]);
+  const ROW_HEIGHT = view.rowHeight;
+  const grouped = session.grouped;
+  const groupCols = useMemo(() => (session.query.group ?? []).map((g) => session.table.columns.find((c) => c.key === g.field)), [session]);
+
+  /** What a line of the grid is: a row of the list (by position) or the header of a group. */
+  const lineAt = useCallback(
+    (i: number): Line | undefined => {
+      if (grouped) return session.layout?.at(i);
+      return i >= 0 && i < store.count ? { type: "row", pos: i } : undefined;
+    },
+    // layoutVersion: the lines changed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [grouped, session, store, layoutVersion],
+  );
+  const rowAtLine = useCallback(
+    (i: number): Row | undefined => {
+      const l = lineAt(i);
+      return l?.type === "row" ? store.rowAt(l.pos) : undefined;
+    },
+    [lineAt, store],
+  );
+  const [menu, setMenu] = useState<{ x: number; y: number; col: Column } | null>(null);
 
   const ref = useRef<DataEditorRef>(null);
   const visible = useRef<Rectangle>({ x: 0, y: 0, width: 0, height: 0 });
@@ -121,41 +149,80 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
   // Names of people already known, for pasting a name into a user column.
   const peopleByName = useCallback(() => new Map([...labels.people].filter(([, n]) => n !== "—" && n !== "…").map(([id, n]) => [nameKey(n), id] as const)), [labels]);
 
+  // ---- group header lines -------------------------------------------------------------------------------------------
+  type HeaderLine = Extract<Line, { type: "header" }>;
+  const keyText = useCallback(
+    (depth: number, value: string | number | boolean | null): string => {
+      const col = groupCols[depth];
+      if (value === null) return "(Trống)";
+      if (!col) return String(value);
+      if (typeof value === "string" && ["user", "created_by", "modified_by"].includes(typeOf(col))) {
+        labels.wantPerson(value);
+        return labels.people.get(value) ?? "…";
+      }
+      return displayText(col, { id: "", data: { [col.key]: value } }, ctx);
+    },
+    // labelVersion: names that arrived later
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groupCols, ctx, labels, labelVersion],
+  );
+  const headerText = useCallback(
+    (line: HeaderLine): string => `${groupCols[line.group.depth]?.name ?? ""}: ${keyText(line.group.depth, line.group.path[line.group.depth] ?? null)} · ${formatCount(line.group.count, "dòng")}`,
+    [groupCols, keyText],
+  );
+  /** The total of one column on a group line, or null when the view asks none for it. */
+  const aggOf = useCallback(
+    (line: HeaderLine, col: Column): { label: string; text: string } | null => {
+      const fn = session.query.aggs?.[col.key];
+      if (!fn) return null;
+      const v = line.group.aggs[col.key];
+      const text = v === null || v === undefined ? "—" : fn === "count" ? formatNumber(Number(v)) : displayText(col, { id: "", data: { [col.key]: v } }, ctx);
+      return { label: AGG_SHORT[fn], text };
+    },
+    [session, ctx],
+  );
+
   // ---- reading cells ----------------------------------------------------------------------------------------------
   const getCellContent = useCallback(
     ([c, r]: Item): GridCell => {
       const col = columns[c];
-      const row = store.rowAt(r);
-      if (!col || !row) {
-        if (!row && r < store.count) void store.ensure(r);
-        return { kind: GridCellKind.Loading, allowOverlay: false };
+      const line = lineAt(r);
+      if (line?.type === "header") {
+        // Drawn by `drawCell`; the text is what Copy and the tooltip give.
+        const text = c === 0 ? headerText(line) : "";
+        return { kind: GridCellKind.Text, data: text, displayData: text, allowOverlay: false, readonly: true, copyData: text };
       }
+      const row = line ? store.rowAt(line.pos) : undefined;
+      if (!col || !row) return { kind: GridCellKind.Loading, allowOverlay: false };
       const reason = readOnlyReason(col, level);
       const ro = !canWrite || reason !== null;
       const v = cellValue(col, row);
       const type = typeOf(col);
       const err = cellError(col, v);
       const text = displayText(col, row, ctx);
-      if (err) return { kind: GridCellKind.Text, data: err, displayData: err, allowOverlay: true, readonly: true, contentAlign: "right", copyData: err, themeOverride: { textDark: token("--bad") } };
+      // A colour rule of the view (the server says which rules this row satisfies) tints the row.
+      const rule = row.marks?.length ? view.colors[row.marks[0]!] : undefined;
+      const tint = rule ? { bgCell: optionColor(rule.color) } : undefined;
+      if (err) return { kind: GridCellKind.Text, data: err, displayData: err, allowOverlay: true, readonly: true, contentAlign: "right", copyData: err, themeOverride: { ...tint, textDark: token("--bad") } };
 
       switch (type) {
         case "checkbox":
-          return { kind: GridCellKind.Boolean, data: v === true, allowOverlay: false, readonly: ro, copyData: text };
+          return { kind: GridCellKind.Boolean, data: v === true, allowOverlay: false, readonly: ro, copyData: text, themeOverride: tint };
         case "single_select":
         case "multi_select": {
           const ids = Array.isArray(v) ? (v as string[]) : typeof v === "string" ? [v] : [];
-          const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: !ro, copyData: text === "—" ? "" : text, data: { t: "select", ids, options: optionsOf(col), multi: type === "multi_select", readonly: ro } };
+          const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: !ro, copyData: text === "—" ? "" : text, data: { t: "select", ids, options: optionsOf(col), multi: type === "multi_select", readonly: ro }, themeOverride: tint };
           return cell;
         }
         case "rating": {
-          const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: !ro, copyData: typeof v === "number" ? String(v) : "", data: { t: "rating", value: typeof v === "number" ? v : null, max: col.config.max ?? 5, readonly: ro } };
+          const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: !ro, copyData: typeof v === "number" ? String(v) : "", data: { t: "rating", value: typeof v === "number" ? v : null, max: col.config.max ?? 5, readonly: ro }, themeOverride: tint };
           return cell;
         }
         case "user": {
           const id = typeof v === "string" ? v : null;
           if (id) labels.wantPerson(id);
           const name = id ? (labels.people.get(id) ?? "…") : "";
-          const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: !ro, copyData: name, data: { t: "person", id, name, readonly: ro } };
+          const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: !ro, copyData: name, data: { t: "person", id, name, readonly: ro }, themeOverride: tint };
           return cell;
         }
         case "created_by":
@@ -174,11 +241,13 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
         readonly: ro,
         contentAlign: NUMERIC.has(type) ? "right" : undefined,
         copyData: text === "—" ? "" : text,
+        allowWrapping: view.tall,
+        themeOverride: tint,
       };
     },
     // labelVersion makes a redraw pick up names that arrived later.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [columns, store, level, canWrite, ctx, labels, labelVersion],
+    [columns, store, level, canWrite, ctx, labels, labelVersion, lineAt, view.colors, view.tall, headerText],
   );
 
   // A tip describes a cell as it was when the pointer arrived; any change of the rows makes it stale (it is then not shown).
@@ -192,7 +261,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
     const cells: { cell: Item }[] = [];
     for (let r = v.y; r < v.y + v.height; r++) for (let c = v.x; c < v.x + v.width; c++) cells.push({ cell: [c, r] });
     g.updateCells(cells);
-  }, [version, labelVersion]);
+  }, [version, labelVersion, layoutVersion]);
 
   // ---- writing ----------------------------------------------------------------------------------------------------
   const run = useCallback(
@@ -224,7 +293,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
   const onCellEdited = useCallback(
     (cell: Item, newValue: GridCell) => {
       const col = columns[cell[0]];
-      const row = store.rowAt(cell[1]);
+      const row = rowAtLine(cell[1]);
       if (!col || !row || !canWrite) return;
       const parsed = valueFromCell(col, newValue);
       if (!parsed.ok) {
@@ -236,7 +305,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
         await session.edit([{ rowId: row.id, key: col.key, value: parsed.value }], `Sửa ô "${col.name}"`);
       });
     },
-    [columns, store, canWrite, valueFromCell, run, session],
+    [columns, store, canWrite, valueFromCell, run, session, rowAtLine],
   );
 
   const onPaste = useCallback(
@@ -251,7 +320,16 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
       if (matrix.length === 1 && matrix[0]!.length === 1 && range && (range.width > 1 || range.height > 1)) {
         matrix = Array.from({ length: range.height }, () => Array.from({ length: range.width }, () => matrix[0]![0]!));
       }
-      const plan = planPaste({ columns, rowAt: store.rowAt, rowCount: store.rows.length, startRow: target[1], startCol: target[0], matrix, level, peopleByName: peopleByName() });
+      if (grouped) {
+        const lastLine = target[1] + matrix.length - 1;
+        for (let i = target[1]; i <= lastLine; i++) {
+          if (lineAt(i)?.type !== "row") {
+            notify.error("Không dán qua dòng nhóm được. Chọn các dòng trong cùng một nhóm.");
+            return false;
+          }
+        }
+      }
+      const plan = planPaste({ columns, rowAt: rowAtLine, rowCount: session.lineCount, startRow: target[1], startCol: target[0], matrix, level, peopleByName: peopleByName() });
       if (plan.errors.length) {
         const e = plan.errors[0]!;
         notify.error(`Dòng ${e.row}, cột "${e.column}": ${e.message}${plan.errors.length > 1 ? ` (và ${plan.errors.length - 1} ô khác lỗi). Chưa ghi gì.` : " Chưa ghi gì."}`);
@@ -281,7 +359,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
       });
       return false;
     },
-    [canWrite, columns, level, peopleByName, run, selection, session, store],
+    [canWrite, columns, level, peopleByName, run, selection, session, grouped, lineAt, rowAtLine],
   );
 
   const onFillPattern = useCallback(
@@ -293,7 +371,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
       const edits: CellEdit[] = [];
       let skipped = 0;
       for (let r = dst.y; r < dst.y + dst.height; r++) {
-        const row = store.rowAt(r);
+        const row = rowAtLine(r);
         if (!row) continue;
         for (let c = dst.x; c < dst.x + dst.width; c++) {
           const col = columns[c];
@@ -304,7 +382,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
           const sc = src.x + (((c - src.x) % src.width) + src.width) % src.width;
           const sr = src.y + (((r - src.y) % src.height) + src.height) % src.height;
           const srcCol = columns[sc];
-          const srcRow = store.rowAt(sr);
+          const srcRow = rowAtLine(sr);
           if (!srcCol || !srcRow) continue;
           if (srcCol.id === col.id) edits.push({ rowId: row.id, key: col.key, value: srcRow.data[col.key] ?? null });
           else {
@@ -319,7 +397,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
         if (n) notify.ok(`Đã điền ${formatNumber(n)} ô${skipped ? `. Bỏ qua ${formatNumber(skipped)} ô` : ""}`);
       });
     },
-    [canWrite, store, columns, level, ctx, peopleByName, run, session],
+    [canWrite, columns, level, ctx, peopleByName, run, session, rowAtLine],
   );
 
   const onDelete = useCallback(
@@ -328,7 +406,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
       const edits: CellEdit[] = [];
       for (const rg of [sel.current.range, ...sel.current.rangeStack]) {
         for (let r = rg.y; r < rg.y + rg.height; r++) {
-          const row = store.rowAt(r);
+          const row = rowAtLine(r);
           if (!row) continue;
           for (let c = rg.x; c < rg.x + rg.width; c++) {
             const col = columns[c];
@@ -341,54 +419,82 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
       });
       return false;
     },
-    [canWrite, store, columns, level, run, session],
+    [canWrite, columns, level, run, session, rowAtLine],
   );
 
   // ---- selection, scroll, keyboard ------------------------------------------------------------------------------
   const onGridSelectionChange = useCallback(
     (s: GridSelection) => {
       setSelection(s);
-      const ids = s.rows.toArray().map((i) => store.rowAt(i)?.id).filter((x): x is string => !!x);
-      const active = s.current ? (store.rowAt(s.current.cell[1])?.id ?? null) : null;
+      const ids = s.rows.toArray().map((i) => rowAtLine(i)?.id).filter((x): x is string => !!x);
+      const active = s.current ? (rowAtLine(s.current.cell[1])?.id ?? null) : null;
       onSelection(ids, active);
     },
-    [onSelection, store],
+    [onSelection, rowAtLine],
+  );
+
+  /** The rows of the list behind display lines `from..to`: one range, or one per open group the lines touch. */
+  const rangesOf = useCallback(
+    (from: number, to: number): [number, number][] => (grouped ? (session.layout?.rowRanges(from, to) ?? []) : [[from, to]]),
+    [grouped, session],
+  );
+  const positionsOf = useCallback(
+    (from: number, to: number): [number, number] => {
+      const r = rangesOf(from, to);
+      return r.length ? [r[0]![0], r[r.length - 1]![1]] : [0, 0];
+    },
+    [rangesOf],
   );
 
   useEffect(() => {
     apiRef.current = {
-      selectedRowIds: () => selection.rows.toArray().map((i) => store.rowAt(i)?.id).filter((x): x is string => !!x),
-      activeRowId: () => (selection.current ? (store.rowAt(selection.current.cell[1])?.id ?? null) : null),
-      scrollToRow: (index) => ref.current?.scrollTo(0, index, "vertical", 0, 0, { vAlign: "center" }),
-      visibleRange: () => [visible.current.y, visible.current.y + visible.current.height],
+      selectedRowIds: () => selection.rows.toArray().map((i) => rowAtLine(i)?.id).filter((x): x is string => !!x),
+      activeRowId: () => (selection.current ? (rowAtLine(selection.current.cell[1])?.id ?? null) : null),
+      scrollToRow: (pos) => {
+        const line = grouped ? session.layout?.indexOfRow(pos) ?? -1 : pos;
+        if (line >= 0) ref.current?.scrollTo(0, line, "vertical", 0, 0, { vAlign: "center" });
+      },
+      visibleRange: () => positionsOf(visible.current.y, visible.current.y + visible.current.height),
     };
-  }, [apiRef, selection, store]);
+  }, [apiRef, selection, rowAtLine, grouped, session, positionsOf]);
 
   const onVisibleRegionChanged = useCallback(
     (range: Rectangle) => {
       visible.current = range;
-      if (range.y + range.height + 40 > store.rows.length) void store.ensure(range.y + range.height).catch(() => undefined);
+      // The blocks near the screen (a screenful of margin each way) are read; a jump of the scroll bar reads only the place it lands on.
+      store.want(rangesOf(range.y - 30, range.y + range.height + 60));
     },
-    [store],
+    [store, rangesOf],
   );
+  // The lines changed (groups opened or closed, new totals): the rows behind the screen are not the same.
+  useEffect(() => {
+    const v = visible.current;
+    if (v.height > 0) store.want(rangesOf(v.y - 30, v.y + v.height + 60));
+  }, [layoutVersion, rangesOf, store]);
 
   // Keep following the visible region with sync after someone else's change (see TableView) and while formulas are being calculated.
   useEffect(() => {
     let n = 0;
     const t = setInterval(() => {
-      const v = visible.current;
-      if (store.pendingIn(v.y, v.y + v.height) > 0 && n++ < 30) void store.sync(v.y, v.y + v.height).catch(() => undefined);
+      const [a, b] = positionsOf(visible.current.y, visible.current.y + visible.current.height);
+      if (store.pendingIn(a, b) > 0 && n++ < 30) void store.sync(a, b).catch(() => undefined);
       else n = 0;
     }, 2000);
     return () => clearInterval(t);
-  }, [store]);
+  }, [store, positionsOf]);
 
   // ---- hover tip: error meaning, "calculating", and the full text of a cut cell ----------------------------------
   const onItemHovered = useCallback(
     (args: { kind: string; location: Item; bounds?: Rectangle }) => {
       if (args.kind !== "cell" || !args.bounds) return setTip(null);
       const col = columns[args.location[0]];
-      const row = store.rowAt(args.location[1]);
+      const line = lineAt(args.location[1]);
+      if (line?.type === "header") {
+        const agg = col ? aggOf(line, col) : null;
+        const text = agg && col ? `${agg.label} của cột "${col.name}": ${agg.text}` : headerText(line);
+        return setTip({ x: args.bounds.x + Math.min(args.bounds.width, 240) / 2, y: args.bounds.y + args.bounds.height + 4, text, v: store.version });
+      }
+      const row = line ? store.rowAt(line.pos) : undefined;
       if (!col || !row) return setTip(null);
       const err = cellError(col, cellValue(col, row));
       let text: string | null = null;
@@ -396,7 +502,7 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
       else if (row.pending?.includes(col.key)) text = "Đang tính lại giá trị này.";
       else {
         const full = displayText(col, row, ctx);
-        const w = (widths[col.id] ?? defaultWidth(col)) - 16;
+        const w = widthOf(col) - 16;
         const c = document.createElement("canvas").getContext("2d");
         if (c && full.length > 3) {
           c.font = `14px ${FONT_STACK}`;
@@ -405,14 +511,19 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
       }
       setTip(text ? { x: args.bounds.x + Math.min(args.bounds.width, 240) / 2, y: args.bounds.y + args.bounds.height + 4, text, v: store.version } : null);
     },
-    [columns, store, ctx, widths],
+    [columns, store, ctx, widthOf, lineAt, aggOf, headerText],
   );
 
   const drawCell = useCallback(
     (args: { ctx: CanvasRenderingContext2D; col: number; row: number; rect: Rectangle }, draw: () => void) => {
-      draw();
       const col = columns[args.col];
-      const row = store.rowAt(args.row);
+      const line = lineAt(args.row);
+      if (line?.type === "header") {
+        drawHeaderLine(args.ctx, args.rect, line, args.col === 0 && col ? headerText(line) : null, col ? aggOf(line, col) : null, !!col && NUMERIC.has(typeOf(col)));
+        return;
+      }
+      draw();
+      const row = line ? store.rowAt(line.pos) : undefined;
       if (!col || !row?.pending?.includes(col.key)) return;
       // "Calculating": a ring with a gap, top right of the cell.
       const { ctx: c, rect } = args;
@@ -426,13 +537,22 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
       c.stroke();
       c.restore();
     },
-    [columns, store],
+    [columns, store, lineAt, headerText, aggOf],
   );
 
-  const rowsCount = store.count;
+  const onHeaderClick = useCallback(
+    (cell: Item) => {
+      // Opening or closing a group: the first cell of its line (a click or Enter), so a click elsewhere on the line only selects.
+      const line = lineAt(cell[1]);
+      if (line?.type === "header" && cell[0] === 0) session.toggleGroup(line.key);
+    },
+    [lineAt, session],
+  );
+
+  const rowsCount = session.lineCount;
   return (
     // data-* : the layout the browser tests use to find a cell on the canvas.
-    <div className="relative min-h-0 flex-1" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-marker-width={MARKER_WIDTH}>
+    <div className="relative min-h-0 flex-1" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-lines={rowsCount} data-marker-width={MARKER_WIDTH}>
       {theme && (
         <DataEditor
           ref={ref}
@@ -446,7 +566,18 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
           getCellContent={getCellContent}
           customRenderers={[soeRenderer]}
           isOutsideClick={(e) => !isInsidePopup(e)}
-          rowMarkers={{ kind: "both", width: MARKER_WIDTH }}
+          rowMarkers={grouped ? { kind: "checkbox", width: MARKER_WIDTH } : { kind: "both", width: MARKER_WIDTH }}
+          freezeColumns={view.frozen}
+          onCellClicked={onHeaderClick}
+          onCellActivated={onHeaderClick}
+          onHeaderMenuClick={(c, bounds) => {
+            const col = columns[c];
+            if (col) setMenu({ x: bounds.x, y: bounds.y + bounds.height, col });
+          }}
+          onColumnMoved={(from, to) => {
+            const col = columns[from];
+            if (col) view.onMove(col.key, to);
+          }}
           rowSelectionMode="multi"
           gridSelection={selection}
           onGridSelectionChange={onGridSelectionChange}
@@ -458,11 +589,16 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
           onFillPattern={onFillPattern}
           keybindings={{ downFill: true }}
           getCellsForSelection
-          onColumnResize={(c, w) => setWidths((s) => ({ ...s, [c.id ?? ""]: Math.max(70, Math.min(600, Math.round(w))) }))}
+          onColumnResize={(c, w) => setDrag((s) => ({ ...s, [c.id ?? ""]: clampWidth(w) }))}
+          onColumnResizeEnd={(c, w) => {
+            const col = columns.find((x) => x.id === c.id);
+            if (col) view.onWidth(col.key, clampWidth(w));
+            setDrag({});
+          }}
           onItemHovered={onItemHovered}
           drawCell={drawCell}
-          trailingRowOptions={canWrite ? { hint: "Thêm dòng", sticky: true, tint: true } : undefined}
-          onRowAppended={canWrite ? () => onAddRow().then(() => undefined) : undefined}
+          trailingRowOptions={canWrite && !grouped ? { hint: "Thêm dòng", sticky: true, tint: true } : undefined}
+          onRowAppended={canWrite && !grouped ? () => onAddRow().then(() => undefined) : undefined}
           smoothScrollX
           smoothScrollY
           overscrollX={0}
@@ -478,6 +614,9 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
           }}
         />
       )}
+      <PointPopover at={menu} label={menu ? `Cột ${menu.col.name}` : "Cột"} onClose={() => setMenu(null)}>
+        {menu && <HeaderMenu col={menu.col} frozen={view.frozen} index={columns.findIndex((c) => c.id === menu.col.id)} sole={columns.length <= 1} onAction={(a) => { view.onHeaderAction(menu.col.key, a); setMenu(null); }} />}
+      </PointPopover>
       {tip && tip.v === version && (
         <div role="tooltip" className="pointer-events-none fixed z-[70] max-w-xs -translate-x-1/2 rounded-md bg-foreground px-2 py-1 text-xs text-background shadow-md [overflow-wrap:anywhere]" style={{ left: tip.x, top: tip.y }}>
           {tip.text}
@@ -485,6 +624,90 @@ export function TableGrid({ session, level, onOpenRow, onSelection, apiRef, onAd
       )}
     </div>
   );
+}
+
+const clampWidth = (w: number) => Math.max(70, Math.min(600, Math.round(w)));
+
+const AGG_SHORT = { count: "Đếm", sum: "Tổng", avg: "TB", min: "Nhỏ nhất", max: "Lớn nhất" } as const;
+
+function HeaderMenu({ col, frozen, index, sole, onAction }: { col: Column; frozen: number; index: number; sole: boolean; onAction: (a: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group") => void }) {
+  const item = "flex min-h-11 w-full items-center rounded px-2 text-left hover:bg-muted sm:min-h-9 disabled:opacity-50";
+  const kind = kindOf(col);
+  const [asc, desc] = kind === "date" || kind === "datetime" ? ["Sắp xếp cũ → mới", "Sắp xếp mới → cũ"] : kind === "number" ? ["Sắp xếp nhỏ → lớn", "Sắp xếp lớn → nhỏ"] : kind === "select" ? ["Sắp xếp theo thứ tự lựa chọn", "Sắp xếp ngược thứ tự lựa chọn"] : ["Sắp xếp A → Z", "Sắp xếp Z → A"];
+  return (
+    <div role="menu" className="flex flex-col">
+      {isSortable(col) && (
+        <>
+          <button type="button" role="menuitem" className={item} onClick={() => onAction("asc")}>{asc}</button>
+          <button type="button" role="menuitem" className={item} onClick={() => onAction("desc")}>{desc}</button>
+        </>
+      )}
+      {isGroupable(col) && <button type="button" role="menuitem" className={item} onClick={() => onAction("group")}>Nhóm theo cột này</button>}
+      <button type="button" role="menuitem" className={item} onClick={() => onAction(index + 1 === frozen ? "unfreeze" : "freeze")}>{index + 1 === frozen ? "Bỏ cố định" : "Cố định đến cột này"}</button>
+      <button type="button" role="menuitem" className={item} disabled={sole} onClick={() => onAction("hide")}>Ẩn cột</button>
+    </div>
+  );
+}
+
+/** A group line: a chevron (open or closed), the name of the group and its row count, and the totals the view asks for. */
+function drawHeaderLine(c: CanvasRenderingContext2D, rect: Rectangle, line: Extract<Line, { type: "header" }>, label: string | null, agg: { label: string; text: string } | null, numeric: boolean) {
+  c.save();
+  c.fillStyle = token(line.group.depth === 0 ? "--selected" : "--muted");
+  c.fillRect(rect.x, rect.y, rect.width, rect.height);
+  c.fillStyle = token("--border");
+  c.fillRect(rect.x, rect.y + rect.height - 1, rect.width, 1);
+  c.textBaseline = "middle";
+  const cy = rect.y + rect.height / 2;
+  if (label !== null) {
+    const x = rect.x + 14 + line.group.depth * 16;
+    c.strokeStyle = token("--foreground");
+    c.lineWidth = 1.75;
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.beginPath();
+    if (line.open) {
+      c.moveTo(x - 4, cy - 2);
+      c.lineTo(x, cy + 2);
+      c.lineTo(x + 4, cy - 2);
+    } else {
+      c.moveTo(x - 2, cy - 4);
+      c.lineTo(x + 2, cy);
+      c.lineTo(x - 2, cy + 4);
+    }
+    c.stroke();
+    c.font = `600 14px ${FONT_STACK}`;
+    c.fillStyle = token("--foreground");
+    c.textAlign = "left";
+    c.fillText(fit(c, label, rect.x + rect.width - (x + 12) - 8), x + 12, cy + 1);
+  } else if (agg) {
+    const pad = 8;
+    c.font = `600 14px ${FONT_STACK}`;
+    c.fillStyle = token("--foreground");
+    const valueW = c.measureText(agg.text).width;
+    c.textAlign = numeric ? "right" : "left";
+    c.fillText(agg.text, numeric ? rect.x + rect.width - pad : rect.x + pad, cy + 1);
+    // The kind of total ("Tổng") shows when it fits next to the number.
+    c.font = `400 12px ${FONT_STACK}`;
+    c.fillStyle = token("--muted-foreground");
+    if (c.measureText(agg.label).width + valueW + pad * 3 < rect.width) {
+      c.textAlign = numeric ? "left" : "right";
+      c.fillText(agg.label, numeric ? rect.x + pad : rect.x + rect.width - pad, cy + 1);
+    }
+  }
+  c.restore();
+}
+
+/** The text cut at the end with an ellipsis to fit `max` pixels (a group name is never cut silently: the tooltip has all of it). */
+function fit(c: CanvasRenderingContext2D, text: string, max: number): string {
+  if (max <= 0 || c.measureText(text).width <= max) return text;
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (c.measureText(`${text.slice(0, mid)}…`).width <= max) lo = mid;
+    else hi = mid - 1;
+  }
+  return `${text.slice(0, lo)}…`;
 }
 
 export type { Row };

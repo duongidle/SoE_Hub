@@ -1,7 +1,7 @@
 import { parseLocaleDate, TIME_PRESETS, TIME_PRESET_LABELS, formatNumber, type FilterNode, type TimeFilter, type TimeRange } from "@soe/shared";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, CalendarRange, ChevronLeft, ChevronRight, EyeOff, Filter, Group, PaintBucket, Pin, Plus, Search, Trash2, X, ArrowUpDown, Rows3 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, Input, Select } from "@/components/ui/form";
 import { Popover } from "@/components/ui/popover";
 import { dhKeys, resolveTimeRange } from "@/lib/datahub/api";
@@ -311,6 +311,7 @@ function RowHeightButton({ value, change }: { value: RowHeight; change: Change }
 const COLOR_NAMES: Record<string, string> = { gray: "Xám", blue: "Xanh dương", green: "Xanh lá", orange: "Cam", red: "Đỏ", purple: "Tím", yellow: "Vàng", teal: "Xanh ngọc", pink: "Hồng" };
 
 type DraftRule = { id: number; color: string; filter: FilterNode | undefined };
+let ruleSeq = 0;
 
 function ColorsButton({ columns, config, change }: { columns: Column[]; config: ViewConfig; change: Change }) {
   const n = config.colors?.length ?? 0;
@@ -322,8 +323,7 @@ function ColorsButton({ columns, config, change }: { columns: Column[]; config: 
 }
 
 function ColorRules({ columns, saved, onChange }: { columns: Column[]; saved: ColorRule[]; onChange: (rules: ColorRule[]) => void }) {
-  const next = useRef(1);
-  const [rules, setRules] = useState<DraftRule[]>(() => saved.map((r) => ({ id: next.current++, color: r.color, filter: r.filter })));
+  const [rules, setRules] = useState<DraftRule[]>(() => saved.map((r) => ({ id: ++ruleSeq, color: r.color, filter: r.filter })));
   const commit = (list: DraftRule[]) => {
     setRules(list);
     onChange(list.filter((r): r is DraftRule & { filter: FilterNode } => !!r.filter).map((r) => ({ filter: r.filter, color: r.color })));
@@ -348,7 +348,7 @@ function ColorRules({ columns, saved, onChange }: { columns: Column[]; saved: Co
         </div>
       ))}
       <div>
-        <Button variant="secondary" disabled={rules.length >= MAX_COLORS} onClick={() => setRules([...rules, { id: next.current++, color: OPTION_COLORS[(rules.length % (OPTION_COLORS.length - 1)) + 1]!, filter: undefined }])}>
+        <Button variant="secondary" disabled={rules.length >= MAX_COLORS} onClick={() => setRules([...rules, { id: ++ruleSeq, color: OPTION_COLORS[(rules.length % (OPTION_COLORS.length - 1)) + 1]!, filter: undefined }])}>
           <Plus size={16} aria-hidden /> Thêm quy tắc
         </Button>
       </div>
@@ -381,16 +381,9 @@ function TimeButton({ columns, dateCols, config, change }: { columns: Column[]; 
   const choices = dateChoices(dateCols);
   const info = useRangeInfo(tf?.range);
   const set = (next: TimeFilter | undefined) => change({ time_filter: next });
-  const [text, setText] = useState({ from: "", to: "" });
   const nameOf = (key: string) => choices.find((c) => c.key === key)?.name ?? columns.find((c) => c.key === key)?.name ?? key;
   const kind = !tf ? "none" : tf.range.kind === "preset" ? (tf.range.preset === "last_n_days" ? "last_n_days" : tf.range.preset) : tf.range.kind;
   const defaultColumns = [dateCols[0]?.key ?? "_created_at"];
-
-  useEffect(() => {
-    if (tf?.range.kind === "between") setText({ from: tf.range.from ? isoToText(tf.range.from) : "", to: tf.range.to ? isoToText(tf.range.to) : "" });
-    // only when another view or range is loaded
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tf?.range.kind]);
 
   const choose = (value: string) => {
     const cols = tf?.columns ?? defaultColumns;
@@ -409,16 +402,6 @@ function TimeButton({ columns, dateCols, config, change }: { columns: Column[]; 
     if (!tf || !info.data) return;
     set({ ...tf, range: currentPeriod(unit, info.data) });
   };
-  const between = (side: "from" | "to", value: string) => {
-    setText((t) => ({ ...t, [side]: value }));
-    if (!tf || tf.range.kind !== "between") return;
-    const iso = value.trim() === "" ? null : parseLocaleDate(value);
-    if (value.trim() !== "" && !iso) return;
-    set({ ...tf, range: { ...tf.range, [side]: iso } });
-  };
-  const textError = (v: string) => (v.trim() !== "" && !parseLocaleDate(v) ? "Nhập dạng dd/mm/yyyy, ví dụ 18/11/2026." : null);
-  const order = tf?.range.kind === "between" && tf.range.from && tf.range.to && tf.range.from > tf.range.to ? "Ngày bắt đầu phải trước hoặc cùng ngày kết thúc." : null;
-
   return (
     <Popover label="Lọc theo thời gian" width="w-[28rem]" trigger={<ToolButton icon={<CalendarRange size={16} aria-hidden />} label="Thời gian" active={!!tf} />}>
       <div className="flex flex-col gap-3">
@@ -448,17 +431,7 @@ function TimeButton({ columns, dateCols, config, change }: { columns: Column[]; 
             <Button variant="secondary" className="!px-2" aria-label="Kỳ sau" onClick={() => set({ ...tf, range: stepPeriod(period, 1) })}><ChevronRight size={16} aria-hidden /></Button>
           </div>
         )}
-        {tf?.range.kind === "between" && (
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Input aria-label="Từ ngày" className="!w-36" inputMode="numeric" placeholder="Từ dd/mm/yyyy" value={text.from} onChange={(e) => between("from", e.target.value)} />
-              <span>đến</span>
-              <Input aria-label="Đến ngày" className="!w-36" inputMode="numeric" placeholder="Đến dd/mm/yyyy" value={text.to} onChange={(e) => between("to", e.target.value)} />
-            </div>
-            {[textError(text.from), textError(text.to), order].filter(Boolean).map((m) => <p key={m} role="alert" className="text-xs text-bad">{m}</p>)}
-            <p className="text-xs text-muted-foreground">Bỏ trống một đầu để không giới hạn đầu đó.</p>
-          </div>
-        )}
+        {tf?.range.kind === "between" && <BetweenInputs key={tf.range.kind} tf={tf} range={tf.range} set={set} />}
         {tf && (
           <>
             <p className="text-muted-foreground" aria-live="polite">{rangeDates(info.data) || (info.isLoading ? "…" : "")}</p>
@@ -480,6 +453,30 @@ function TimeButton({ columns, dateCols, config, change }: { columns: Column[]; 
         <p className="text-xs text-muted-foreground">Kết hợp với bộ lọc điều kiện. Tuần bắt đầu từ thứ Hai, giờ Việt Nam.</p>
       </div>
     </Popover>
+  );
+}
+
+function BetweenInputs({ tf, range, set }: { tf: TimeFilter; range: Extract<TimeRange, { kind: "between" }>; set: (next: TimeFilter) => void }) {
+  // The text the person types is kept as typed; a range is saved only once the text reads as a date (or is empty).
+  const [text, setText] = useState({ from: range.from ? isoToText(range.from) : "", to: range.to ? isoToText(range.to) : "" });
+  const change = (side: "from" | "to", value: string) => {
+    setText((t) => ({ ...t, [side]: value }));
+    const iso = value.trim() === "" ? null : parseLocaleDate(value);
+    if (value.trim() !== "" && !iso) return;
+    set({ ...tf, range: { ...range, [side]: iso } });
+  };
+  const textError = (v: string) => (v.trim() !== "" && !parseLocaleDate(v) ? "Nhập dạng dd/mm/yyyy, ví dụ 18/11/2026." : null);
+  const order = range.from && range.to && range.from > range.to ? "Ngày bắt đầu phải trước hoặc cùng ngày kết thúc." : null;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input aria-label="Từ ngày" className="!w-36" inputMode="numeric" placeholder="Từ dd/mm/yyyy" value={text.from} onChange={(e) => change("from", e.target.value)} />
+        <span>đến</span>
+        <Input aria-label="Đến ngày" className="!w-36" inputMode="numeric" placeholder="Đến dd/mm/yyyy" value={text.to} onChange={(e) => change("to", e.target.value)} />
+      </div>
+      {[textError(text.from), textError(text.to), order].filter(Boolean).map((m) => <p key={m} role="alert" className="text-xs text-bad">{m}</p>)}
+      <p className="text-xs text-muted-foreground">Bỏ trống một đầu để không giới hạn đầu đó.</p>
+    </div>
   );
 }
 
