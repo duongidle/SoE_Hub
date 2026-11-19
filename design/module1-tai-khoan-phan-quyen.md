@@ -119,6 +119,8 @@ Quyền là chuỗi `<miền>:<đối tượng>:<hành động>`, ví dụ `syst
 
 ### 4.1 Quản lý Deal
 
+> Sửa 19/11/2026: phạm vi dưới đây giờ là kết quả của cơ chế **khoá phân chia** chung cho mọi bảng (Module 2 mục 10, Module 4 mục 3.5), không còn là luật riêng của Deals. Quyền sửa từng cột theo "cho phép sửa" (Module 4 mục 4.3); mọi người tham gia deal có cùng quyền. Manager tắt được khoá phân chia của Deals.
+
 | Vai trò | Thấy | Sửa |
 |---|---|---|
 | User | Deal mình tham gia | Cột theo luật 3 loại cột (Module 4) |

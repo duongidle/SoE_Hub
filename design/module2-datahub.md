@@ -2,6 +2,7 @@
 
 > Trạng thái: **Đã chốt** · 18/11/2026
 > Phụ thuộc: [Module 0](module0-nen-tang.md) (registry, lịch sử dòng, bộ lọc, keyset, outbox, thùng rác), [Module 1](module1-tai-khoan-phan-quyen.md) (chủ sở hữu, chia sẻ, phạm vi dữ liệu).
+> **Sửa 19/11/2026 (Dương chốt, theo Module 4):** chia sẻ thống nhất cho mọi bảng: thành viên Xem/Sửa, **khoá phân chia** bật/tắt, cho phép sửa theo từng cột, ô Người dùng chỉ nhận thành viên (mục 4, 10). Code ở bước con đầu của Stage 4.
 > Để module sau: Dashboard (Module 3); bảng Deals và ba nguồn cột (Module 4); MCP (Module 5); Form ghi vào bảng (Module 7).
 
 Datahub là linh hồn của hệ thống: mọi dữ liệu người dùng tự định nghĩa đều nằm ở đây, mọi API gọi đến hay mang đi đều là "Datahub A – Bảng 1 của User X".
@@ -54,7 +55,8 @@ Lý do: khi viết công thức `[Datahub B].[Thanh toán].[Số tiền]`, mỗi
 | Tính toán | Công thức, Số tự tăng |
 | Hệ thống | Mã dòng, Ngày tạo, Người tạo, Ngày sửa, Người sửa |
 
-- Thuộc tính cột: bắt buộc, duy nhất, giá trị mặc định, mô tả, định dạng hiển thị (số chữ số thập phân, dấu phân cách, đơn vị).
+- Thuộc tính cột: bắt buộc, duy nhất, giá trị mặc định, mô tả, định dạng hiển thị (số chữ số thập phân, dấu phân cách, đơn vị), **cho phép sửa** (mục 10).
+- **Ô Người dùng chỉ nhận thành viên của bảng** (chủ bảng và người trong danh sách chia sẻ, mục 10). Ô chọn chỉ gợi ý những người này. Muốn tag người mới thì chủ thêm người đó vào danh sách chia sẻ trước. API, MCP, import, form ghi người ngoài danh sách thì nhận lỗi có cấu trúc.
 - Server kiểm tra giá trị theo kiểu ở **mọi kênh** (web, API, MCP, import, form).
 - Đổi kiểu cột: hệ thống chuyển đổi giá trị nếu được. Giá trị nào không chuyển được thì báo trước khi làm, và lưu lại trong lịch sử để khôi phục.
 
@@ -285,12 +287,31 @@ Ví dụ thực tế: sheet `Index` của file deal mẫu, mỗi dòng là một
 
 ## 10. Chia sẻ
 
+Một cơ chế chia sẻ cho **mọi bảng** của mọi datahub, kể cả bảng template của Module 4 (sửa 19/11/2026).
+
 | Cách chia sẻ | Người nhận thấy |
 |---|---|
 | Cả datahub | Mọi bảng, kể cả bảng tạo sau này |
 | Từng bảng | Datahub hiện trong mục "Được chia sẻ với tôi", **chỉ thấy các bảng được chia sẻ**, không thấy bảng khác |
 
-- Quyền: **Xem** hoặc **Sửa dữ liệu**. Chỉ chủ sửa được cấu trúc (bảng, cột, công thức, view chung).
+**Danh sách thành viên.** Mỗi người có quyền **Xem** hoặc **Sửa**. Sửa gồm thêm dòng, sửa ô, xoá dòng mình thấy. Chỉ chủ sửa được cấu trúc (bảng, cột, công thức, view chung).
+
+**Cho phép sửa theo cột.** Chủ đặt cho từng cột: cho phép hay không cho phép sửa (mặc định cho phép với bảng thường, không cho phép với bảng template). Một người sửa được ô khi có quyền Sửa **và** cột được cho phép. Chủ luôn sửa được. Cột công thức không ai sửa ô.
+
+**Khoá phân chia (bật/tắt, mặc định tắt).**
+
+- Tắt: thành viên thấy mọi dòng của bảng.
+- Bật: chủ chọn **1 đến 5 cột khoá**, bắt buộc kiểu **Người dùng**, và một **cột khoá chính**. Mỗi cột khoá có một index; lọc dòng là phép OR qua các cột khoá, chạy ở server như mọi bộ lọc.
+- **Ai thấy dòng khi bật:** chủ thấy mọi dòng. Thành viên thấy dòng có tên **mình hoặc người mình quản lý** (theo cây tổ chức hiện tại: Leader với team, Manager với cả cây) ở bất kỳ cột khoá nào. Luật này chỉ áp cho người đã là thành viên, nên datahub riêng vẫn riêng tư.
+- Sửa dòng của cấp dưới: Manager sửa được; Leader chỉ sửa khi người đó bật "Cho phép leader sửa" (Module 1 mục 4.1); trong mọi trường hợp vẫn phải có quyền Sửa và cột được cho phép.
+- Thành viên thêm dòng: tên người thêm được tự điền vào cột khoá chính (để họ thấy dòng mình vừa thêm).
+- Bị gỡ khỏi mọi cột khoá: dòng biến mất khỏi bảng của người đó. Giá trị cột riêng họ đã nhập được giữ lại, gắn lại thì hiện lại.
+- Tổng hợp (nhóm, dòng tổng, dashboard, export, API, MCP) chỉ tính trên các dòng người đọc thấy.
+
+**Gỡ một thành viên** đang được tag ở các dòng: trước khi gỡ, hệ thống báo "Người này đang được tag ở N dòng". Gỡ xong, tag giữ nguyên để không mất lịch sử, ô hiện "không còn quyền"; người bị gỡ không còn xem được bảng.
+
+**Luật cũ giữ nguyên**
+
 - Bảng được chia sẻ có cột Liên kết/Lookup/công thức lấy từ bảng không được chia sẻ: người nhận thấy **giá trị** trong bảng được chia sẻ, nhưng không mở được dòng ở bảng kia.
 - Người nhận không dùng bảng được chia sẻ trong công thức của mình.
 - Leader, Manager, Admin **không** thấy datahub của người khác nếu không được chia sẻ (Module 1 mục 4.2).

@@ -50,7 +50,7 @@ Khách mua POD và PS là **hai deal**, liên kết với nhau. Cách này khớ
 
 ## 2. Dữ liệu dùng chung và phạm vi
 
-- **Deals:** một bản ghi mỗi deal, lưu ở `dh_rows` như mọi bảng của Datahub. **Không có bảng `deals` riêng, không có cột thật của Postgres** (sửa 19/11). Deals là bảng template chung, khoá phân chia là `Người tham gia` (mục 3.5). Bảng Deals trong datahub của mỗi người là **cùng tập bản ghi đó, đã áp phạm vi**: User thấy deal mình tham gia, Leader thấy của mình và team, Manager thấy cả cây, Admin xem mọi cây ở chế độ chỉ đọc (Module 1 mục 4.1).
+- **Deals:** một bản ghi mỗi deal, lưu ở `dh_rows` như mọi bảng của Datahub. **Không có bảng `deals` riêng, không có cột thật của Postgres** (sửa 19/11). Deals là bảng template chung, **khoá phân chia bật**, khoá là `Người tham gia` (mục 3.5, Module 2 mục 10). Phạm vi dưới đây là kết quả của luật khoá phân chia chung, không phải luật riêng của Deals. Manager tắt được khoá phân chia của Deals (có cảnh báo): khi đó mọi người trong cây thấy mọi deal. Bảng Deals trong datahub của mỗi người là **cùng tập bản ghi đó, đã áp phạm vi**: User thấy deal mình tham gia, Leader thấy của mình và team, Manager thấy cả cây, Admin xem mọi cây ở chế độ chỉ đọc (Module 1 mục 4.1).
 - **Probation KPI:** một bản ghi mỗi (người, năm), phạm vi giống Deals.
 - **Index, Thanh toán, bảng tự tạo:** của riêng chủ datahub, theo luật riêng tư của Datahub (Module 1 mục 4.2).
 - Mỗi deal thuộc **một cây** (đặt lúc tạo). Team của deal để báo cáo = team của người Leading **tại Start date**.
@@ -144,19 +144,21 @@ Bảng template là bảng **có sẵn cột**, do người có quyền dựng �
 
 **Bảng chung**
 
-- **Khoá phân chia** bắt buộc là cột kiểu **Người dùng** (chọn tài khoản trong hệ thống), có thể kèm thuộc tính như `Người tham gia` (mục 4.5). Cột kiểu khác không chọn làm khoá được.
-- Mỗi bảng chung có **1 đến 5 cột khoá** (ví dụ `Người được đánh giá` và `Người hướng dẫn`). Mỗi cột khoá có một index; câu lọc dòng là phép OR qua các cột khoá. Deals giữ một khoá là `Người tham gia`, vì % doanh thu và % com phải cộng không quá 100% trong cùng một cột.
-- **Ai thấy dòng:** người có tên ở bất kỳ cột khoá nào; người tạo bảng thấy mọi dòng trong phạm vi; Leader thấy dòng có người trong team mình ở bất kỳ cột khoá nào; Manager thấy mọi dòng trong cây, kể cả bảng do Leader trong cây tạo (chỉ đọc nếu không phải người tạo); Admin xem chỉ đọc như Deals. Giống luật xem deal (mục 2).
-- **Bị gỡ khỏi mọi cột khoá:** dòng biến mất khỏi bảng của người đó. Giá trị cột riêng họ đã nhập được giữ lại và ẩn đi; gắn lại thì hiện lại.
+Bảng chung dùng đúng cơ chế chia sẻ của Module 2 mục 10, không có luật riêng:
+
+- **Thành viên** tự sinh theo phạm vi: cả cây với bảng của Manager, cả team với bảng của Leader (Manager của cây được thêm với quyền Xem). Người mới vào cây hay team tự được thêm, người rời đi tự bị gỡ. Người tạo bảng thêm người khác như chia sẻ thường. Mặc định: thành viên có quyền Sửa với Deals và Probation KPI; bảng do Manager, Leader tạo thì người tạo chọn.
+- **Khoá phân chia** bật hay tắt do người tạo bảng chọn (Module 2 mục 10): 1–5 cột khoá kiểu Người dùng, một cột khoá chính. Deals bật sẵn với một khoá `Người tham gia`, vì % doanh thu và % com phải cộng không quá 100% trong cùng một cột.
+- Ô Người dùng (kể cả `Người tham gia`) chỉ nhận thành viên của bảng.
 - Bảng template không tự sinh cột "của tôi" nào. Riêng Deals giữ các cột tự điền từ `Người tham gia` đã chốt ở mục 4.1 và 4.5.
-- **Ai thêm dòng:** người tạo bảng chọn khi tạo. (a) Chỉ người tạo bảng (mặc định; Deals dùng cách này, người tạo là Manager của cây). (b) Mọi người trong phạm vi; bảng phải chọn một **cột khoá chính**, người thêm dòng được tự điền vào cột đó (ví dụ bảng "mỗi người tự báo cáo" của Leader).
-- Xoá dòng: xoá mềm theo Module 2, chỉ người tạo bảng. Deals giữ luật riêng: không xoá cứng, chỉ `Huỷ`.
+- Admin xem chỉ đọc mọi bảng chung trong datahub "Quản lý Deal" như Deals.
+- Xoá dòng: xoá mềm theo Module 2. Deals giữ luật riêng: không xoá cứng, chỉ Manager đánh dấu `Huỷ`.
 
 ### 3.6 Quyền sửa ô trong bảng template
 
-- **Người tạo bảng cho phép hoặc không cho phép sửa từng cột template.** Cho phép thì người thấy dòng sửa được ô của cột đó; không cho phép thì chỉ xem. Mặc định không cho phép. Không có lựa chọn chi tiết hơn (theo nhãn, theo cột khoá).
+- Theo Module 2 mục 10: một người sửa được ô khi có quyền **Sửa** trong danh sách thành viên **và** cột được **cho phép sửa**. Người tạo bảng đặt cho phép hay không cho từng cột, mặc định không cho phép. Không có lựa chọn chi tiết hơn (theo nhãn, theo cột khoá).
+- Mọi người thấy dòng có cùng quyền với cột được cho phép. Không phân biệt Leading với Associate (Dương chốt 19/11/2026).
+- Người tạo bảng luôn sửa được. Cột không cho phép thì chỉ người tạo bảng sửa.
 - Cột công thức không ai sửa ô; chỉ sửa công thức ở trang Template.
-- Bảng do Manager tạo: Manager luôn sửa được. Bảng Deals giữ luật đã chốt: Leader sửa được khi thành viên bật "Cho phép leader sửa deal của tôi". Bảng mục 4.3 là cấu hình mặc định của Deals theo luật này.
 - **Cột riêng** (lớp Tuỳ chỉnh) của mỗi người: chỉ người đó thấy và sửa. Không ai cấp, không ai khác xem.
 
 ### 3.7 Vai trò cột
@@ -196,7 +198,7 @@ Một số chức năng cần biết cột nào mang nghĩa gì. Thay vì viết
 
 **Chức năng**
 
-- Tạo bảng template: tên, kiểu (chung / riêng), 1–5 cột khoá phân chia kiểu Người dùng, ai thêm dòng và cột khoá chính (mục 3.5).
+- Tạo bảng template: tên, kiểu (chung / riêng), quyền mặc định của thành viên, khoá phân chia bật/tắt với 1–5 cột khoá kiểu Người dùng và cột khoá chính (mục 3.5).
 - Đổi tên bảng, bỏ bảng (lưu trữ), khôi phục.
 - Thêm, sửa, đổi tên, bỏ cột; thuộc tính cột (mục 3.4); quyền sửa ô (mục 3.6); vai trò cột (mục 3.7).
 - **Quyền theo bảng nằm ngay trên trang này**, không tách ra Cài đặt: mỗi bảng có tuỳ chọn "Leader được thêm cột team: có / không", Admin và Manager đặt. Mặc định **tắt** với Deals, Chính sách com, Tham số com, Thanh toán; **bật** với Index, Probation KPI. Leader không bao giờ đổi tên, bỏ, đổi kiểu cột của lớp khác; với bảng chung chỉ thêm cột lớp Theo team và sửa công thức cho team (mục 3.3).
@@ -248,16 +250,18 @@ Không đưa vào template ban đầu (Manager thêm khi cần, hoặc mỗi ng�
 
 ### 4.3 Quyền sửa mặc định
 
-| Cột | Leading | Associate, Advisor | Leader | Manager |
-|---|---|---|---|---|
-| Cột 1–12, 18, 19 | Sửa (trừ Loại deal) | Xem | Xem; sửa nếu thành viên cho phép | Sửa |
-| Loại deal, `Huỷ` | Xem | Xem | Xem | Sửa |
-| Người tham gia (cột của Manager) | — | — | — | Sửa |
-| Cột tự điền từ Người tham gia (14, 17, 17a, 17b, cột % của team) | Xem | Xem | Xem | Xem (sửa qua Người tham gia) |
-| Cột công thức | — | — | — | — |
-| Cột tuỳ chỉnh của mình | Sửa | Sửa | Sửa | Sửa |
+Theo mục 3.6: thành viên có quyền Sửa; cột được cho phép thì mọi người thấy deal sửa được, cột không cho phép thì chỉ Manager (người tạo bảng) sửa.
 
-"Thành viên cho phép" = tuỳ chọn "Cho phép leader sửa deal của tôi" (Module 1 mục 4.1). Đây là cấu hình mặc định của Deals theo mục 3.6; Admin, Manager đổi quyền từng cột ở trang Template.
+| Cột | Cho phép sửa | Ghi chú |
+|---|---|---|
+| Cột 1–12, 18, 19 (trừ Loại deal) | Có | Mọi người tham gia deal sửa như nhau. Leader sửa deal của team khi thành viên bật "Cho phép leader sửa deal của tôi" |
+| Loại deal, `Huỷ` | Không | Manager |
+| Người tham gia | Không | Manager |
+| Cột tự điền từ Người tham gia (14, 17, 17a, 17b, cột % của team) | Không | Sửa qua Người tham gia |
+| Cột công thức | — | Không ai sửa ô |
+| Cột tuỳ chỉnh của mình | — | Chỉ chủ cột |
+
+Admin, Manager đổi cho phép sửa từng cột ở trang Template.
 
 ### 4.4 Status
 
@@ -498,6 +502,8 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 | Chỉ có các bảng mặc định cố định | Manager, Leader **tạo bảng template** (chung có khoá phân chia, hoặc riêng) | Module 2, CLAUDE.md |
 | Quyền sửa ô theo danh sách cố định (mục 3.4 cũ) | **Người tạo bảng cấp** quyền sửa từng cột | — |
 | Leader thêm cột team vào mọi bảng mặc định | Bật/tắt theo bảng; tắt mặc định với Deals, Chính sách com, Tham số com, Thanh toán | CLAUDE.md |
+| Phạm vi xem deal là luật riêng của Deals (Module 1 mục 4.1); Leading sửa, Associate/Advisor chỉ xem (mục 4.3 cũ) | Một cơ chế chia sẻ cho mọi bảng: thành viên Xem/Sửa, **khoá phân chia** bật/tắt (thấy dòng có tên mình hoặc người mình quản lý), cho phép sửa theo cột; mọi người tham gia có cùng quyền; Manager tắt được khoá phân chia của Deals | Module 1 mục 4.1, Module 2 mục 4, 10, code 2C-4 (chia sẻ), CLAUDE.md |
+| Ô Người dùng chọn được mọi người trong hệ thống | Chỉ nhận thành viên của bảng | Module 2 mục 4, code 2C-3 |
 | Golden test so số với Excel (Module 0 mục 21) | So với script tham chiếu trên `Raw PODPS` (mục 17) | Module 0, Stage 2B |
 
 ## 19. Kiểm tra với Module 2 khi code Stage 4
@@ -516,3 +522,4 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 10. Giới hạn bảng và cột áp đúng cho datahub "Quản lý Deal".
 11. **Vai trò cột** (mục 3.7): lưu ở định nghĩa cột; khoá kỳ, forecast, snapshot, BANT, Index, API ngoài đọc cột theo vai trò; chặn đổi kiểu/bỏ cột làm vai trò mất cột.
 12. Bảng template riêng (Index) sinh cho mọi người trong phạm vi; ẩn/hiện khi đổi team.
+13. **Bước con đầu của Stage 4:** mở rộng chia sẻ Module 2 mục 10 (khoá phân chia, cho phép sửa theo cột, ô Người dùng chỉ nhận thành viên, gỡ thành viên đang được tag) cho mọi bảng, có test phân quyền; rồi mới dựng Deals trên đó.
