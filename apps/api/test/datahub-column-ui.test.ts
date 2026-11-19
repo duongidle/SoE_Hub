@@ -113,3 +113,45 @@ describe("column structure for people the table is shared with", () => {
     expect((await owner("datahub.table.get", { table_id: x.tableId })).columns.find((c: { key: string }) => c.key === f.key).config.formula).toBe("=[Doanh thu]*2");
   });
 });
+
+describe("files in an attachment cell: only NEW ids need to be the writer's own", () => {
+  it("keeps what is already in the cell, refuses someone else's id, on update, create, upsert and restore", async () => {
+    const x = await makeTable(owner, { columns: [{ name: "Mã", type: "text", unique: true }, { name: "Hợp đồng", type: "attachment" }] });
+    await owner("datahub.share.set", { datahub_id: x.dhId, grantee_id: org.userA2.id, permission: "edit_data" });
+    const editor = as(t, org.userA2.id);
+    const fOwner = await readyFile(org.userA1.id, "của chủ.pdf");
+    const fOwner2 = await readyFile(org.userA1.id, "của chủ 2.pdf");
+    const fEditor = await readyFile(org.userA2.id, "của người sửa.pdf");
+    const cell = async (id: string) => ((await owner("datahub.row.get", { table_id: x.tableId, row_id: id })).data[x.cols["Hợp đồng"]!.key] ?? []) as string[];
+
+    const row = await owner("datahub.row.create", { table_id: x.tableId, data: { Mã: "A", "Hợp đồng": [fOwner] } });
+    const other = await owner("datahub.row.create", { table_id: x.tableId, data: { Mã: "B" } });
+
+    const bad = (p: Promise<unknown>) => fails(p).then((e) => { expect(e.code).toBe("validation_error"); expect(e.message).toContain("không phải file của bạn"); });
+    // The editor adds a file of their own to a cell that holds the owner's: allowed, the owner's stays.
+    const r1 = await editor("datahub.row.update", { table_id: x.tableId, row_id: row.id, data: { "Hợp đồng": [fOwner, fEditor] }, version: row.version });
+    expect(await cell(row.id)).toEqual([fOwner, fEditor]);
+    // The owner takes the editor's file out: allowed.
+    const r2 = await owner("datahub.row.update", { table_id: x.tableId, row_id: row.id, data: { "Hợp đồng": [fOwner] }, version: r1.version });
+    expect(await cell(row.id)).toEqual([fOwner]);
+    // (The owner cannot put the editor's file back: it would be a new id the owner did not upload. The editor can.)
+    await bad(owner("datahub.row.update", { table_id: x.tableId, row_id: row.id, data: { "Hợp đồng": [fOwner, fEditor] }, version: r2.version }));
+    await editor("datahub.row.update", { table_id: x.tableId, row_id: row.id, data: { "Hợp đồng": [fOwner, fEditor] }, version: r2.version });
+
+    // The editor cannot copy an id of someone else's file into a cell: not into this cell's row, not from another row of the table, not for a new row.
+    await bad(editor("datahub.row.update", { table_id: x.tableId, row_id: other.id, data: { "Hợp đồng": [fOwner] }, version: other.version }));
+    await bad(editor("datahub.row.update", { table_id: x.tableId, row_id: row.id, data: { "Hợp đồng": [fOwner, fEditor, fOwner2] }, base: { "Hợp đồng": [fOwner, fEditor] } }));
+    await bad(editor("datahub.row.create", { table_id: x.tableId, data: { "Hợp đồng": [fOwner] } }));
+    // Upsert: an existing row keeps its ids and takes the writer's own; a foreign id is refused.
+    await editor("datahub.row.upsert", { table_id: x.tableId, key: "Mã", data: { Mã: "A", "Hợp đồng": [fOwner, fEditor] } });
+    await bad(editor("datahub.row.upsert", { table_id: x.tableId, key: "Mã", data: { Mã: "A", "Hợp đồng": [fOwner, fEditor, fOwner2] } }));
+    await bad(editor("datahub.row.upsert", { table_id: x.tableId, key: "Mã", data: { Mã: "C", "Hợp đồng": [fOwner] } }));
+    // A file that does not exist at all.
+    await bad(owner("datahub.row.update", { table_id: x.tableId, row_id: other.id, data: { "Hợp đồng": [randomUUID()] }, version: other.version }));
+
+    // Delete and restore a row that holds files of two people: restoring needs no ownership check.
+    await owner("datahub.row.delete", { table_id: x.tableId, row_id: row.id });
+    expect((await editor("datahub.row.restore_batch", { table_id: x.tableId, row_ids: [row.id] })).rows).toHaveLength(1);
+    expect(await cell(row.id)).toEqual([fOwner, fEditor]);
+  });
+});

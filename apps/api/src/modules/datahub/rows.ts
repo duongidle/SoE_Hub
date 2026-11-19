@@ -68,27 +68,20 @@ function parseCells(schema: TableSchema, input: Record<string, unknown>, issues:
   return out;
 }
 
-/** Users and files named by a cell must exist (and files must be the actor's own ready files). */
+/** Users and linked rows named by a cell must exist. (Files are checked by `checkFiles`, once the rows being changed are known.) */
 async function checkRefs(db: Executor, actorId: string, ownerId: string, cells: Map<string, Stored>[], schema: TableSchema, issues: { row: number; column: string; message: string }[]): Promise<void> {
   const users = new Set<string>();
-  const fileIds = new Set<string>();
   cells.forEach((m) => {
     for (const [k, v] of m) {
       const col = schema.tryResolve(k);
       const refs = col && v !== null ? columnTypeDef(col.type).refs?.(v) : undefined;
       refs?.users?.forEach((x) => users.add(x));
-      refs?.files?.forEach((x) => fileIds.add(x));
     }
   });
   const okUsers = new Set<string>();
-  const okFiles = new Set<string>();
   if (users.size) {
     const res = await db.execute(sql`SELECT id FROM users WHERE kind = 'person' AND id = ANY(${uuidArray([...users])}::uuid[])`);
     (res.rows as { id: string }[]).forEach((r) => okUsers.add(r.id));
-  }
-  if (fileIds.size) {
-    const rows = await db.select({ id: files.id }).from(files).where(and(ownedBy(files.ownerId, actorId), eq(files.status, "ready"), isNull(files.deletedAt), sql`${files.id} = ANY(${uuidArray([...fileIds])}::uuid[])`));
-    rows.forEach((r) => okFiles.add(r.id));
   }
   // Linked rows must be live rows of the target table, which must belong to the same owner.
   const links = new Map<string, Set<string>>();
@@ -114,9 +107,32 @@ async function checkRefs(db: Executor, actorId: string, ownerId: string, cells: 
       if (col?.type === "relation" && Array.isArray(v) && v.some((x) => !okRows.has(x))) issues.push({ row: i, column: col.name, message: `Cột "${col.name}" liên kết tới dòng không tồn tại hoặc không thuộc bảng đích.` });
       const refs = col && v !== null ? columnTypeDef(col.type).refs?.(v) : undefined;
       if (refs?.users?.some((x) => !okUsers.has(x))) issues.push({ row: i, column: col!.name, message: `Người dùng ở cột "${col!.name}" không tồn tại.` });
-      if (refs?.files?.some((x) => !okFiles.has(x))) issues.push({ row: i, column: col!.name, message: `File ở cột "${col!.name}" không tồn tại hoặc không phải file của bạn.` });
     }
   });
+}
+
+/**
+ * A file id may be put into an attachment cell only by the person who uploaded it. Ids already in the cell stay (an editor adds a file to a cell
+ * that holds the owner's, the owner removes the editor's file): only ids that are NEW for that row are checked, so a file id of someone else
+ * cannot be copied in, but nobody is refused for what was already there. A new row has only new ids.
+ */
+async function checkFiles(db: Executor, actorId: string, plans: { kind: string; id: string; indexes: number[]; cells: Map<string, Stored> }[], loaded: Map<string, LoadedRow>, schema: TableSchema, issues: { row: number; column: string; message: string }[]): Promise<void> {
+  const fresh: { row: number; column: string; ids: string[] }[] = [];
+  for (const p of plans) {
+    if (p.kind === "delete") continue;
+    for (const [k, v] of p.cells) {
+      const col = schema.tryResolve(k);
+      if (!col || col.type !== "attachment" || !Array.isArray(v)) continue;
+      const had = new Set(p.kind === "update" ? ((loaded.get(p.id)?.data[col.key] as string[] | undefined) ?? []) : []);
+      const ids = (v as string[]).filter((x) => !had.has(x));
+      if (ids.length) fresh.push({ row: p.indexes[0]!, column: col.name, ids });
+    }
+  }
+  if (fresh.length === 0) return;
+  const all = [...new Set(fresh.flatMap((f) => f.ids))];
+  const rows = await db.select({ id: files.id }).from(files).where(and(ownedBy(files.ownerId, actorId), eq(files.status, "ready"), isNull(files.deletedAt), sql`${files.id} = ANY(${uuidArray(all)}::uuid[])`));
+  const ok = new Set(rows.map((r) => r.id));
+  for (const f of fresh) if (f.ids.some((x) => !ok.has(x))) issues.push({ row: f.row, column: f.column, message: `File ở cột "${f.column}" không tồn tại hoặc không phải file của bạn.` });
 }
 
 function throwIssues(issues: { row: number; column: string; message: string }[]): void {
@@ -248,6 +264,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     for (const id of targetIds) if (!loaded.has(id)) throw new AppError("not_found", "Không tìm thấy dòng (có thể đã bị xoá).", { row_id: id });
   }
 
+  await checkFiles(db, actorId, plans, loaded, schema, issues);
   const changedColumns = new Set<string>();
   const computedKeys = new Set(schema.all.filter((c) => isComputedType(c.type)).map((c) => c.key));
   const history: { rowId: string; version: number; op: "create" | "update" | "delete"; changes: FieldChange[] }[] = [];
