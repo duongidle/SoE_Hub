@@ -103,7 +103,7 @@ Giới hạn khi dùng skill trong dự án này:
 ## Bề ngang và điện thoại
 
 - Desktop 1280px là màn chính; các mốc 375 / 768 / 1024 / 1440. Desktop ≥ 1024px dùng thanh bên, nhỏ hơn thì thu gọn.
-- **Mức kiểm thử ở 375px:** trang công khai (form, onboarding) và trang danh sách (danh sách datahub, form, deal…) phải chạy đủ luồng chính ở 375px. Grid và màn làm việc dày dữ liệu dùng chủ yếu trên desktop chỉ cần kiểm bố cục không vỡ, không tràn ngang, mở được ở 375px; không cần e2e đầy đủ trên điện thoại (Dương chốt 19/11/2026).
+- **Mức kiểm thử ở 375px:** trang công khai (form, onboarding) và trang danh sách (danh sách datahub, form, deal…) phải chạy đủ luồng chính ở 375px. Grid và màn làm việc dày dữ liệu dùng chủ yếu trên desktop chỉ cần kiểm bố cục không vỡ, không tràn ngang, mở được ở 375px; không cần e2e đầy đủ trên điện thoại (Dương chốt 19/11/2026). Lỗi giao diện chỉ ở điện thoại của các trang không công khai được gom lại sửa sau, không chặn bước con (CLAUDE.md, "Điện thoại là ưu tiên thấp").
 - 375px không được tràn ngang cả trang; bảng rộng thì cuộn trong bảng. Đoạn văn dài (Knowledge) giới hạn 65–75 ký tự mỗi dòng.
 - Thẻ meta: `width=device-width, initial-scale=1, viewport-fit=cover`. Không dùng `user-scalable=no` hay `maximum-scale=1`.
 - CSS nền cho điện thoại: `-webkit-tap-highlight-color: transparent` ở `html`; nút và link có `touch-action: manipulation` và `user-select: none` (không đặt `user-select: none` lên nội dung); ô nhập 16px.
