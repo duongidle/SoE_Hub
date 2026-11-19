@@ -37,6 +37,7 @@ Quản lý Deal và Datahub là **cùng một engine, cùng một nguồn dữ l
 | **Chính sách com**, **Tham số com** | Xem | Xem | Xem, sửa | Bảng hệ thống dùng chung (mục 9). **Chỉ Manager** thêm, sửa, cập nhật; mọi người khác chỉ xem, không sửa, không xoá. Admin xem |
 | **Đợt thanh toán** | Xem | Xem | ✓ | Bảng chung, mỗi đợt thanh toán của hợp đồng một dòng, khoá phân chia theo người tham gia deal (mục 7) |
 | **Sổ com** | Xem | Xem | ✓ | Bảng chung, mỗi người mỗi đợt một dòng com, khoá phân chia theo người nhận (mục 7) |
+| **Tiền về** | – | – | ✓ | Mỗi khoản tiền vào tài khoản (mỗi UNC) một dòng, liên kết tới một hoặc nhiều đợt (mục 7.3a). Chỉ Manager |
 
 Mọi bảng mặc định ở trên là **bảng template** do hệ thống sinh sẵn (mục 3.5), không có code riêng cho từng bảng. Manager hoặc Leader cần quản lý thêm việc gì thì **tạo một bảng template** ở trang Template (mục 3.8), nối với Deals bằng cột liên kết, lookup, rollup. Không cần đụng code.
 
@@ -375,7 +376,7 @@ Bảng template chung của cây (Manager tạo). Mỗi đợt thanh toán của
 | Pháp nhân, Mã số thuế, Số hợp đồng, Đợt số | Theo hợp đồng, **không phải** tên công ty của deal. Nhập lúc lập lịch |
 | Số tiền dự kiến (chưa VAT), Hạn | Nhập lúc lập lịch |
 | Ngày tiền về, Số tiền về (chưa VAT), Số tiền nhận (gồm VAT) | Ghi khi xác nhận tiền về (mục 7.4) |
-| Thông tin người trả | Tên đơn vị trả, số tài khoản, ngân hàng, nội dung chuyển khoản (như UNC). Ghi khi ghép tiền về |
+| Tiền về | Liên kết tới dòng của bảng Tiền về (mục 7.3a) đã trả cho đợt này. Ghi khi ghép |
 | Chia com đợt này | Người dùng có thuộc tính (người, % com trên com sale). Điền sẵn từ `Người tham gia` của deal lúc xác nhận tiền về; Manager sửa nếu đợt này chia khác. Tổng ≤ `Tỉ lệ SoE` |
 | Trạng thái | Công thức: `Chưa đến hạn` / `Sắp đến hạn` (7 ngày) / `Quá hạn` / `Đã về` / `Về thiếu` |
 | Kỳ | Tháng của ngày tiền về. Tháng đó đã chốt thì lấy kỳ đang mở, kèm nhãn `Về muộn` |
@@ -384,6 +385,21 @@ Bảng template chung của cây (Manager tạo). Mỗi đợt thanh toán của
 
 - Quyền: Manager ghi. Thành viên quyền Xem. Cột `Chia com đợt này` chỉ Manager.
 - View hệ thống: **Chờ tiền về** (chưa về, xếp theo hạn, quá hạn lên đầu), **Đã về tháng này**, **Do AI nhập chưa kiểm**.
+
+### 7.3a Bảng Tiền về
+
+Bảng template của cây, chỉ Manager (không có thành viên). Mỗi khoản tiền vào tài khoản công ty (mỗi UNC) một dòng. Gộp ba thứ vào một chỗ: hàng **Tiền về chưa ghép** là các dòng chưa liên kết đợt nào; **một khoản trả cho nhiều đợt** là một dòng liên kết nhiều đợt; **ghi nhớ người trả** là lịch sử các dòng đã ghép, không lưu riêng. Manager nhìn thấy và sửa được lần ghép sai (trước khi chốt kỳ).
+
+| Cột | Loại |
+|---|---|
+| Ngày nhận, Số tiền (gồm VAT), Tên đơn vị trả, Số tài khoản, Ngân hàng, Nội dung chuyển khoản | Nhập (tay, AI dán UNC, API) |
+| Đợt | Liên kết nhiều dòng tới Đợt thanh toán; ghi bởi command xác nhận tiền về. Phần tiền của từng đợt nằm ở `Số tiền nhận` của đợt; tổng các đợt phải bằng `Số tiền` |
+| Đã phân bổ, Còn lại | Công thức/rollup |
+| Trạng thái | Công thức: `Chưa ghép` / `Ghép một phần` / `Đã ghép` |
+| Nguồn nhập, Đã kiểm | Như bảng Đợt |
+
+- Kỳ đã chốt thì dòng Tiền về đã ghép vào đợt của kỳ đó bị khoá cùng đợt.
+- Vai trò cột: `ngày nhận`, `số tiền nhận`, `người trả`, `số tài khoản`, `nội dung`, `đợt`.
 
 ### 7.3 Bảng Sổ com
 
@@ -419,16 +435,16 @@ Giả định thông tin tiền về có dạng **UNC**: tên đơn vị trả, 
 
 | Dấu hiệu | Cách so |
 |---|---|
-| Số tài khoản, tên người trả đã ghép trước | Khớp đúng bảng ghi nhớ. Mạnh nhất |
+| Số tài khoản, tên người trả đã ghép trước | Khớp với các dòng đã ghép của bảng Tiền về. Mạnh nhất |
 | Mã số thuế | Khớp đúng (khi thông báo có) |
 | Số hợp đồng | Có trong nội dung chuyển khoản |
 | Tên pháp nhân | So gần đúng với pháp nhân của đợt và tên công ty của deal, sau khi bỏ dấu, bỏ `Công ty`, `TNHH`, `CP`, `Cổ phần`… |
 | Số tiền | Bằng số tiền đợt, hoặc số tiền đợt cộng VAT (0%, 5%, 8%, 10%), cho lệch nhỏ (tham số) |
 | Hạn | Càng gần hạn càng cao điểm |
 
-- **Ghi nhớ:** mỗi lần Manager ghép, hệ thống lưu `tên người trả, số tài khoản → khách hàng (mã số thuế / deal)` vào bảng ghi nhớ của cây. Lần sau tiền về từ pháp nhân đó, gợi ý đúng đứng đầu. Chỉ lần đầu phải dò.
+- **Ghi nhớ:** mỗi dòng Tiền về đã ghép cho biết `tên người trả, số tài khoản → khách hàng (mã số thuế / deal)`; không có bảng ghi nhớ riêng. Lần sau tiền về từ pháp nhân đó, gợi ý đúng đứng đầu. Chỉ lần đầu phải dò.
 - AI chỉ tự xác nhận khi có **đúng một** đợt khớp mạnh (ghi nhớ hoặc mã số thuế, và số tiền). Còn lại AI đưa danh sách gợi ý cho Manager chọn.
-- Không tìm được đợt: khoản tiền vào hàng **Tiền về chưa ghép** để không bị quên; màn chốt kỳ báo còn bao nhiêu khoản.
+- Không tìm được đợt: dòng Tiền về để trạng thái `Chưa ghép` (hàng **Tiền về chưa ghép**) để không bị quên; màn chốt kỳ báo còn bao nhiêu khoản.
 - Sau này API của request đẩy kèm mã đợt (`source` + `external_id`), gần như không còn phải ghép.
 
 ### 7.6 Vai trò cột của Đợt thanh toán và Sổ com
