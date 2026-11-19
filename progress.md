@@ -5,7 +5,7 @@ Cập nhật: 19/11/2026
 ## Giai đoạn hiện tại
 
 - Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11, mục 7 Thanh toán còn là khung). **Module 5, 6: bản nháp vòng 1 xong** (`design/module5-ket-noi-ai.md`, `design/module6-thong-bao.md`, 19/11), chờ Dương phản biện. **Module 7 đã chốt** (19/11; CLAUDE.md, Module 0, 4 đã ghi thay đổi; Module 2 mục 11 chưa ghi giới hạn 150 cột vì Sonnet đang sửa file đó, ghi khi rảnh). Câu hỏi ở mục cuối mỗi file.
-- Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1 xong và Opus đã rà soát (19/11); **2C-2 xong (server + giao diện, Sonnet, chờ Opus rà soát)**; 2C-3, 2C-4, 2D chưa làm. Dương yêu cầu: làm xong 2B+ và 2C rồi push lên `main` và báo.
+- Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1, 2C-2 xong và Opus đã rà soát (19/11); **2C-3 xong (Sonnet, chờ Opus rà soát)**; 2C-4, 2D, 2E chưa làm. Dương yêu cầu: làm xong 2B+ và 2C rồi push lên `main` và báo.
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
@@ -33,15 +33,15 @@ Cập nhật: 19/11/2026
 ## Đang làm: Stage 2C (giao diện Datahub), Sonnet code
 
 - **2C-1 xong**: danh sách datahub, trang datahub (tab bảng, URL gửi được), grid Glide ảo hoá đọc keyset (100.000 dòng cuộn 60 fps), mọi kiểu cột, ô "đang tính", sửa ô/dán/điền xuống/sửa hàng loạt/xoá + Hoàn tác/hoàn tác-làm lại, khung chi tiết dòng + lịch sử, SSE; API mới `datahub.people.lookup`, `datahub.relation.labels`, `datahub.row.restore_batch`.
-- **2C-2 xong phần giao diện (Sonnet, chờ Opus rà soát)**: nhảy cuộn bảng 100.000 dòng 70–120 ms; tab view, lọc lồng nhau, ô Thời gian, sắp xếp nhiều cấp, nhóm + dòng tổng, cột (ẩn/cố định/thứ tự/độ rộng), chiều cao dòng, tô màu, tìm kiếm, tự lưu và bản riêng. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-2".
-- 2C-3: quản lý cột (thêm/sửa/xoá, kiểu, thuộc tính, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện công thức mẫu; ô chọn dòng đích cho cột Liên kết.
+- **2C-2 xong, Opus đã rà (19/11)**: nhảy cuộn bảng 100.000 dòng 70–120 ms; tab view, lọc lồng nhau, ô Thời gian, sắp xếp nhiều cấp, nhóm + dòng tổng, cột, chiều cao dòng, tô màu, tìm kiếm, tự lưu và bản riêng. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-2".
+- **2C-3 xong (Sonnet, chờ Opus rà soát)**: quản lý cột (thêm/sửa/xoá có Hoàn tác, mọi kiểu, đổi kiểu báo trước), trình soạn công thức (gợi ý, cú pháp, lỗi gạch chân, xem trước, mẫu, chèn tham chiếu), Liên kết/Lookup/Rollup, ô chọn dòng đích ảo hoá, ô Đính kèm tải lên/tải về, phân quyền người Xem/Sửa. API mới `datahub.relation.search`, `datahub.attachment.list`, `datahub.attachment.download_url`. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-3".
 - 2C-4: Tìm dòng trùng (mục 7a), chia sẻ, thùng rác, cài đặt giới hạn Admin.
 - 2D: import/export, import công thức, load test 100k dòng.
 - 2E: Sonnet kiểm thử **chức năng** cả Stage 2 ("Định nghĩa xong" điểm 2–5; không rà chuẩn giao diện, để Stage 12) theo việc Opus chia, sửa lỗi tìm thấy; Opus đọc kết quả và quyết định đạt.
 
 ## Bước tiếp theo
 
-Opus rà soát 2C-2 bằng diff từ `8e9ca42` và kết quả kiểm thử bên dưới (không chạy lại trừ khi nghi). Sau đó **2C-3**: quản lý cột (thêm/sửa/xoá, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện mẫu, ô chọn dòng đích cho cột Liên kết. Chạy nhanh: `pnpm exec vitest run apps/web`; giao diện: e2e của đúng spec bước đó, `--project=desktop`.
+Opus rà soát 2C-3 bằng diff từ `d055c87` (commit `e7bfcbf`, `1f8abd6`, `65e1410` và commit ghi tài liệu) và kết quả kiểm thử bên dưới. **2C-3 chạm phần dùng chung** (`components/ui/popover.tsx`, `components/ui/form.tsx` `Field`, registry/OpenAPI, phân quyền file) nên Opus tự chạy lại test. Sau đó **2C-4**: Tìm dòng trùng (mục 7a), chia sẻ, thùng rác, cài đặt giới hạn Admin. Chạy nhanh: `pnpm exec vitest run apps/web`; giao diện: e2e của đúng spec bước đó, `--project=desktop`.
 
 ### Việc cho kiểm thử cuối Stage 2 (dời từ 2C-2)
 
@@ -55,11 +55,19 @@ Opus rà soát 2C-2 bằng diff từ `8e9ca42` và kết quả kiểm thử bên
 - Lỗi tìm thấy và đã sửa: view ghi tên cột (API/AI) bị coi là cột đã xoá (nay đổi sang key khi nạp); danh sách tên người tra cả mã lựa chọn (400); bộ lọc một điều kiện bị bọc thừa trong nhóm; bấm dòng nhóm mở rồi đóng ngay (click + activate cùng bắn); nhãn dòng nhóm bị cắt (nay chỉ giá trị + số dòng, tên cột trong tooltip); vùng chạm dưới 44px ở nút icon, ô tích, nút × của chip trên điện thoại.
 - `impeccable audit`: bộ dò mã nguồn (`impeccable detect`) không báo gì ở `pages/datahub` và popover; rà tay (a11y, vùng chạm, tương phản bằng token, tab/focus, 375px, không animation mới). `ui-ux-pro-max` mục 1–3, 8 và `break-ui` đã rà. **Chưa dò trang thật bằng `detect --url`** (chưa có máy chủ dev chạy sau test) và chưa thử trên máy thật.
 
+### Kết quả kiểm thử 2C-3
+
+- Lệnh đã chạy: `pnpm exec eslint .` (sạch), `pnpm -r typecheck` (sạch), `pnpm exec vitest run apps/web apps/api/test/datahub-column-ui.test.ts apps/api/test/openapi.test.ts apps/api/test/datahub-lookup.test.ts apps/api/test/datahub-columns.test.ts apps/api/test/datahub-access.test.ts` (9 file, 140 test pass; mới: `column-config` 20, `formula-assist` 19, `datahub-column-ui` 3), `pnpm test:e2e stage2c3 --project=desktop` 6/6 pass, chạy liên tiếp 4 lần cuối đều 6/6. Chưa chạy `pnpm test` toàn bộ, chưa chạy 375px (theo quy trình; dời sang 2E).
+- Đã đi: thêm cột (lỗi tên trống, `[ ]`, trùng không phân biệt hoa thường, lỗi độ dài tối đa, mô tả, bắt buộc), cột Một lựa chọn (trùng tên lựa chọn, màu, thứ tự, đổi tên lựa chọn), đổi kiểu Văn bản sang Số có hộp báo trước ("Giữ lại" không đổi gì; "Đổi kiểu và xoá 1 ô"), xoá + Hoàn tác, công thức (gợi ý hàm và cột, cú pháp in đậm, lỗi gạch chân và bằng lời, lưu bị từ chối, xem trước 5 dòng, chèn tham chiếu, công thức mẫu, sửa công thức, vòng lặp bị từ chối), Liên kết/Lookup/Rollup (chọn từ danh sách, chọn dòng đích trong khung chi tiết và trong ô của grid, bảng đích 1.203 dòng chỉ vẽ dưới 20 dòng, worker tính lookup), Đính kèm (loại file không nhận, tải lên, hiện tên và dung lượng, tải về đúng nội dung, gỡ), người Xem và người Sửa (server trả 403 cho mọi lệnh cấu trúc, công thức không hiện, người Sửa tải file lên được và không chọn được liên kết, người Xem chỉ tải về).
+- Lỗi tìm thấy và đã sửa: (1) lỗi hiện ra khi rời ô làm nút Lưu của hộp thoại dài trượt khỏi con trỏ nên bấm không được, nay nút cố định ở đáy hộp; (2) ô tên bị tự focus bằng bộ hẹn giờ 50 ms nên chữ gõ ngay sau khi mở hộp thoại lọt vào ô tên, nay dùng `autoFocus`; (3) nút trong popover mở từ hộp thoại modal không bấm được (`pointer-events: none`), nay `Popover` đặt `pointer-events: auto`; (4) lệnh cột nhận mã cột hoặc tên, giao diện gửi `id` nên 404, nay gửi `key`; (5) tải file lên bị 403 vì PUT gửi kèm cookie phiên mà không có CSRF, nay `credentials: "omit"` và đổi địa chỉ ký về cùng origin; (6) hộp "Cột của bảng" chặn bấm vào toast "Hoàn tác", nay đóng khi xoá.
+- **Chập chờn, chưa tìm ra nguyên nhân:** `stage2c3.spec.ts` luồng 2 ("cột Một lựa chọn") fail 1 lần ở `colByName("Giai đoạn")` sau khi sửa lựa chọn (cột không thấy dù toast "Đã lưu cột" đã hiện), không tái hiện lại trong 10 lần chạy sau (4 lần riêng luồng, 6 lần cả file). Nghi: test đợi theo toast, mà toast của bước trước còn trên màn hình nên đọc trạng thái máy chủ quá sớm. Đã đổi các chỗ đó sang `expect.poll` theo trạng thái máy chủ (hàm `created`, `optionsOf`). Nếu còn thấy thì ghi lại log máy chủ. Chưa kết luận được là lỗi test hay lỗi ứng dụng.
+- Ca `stage1.spec.ts` điện thoại (nhiệm vụ Opus thêm giữa chừng): chạy `pnpm test:e2e stage1 --project=phone` 3 lần liền, cả 3 lần 16/16 pass (34,8 s, 32,7 s, 33,8 s). Chạy trước khi Opus huỷ việc này.
+
 ## Lỗi điện thoại để sau
 
 Không chặn bước con (CLAUDE.md, "Điện thoại là ưu tiên thấp"); gom sửa một đợt, Opus quyết khi nào.
 
-- `stage1.spec.ts` phone "cài đặt hệ thống" hết giờ 1 lần, chạy lại pass; nghi cùng nguyên nhân Vite tải lại trang (đã sửa ở f8835de), chưa xác minh. Lệnh: `pnpm test:e2e stage1 --project=phone`.
+- `stage1.spec.ts` phone "cài đặt hệ thống" hết giờ 1 lần, chạy lại pass; nghi cùng nguyên nhân Vite tải lại trang (đã sửa ở f8835de), chưa xác minh. Lệnh: `pnpm test:e2e stage1 --project=phone`. Sau f8835de: 3 lần liền 16/16 pass (19/11, chạy trong 2C-3), chưa thấy fail lại.
 
 ## Câu hỏi còn mở
 

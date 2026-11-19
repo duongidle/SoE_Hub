@@ -247,3 +247,42 @@ Làm theo mục 5.1–5.4. Phần server đã xong (đọc cửa sổ `offset`/`
 
 **Lệch hoặc bổ sung so với thiết kế**
 - Khi có nhóm, ô "Tìm trong bảng" và bộ lọc vẫn tính theo server cho cả số dòng của nhóm.
+
+### Stage 2C-3 (quản lý cột, trình soạn công thức, ô Liên kết và Đính kèm)
+
+Giao diện ở `apps/web/src/pages/datahub/` (`column-editor.tsx`, `column-manager.tsx`, `formula-editor.tsx`, `formula-scope.ts`, `relation-picker.tsx`, `attachment-field.tsx`), logic thuần ở `apps/web/src/lib/datahub/` (`column-config.ts`, `formula-assist.ts`). Máy chủ chỉ thêm ba API đọc; mọi lệnh sửa cột đã có từ 2A/2B.
+
+**API thêm (có test phân quyền, OpenAPI, Bruno)**
+- `datahub.relation.search` (GET `/tables/:table_id/relation-search`): tìm dòng của bảng đích để chọn vào ô Liên kết (từ khoá không dấu qua `search`, hoặc số dòng `#12`; phân trang theo `row_no` bằng `after`/`next_after`, tối đa 100 mỗi trang). **Chỉ chủ** datahub (chỉ chủ ghi được ô Liên kết). Nhãn dòng giống `datahub.relation.labels`.
+- `datahub.attachment.list` và `datahub.attachment.download_url` (GET `/tables/:table_id/attachments`, `/attachments/:file_id/download-url`): tên, loại, dung lượng và link tải file đang nằm trong ô Đính kèm của một dòng chưa xoá của bảng. Người xem bảng đều đọc được, dù file do người khác tải lên (theo Module 1 mục 4.3: file gắn vào đối tượng thì ai đọc được đối tượng đọc được file; trước đó `file.download.url` chỉ cho người tải lên). File chưa gắn vào ô nào thì không đọc được qua đây. Có ghi audit khi tải.
+- Cột được gọi bằng **mã cột (`key`) hoặc tên**, không phải `id` (uuid): giao diện gửi `key`.
+
+**Quản lý cột**
+- Nút "Cột của bảng" (mọi người) mở danh sách cột: chủ có "Sửa", "Xoá", "Thêm cột"; người được chia sẻ thấy danh sách, loại cột và dòng giải thích khoá, không thấy nút nào, không thấy nội dung công thức (server không trả). Nút "Thêm cột" trên thanh công cụ và mục "Sửa cột…", "Xoá cột" ở menu tiêu đề cột chỉ hiện cho chủ. Chạm giới hạn cột (`max_columns` của bảng) thì khoá nút "Thêm cột" và nói rõ.
+- Một biểu mẫu cho cả thêm và sửa: tên (kiểm khi rời ô: trống, `[ ]`, dài quá 100, trùng cột khác không phân biệt hoa thường và dấu cách thừa), kiểu (nhóm theo `optgroup`), phần theo kiểu, định dạng hiển thị, mô tả, thuộc tính (bắt buộc, không trùng, mặc định). Lỗi từ máy chủ được dịch (`columnError`) và đặt dưới đúng ô; không có ô thì hiện ở cuối biểu mẫu. Gửi lỗi thì giữ dữ liệu và đưa focus về ô lỗi đầu tiên. Nút Lưu nằm cố định ở đáy hộp thoại để dòng lỗi hiện ra không đẩy nút khỏi tay người dùng.
+- Cấu hình theo kiểu: văn bản (độ dài tối đa), số (làm tròn `precision`; hiển thị: số lẻ, dấu chấm hàng nghìn, đơn vị), tiền (đơn vị), phần trăm (số lẻ), đánh giá (số sao 1–10), lựa chọn (tên, màu trong chín màu, thứ tự bằng nút lên/xuống, thêm, xoá; lựa chọn đã lưu giữ nguyên mã nên đổi tên không mất giá trị), đính kèm (số file tối đa), số tự tăng (số bắt đầu), công thức, liên kết, lookup, rollup. Không đưa `date_format` ra giao diện: ngày luôn `dd/mm/yyyy` theo bộ định dạng chung.
+- Giá trị mặc định cho các kiểu đọc được bằng `parseCellText` (chữ, số, tiền, phần trăm, ngày, ngày giờ), Có/Không cho checkbox, một lựa chọn bằng danh sách. Không có mặc định cho nhiều lựa chọn, đánh giá, người dùng, liên kết, đính kèm.
+- **Đổi kiểu:** chỉ giữa các kiểu ghi được (không công thức, hệ thống, đính kèm). Bấm Lưu thì gọi `type_preview` rồi hiện hộp xác nhận với số ô giữ nguyên, đổi dạng, bị xoá trắng (số do máy chủ đếm) và tới 5 ví dụ ô bị xoá trắng; nút ghi rõ "Đổi kiểu và xoá N ô"; "Giữ lại" không đổi gì. Áp dụng: `type_change` (kèm `accept_data_loss` khi có ô mất), rồi ghi tên, mô tả, thuộc tính, định dạng (vì `type_change` đặt lại định dạng và mặc định).
+- **Xoá cột:** vào thùng rác, toast "Hoàn tác" gọi `column.restore`; hộp "Cột của bảng" tự đóng khi xoá (hộp thoại modal chặn bấm vào toast).
+- Lookup/Rollup chọn cột Liên kết của bảng này, rồi cột của bảng đích (tải khi chọn); Rollup bỏ Tổng/Trung bình khi cột đích không phải số. Liên kết chỉ chọn bảng **cùng datahub** (`relation.labels` và `relation.search` chỉ đọc cùng datahub); không đổi được bảng đích của cột có sẵn.
+
+**Trình soạn công thức (mục 6.3)**
+- Ô nhập tự cao theo chữ; lớp chữ trong suốt phía sau gạch chân gợn sóng đúng đoạn máy chủ báo lỗi (`segments`, vị trí tính cho văn bản gửi đi, có `=`), kèm danh sách lỗi bằng lời. Gợi ý nằm trong dòng chảy của biểu mẫu (không nổi) để không bị khung cuộn cắt: gõ `[` gợi ý cột của bảng này, bảng cùng datahub, datahub khác; sau `[Bảng].[` gợi ý cột (tải cột của bảng đích khi cần); sau `[Datahub].[Bảng].[` cũng vậy; gõ tên hàm gợi ý hàm. Lên/xuống chọn, Enter hoặc Tab chèn, Esc đóng; không gợi ý trong chuỗi `"..."`.
+- Dòng cú pháp của hàm đang gõ (`activeCall` bỏ qua chuỗi và `[ ]`), tham số đang nhập in đậm; kèm mô tả và ví dụ lấy từ `datahub.formula.functions`.
+- Xem trước 5 dòng đầu sau 500 ms, từ `datahub.formula.preview` (lỗi hiện đúng câu giải thích của máy chủ); đổi kiểu kết quả bằng danh sách "Tự nhận biết" hoặc kiểu cụ thể. Giá trị xem trước qua bộ định dạng chung.
+- Ba nút: "Chèn hàm" (tìm và nhóm theo loại), "Chèn cột hoặc bảng" (ba danh sách Datahub → Bảng → Cột, hiện đúng chữ sẽ chèn và nghĩa của nó), "Công thức mẫu" (10 mẫu, mỗi chỗ trống là một danh sách tự sinh từ cột và bảng thật, mặc định chọn cột đầu tiên hợp kiểu; "Dùng mẫu này" hoặc "Thay công thức bằng mẫu này").
+- `Popover` dùng chung có thêm `fixedSide` (không đổi phía khi nội dung dài ra) và `pointer-events: auto`: mở từ trong hộp thoại modal thì Radix đặt `pointer-events: none` ngoài hộp, nên nút trong popover không bấm được.
+
+**Ô Liên kết và Đính kèm**
+- Ô Liên kết sửa được trong grid (Enter hoặc bấm đôi mở ô chọn) và trong khung chi tiết dòng ("Chọn dòng"). Ô chọn tìm ở máy chủ (sau 250 ms), danh sách ảo hoá (mỗi dòng 40px, chỉ vẽ phần nhìn thấy, đọc tiếp trang khi cuộn gần cuối), đang chọn hiện thành chip có nút bỏ; một liên kết thì bấm là xong, nhiều liên kết thì "Xong". Chỉ chủ; người Sửa dữ liệu thấy lý do bằng lời và không có nút.
+- Ô Đính kèm: người Sửa dữ liệu tải file (bảng "Tải file lên", chọn nhiều file) theo cơ chế Stage 0 (`file.upload.init` → PUT → `file.upload.complete`), gỡ file khỏi ô, tải về; người Xem chỉ tải về. Ô chỉ đổi sau khi từng file tải xong. Lỗi bằng lời: loại file không nhận, quá lớn, hết dung lượng, vượt số file. Địa chỉ ký của driver local được đổi thành cùng origin (`storageAddress`); PUT **không gửi cookie** (`credentials: "omit"`), nếu có cookie thì API đòi header CSRF và trả 403.
+- Dán, gõ, Delete và Sửa hàng loạt bỏ qua ô Liên kết và Đính kèm (`readOnlyReason` có lý do mới: "Chọn dòng liên kết trong ô…", "Tải file lên trong ô…"); `pickerEditable` quyết ô nào có ô chọn.
+
+**Test**
+- Máy chủ: `apps/api/test/datahub-column-ui.test.ts` (tìm dòng đích, phân trang, ký tự `%`, người Sửa bị chặn; file chỉ mở qua bảng, người xem đọc được file của người khác, gỡ khỏi dòng thì đóng; mọi lệnh cấu trúc bị chặn với người Sửa, công thức bị giấu).
+- Web: `apps/web/test/column-config.test.ts`, `apps/web/test/formula-assist.test.ts`; e2e `apps/web/e2e/stage2c3.spec.ts` (6 luồng, chỉ desktop; phone dời sang 2E).
+
+**Lệch hoặc bổ sung so với thiết kế**
+- Gợi ý và danh sách tham chiếu không có tên bảng/cột của datahub **người khác** chia sẻ (luật 6.4).
+- Không có kéo-thả đổi thứ tự cột trong danh sách (thứ tự cột hiển thị do view, mục 5.1; `position` của cột chưa có giao diện đổi).
+- Menu tiêu đề cột "Sửa cột…", "Xoá cột" chưa có e2e (tiêu đề vẽ trên canvas); dùng "Cột của bảng" trong test.
