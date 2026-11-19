@@ -66,6 +66,7 @@ Không chặn bước con (CLAUDE.md, "Điện thoại là ưu tiên thấp"); g
 - 2B: cảnh báo `LEFT(ngày,2)` khi import đã làm ở 2D (báo ở bước Kiểm tra, không tự sửa công thức). Dương xem có muốn tự đổi sang `TEXT(ngày,"mm")` không.
 - Module 5 (mục 11), Module 6 (mục 12), Module 7 (mục 13): câu hỏi ở mục cuối mỗi file, chờ Dương trả lời rồi chốt; chốt xong cập nhật CLAUDE.md theo mục "Thay đổi so với quy định đã chốt" của từng file.
 - Stage 9 Onboarding: lúc bắt đầu stage hỏi Dương có tính là ngoại lệ (kiểm giao diện kỹ) với cách kiểm thử tiết kiệm token không; tới lúc đó giữ quy định cũ trong CLAUDE.md (kiểm kỹ).
+- Module 4 mục 3.6 vs 4.3: quyền sửa ô giờ chỉ cho phép/không cho phép theo cột, nhưng 4.3 (đã chốt) có Leading sửa, Associate/Advisor chỉ xem cột 1–12. Chờ Dương chọn: Deals giữ ngoại lệ này, hay mọi người tham gia cùng quyền.
 - Module 4: bảng Thanh toán (mục 7) chờ Dương bàn với Manager (nguồn tiền về, com POD, nguồn Level BC/Performance BC, thu hồi com, com POD Express và Data).
 - `docker-compose.yml` chưa chạy thử (máy dev không có Docker); Google chưa thử với Google thật (xem `design/ha-tang.md` mục 4).
 - Danh sách token cần duyệt và tài khoản hệ thống chưa phân trang (giới hạn 500); phân trang ở Stage 5.

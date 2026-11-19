@@ -139,22 +139,22 @@ Bảng template là bảng **có sẵn cột**, do người có quyền dựng �
 
 | Kiểu | Dữ liệu | Ví dụ |
 |---|---|---|
-| **Bảng chung** | Một bộ dòng. Cột **khoá phân chia** quyết định dòng hiện ở bảng của ai | Deals (khoá = `Người tham gia`), Probation KPI (khoá = người được đánh giá), bảng Leader tạo cho team |
+| **Bảng chung** | Một bộ dòng. Các cột **khoá phân chia** quyết định dòng hiện ở bảng của ai | Deals (khoá = `Người tham gia`), Probation KPI (khoá = người được đánh giá), bảng Leader tạo cho team |
 | **Bảng riêng** | Mỗi người một bảng cùng cấu trúc, dữ liệu riêng tư theo luật Datahub. Người tạo bảng không xem dữ liệu | Index |
 
 **Bảng chung**
 
-- **Khoá phân chia** là một cột kiểu Người dùng, có thể kèm thuộc tính (nhãn vai trò, phần trăm), như `Người tham gia` (mục 4.5). Mỗi bảng chung có đúng một khoá.
-- **Ai thấy dòng:** người có tên trong khoá; người tạo bảng thấy mọi dòng trong phạm vi; Leader thấy dòng có người trong team mình; Manager thấy mọi dòng trong cây, kể cả bảng do Leader trong cây tạo (chỉ đọc nếu không phải người tạo); Admin xem chỉ đọc như Deals. Giống luật xem deal (mục 2).
-- **Bị gỡ khỏi khoá:** dòng biến mất khỏi bảng của người đó. Giá trị cột riêng họ đã nhập được giữ lại và ẩn đi; gắn lại thì hiện lại.
-- **Cột "của tôi"** tự điền từ thuộc tính của chính người đó trong khoá. Mục 4.5 (`Vai trò của tôi`, `% Com cá nhân`…) là một trường hợp của cơ chế này.
-- **Ai thêm dòng:** người tạo bảng chọn khi tạo. (a) Chỉ người tạo bảng (mặc định; Deals dùng cách này, người tạo là Manager của cây). (b) Mọi người trong phạm vi; người thêm tự có tên trong khoá (ví dụ bảng "mỗi người tự báo cáo" của Leader).
+- **Khoá phân chia** bắt buộc là cột kiểu **Người dùng** (chọn tài khoản trong hệ thống), có thể kèm thuộc tính như `Người tham gia` (mục 4.5). Cột kiểu khác không chọn làm khoá được.
+- Mỗi bảng chung có **1 đến 5 cột khoá** (ví dụ `Người được đánh giá` và `Người hướng dẫn`). Mỗi cột khoá có một index; câu lọc dòng là phép OR qua các cột khoá. Deals giữ một khoá là `Người tham gia`, vì % doanh thu và % com phải cộng không quá 100% trong cùng một cột.
+- **Ai thấy dòng:** người có tên ở bất kỳ cột khoá nào; người tạo bảng thấy mọi dòng trong phạm vi; Leader thấy dòng có người trong team mình ở bất kỳ cột khoá nào; Manager thấy mọi dòng trong cây, kể cả bảng do Leader trong cây tạo (chỉ đọc nếu không phải người tạo); Admin xem chỉ đọc như Deals. Giống luật xem deal (mục 2).
+- **Bị gỡ khỏi mọi cột khoá:** dòng biến mất khỏi bảng của người đó. Giá trị cột riêng họ đã nhập được giữ lại và ẩn đi; gắn lại thì hiện lại.
+- Bảng template không tự sinh cột "của tôi" nào. Riêng Deals giữ các cột tự điền từ `Người tham gia` đã chốt ở mục 4.1 và 4.5.
+- **Ai thêm dòng:** người tạo bảng chọn khi tạo. (a) Chỉ người tạo bảng (mặc định; Deals dùng cách này, người tạo là Manager của cây). (b) Mọi người trong phạm vi; bảng phải chọn một **cột khoá chính**, người thêm dòng được tự điền vào cột đó (ví dụ bảng "mỗi người tự báo cáo" của Leader).
 - Xoá dòng: xoá mềm theo Module 2, chỉ người tạo bảng. Deals giữ luật riêng: không xoá cứng, chỉ `Huỷ`.
 
 ### 3.6 Quyền sửa ô trong bảng template
 
-- **Người tạo bảng cấp quyền sửa cho từng cột template.** Cột không cấp thì người khác chỉ xem. Mặc định không cấp.
-- Lựa chọn khi cấp: mọi người thấy dòng; người có nhãn vai trò X trong khoá (ví dụ chỉ Leading); Leader của người trong khoá.
+- **Người tạo bảng cho phép hoặc không cho phép sửa từng cột template.** Cho phép thì người thấy dòng sửa được ô của cột đó; không cho phép thì chỉ xem. Mặc định không cho phép. Không có lựa chọn chi tiết hơn (theo nhãn, theo cột khoá).
 - Cột công thức không ai sửa ô; chỉ sửa công thức ở trang Template.
 - Bảng do Manager tạo: Manager luôn sửa được. Bảng Deals giữ luật đã chốt: Leader sửa được khi thành viên bật "Cho phép leader sửa deal của tôi". Bảng mục 4.3 là cấu hình mặc định của Deals theo luật này.
 - **Cột riêng** (lớp Tuỳ chỉnh) của mỗi người: chỉ người đó thấy và sửa. Không ai cấp, không ai khác xem.
@@ -196,7 +196,7 @@ Một số chức năng cần biết cột nào mang nghĩa gì. Thay vì viết
 
 **Chức năng**
 
-- Tạo bảng template: tên, kiểu (chung / riêng), khoá phân chia, ai thêm dòng (mục 3.5).
+- Tạo bảng template: tên, kiểu (chung / riêng), 1–5 cột khoá phân chia kiểu Người dùng, ai thêm dòng và cột khoá chính (mục 3.5).
 - Đổi tên bảng, bỏ bảng (lưu trữ), khôi phục.
 - Thêm, sửa, đổi tên, bỏ cột; thuộc tính cột (mục 3.4); quyền sửa ô (mục 3.6); vai trò cột (mục 3.7).
 - **Quyền theo bảng nằm ngay trên trang này**, không tách ra Cài đặt: mỗi bảng có tuỳ chọn "Leader được thêm cột team: có / không", Admin và Manager đặt. Mặc định **tắt** với Deals, Chính sách com, Tham số com, Thanh toán; **bật** với Index, Probation KPI. Leader không bao giờ đổi tên, bỏ, đổi kiểu cột của lớp khác; với bảng chung chỉ thêm cột lớp Theo team và sửa công thức cho team (mục 3.3).
