@@ -5,7 +5,7 @@ Cập nhật: 19/11/2026
 ## Giai đoạn hiện tại
 
 - Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11; **sửa lần 2 cùng ngày, Dương chốt**; còn mở: mẫu thông báo tiền về thật để chỉnh luật ghép (đang giả định UNC), màn so sánh phiên bản chính sách khi AI cập nhật (đề xuất, chưa chốt); thanh toán và com theo đợt, Won khi tiền về, Sổ com, chốt kỳ gộp, ghép tiền về, vai trò cột trong dashboard; xem đầu file Module 4 và mục 18). **Module 5 đã chốt** (19/11; CLAUDE.md, Module 0, 1, 4, 7 đã ghi thay đổi). **Module 6: bản nháp vòng 1**, chờ Dương phản biện. Quản lý Deal không hiện trong menu Datahub (Module 4 mục 1.1, Dương chốt 19/11). **Module 7 đã chốt** (19/11; CLAUDE.md, Module 0, 4 đã ghi thay đổi; Module 2 mục 11 chưa ghi giới hạn 150 cột vì Sonnet đang sửa file đó, ghi khi rảnh). Câu hỏi ở mục cuối mỗi file.
-- Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1, 2C-2 xong và Opus đã rà soát (19/11); **2C-3, 2C-4 xong, Opus đã rà (19/11)**; **Stage 2 xong (Opus quyết đạt 19/11)**. **Stage 3 xong (Opus quyết đạt 20/11)**. Đã push `main` + `dev` tới a07d60c (hết 2C-4, Dương yêu cầu 19/11).
+- Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1, 2C-2 xong và Opus đã rà soát (19/11); **2C-3, 2C-4 xong, Opus đã rà (19/11)**; **Stage 2 xong (Opus quyết đạt 19/11)**. **Stage 3 xong (Opus quyết đạt 20/11)**. Đã push `main` + `dev` tới bd2597e (hết Stage 3, Dương yêu cầu 20/11).
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
