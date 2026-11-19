@@ -14,6 +14,7 @@ const UNIQUE_MESSAGES: Record<string, string> = {
   dh_columns_name_uq: "Bảng này đã có một cột tên này. Hãy đặt tên khác.",
   mt_sources_name_uq: "Datahub này đã có một nguồn dữ liệu tên này. Hãy đặt tên khác.",
   mt_metrics_name_uq: "Datahub này đã có một chỉ số tên này. Hãy đặt tên khác.",
+  mt_dashboards_name_uq: "Datahub này đã có một dashboard tên này. Hãy đặt tên khác.",
 };
 
 /** Turns a unique violation on a name index into a Vietnamese `conflict`; rethrows everything else. */

@@ -199,3 +199,15 @@ Phần còn lại của 3A-2 (mục 4–9) chưa làm.
 
 - Nguồn rất lớn (hàng triệu dòng): đồng bộ hiện đọc cả nguồn vào bộ nhớ; chưa có đồng bộ từng phần theo `row_ids` của sự kiện.
 - Chủ đổi tên một cột nguồn: cột gộp vẫn trỏ đúng (theo mã cột) nhưng tên cột gộp không đổi theo; chủ đổi tên bằng tay ở bảng gộp (cho phép).
+
+## Stage 3C-1: dashboard và biểu đồ cơ bản (Sonnet, 19/11)
+
+### Server (bước 1)
+
+- Không cần migration: `mt_dashboards` (name, position, config) và `mt_charts` (position, config) đã có từ 3A-1. JSON biểu đồ (`ChartDef`, `packages/metrics/src/chart.ts`) nằm ở `mt_charts.config`; vị trí `layout {x,y,w,h}` (lưới 12 cột) nằm **trong** config của biểu đồ, không ở bảng dashboard, nên lưu bố cục không đụng `version` của dashboard.
+- Ops mới (`apps/api/src/modules/metrics/dashboard-ops.ts`): `metrics.dashboard.list/get/create/update/reorder/duplicate/delete/trash/restore`, `metrics.chart.create/update/delete/layout`. `update` dashboard chỉ đổi tên (có `version`); bố cục lưu bằng `metrics.chart.layout` (nhiều biểu đồ một lần, **không kiểm version**, lần ghi sau cùng thắng, **không ghi nhật ký** vì là thao tác tự lưu). Sửa biểu đồ có `version`; không gửi `layout` thì giữ vị trí cũ.
+- **Quyền 3C-1: chỉ chủ datahub** đọc và sửa dashboard (người được chia sẻ, Leader, Manager, Admin, Guest đều `forbidden`/`not_found`). Người được chia sẻ vẫn gọi `metrics.query` trong phạm vi của mình. Chia sẻ dashboard (tính bằng quyền chủ) là 3C-2: lúc đó chỉ cần mở `loadDash`/`loadChart` cho người nhận ở mức xem; schema chưa chặn.
+- Giới hạn 20 dashboard / 30 biểu đồ là cài đặt `metrics.max_dashboards`, `metrics.max_charts` (Admin chỉnh ở Cài đặt hệ thống). Nhân bản và khôi phục cũng bị tính vào giới hạn. Dashboard trong thùng rác không tính.
+- Xoá dashboard = xoá mềm; thùng rác 7 ngày dùng chung việc dọn hằng đêm (đã đăng ký `mt_charts`, `mt_dashboards` ở `datahub/trash.ts`). Khôi phục trùng tên thì `conflict` với `reason: duplicate_name`; gửi `name` để khôi phục dưới tên khác (cùng cách với bảng/datahub). Biểu đồ xoá là xoá mềm, chưa có API khôi phục (giao diện hỏi xác nhận).
+- Nhân bản: tên mặc định `<tên> (bản sao)`, `(bản sao 2)`..., sao chép mọi biểu đồ với `layout`.
+- Server kiểm biểu đồ lúc lưu: JSON đúng chuẩn (strict, lỗi nêu đường dẫn), mỗi chuỗi số liệu có `metric_id` tồn tại trong datahub hoặc `metric` viết tại chỗ qua `validateDefinition`; lỗi kèm "Chuỗi số liệu thứ N". Server **không tính số** khi lưu biểu đồ.

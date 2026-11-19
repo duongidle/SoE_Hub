@@ -1,0 +1,20 @@
+meta {
+  name: metrics.dashboard.trash
+  type: http
+  seq: 27
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/dashboards/trash
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Dashboard đã xoá của datahub.
+  Quyền: `datahub:datahub:use`; chỉ chủ datahub.
+}

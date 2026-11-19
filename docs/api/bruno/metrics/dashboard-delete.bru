@@ -1,0 +1,21 @@
+meta {
+  name: metrics.dashboard.delete
+  type: http
+  seq: 26
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/dashboards/{{dashboard_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xoá dashboard vào thùng rác (khôi phục trong 7 ngày).
+  Quyền: `datahub:datahub:use`; chỉ chủ datahub.
+}

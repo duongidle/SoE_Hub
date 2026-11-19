@@ -1,0 +1,32 @@
+meta {
+  name: metrics.chart.update
+  type: http
+  seq: 30
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/charts/{{chart_id}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "version": 1,
+    "chart": {
+      "type": "note",
+      "text": "Doanh thu tính theo ngày chốt."
+    }
+  }
+}
+
+docs {
+  Sửa biểu đồ: gửi cả JSON mới và version đang thấy. Không gửi layout thì giữ vị trí cũ.
+  Quyền: `datahub:datahub:use`; chỉ chủ datahub.
+}

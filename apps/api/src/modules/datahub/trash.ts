@@ -20,6 +20,9 @@ export function registerDatahubTrash(): void {
       }
     },
   });
+  // Dashboards of a datahub (Stage 3C-1): charts first (a purged dashboard takes its charts with it through the foreign key).
+  registerTrashTable({ name: "mt_charts" });
+  registerTrashTable({ name: "mt_dashboards" });
   registerTrashTable({ name: "dh_tables" });
   registerTrashTable({ name: "dh_datahubs" });
 }

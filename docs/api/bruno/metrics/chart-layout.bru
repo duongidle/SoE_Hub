@@ -1,0 +1,33 @@
+meta {
+  name: metrics.chart.layout
+  type: http
+  seq: 32
+}
+
+put {
+  url: {{baseUrl}}/api/v1/dashboards/{{dashboard_id}}/layout
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "items": [
+      {
+        "chart_id": "{{chart_id}}",
+        "layout": { "x": 0, "y": 0, "w": 6, "h": 5 }
+      }
+    ]
+  }
+}
+
+docs {
+  Lưu vị trí và kích thước nhiều biểu đồ cùng lúc (lưới 12 cột).
+  Quyền: `datahub:datahub:use`; chỉ chủ datahub.
+}

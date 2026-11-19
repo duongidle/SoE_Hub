@@ -1,0 +1,20 @@
+meta {
+  name: metrics.dashboard.get
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboards/{{dashboard_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Một dashboard cùng các biểu đồ (JSON). Số liệu lấy bằng metrics.query.
+  Quyền: `datahub:datahub:use`; chỉ chủ datahub.
+}

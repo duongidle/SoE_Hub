@@ -1,0 +1,44 @@
+meta {
+  name: metrics.chart.create
+  type: http
+  seq: 29
+}
+
+post {
+  url: {{baseUrl}}/api/v1/dashboards/{{dashboard_id}}/charts
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "chart": {
+      "type": "column",
+      "title": "Doanh thu theo loại deal",
+      "series": [
+        {
+          "metric": {
+            "name": "Doanh thu",
+            "source": "Deals",
+            "measure": { "agg": "sum", "field": "Doanh thu" }
+          },
+          "time": { "field": "Ngày chốt", "bucket": "month", "range": { "kind": "last_n_months", "n": 6 } },
+          "group_by": [{ "field": "Loại deal" }]
+        }
+      ],
+      "options": { "stack": "stack", "labels": true, "format": "compact" },
+      "layout": { "x": 0, "y": 0, "w": 6, "h": 5 }
+    }
+  }
+}
+
+docs {
+  Thêm biểu đồ. type: kpi, column, bar, line, area, combo, pie, donut, table, pivot, note. Mỗi series gọi metrics.query (metric_id đã lưu hoặc metric viết tại chỗ). Tối đa 30 biểu đồ mỗi dashboard.
+  Quyền: `datahub:datahub:use`; chỉ chủ datahub.
+}

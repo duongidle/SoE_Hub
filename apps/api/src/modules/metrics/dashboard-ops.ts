@@ -1,0 +1,418 @@
+import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { AppError } from "@soe/shared";
+import { newId } from "@soe/db";
+import { ChartDefSchema, GRID_COLUMNS, LayoutSchema, MAX_GRID_ROWS, parseJson, type ChartDef } from "@soe/metrics";
+import { defineCommand, defineQuery } from "../../core/registry";
+import { loadDatahubAccess } from "../datahub/access";
+import { rethrowNameConflict } from "../datahub/errors";
+import { Id, Ts } from "../datahub/shared";
+import { readSetting, type SettingDef } from "../system/settings-catalog";
+import { validateDefinition } from "./engine";
+import type { Ctx } from "./context";
+
+type Raw = Record<string, unknown>;
+
+export const MT_SETTINGS = {
+  maxDashboards: {
+    key: "metrics.max_dashboards",
+    label: "Dashboard tối đa mỗi datahub",
+    description: "Số dashboard trong một datahub (không tính dashboard trong thùng rác).",
+    schema: z.number().int().min(1).max(200),
+    default: 20,
+  } satisfies SettingDef<number>,
+  maxCharts: {
+    key: "metrics.max_charts",
+    label: "Biểu đồ tối đa mỗi dashboard",
+    description: "Số biểu đồ trong một dashboard.",
+    schema: z.number().int().min(1).max(100),
+    default: 30,
+  } satisfies SettingDef<number>,
+} as const;
+
+const DashOut = z.object({
+  id: Id,
+  datahub_id: Id,
+  name: z.string(),
+  position: z.number().int(),
+  chart_count: z.number().int().optional(),
+  version: z.number().int(),
+  deleted_at: Ts.nullable().optional(),
+  updated_at: Ts,
+});
+const ChartOut = z.object({ id: Id, dashboard_id: Id, position: z.number().int(), version: z.number().int(), chart: z.record(z.string(), z.unknown()).describe("JSON của biểu đồ (ChartDef)."), updated_at: Ts });
+const DashFull = DashOut.extend({ charts: z.array(ChartOut) });
+
+const dashOut = (r: Raw) => ({
+  id: r.id as string,
+  datahub_id: r.datahub_id as string,
+  name: r.name as string,
+  position: r.position as number,
+  ...(r.chart_count !== undefined ? { chart_count: Number(r.chart_count) } : {}),
+  version: r.version as number,
+  deleted_at: (r.deleted_at as Date | null) ?? null,
+  updated_at: r.updated_at as Date,
+});
+const chartOut = (r: Raw) => ({ id: r.id as string, dashboard_id: r.dashboard_id as string, position: r.position as number, version: r.version as number, chart: r.config as Record<string, unknown>, updated_at: r.updated_at as Date });
+
+const NameSchema = z.string().normalize("NFC").trim().min(1, "Tên dashboard không được để trống.").max(100, "Tên dashboard tối đa 100 ký tự.");
+
+/** Dashboards and their charts belong to the owner of the datahub (design module3 section 9); sharing them is Stage 3C-2. */
+async function loadDash(ctx: Ctx, id: string, opts: { deleted?: boolean } = {}): Promise<Raw> {
+  const res = await ctx.db.execute(sql`SELECT id, datahub_id, name, position, version, deleted_at, updated_at FROM mt_dashboards WHERE /*scope*/ id = ${id}::uuid AND (deleted_at IS NOT NULL) = ${!!opts.deleted}`);
+  const row = res.rows[0] as Raw | undefined;
+  if (!row) throw new AppError("not_found", "Không tìm thấy dashboard.");
+  await loadDatahubAccess(ctx, row.datahub_id as string, "owner");
+  return row;
+}
+
+async function loadChart(ctx: Ctx, id: string): Promise<Raw> {
+  const res = await ctx.db.execute(sql`SELECT c.id, c.dashboard_id, c.position, c.version, c.config, c.updated_at, d.datahub_id
+    FROM mt_charts c JOIN mt_dashboards d ON d.id = c.dashboard_id WHERE /*scope*/ c.id = ${id}::uuid AND c.deleted_at IS NULL AND d.deleted_at IS NULL`);
+  const row = res.rows[0] as Raw | undefined;
+  if (!row) throw new AppError("not_found", "Không tìm thấy biểu đồ.");
+  await loadDatahubAccess(ctx, row.datahub_id as string, "owner");
+  return row;
+}
+
+async function chartsOf(ctx: Ctx, dashboardId: string): Promise<Raw[]> {
+  const res = await ctx.db.execute(sql`SELECT id, dashboard_id, position, version, config, updated_at FROM mt_charts WHERE /*scope*/ dashboard_id = ${dashboardId}::uuid AND deleted_at IS NULL ORDER BY position, id`);
+  return res.rows as Raw[];
+}
+
+async function countDashboards(ctx: Ctx, datahubId: string): Promise<number> {
+  const res = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM mt_dashboards WHERE /*scope*/ datahub_id = ${datahubId}::uuid AND deleted_at IS NULL`);
+  return (res.rows[0] as { n: number }).n;
+}
+
+async function checkDashboardQuota(ctx: Ctx, datahubId: string, adding = 1): Promise<void> {
+  const max = await readSetting(ctx.db, MT_SETTINGS.maxDashboards);
+  if ((await countDashboards(ctx, datahubId)) + adding > max) throw new AppError("quota_exceeded", `Đã đạt giới hạn ${max} dashboard mỗi datahub. Xoá bớt hoặc liên hệ Admin.`, { limit: max });
+}
+
+async function checkChartQuota(ctx: Ctx, dashboardId: string, adding = 1): Promise<void> {
+  const max = await readSetting(ctx.db, MT_SETTINGS.maxCharts);
+  const res = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM mt_charts WHERE /*scope*/ dashboard_id = ${dashboardId}::uuid AND deleted_at IS NULL`);
+  if ((res.rows[0] as { n: number }).n + adding > max) throw new AppError("quota_exceeded", `Đã đạt giới hạn ${max} biểu đồ mỗi dashboard.`, { limit: max });
+}
+
+/** Every series reads a metric that exists in the datahub (saved) or is a valid definition (written in place). */
+async function checkChart(ctx: Ctx, datahubId: string, chart: ChartDef): Promise<void> {
+  for (const [i, s] of chart.series.entries()) {
+    try {
+      if (s.metric_id) {
+        const r = await ctx.db.execute(sql`SELECT id FROM mt_metrics WHERE /*scope*/ id = ${s.metric_id}::uuid AND datahub_id = ${datahubId}::uuid AND deleted_at IS NULL`);
+        if (!r.rows.length) throw new AppError("not_found", "Không tìm thấy chỉ số.");
+      } else {
+        await validateDefinition(ctx, datahubId, s.metric!);
+      }
+    } catch (e) {
+      if (e instanceof AppError) throw new AppError(e.code, `Chuỗi số liệu thứ ${i + 1}: ${e.message}`, { ...(e.details ?? {}), series: i });
+      throw e;
+    }
+  }
+}
+
+const parseChart = (raw: unknown) => parseJson(ChartDefSchema, raw, "Biểu đồ");
+
+/** First free place at the bottom of the grid for a new chart. */
+function bottomLayout(charts: Raw[], w = 6, h = 5) {
+  let y = 0;
+  for (const c of charts) {
+    const l = (c.config as { layout?: { y: number; h: number } }).layout;
+    if (l) y = Math.max(y, l.y + l.h);
+  }
+  return { x: 0, y, w, h };
+}
+
+async function insertChart(ctx: Ctx, dashboardId: string, chart: ChartDef, position: number): Promise<string> {
+  const id = newId();
+  const me = ctx.actor.userId;
+  await ctx.db.execute(sql`INSERT INTO mt_charts (id, dashboard_id, position, config, created_by, updated_by) VALUES (${id}::uuid, ${dashboardId}::uuid, ${position}, ${JSON.stringify(chart)}::jsonb, ${me}::uuid, ${me}::uuid)`);
+  return id;
+}
+
+async function freeName(ctx: Ctx, datahubId: string, base: string): Promise<string> {
+  const res = await ctx.db.execute(sql`SELECT name_norm FROM mt_dashboards WHERE /*scope*/ datahub_id = ${datahubId}::uuid AND deleted_at IS NULL`);
+  const used = new Set((res.rows as { name_norm: string }[]).map((r) => r.name_norm));
+  const trim = (s: string) => s.slice(0, 100).trim();
+  for (let n = 1; n < 1000; n++) {
+    const cand = trim(n === 1 ? `${base.slice(0, 85)} (bản sao)` : `${base.slice(0, 80)} (bản sao ${n})`);
+    if (!used.has(cand.toLowerCase())) return cand;
+  }
+  return trim(`${base.slice(0, 60)} ${newId().slice(-6)}`);
+}
+
+export const dashboardOperations = [
+  defineQuery({
+    name: "metrics.dashboard.list",
+    summary: "Danh sách dashboard của một datahub (theo thứ tự đã xếp). Chỉ chủ datahub.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    list: true,
+    input: z.object({ datahub_id: Id }),
+    output: DashOut,
+    http: { method: "GET", path: "/datahubs/:datahub_id/dashboards" },
+    handler: async (ctx, i) => {
+      await loadDatahubAccess(ctx, i.datahub_id, "owner");
+      const res = await ctx.db.execute(sql`SELECT d.id, d.datahub_id, d.name, d.position, d.version, d.updated_at,
+          (SELECT count(*) FROM mt_charts c WHERE /*scope*/ c.dashboard_id = d.id AND c.deleted_at IS NULL) AS chart_count
+        FROM mt_dashboards d WHERE /*scope*/ d.datahub_id = ${i.datahub_id}::uuid AND d.deleted_at IS NULL ORDER BY d.position, d.id`);
+      return { items: (res.rows as Raw[]).map(dashOut), nextCursor: null };
+    },
+  }),
+
+  defineQuery({
+    name: "metrics.dashboard.get",
+    summary: "Xem một dashboard cùng các biểu đồ của nó (JSON).",
+    description: "`charts[].chart` là JSON biểu đồ: type, title, series (mỗi chuỗi gọi `metrics.query`), options, layout {x,y,w,h} trên lưới 12 cột. Số liệu lấy bằng `metrics.query`, không nằm trong dashboard.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ dashboard_id: Id }),
+    output: DashFull,
+    http: { method: "GET", path: "/dashboards/:dashboard_id" },
+    handler: async (ctx, i) => {
+      const d = await loadDash(ctx, i.dashboard_id);
+      return { ...dashOut(d), charts: (await chartsOf(ctx, i.dashboard_id)).map(chartOut) };
+    },
+  }),
+
+  defineCommand({
+    name: "metrics.dashboard.create",
+    summary: "Tạo dashboard trống. Tối đa 20 dashboard mỗi datahub (Admin chỉnh được). Chỉ chủ datahub.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ datahub_id: Id, name: NameSchema }),
+    output: DashOut,
+    http: { method: "POST", path: "/datahubs/:datahub_id/dashboards", status: 201 },
+    handler: async (ctx, i) => {
+      await loadDatahubAccess(ctx, i.datahub_id, "owner");
+      await checkDashboardQuota(ctx, i.datahub_id);
+      const id = newId();
+      const me = ctx.actor.userId;
+      try {
+        await ctx.db.execute(sql`INSERT INTO mt_dashboards (id, datahub_id, name, position, created_by, updated_by)
+          VALUES (${id}::uuid, ${i.datahub_id}::uuid, ${i.name}, (SELECT coalesce(max(position) + 1, 0) FROM mt_dashboards WHERE /*scope*/ datahub_id = ${i.datahub_id}::uuid AND deleted_at IS NULL), ${me}::uuid, ${me}::uuid)`);
+      } catch (e) {
+        rethrowNameConflict(e);
+      }
+      ctx.audit({ type: "dashboard", id, details: { datahub_id: i.datahub_id, name: i.name } });
+      return dashOut(await loadDash(ctx, id));
+    },
+  }),
+
+  defineCommand({
+    name: "metrics.dashboard.update",
+    summary: "Đổi tên dashboard (gửi `version` đang thấy). Chỉ chủ datahub.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ dashboard_id: Id, version: z.number().int().min(1), name: NameSchema }),
+    output: DashOut,
+    http: { method: "PATCH", path: "/dashboards/:dashboard_id" },
+    handler: async (ctx, i) => {
+      const d = await loadDash(ctx, i.dashboard_id);
+      let n;
+      try {
+        n = await ctx.db.execute(sql`UPDATE mt_dashboards SET name = ${i.name}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid
+          WHERE /*scope*/ id = ${i.dashboard_id}::uuid AND version = ${i.version} AND deleted_at IS NULL RETURNING id`);
+      } catch (e) {
+        rethrowNameConflict(e);
+      }
+      if (!n.rows.length) throw new AppError("conflict");
+      ctx.audit({ type: "dashboard", id: i.dashboard_id, details: { datahub_id: d.datahub_id, name: i.name } });
+      return dashOut(await loadDash(ctx, i.dashboard_id));
+    },
+  }),
+
+  defineCommand({
+    name: "metrics.dashboard.reorder",
+    summary: "Xếp lại thứ tự các dashboard của datahub: gửi danh sách mã theo thứ tự mới. Chỉ chủ datahub.",
+    description: "`ids` phải đúng là tập dashboard hiện có (không thiếu, không thừa).",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    list: true,
+    input: z.object({ datahub_id: Id, ids: z.array(Id).min(1).max(200) }),
+    output: DashOut,
+    http: { method: "PUT", path: "/datahubs/:datahub_id/dashboards/order" },
+    handler: async (ctx, i) => {
+      await loadDatahubAccess(ctx, i.datahub_id, "owner");
+      const res = await ctx.db.execute(sql`SELECT id FROM mt_dashboards WHERE /*scope*/ datahub_id = ${i.datahub_id}::uuid AND deleted_at IS NULL`);
+      const have = (res.rows as { id: string }[]).map((r) => r.id).sort();
+      if (JSON.stringify(have) !== JSON.stringify([...new Set(i.ids)].sort())) throw new AppError("validation_error", "Danh sách thứ tự phải gồm đúng các dashboard hiện có.", { reason: "order_mismatch" });
+      for (const [pos, id] of i.ids.entries()) {
+        await ctx.db.execute(sql`UPDATE mt_dashboards SET position = ${pos} WHERE /*scope*/ id = ${id}::uuid AND datahub_id = ${i.datahub_id}::uuid AND position <> ${pos}`);
+      }
+      ctx.audit({ type: "dashboard", id: i.datahub_id, details: { datahub_id: i.datahub_id, action: "reorder" } });
+      const out = await ctx.db.execute(sql`SELECT id, datahub_id, name, position, version, updated_at FROM mt_dashboards WHERE /*scope*/ datahub_id = ${i.datahub_id}::uuid AND deleted_at IS NULL ORDER BY position, id`);
+      return { items: (out.rows as Raw[]).map(dashOut), nextCursor: null };
+    },
+  }),
+
+  defineCommand({
+    name: "metrics.dashboard.duplicate",
+    summary: "Nhân bản dashboard cùng mọi biểu đồ. Tên mới mặc định \"<tên> (bản sao)\". Chỉ chủ datahub.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ dashboard_id: Id, name: NameSchema.optional() }),
+    output: DashFull,
+    http: { method: "POST", path: "/dashboards/:dashboard_id/duplicate", status: 201 },
+    handler: async (ctx, i) => {
+      const src = await loadDash(ctx, i.dashboard_id);
+      const dh = src.datahub_id as string;
+      await checkDashboardQuota(ctx, dh);
+      const name = i.name ?? (await freeName(ctx, dh, src.name as string));
+      const id = newId();
+      const me = ctx.actor.userId;
+      try {
+        await ctx.db.execute(sql`INSERT INTO mt_dashboards (id, datahub_id, name, position, config, created_by, updated_by)
+          VALUES (${id}::uuid, ${dh}::uuid, ${name}, (SELECT coalesce(max(position) + 1, 0) FROM mt_dashboards WHERE /*scope*/ datahub_id = ${dh}::uuid AND deleted_at IS NULL),
+            (SELECT config FROM mt_dashboards WHERE /*scope*/ id = ${i.dashboard_id}::uuid), ${me}::uuid, ${me}::uuid)`);
+      } catch (e) {
+        rethrowNameConflict(e);
+      }
+      for (const c of await chartsOf(ctx, i.dashboard_id)) await insertChart(ctx, id, c.config as ChartDef, c.position as number);
+      ctx.audit({ type: "dashboard", id, details: { datahub_id: dh, name, copied_from: i.dashboard_id } });
+      return { ...dashOut(await loadDash(ctx, id)), charts: (await chartsOf(ctx, id)).map(chartOut) };
+    },
+  }),
+
+  defineCommand({
+    name: "metrics.dashboard.delete",
+    summary: "Xoá dashboard vào thùng rác (khôi phục trong 7 ngày). Chỉ chủ datahub.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ dashboard_id: Id }),
+    output: z.object({ id: Id }),
+    http: { method: "DELETE", path: "/dashboards/:dashboard_id" },
+    handler: async (ctx, i) => {
+      const d = await loadDash(ctx, i.dashboard_id);
+      await ctx.db.execute(sql`UPDATE mt_dashboards SET deleted_at = now(), deleted_by = ${ctx.actor.userId}::uuid, version = version + 1 WHERE /*scope*/ id = ${i.dashboard_id}::uuid`);
+      ctx.audit({ type: "dashboard", id: i.dashboard_id, details: { datahub_id: d.datahub_id, name: d.name } });
+      return { id: i.dashboard_id };
+    },
+  }),
+
+  defineQuery({
+    name: "metrics.dashboard.trash",
+    summary: "Dashboard đã xoá của một datahub (còn khôi phục được). Chỉ chủ datahub.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    list: true,
+    input: z.object({ datahub_id: Id }),
+    output: DashOut,
+    http: { method: "GET", path: "/datahubs/:datahub_id/dashboards/trash" },
+    handler: async (ctx, i) => {
+      await loadDatahubAccess(ctx, i.datahub_id, "owner");
+      const res = await ctx.db.execute(sql`SELECT id, datahub_id, name, position, version, deleted_at, updated_at FROM mt_dashboards WHERE /*scope*/ datahub_id = ${i.datahub_id}::uuid AND deleted_at IS NOT NULL ORDER BY deleted_at DESC, id`);
+      return { items: (res.rows as Raw[]).map(dashOut), nextCursor: null };
+    },
+  }),
+
+  defineCommand({
+    name: "metrics.dashboard.restore",
+    summary: "Khôi phục dashboard từ thùng rác. Tên đã bị dùng thì trả `conflict` (`reason: duplicate_name`); gửi `name` để khôi phục dưới tên mới. Chỉ chủ datahub.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ dashboard_id: Id, name: NameSchema.optional() }),
+    output: DashOut,
+    http: { method: "POST", path: "/dashboards/:dashboard_id/restore" },
+    handler: async (ctx, i) => {
+      const d = await loadDash(ctx, i.dashboard_id, { deleted: true });
+      await checkDashboardQuota(ctx, d.datahub_id as string);
+      try {
+        await ctx.db.execute(sql`UPDATE mt_dashboards SET deleted_at = NULL, deleted_by = NULL, name = ${i.name ?? (d.name as string)}, version = version + 1,
+          position = (SELECT coalesce(max(position) + 1, 0) FROM mt_dashboards WHERE /*scope*/ datahub_id = ${d.datahub_id as string}::uuid AND deleted_at IS NULL)
+          WHERE /*scope*/ id = ${i.dashboard_id}::uuid`);
+      } catch (e) {
+        rethrowNameConflict(e);
+      }
+      ctx.audit({ type: "dashboard", id: i.dashboard_id, details: { datahub_id: d.datahub_id, name: i.name ?? d.name, restored: true } });
+      return dashOut(await loadDash(ctx, i.dashboard_id));
+    },
+  }),
+
+  defineCommand({
+    name: "metrics.chart.create",
+    summary: "Thêm biểu đồ vào dashboard. Tối đa 30 biểu đồ mỗi dashboard (Admin chỉnh được). Chỉ chủ datahub.",
+    description:
+      "`chart` = {type: kpi|column|bar|line|area|combo|pie|donut|table|pivot|note, title?, series:[{metric_id | metric, label?, axis?, kind?, time?, group_by?, filter?, order?, limit?, compare?, cumulative?, target?}], text? (ô ghi chú), options?, layout?:{x,y,w,h}}. " +
+      "Không gửi `layout` thì biểu đồ xếp xuống cuối lưới. Server kiểm mọi chỉ số (đã lưu hay viết tại chỗ) của chuỗi số liệu.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ dashboard_id: Id, chart: z.record(z.string(), z.unknown()) }),
+    output: ChartOut,
+    http: { method: "POST", path: "/dashboards/:dashboard_id/charts", status: 201 },
+    handler: async (ctx, i) => {
+      const d = await loadDash(ctx, i.dashboard_id);
+      const chart = parseChart(i.chart);
+      await checkChartQuota(ctx, i.dashboard_id);
+      await checkChart(ctx, d.datahub_id as string, chart);
+      const existing = await chartsOf(ctx, i.dashboard_id);
+      const placed: ChartDef = chart.layout ? chart : { ...chart, layout: bottomLayout(existing, chart.type === "kpi" ? 3 : 6, chart.type === "kpi" ? 3 : 5) };
+      const id = await insertChart(ctx, i.dashboard_id, placed, existing.length ? Math.max(...existing.map((c) => c.position as number)) + 1 : 0);
+      ctx.audit({ type: "dashboard_chart", id, details: { datahub_id: d.datahub_id, dashboard_id: i.dashboard_id, chart_type: chart.type } });
+      return chartOut((await chartsOf(ctx, i.dashboard_id)).find((c) => c.id === id)!);
+    },
+  }),
+
+  defineCommand({
+    name: "metrics.chart.update",
+    summary: "Sửa biểu đồ (gửi lại cả JSON mới và `version` đang thấy). Chỉ chủ datahub.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ chart_id: Id, version: z.number().int().min(1), chart: z.record(z.string(), z.unknown()) }),
+    output: ChartOut,
+    http: { method: "PATCH", path: "/charts/:chart_id" },
+    handler: async (ctx, i) => {
+      const row = await loadChart(ctx, i.chart_id);
+      const chart = parseChart(i.chart);
+      await checkChart(ctx, row.datahub_id as string, chart);
+      const keep = chart.layout ? chart : { ...chart, ...((row.config as { layout?: unknown }).layout ? { layout: (row.config as { layout: ChartDef["layout"] }).layout } : {}) };
+      const n = await ctx.db.execute(sql`UPDATE mt_charts SET config = ${JSON.stringify(keep)}::jsonb, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid
+        WHERE /*scope*/ id = ${i.chart_id}::uuid AND version = ${i.version} AND deleted_at IS NULL RETURNING id`);
+      if (!n.rows.length) throw new AppError("conflict");
+      ctx.audit({ type: "dashboard_chart", id: i.chart_id, details: { datahub_id: row.datahub_id, dashboard_id: row.dashboard_id, chart_type: chart.type } });
+      return chartOut((await chartsOf(ctx, row.dashboard_id as string)).find((c) => c.id === i.chart_id)!);
+    },
+  }),
+
+  defineCommand({
+    name: "metrics.chart.delete",
+    summary: "Xoá một biểu đồ khỏi dashboard. Chỉ chủ datahub.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ chart_id: Id }),
+    output: z.object({ id: Id }),
+    http: { method: "DELETE", path: "/charts/:chart_id" },
+    handler: async (ctx, i) => {
+      const row = await loadChart(ctx, i.chart_id);
+      await ctx.db.execute(sql`UPDATE mt_charts SET deleted_at = now(), deleted_by = ${ctx.actor.userId}::uuid, version = version + 1 WHERE /*scope*/ id = ${i.chart_id}::uuid`);
+      ctx.audit({ type: "dashboard_chart", id: i.chart_id, details: { datahub_id: row.datahub_id, dashboard_id: row.dashboard_id, deleted: true } });
+      return { id: i.chart_id };
+    },
+  }),
+
+  defineCommand({
+    name: "metrics.chart.layout",
+    summary: "Lưu vị trí và kích thước nhiều biểu đồ cùng lúc (kéo thả, đổi kích thước). Không kiểm `version` (lần ghi sau cùng thắng). Chỉ chủ datahub.",
+    description: `Lưới ${GRID_COLUMNS} cột; x từ 0, w từ 1, x + w tối đa ${GRID_COLUMNS}; h tối đa ${MAX_GRID_ROWS}. Không ghi nhật ký (đây là thao tác bố cục tự lưu).`,
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ dashboard_id: Id, items: z.array(z.object({ chart_id: Id, layout: LayoutSchema })).min(1).max(100) }),
+    output: z.object({ saved: z.number().int() }),
+    http: { method: "PUT", path: "/dashboards/:dashboard_id/layout" },
+    handler: async (ctx, i) => {
+      await loadDash(ctx, i.dashboard_id);
+      for (const it of i.items) {
+        if (it.layout.x + it.layout.w > GRID_COLUMNS) throw new AppError("validation_error", `Biểu đồ vượt quá ${GRID_COLUMNS} cột của lưới.`, { reason: "layout_out_of_grid", chart_id: it.chart_id });
+      }
+      let saved = 0;
+      for (const [pos, it] of i.items.entries()) {
+        const r = await ctx.db.execute(sql`UPDATE mt_charts SET config = jsonb_set(config, '{layout}', ${JSON.stringify(it.layout)}::jsonb, true), position = ${pos}, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid
+          WHERE /*scope*/ id = ${it.chart_id}::uuid AND dashboard_id = ${i.dashboard_id}::uuid AND deleted_at IS NULL RETURNING id`);
+        saved += r.rows.length;
+      }
+      return { saved };
+    },
+  }),
+];

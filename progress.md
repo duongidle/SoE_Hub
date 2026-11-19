@@ -46,13 +46,11 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 
 ## Bước tiếp theo
 
-**3A-1, 3A-2 xong, Opus rà đạt 19/11** (chi tiết, số đo: `design/module3-quyet-dinh-khi-code.md` mục 3A-1, 3A-2; git log). 850 test pass sau 3A-2.
-**3B bảng gộp: Opus rà 19/11: đạt.** Đụng phần dùng chung (`access.ts`, `rows.ts`, `columns.ts`, subscribers, worker, `session.tsx`, `table-view.tsx`) nên Opus tự chạy lại: typecheck, lint sạch; `vitest run` toàn bộ 65 file, 882 pass; `pnpm test:e2e --project=desktop` 69/69 pass. Ghi cho sau: (1) **4.1:** `loadSource` đòi mức `owner` trên nguồn; kiểm lại khi nguồn là bảng template có khoá phân chia (Module 3 mục 4.1), sửa ở `requestRescope`/`readableRows`. (2) **3D:** mỗi lần sửa một dòng nguồn, worker đọc lại cả nguồn để so (150k dòng ~1,2 s); đo khi nhiều người sửa cùng lúc, cân nhắc đồng bộ theo `row_ids`. **Tiếp theo: 3C-1.**
- (quyết định và số đo: `design/module3-quyet-dinh-khi-code.md` mục "Stage 3B").
-- Server: `dh_tables.kind`, `dh_merges`, `dh_merge_rows` (migration 0011); `datahub/merge-plan.ts` (thuần), `merge-sync.ts` (đọc nguồn qua `readableRows(access)` ở `access.ts`, đồng bộ, `requestRescope` là cửa duy nhất khi phạm vi đổi, vòng worker `startMergeLoop`), `merge-ops.ts` (create/update/get/sync/preview/duplicates/origin); chỉ đọc (`assertWritable`); OpenAPI + 7 Bruno.
-- Web: `merge-dialog.tsx`, `merge-status.tsx`; sửa nhỏ `table-view.tsx`, `detail.tsx`, `row-panel.tsx`, `lib/session.tsx`.
-- Đụng phần dùng chung (Opus nên tự chạy lại): `access.ts` (`TableInfo.kind`, cap quyền bảng gộp, `readableRows`), `rows.ts` (`assertWritable`), `columns.ts` (chặn cột dữ liệu bảng gộp), `structure.ts` (`kind` ở TableOut), `core/subscribers.ts`, `worker.ts`, `test/dh-helpers.ts` (`drainOutbox` chạy thêm `processPendingMerges`), `table-view.tsx` (grid chỉ xem ở bảng gộp).
-- Test: `pnpm -r typecheck`, `pnpm lint` sạch; `vitest run packages/metrics apps/api/test/metrics apps/api/test/datahub apps/api/test/openapi apps/api/test/registry apps/api/test/audit-noise apps/api/test/worker` 38 file, 467 pass (trước khi thêm perf); `datahub-merge-perf` pass (đồng bộ đầu 13 s, sau sửa 1 dòng 1,2 s); `vitest run` cùng bộ trên sau khi thêm perf: 39 file, 468 pass; e2e desktop `stage3b` 7/7, và chạy lại các spec dùng `table-view.tsx`/`detail.tsx` (`stage2c1 stage2c2 stage2c3 stage2c4 stage2d`): tất cả pass (nút mới đặt tên "Tạo bảng gộp" vì "Thêm bảng gộp" làm `stage2c1` trùng bộ chọn). Bước tiếp theo: Opus rà 3B, rồi 3C-1.
+**3A-1, 3A-2, 3B xong, Opus rà đạt 19/11** (chi tiết, số đo: `design/module3-quyet-dinh-khi-code.md`; git log). 882 unit, 69 e2e desktop pass sau 3B. Ghi cho sau từ 3B: (1) **4.1:** `loadSource` đòi mức `owner` trên nguồn; kiểm lại khi nguồn là bảng template có khoá phân chia (Module 3 mục 4.1), sửa ở `requestRescope`/`readableRows`. (2) **3D:** mỗi lần sửa một dòng nguồn, worker đọc lại cả nguồn để so (150k dòng ~1,2 s); đo khi nhiều người sửa cùng lúc, cân nhắc đồng bộ theo `row_ids`.
+
+**3C-1 đang làm (Sonnet, 19/11):**
+- [x] Server: ops dashboard/biểu đồ (`metrics/dashboard-ops.ts`), `packages/metrics/src/chart.ts`, thùng rác, giới hạn 20/30 (cài đặt), OpenAPI + 13 Bruno, test `apps/api/test/metrics-dashboard.test.ts` (12 pass). Chi tiết ở file quyết định mục 3C-1.
+- [ ] Web: lưới kéo thả (tự viết, `lib/dashboard/layout.ts`), danh sách dashboard, khung cấu hình, các loại biểu đồ (ECharts đã thêm vào `apps/web`), thư viện chỉ số/nguồn, SSE `metrics.data.changed` (debounce), e2e `stage3c1`.
 
 ## Điều chỉnh Stage 3 so với Module 3 đã đọc (Dương chốt 19/11)
 

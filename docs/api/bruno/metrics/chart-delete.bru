@@ -1,0 +1,21 @@
+meta {
+  name: metrics.chart.delete
+  type: http
+  seq: 31
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/charts/{{chart_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xoá một biểu đồ.
+  Quyền: `datahub:datahub:use`; chỉ chủ datahub.
+}

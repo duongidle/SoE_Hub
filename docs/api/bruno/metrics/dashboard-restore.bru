@@ -1,0 +1,28 @@
+meta {
+  name: metrics.dashboard.restore
+  type: http
+  seq: 28
+}
+
+post {
+  url: {{baseUrl}}/api/v1/dashboards/{{dashboard_id}}/restore
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "name": "Doanh thu quý (khôi phục)"
+  }
+}
+
+docs {
+  Khôi phục dashboard. Tên bị dùng thì trả conflict (reason duplicate_name); gửi name để khôi phục dưới tên mới.
+  Quyền: `datahub:datahub:use`; chỉ chủ datahub.
+}

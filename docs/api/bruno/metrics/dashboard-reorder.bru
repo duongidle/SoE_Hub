@@ -1,0 +1,30 @@
+meta {
+  name: metrics.dashboard.reorder
+  type: http
+  seq: 24
+}
+
+put {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/dashboards/order
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "ids": [
+      "{{dashboard_id}}"
+    ]
+  }
+}
+
+docs {
+  Xếp lại thứ tự: gửi đủ mã dashboard theo thứ tự mới.
+  Quyền: `datahub:datahub:use`; chỉ chủ datahub.
+}
