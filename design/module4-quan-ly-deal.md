@@ -229,7 +229,8 @@ Vai trò của bảng Đợt thanh toán và Sổ com: mục 7.6.
 | 6 | Ghi chú | Văn bản dài | |
 | 7 | Sale | Văn bản | Email hoặc tên sale (sale không phải người dùng SoE Hub) |
 | 8 | Status | Một lựa chọn | Mục 4.4 |
-| 9 | Doanh thu | Tiền | Deal mở: doanh thu dự kiến, nhập tay. Deal Won: **tổng tiền đã về** (chưa VAT), rollup từ Đợt thanh toán, không nhập tay |
+| 9a | Doanh thu dự kiến | Tiền | Nhập tay khi deal mở (BPM: Revenue (Forecast)). Forecast dùng |
+| 9 | Doanh thu | Công thức | `IF([Status]="Won", [Đã thu], [Doanh thu dự kiến])`. Một cột không thể vừa nhập tay vừa là rollup, nên tách: deal mở là số dự kiến, deal Won là **tổng tiền đã về** (chưa VAT) |
 | 10 | Nguồn lead | Một lựa chọn | `ML` (Marketing Lead), `SH` (Sale Hunt). Đọc từ phiếu request |
 | 11 | Level BC | Một lựa chọn | `Level 0` đến `Level 9`. Đọc từ phiếu request |
 | 12 | Performance BC | Một lựa chọn | `Under KPI`, `KPI`, `Goal`, `Out performance`. Đọc từ phiếu request |
@@ -272,7 +273,7 @@ Theo mục 3.6: thành viên có quyền Sửa; cột được cho phép thì m�
 
 | Cột | Cho phép sửa | Ghi chú |
 |---|---|---|
-| Tên công ty, Start date, Ngày dự kiến chốt, Ghi chú, Sale, Doanh thu (deal mở), Nguồn lead, Level BC, Performance BC, BANT, Mã số thuế | Có | Mọi người tham gia deal sửa như nhau. Leader sửa deal của team khi thành viên bật "Cho phép leader sửa deal của tôi" |
+| Tên công ty, Start date, Ngày dự kiến chốt, Ghi chú, Sale, Doanh thu dự kiến, Nguồn lead, Level BC, Performance BC, BANT, Mã số thuế | Có | Mọi người tham gia deal sửa như nhau. Leader sửa deal của team khi thành viên bật "Cho phép leader sửa deal của tôi" |
 | Status | Có, trừ `Won` và `Huỷ` | `Won` chỉ do xác nhận tiền về đặt (mục 4.4). `Huỷ` chỉ Manager |
 | Loại deal, Closing date | Không | Manager. Closing date hệ thống điền, Manager sửa tay khi cần |
 | Người tham gia | Không | Manager |
@@ -517,7 +518,7 @@ Bốn cột B, A, N, T, mỗi cột: `Có bằng chứng` / `Chưa rõ` / `Âm`.
 
 - Forecast theo loại deal, đặt cạnh KPI còn thiếu của quý, tách hai phần:
   - **Đã ký, chờ tiền về** (khá chắc): tổng `Số tiền dự kiến` của các đợt chưa về có hạn trong kỳ.
-  - **Chưa ký** (ước lượng, như file mẫu): Doanh thu dự kiến của deal Processing chưa có lịch, có Ngày dự kiến chốt trong kỳ.
+  - **Chưa ký** (ước lượng, như file mẫu): `Doanh thu dự kiến` của deal Processing chưa có lịch, có Ngày dự kiến chốt trong kỳ.
 - Snapshot tự động 00:05 ngày đầu mỗi quý cho deal đang mở; Manager chụp thêm được.
 - Cuối quý so với snapshot đầu quý: mỗi deal trong snapshot rơi vào Won trong quý, trượt sang quý sau, Lost/Disqualified, hoặc vẫn mở. Độ chính xác = doanh thu Won thực tế ÷ forecast lúc chụp.
 
