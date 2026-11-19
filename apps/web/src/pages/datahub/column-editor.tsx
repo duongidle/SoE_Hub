@@ -344,15 +344,24 @@ function OptionsEditor({ draft, set, error }: { draft: ColumnDraft; set: (p: Par
 
 function RelationFields({ draft, set, shown, fieldProps, table, locked }: { draft: ColumnDraft; set: (p: Partial<ColumnDraft>) => void; shown: Shown; fieldProps: FieldProps; table: TableDetail; locked: boolean }) {
   const { scope } = useFormulaScope(table);
-  const tables = scope.datahub.tables;
-  const target = tables.find((t) => t.id === draft.targetTableId);
+  // Every table of every datahub of the same owner (the server refuses anyone else's).
+  const all = [scope.datahub, ...scope.others];
+  const holder = all.find((d) => d.tables.some((t) => t.id === draft.targetTableId));
+  const [picked, setPicked] = useState<string | null>(null);
+  const dh = all.find((d) => d.id === (picked ?? holder?.id ?? scope.datahub.id)) ?? scope.datahub;
+  const target = dh.tables.find((t) => t.id === draft.targetTableId);
   return (
     <div className="flex flex-col gap-3">
+      <Field label="Datahub của bảng cần liên kết" hint={locked ? undefined : "Mặc định là datahub này. Chỉ có datahub của bạn."}>
+        <Select value={dh.id} disabled={locked} onChange={(e) => { setPicked(e.target.value); set({ targetTableId: "" }); }}>
+          {all.map((d) => <option key={d.id} value={d.id}>{d.name}{d.id === scope.datahub.id ? " (hiện tại)" : ""}</option>)}
+        </Select>
+      </Field>
       <div data-field="targetTableId">
-        <Field label="Liên kết tới bảng" required error={shown("targetTableId")} hint={locked ? "Không đổi được bảng đích của cột đã tạo. Muốn đổi thì tạo cột mới." : "Chọn bảng trong datahub này. Mỗi ô chọn các dòng của bảng đó."}>
+        <Field label="Liên kết tới bảng" required error={shown("targetTableId")} hint={locked ? "Không đổi được bảng đích của cột đã tạo. Muốn đổi thì tạo cột mới." : "Mỗi ô chọn các dòng của bảng đó."}>
           <Select value={draft.targetTableId} disabled={locked} onChange={(e) => set({ targetTableId: e.target.value })} {...fieldProps("targetTableId")}>
             <option value="">Chọn bảng</option>
-            {tables.map((t) => <option key={t.id} value={t.id}>{t.name}{t.id === table.id ? " (bảng này)" : ""}</option>)}
+            {dh.tables.map((t) => <option key={t.id} value={t.id}>{t.name}{t.id === table.id ? " (bảng này)" : ""}</option>)}
           </Select>
         </Field>
       </div>
@@ -375,7 +384,7 @@ function LookupFields({ draft, set, shown, table, others }: { draft: ColumnDraft
     if (targetId) ensure(targetId);
   }, [targetId, ensure]);
   const targetCols = targetId ? columnsOf(targetId) : null;
-  const targetName = scope.datahub.tables.find((t) => t.id === targetId)?.name;
+  const targetName = [scope.datahub, ...scope.others].flatMap((d) => d.tables).find((t) => t.id === targetId)?.name;
   const NUMERIC = new Set(["number", "currency", "percent", "auto_number"]);
   const col = targetCols?.find((c) => c.name === draft.targetColumn);
   const numeric = !!col && (NUMERIC.has(col.type) || (["formula", "rollup", "lookup"].includes(col.type) && ["number", "percent"].includes(String(col.config.result_type))));

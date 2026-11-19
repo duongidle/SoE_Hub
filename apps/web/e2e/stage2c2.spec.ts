@@ -110,7 +110,7 @@ async function apiTotal(query: string): Promise<number> {
 }
 /** The view toolbar opens a panel; a button of the toolbar with this name. */
 async function openTool(page: Page, name: string, panelName: string): Promise<Locator> {
-  await toolbar(page).getByRole("button", { name: new RegExp(`^${name}`) }).click();
+  await toolbar(page).getByRole("button", { name: new RegExp(`^${name}(?! của bảng)`) }).click();
   const d = panel(page, panelName);
   await expect(d).toBeVisible();
   return d;

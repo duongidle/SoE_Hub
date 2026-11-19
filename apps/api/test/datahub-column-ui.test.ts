@@ -155,3 +155,32 @@ describe("files in an attachment cell: only NEW ids need to be the writer's own"
     expect(await cell(row.id)).toEqual([fOwner, fEditor]);
   });
 });
+
+describe("a link may point at any table of any datahub of the same owner, never at someone else's", () => {
+  it("searches and labels rows of a table in another datahub of the owner; refuses another owner's table", async () => {
+    const cust = await makeTable(owner, { name: "Khách riêng", columns: [{ name: "Tên khách", type: "text" }] });
+    const c1 = await owner("datahub.row.create", { table_id: cust.tableId, data: { "Tên khách": "Công ty Ngoài Datahub" } });
+    const deals = await makeTable(owner, { name: "Deals khác datahub" });
+    const link = await owner("datahub.column.create", { table_id: deals.tableId, name: "Khách", type: "relation", config: { target_table_id: cust.tableId } });
+    const found = await owner("datahub.relation.search", { table_id: deals.tableId, column: link.key, q: "ngoai" });
+    expect(found.data.map((r: { id: string }) => r.id)).toEqual([c1.id]);
+    const deal = await owner("datahub.row.create", { table_id: deals.tableId, data: { Khách: [c1.id] } });
+    expect(deal.id).toBeTruthy();
+    expect((await owner("datahub.relation.labels", { table_id: deals.tableId, column: link.key, ids: c1.id }))[0].label).toBe("Công ty Ngoài Datahub");
+    // A person the deals datahub is shared with sees the label (a value in the cell), but cannot search.
+    await owner("datahub.share.set", { datahub_id: deals.dhId, grantee_id: org.userA2.id, permission: "edit_data" });
+    const editor = as(t, org.userA2.id);
+    expect((await editor("datahub.relation.labels", { table_id: deals.tableId, column: link.key, ids: c1.id }))[0].label).toBe("Công ty Ngoài Datahub");
+    expect((await fails(editor("datahub.relation.search", { table_id: deals.tableId, column: link.key }))).code).toBe("forbidden");
+
+    // Another owner's table: a link cannot be made to it, a row of it cannot be linked.
+    const theirs = await makeTable(as(t, org.userB1.id), { name: "Của người khác", columns: [{ name: "Tên", type: "text" }] });
+    const theirRow = await as(t, org.userB1.id)("datahub.row.create", { table_id: theirs.tableId, data: { Tên: "Bí mật" } });
+    const refused = await fails(owner("datahub.column.create", { table_id: deals.tableId, name: "Lạ", type: "relation", config: { target_table_id: theirs.tableId } }));
+    expect(refused.code).toBe("validation_error");
+    expect((await fails(owner("datahub.row.create", { table_id: deals.tableId, data: { Khách: [theirRow.id] } }))).code).toBe("validation_error");
+    // And the other owner cannot read these rows through the owner's link.
+    expect((await fails(as(t, org.userB1.id)("datahub.relation.search", { table_id: deals.tableId, column: link.key }))).code).toBe("not_found");
+    expect((await fails(as(t, org.userB1.id)("datahub.relation.labels", { table_id: deals.tableId, column: link.key, ids: c1.id }))).code).toBe("not_found");
+  });
+});

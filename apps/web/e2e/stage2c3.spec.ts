@@ -323,6 +323,25 @@ test("cột Liên kết, Lookup, Rollup: chọn bảng và cột từ danh sách
   await d.getByRole("button", { name: "Thêm cột", exact: true }).click();
   await created("Số KH");
   await expect(d).toBeHidden();
+  // A link to a table of ANOTHER datahub of the same owner: Datahub then Bảng from lists.
+  const other = await ownerApi.call<{ id: string }>("POST", "/datahubs", { name: `Kho khác ${p}` });
+  const ncc = await ownerApi.call<{ id: string }>("POST", `/datahubs/${other.id}/tables`, { name: "Nhà cung cấp" });
+  await ownerApi.call("POST", `/tables/${ncc.id}/columns`, { name: "Tên NCC", type: "text" });
+  await ownerApi.call("POST", `/tables/${ncc.id}/rows`, { data: { "Tên NCC": "Nhà cung cấp Phương Nam" } });
+  await pg.reload();
+  await expect(g.root).toBeVisible();
+  d = await openAdd(pg);
+  await nameBox(d).fill("NCC");
+  await d.getByLabel("Kiểu cột").selectOption({ label: "Liên kết dòng" });
+  await d.getByLabel(/^Datahub của bảng cần liên kết/).selectOption({ label: `Kho khác ${p}` });
+  await d.getByLabel("Liên kết tới bảng").selectOption({ label: "Nhà cung cấp" });
+  await d.getByRole("button", { name: "Thêm cột", exact: true }).click();
+  await created("NCC");
+  await expect(d).toBeHidden();
+  const nccCol = (await colByName("NCC"))!;
+  expect(nccCol.config.target_table_id).toBe(ncc.id);
+  const nccFound = (await ownerApi.raw<{ data: { data: { label: string }[] } }>(`/tables/${dealsId}/relation-search?column=${nccCol.key}&q=phuong`)).data;
+  expect(nccFound.data.map((r) => r.label)).toEqual(["Nhà cung cấp Phương Nam"]);
   const cols = await columns(ownerApi);
   expect(cols.find((c) => c.name === "Tên KH")).toMatchObject({ type: "lookup", config: { relation: "Khách", target_column: "Tên khách" } });
   expect(cols.find((c) => c.name === "Số KH")).toMatchObject({ type: "rollup", config: { fn: "counta" } });
@@ -332,7 +351,7 @@ test("cột Liên kết, Lookup, Rollup: chọn bảng và cột từ danh sách
   await g.click(0, 0);
   await pg.getByRole("button", { name: "Chi tiết dòng" }).click();
   const panel = pg.getByRole("dialog", { name: /^Dòng #/ });
-  await panel.getByRole("button", { name: "Chọn dòng" }).click();
+  await panel.getByRole("button", { name: "Chọn dòng" }).first().click();
   const list = panel.getByRole("listbox", { name: "Dòng của bảng được liên kết" });
   await expect(list.getByRole("option").first()).toBeVisible();
   // 1.203 rows in the target table, but only the ones in view are drawn.
@@ -444,7 +463,7 @@ test("người Xem và người Sửa: không đổi được cấu trúc, khôn
     await expect(panel.getByRole("button", { name: "Tải về baogia.pdf" })).toBeVisible();
     if (s === editor) {
       await expect(panel.getByRole("button", { name: "Tải file lên" })).toBeVisible();
-      await expect(panel.getByText("Chỉ chủ datahub được sửa cột liên kết.")).toBeVisible();
+      await expect(panel.getByText("Chỉ chủ datahub được sửa cột liên kết.").first()).toBeVisible();
       const [dl] = await Promise.all([pg.waitForEvent("download"), panel.getByRole("button", { name: "Tải về baogia.pdf" }).click()]);
       expect(dl.suggestedFilename()).toBe("baogia.pdf");
     } else {

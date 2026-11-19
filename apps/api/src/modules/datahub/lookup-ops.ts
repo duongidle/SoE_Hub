@@ -50,7 +50,7 @@ export const lookupOperations = [
   defineQuery({
     name: "datahub.relation.labels",
     summary: "Tên hiển thị của các dòng được liên kết ở một cột Liên kết (giá trị cột đầu tiên dạng chữ của bảng đích, không có thì `#<mã dòng>`).",
-    description: "Người được chia sẻ bảng nguồn thấy tên hiển thị này (là giá trị trong ô), nhưng không mở được dòng ở bảng đích.",
+    description: "Bảng đích là bảng của cùng chủ (cùng datahub hoặc datahub khác của chủ). Người được chia sẻ bảng nguồn thấy tên hiển thị này (là giá trị trong ô), nhưng không mở được dòng ở bảng đích.",
     permission: "datahub:datahub:use",
     aiAllowed: true,
     input: z.object({ table_id: Id, column: z.string().min(1).max(100).describe("Mã hoặc tên cột Liên kết."), ids: z.string().max(8000).describe("Các mã dòng đích, ngăn cách bằng dấu phẩy (tối đa 200).") }),
@@ -70,7 +70,7 @@ export const lookupOperations = [
       const key = (cols.rows[0] as { key: string } | undefined)?.key;
       const label = key ? sql`COALESCE(NULLIF(r.data->>${sql.raw(`'${assertColumnKey(key)}'`)}, ''), '#' || r.row_no::text)` : sql`'#' || r.row_no::text`;
       const res = await ctx.db.execute(sql`SELECT r.id, r.row_no, ${label} AS label FROM dh_rows r JOIN dh_tables t ON t.id = r.table_id JOIN dh_datahubs d ON d.id = t.datahub_id
-        WHERE /*scope*/ r.table_id = ${target}::uuid AND r.deleted_at IS NULL AND d.id = ${acc.datahub.id}::uuid AND r.id = ANY(${uuidArray(ids)}::uuid[])`);
+        WHERE /*scope*/ r.table_id = ${target}::uuid AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND d.deleted_at IS NULL AND d.owner_id = ${acc.datahub.ownerId}::uuid AND r.id = ANY(${uuidArray(ids)}::uuid[])`);
       return res.rows as { id: string; row_no: number; label: string }[];
     },
   }),
@@ -101,7 +101,7 @@ export const lookupOperations = [
       const cols = await ctx.db.execute(sql`SELECT key FROM dh_columns WHERE /*scope*/ table_id = ${target}::uuid AND deleted_at IS NULL AND type IN ('text', 'long_text', 'email', 'phone', 'url') ORDER BY position, created_at, id LIMIT 1`);
       const key = (cols.rows[0] as { key: string } | undefined)?.key;
       const label = key ? sql`COALESCE(NULLIF(r.data->>${sql.raw(`'${assertColumnKey(key)}'`)}, ''), '#' || r.row_no::text)` : sql`'#' || r.row_no::text`;
-      const where = [sql`/*scope*/ r.table_id = ${target}::uuid`, sql`r.deleted_at IS NULL`, sql`t.deleted_at IS NULL`, sql`d.deleted_at IS NULL`, sql`d.id = ${acc.datahub.id}::uuid`, sql`d.owner_id = ${acc.datahub.ownerId}::uuid`];
+      const where = [sql`/*scope*/ r.table_id = ${target}::uuid`, sql`r.deleted_at IS NULL`, sql`t.deleted_at IS NULL`, sql`d.deleted_at IS NULL`, sql`d.owner_id = ${acc.datahub.ownerId}::uuid`];
       if (i.after !== undefined) where.push(sql`r.row_no > ${i.after}::bigint`);
       const q = (i.q ?? "").trim();
       if (q) {

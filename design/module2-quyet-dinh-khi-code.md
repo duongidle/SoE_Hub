@@ -255,6 +255,7 @@ Giao diện ở `apps/web/src/pages/datahub/` (`column-editor.tsx`, `column-mana
 **API thêm (có test phân quyền, OpenAPI, Bruno)**
 - `datahub.relation.search` (GET `/tables/:table_id/relation-search`): tìm dòng của bảng đích để chọn vào ô Liên kết (từ khoá không dấu qua `search`, hoặc số dòng `#12`; phân trang theo `row_no` bằng `after`/`next_after`, tối đa 100 mỗi trang). **Chỉ chủ** datahub (chỉ chủ ghi được ô Liên kết). Nhãn dòng giống `datahub.relation.labels`.
 - `datahub.attachment.list` và `datahub.attachment.download_url` (GET `/tables/:table_id/attachments`, `/attachments/:file_id/download-url`): tên, loại, dung lượng và link tải file đang nằm trong ô Đính kèm của một dòng chưa xoá của bảng. Người xem bảng đều đọc được, dù file do người khác tải lên (theo Module 1 mục 4.3: file gắn vào đối tượng thì ai đọc được đối tượng đọc được file; trước đó `file.download.url` chỉ cho người tải lên). File chưa gắn vào ô nào thì không đọc được qua đây. Có ghi audit khi tải.
+- **Ô Đính kèm, quyền ghi mã file:** chỉ mã file **mới** của dòng (có trong giá trị mới, không có trong giá trị đang lưu của dòng đó; dòng mới thì mọi mã đều mới) phải là file đã tải xong của chính người ghi (`checkFiles` trong `rows.ts`, chạy sau khi đã đọc dòng cần sửa, áp cho update, create, upsert, batch). Mã đã nằm trong ô thì giữ được: người Sửa thêm file của mình vào ô có file của chủ, chủ gỡ file của người Sửa. Không chép được mã file của người khác (kể cả mã nằm ở dòng khác của cùng bảng); chủ cũng không đưa lại được file của người Sửa vào ô (nó là mã mới với chủ). Khôi phục dòng (`restore`, `restore_batch`) không kiểm vì không thêm mã mới.
 - Cột được gọi bằng **mã cột (`key`) hoặc tên**, không phải `id` (uuid): giao diện gửi `key`.
 
 **Quản lý cột**
@@ -264,7 +265,7 @@ Giao diện ở `apps/web/src/pages/datahub/` (`column-editor.tsx`, `column-mana
 - Giá trị mặc định cho các kiểu đọc được bằng `parseCellText` (chữ, số, tiền, phần trăm, ngày, ngày giờ), Có/Không cho checkbox, một lựa chọn bằng danh sách. Không có mặc định cho nhiều lựa chọn, đánh giá, người dùng, liên kết, đính kèm.
 - **Đổi kiểu:** chỉ giữa các kiểu ghi được (không công thức, hệ thống, đính kèm). Bấm Lưu thì gọi `type_preview` rồi hiện hộp xác nhận với số ô giữ nguyên, đổi dạng, bị xoá trắng (số do máy chủ đếm) và tới 5 ví dụ ô bị xoá trắng; nút ghi rõ "Đổi kiểu và xoá N ô"; "Giữ lại" không đổi gì. Áp dụng: `type_change` (kèm `accept_data_loss` khi có ô mất), rồi ghi tên, mô tả, thuộc tính, định dạng (vì `type_change` đặt lại định dạng và mặc định).
 - **Xoá cột:** vào thùng rác, toast "Hoàn tác" gọi `column.restore`; hộp "Cột của bảng" tự đóng khi xoá (hộp thoại modal chặn bấm vào toast).
-- Lookup/Rollup chọn cột Liên kết của bảng này, rồi cột của bảng đích (tải khi chọn); Rollup bỏ Tổng/Trung bình khi cột đích không phải số. Liên kết chỉ chọn bảng **cùng datahub** (`relation.labels` và `relation.search` chỉ đọc cùng datahub); không đổi được bảng đích của cột có sẵn.
+- Lookup/Rollup chọn cột Liên kết của bảng này, rồi cột của bảng đích (tải khi chọn); Rollup bỏ Tổng/Trung bình khi cột đích không phải số. Liên kết chọn bảng của **mọi datahub của cùng chủ** (Datahub → Bảng, như trình soạn công thức); `relation.labels` và `relation.search` đọc theo chủ datahub chứa bảng nguồn, không bao giờ đọc bảng của người khác (tạo cột hoặc ghi dòng liên kết tới bảng người khác bị từ chối); không đổi được bảng đích của cột có sẵn.
 
 **Trình soạn công thức (mục 6.3)**
 - Ô nhập tự cao theo chữ; lớp chữ trong suốt phía sau gạch chân gợn sóng đúng đoạn máy chủ báo lỗi (`segments`, vị trí tính cho văn bản gửi đi, có `=`), kèm danh sách lỗi bằng lời. Gợi ý nằm trong dòng chảy của biểu mẫu (không nổi) để không bị khung cuộn cắt: gõ `[` gợi ý cột của bảng này, bảng cùng datahub, datahub khác; sau `[Bảng].[` gợi ý cột (tải cột của bảng đích khi cần); sau `[Datahub].[Bảng].[` cũng vậy; gõ tên hàm gợi ý hàm. Lên/xuống chọn, Enter hoặc Tab chèn, Esc đóng; không gợi ý trong chuỗi `"..."`.
@@ -279,7 +280,7 @@ Giao diện ở `apps/web/src/pages/datahub/` (`column-editor.tsx`, `column-mana
 - Dán, gõ, Delete và Sửa hàng loạt bỏ qua ô Liên kết và Đính kèm (`readOnlyReason` có lý do mới: "Chọn dòng liên kết trong ô…", "Tải file lên trong ô…"); `pickerEditable` quyết ô nào có ô chọn.
 
 **Test**
-- Máy chủ: `apps/api/test/datahub-column-ui.test.ts` (tìm dòng đích, phân trang, ký tự `%`, người Sửa bị chặn; file chỉ mở qua bảng, người xem đọc được file của người khác, gỡ khỏi dòng thì đóng; mọi lệnh cấu trúc bị chặn với người Sửa, công thức bị giấu).
+- Máy chủ: `apps/api/test/datahub-column-ui.test.ts` (tìm dòng đích, phân trang, ký tự `%`, người Sửa bị chặn; liên kết sang datahub khác của chủ, bảng của chủ khác bị từ chối; quyền ghi mã file mới (update, create, upsert, restore, mã lạ); file chỉ mở qua bảng, người xem đọc được file của người khác, gỡ khỏi dòng thì đóng; mọi lệnh cấu trúc bị chặn với người Sửa, công thức bị giấu).
 - Web: `apps/web/test/column-config.test.ts`, `apps/web/test/formula-assist.test.ts`; e2e `apps/web/e2e/stage2c3.spec.ts` (6 luồng, chỉ desktop; phone dời sang 2E).
 
 **Lệch hoặc bổ sung so với thiết kế**
