@@ -64,3 +64,10 @@
 - Tổng doanh thu theo tháng × một cột chọn (198 nhóm): 124 ms (SQL 120 ms), mục tiêu < 1 s.
 - Từng phép tổng hợp không nhóm / nhóm theo tháng: count 15/83 ms; count_distinct 235/264 ms; avg 21/97 ms; median 45/108 ms; p90 42/103 ms; trimmed_mean 157/178 ms; stddev 28/102 ms.
 - Ghép theo khoá 100.000 × 100.000 dòng, tổng theo năm: 1.655 ms (SQL 930 ms + chẩn đoán). Vượt 1 s; để 3A-2 (cache) và 3D (load test) xử lý, hoặc dùng cột Liên kết / bảng gộp.
+
+### Sửa lại 3A-1: đọc cột qua nguồn cột (Điều chỉnh mục 1, 19/11)
+
+- `ColumnSource` có thêm `cellExpr(col, data, as)` (`as` = `"text"` cho `->>`, `"json"` cho `->`; `data` là biểu thức SQL của object dữ liệu của dòng: `b.data`, `j1.data`). `JsonbSource` sinh đúng `<data>->>'key'` như cũ; `PhysicalSource`/`PersonalSource` vẫn ném lỗi "Stage 4". `readExpr` giữ nguyên (list/get, `fields=` không đổi, không có chỗ gọi nào phải sửa).
+- `MColumn.read?` (`packages/metrics/src/columns.ts`): API điền từ `sourceOf(col).cellExpr` trong `toMColumn`; `valueExpr` dùng nó. Không có `read` (test thuần của package) thì đọc JSONB dưới `key` như trước. Package `metrics` không biết dữ liệu nằm ở đâu.
+- Cột công thức: vẫn đọc giá trị lưu (`->>`), không dùng chỗ chuyển lỗi ô như `readExpr` (metric bỏ ô lỗi như ô rỗng, như 3A-1).
+- Test: `packages/metrics/test/build.test.ts` (`MColumn.read` giả, SQL dùng biểu thức đó); test 3A-1 pass nguyên.

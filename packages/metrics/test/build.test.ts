@@ -98,3 +98,12 @@ describe("periods", () => {
     expect(bucketLabel("2025-04-01", "year", 4)).toBe("2025");
   });
 });
+
+describe("reading a column through its source", () => {
+  it("uses the read expression the API gives the column instead of data->>key", () => {
+    const t: MTable = { ...table, columns: [{ key: "c_money", name: "Tiền", kind: "number", read: (data, as) => sql.raw(`personal_value(${data}, 'c_money', '${as}')`) }] };
+    const q = new PgDialect().sqlToQuery(buildMetricQuery(plan({ base: t, measure: { agg: "sum", field: "Tiền" } })).sql);
+    expect(q.sql).toContain("personal_value(b.data, 'c_money', 'text')");
+    expect(q.sql).not.toContain("b.data->>'c_money'");
+  });
+});

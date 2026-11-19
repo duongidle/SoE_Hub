@@ -20,6 +20,12 @@ export interface MColumn {
   relationTarget?: string;
   /** Name of the Datahub column type, for messages. */
   typeLabel?: string;
+  /**
+   * How to read the raw cell, given the SQL expression of the row's data object (`b.data`, `j1.data`). The API fills it from the
+   * column source (`sourceOf(col)`), so this package does not know where the value lives. Without it (unit tests) the cell is
+   * read from the JSONB object under `key`.
+   */
+  read?: (data: string, as: "text" | "json") => SQL;
 }
 
 export interface MTable {
@@ -72,14 +78,15 @@ export function valueExpr(ref: TableRef, col: MColumn): SQL {
     return col.meta === "row_no" ? sql`(${e})::numeric` : e;
   }
   const k = assertKey(col.key);
-  const txt = sql.raw(`${ref.data}->>'${k}'`);
+  const cell = (as: "text" | "json"): SQL => (col.read ? col.read(ref.data, as) : sql.raw(`${ref.data}${as === "text" ? "->>" : "->"}'${k}'`));
+  const txt = cell("text");
   switch (col.kind) {
     case "number": return sql`(${txt})::numeric`;
     case "date": return sql`soe_date(${txt})`;
     case "datetime": return sql`soe_ts(${txt})`;
     case "boolean": return sql`coalesce((${txt})::boolean, false)`;
     case "uuid": return sql`(${txt})::uuid`;
-    case "set": return sql.raw(`${ref.data}->'${k}'`);
+    case "set": return cell("json");
     default: return txt;
   }
 }

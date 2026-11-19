@@ -3,6 +3,7 @@ import { AppError } from "@soe/shared";
 import { SourceDefSchema, parseJson, type MColumn, type MTable, type PlanJoin, type SourceDef } from "@soe/metrics";
 import type { HandlerCtx } from "../../core/types";
 import { loadTableAccess, type TableAccess } from "../datahub/access";
+import { sourceOf } from "../datahub/column-source";
 import { effectiveType } from "../datahub/cell-values";
 import { columnTypeDef } from "../datahub/column-types";
 import { TableSchema, normName } from "../datahub/table-schema";
@@ -15,7 +16,8 @@ export const isUuid = (s: string): boolean => UUID_RE.test(s);
 
 /** A Datahub column as the metric engine sees it (a computed column counts as its result type). Null = not usable in a metric. */
 export function toMColumn(c: DhColumn): MColumn | null {
-  const base = { key: c.key, name: c.name, typeLabel: columnTypeDef(c.type).label };
+  const src = sourceOf(c);
+  const base = { key: c.key, name: c.name, typeLabel: columnTypeDef(c.type).label, read: (data: string, as: "text" | "json") => src.cellExpr(c, data, as) };
   switch (effectiveType(c)) {
     case "number":
     case "currency":

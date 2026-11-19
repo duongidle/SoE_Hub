@@ -36,6 +36,12 @@ export interface ColumnSource {
   fieldSpec(col: DhColumn): FieldSpec | null;
   /** SQL that reads the cell as `jsonb` (for the list/get output and `fields=` selection). */
   readExpr(col: DhColumn): SQL;
+  /**
+   * SQL that reads the raw cell of a row whose data object is the SQL expression `data` (for example `b.data`, or `j1.data` for a
+   * joined table folded per base row). `as: "text"` gives `->>` (to be cast by the caller), `"json"` gives `->`. Used by the metric
+   * engine, which does not know where a column lives.
+   */
+  cellExpr(col: DhColumn, data: string, as: "text" | "json"): SQL;
   /** Reads the stored cell from an already loaded row. */
   readCell(row: LoadedRow, col: DhColumn): Stored;
   /** Describes how to write one cell. */
@@ -66,6 +72,10 @@ export class JsonbSource implements ColumnSource {
     return sql.raw(`data->'${assertColumnKey(col.key)}'`);
   }
 
+  cellExpr(col: DhColumn, data: string, as: "text" | "json"): SQL {
+    return sql.raw(`${data}${as === "text" ? "->>" : "->"}'${assertColumnKey(col.key)}'`);
+  }
+
   readCell(row: LoadedRow, col: DhColumn): Stored {
     return row.data[col.key] ?? null;
   }
@@ -87,6 +97,7 @@ export class PhysicalSource implements ColumnSource {
   readonly kind = "physical" as const;
   fieldSpec = notYet("physical");
   readExpr = notYet("physical");
+  cellExpr = notYet("physical");
   readCell = notYet("physical");
   planWrite = notYet("physical");
 }
@@ -99,6 +110,7 @@ export class PersonalSource implements ColumnSource {
   readonly kind = "personal" as const;
   fieldSpec = notYet("personal");
   readExpr = notYet("personal");
+  cellExpr = notYet("personal");
   readCell = notYet("personal");
   planWrite = notYet("personal");
 }
