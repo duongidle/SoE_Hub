@@ -49,9 +49,18 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 
 **3A-1 xong, Opus rà 19/11: đạt** (commit 41a4b69..8186456; chi tiết `design/module3-quyet-dinh-khi-code.md` mục 3A-1). Đụng phần dùng chung (`packages/shared/src/time-filter.ts`, quyền đọc dòng) nên Opus tự chạy lại: typecheck, lint sạch; `vitest run packages/metrics packages/shared apps/api/test/metrics apps/api/test/datahub` 31 file, 364 test pass. Hiệu năng 100.000 dòng: 15–264 ms mỗi chỉ số; ghép theo khoá 100k×100k 1.655 ms (vượt 1 s, xử lý ở 3A-2/3D).
 **Opus quyết khi rà:** ghép bảng đổi từ inner sang **left** (dòng bảng chính không có đối tác vẫn vào số liệu, cột bảng ghép là rỗng; ghép thêm bảng không bao giờ làm đổi số của bảng chính; chẩn đoán vẫn báo dòng không khớp, 0 khớp vẫn báo lỗi). Làm đầu 3A-2.
-Ghi chú Stage 4: chia sẻ thống nhất (khoá phân chia, Module 2 mục 10, commit 74777ca) đổi `access.scope()`; engine metric đọc dòng qua `scope()` nên tự theo; khoá cache của 3A-2 phải gồm phạm vi dòng thực tế của người đọc.
 
-**3A-2 tạm dừng 19/11 (Dương bảo ngưng)**: [x] 0 ghép left (4b15996, test pass); [ ] 1 phái sinh **đang dở**: `packages/metrics/src/schema.ts` đã sửa một phần (commit WIP, **typecheck đang fail** ở `apps/api/src/modules/metrics/engine.ts:73,83` và `ops.ts:77,79,128`: kiểu `PlanInput`/`MetricSpec` chưa khớp schema mới); [ ] 2 thời gian; [ ] 3 mục tiêu + outlier; [ ] 4 chịu tải; [ ] 5 xoá cache outbox + SSE; [ ] 6 hiệu năng ghép; [ ] 7 API/OpenAPI/Bruno; [ ] 8-9 test + quyết định. **Làm tiếp:** giao Sonnet 3A-2 từ mục 1 (đọc diff `schema.ts` của commit WIP, sửa cho typecheck sạch rồi làm tiếp), phạm vi đủ ở prompt cũ = mục "Đang làm: Stage 3" + `design/module3-metric-dashboard.md` mục 5.2–6.1.
+**3A-2 tạm dừng 19/11 (Dương bảo ngưng)**: [x] 0 ghép left (4b15996, test pass); [ ] 1 phái sinh **đang dở**: `packages/metrics/src/schema.ts` đã sửa một phần (commit WIP, **typecheck đang fail** ở `apps/api/src/modules/metrics/engine.ts:73,83` và `ops.ts:77,79,128`: kiểu `PlanInput`/`MetricSpec` chưa khớp schema mới); [ ] 2 thời gian; [ ] 3 mục tiêu + outlier; [ ] 4 chịu tải; [ ] 5 xoá cache outbox + SSE; [ ] 6 hiệu năng ghép; [ ] 7 API/OpenAPI/Bruno; [ ] 8-9 test + quyết định. **Làm tiếp:** giao Sonnet 3A-2 từ mục 1 (đọc diff `schema.ts` của commit WIP, sửa cho typecheck sạch rồi làm tiếp), phạm vi đủ ở prompt cũ = mục "Đang làm: Stage 3" + `design/module3-metric-dashboard.md` mục 5.2–6.1, **cộng mục "Điều chỉnh Stage 3" ngay dưới (bắt buộc đọc)**.
+
+## Điều chỉnh Stage 3 so với Module 3 đã đọc (Dương chốt 19/11)
+
+Module 3 vừa sửa sau khi Sonnet đọc (commit 36d3e03), vì Dương chốt **khoá phân chia** (Module 2 mục 10): bảng có thể chỉ cho mỗi người thấy dòng có tên mình hoặc cấp dưới, và có cột lưu giá trị riêng theo từng người đọc. Hai thứ này về code ở Stage 4.1, nhưng Stage 3 phải làm sẵn chỗ cắm để khi đó không phải viết lại. Sonnet đọc mục này trước khi làm tiếp bất kỳ bước nào của Stage 3:
+
+1. **Sửa phần đã làm ở 3A-1:** `packages/metrics/src/columns.ts` đang đọc thẳng `dh_rows.data`. Đổi sang đọc qua nguồn cột: API dựng `MColumn` kèm biểu thức đọc lấy từ `sourceOf(col).readExpr` (`apps/api/src/modules/datahub/column-source.ts`). *Lý do:* Stage 4 thêm cột giá trị theo từng người (Lookup/Rollup tính theo người đọc, cột "của tôi" của Deals); đọc thẳng `data` thì các cột đó ra rỗng. Hôm nay mọi cột là JSONB nên số liệu không đổi: test 3A-1 phải pass nguyên.
+2. **3A-2 cache:** khoá phạm vi lấy từ **một hàm duy nhất** trong `access.ts` (ví dụ `scopeKey(access)`, hôm nay theo bảng + mức quyền), metrics không tự dựng. Xoá cache cả khi đổi chia sẻ của bảng nguồn và khi cây tổ chức đổi. *Lý do:* khi khoá phân chia bật, mỗi người một phạm vi; dùng chung khoá cache theo bảng sẽ cho người này thấy số của người khác. Stage 4.1 chỉ cần sửa hàm đó.
+3. **3B bảng gộp:** đọc dòng nguồn qua `scope()` của chủ bảng gộp (không đọc thẳng `dh_rows`), và có đường đồng bộ lại khi dòng vào/ra khỏi phạm vi. *Lý do:* nguồn có thể là bảng có khoá phân chia (Deals); bảng gộp không được chép dòng chủ không thấy (Module 3 mục 4.1).
+4. **3C-2 xem các dòng, xuất CSV:** dùng phạm vi của **người nhận**, không phải của chủ dashboard; hiện "Bạn thấy 12/40 dòng tạo nên con số này". *Lý do:* số tính theo quyền chủ, nhưng dòng thô thì người nhận chỉ được thấy phần của mình (Module 3 mục 9).
+5. Để Stage 4: chỉ số và dashboard mặc định của Deals trỏ cột theo **vai trò cột** (Module 4 mục 3.7), không theo tên.
 
 ## Việc đã xếp cho Stage 4 (sửa lại code Stage 2)
 
@@ -61,9 +70,7 @@ Ghi chú Stage 4: chia sẻ thống nhất (khoá phân chia, Module 2 mục 10,
 - Tuỳ chọn "Thành viên được thêm dòng hàng loạt": chặn import, dán sinh dòng mới, API nhiều dòng (2D đang cho import).
 - Lookup/Rollup sang bảng có khoá phân chia tính theo từng người đọc.
 - Hạ tầng bảng template (cờ bảo vệ, lớp cột, vai trò cột); bỏ `PhysicalSource`.
-- Metrics: đọc cột giá trị theo từng người, khoá cache theo người (việc 11b).
 
-**Cho Stage 3 đang làm (Module 3 sửa 19/11):** cache 3A-2 lấy khoá phạm vi từ một hàm của `access.ts`, không tự dựng; 3B bảng gộp nhận bảng template của chủ làm nguồn, chỉ đồng bộ dòng chủ thấy; 3C-2 "xem các dòng" chỉ trả dòng người nhận thấy. Opus nhắc khi giao các bước này.
 
 ## Lỗi điện thoại để sau
 
