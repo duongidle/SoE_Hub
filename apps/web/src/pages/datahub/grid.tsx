@@ -564,7 +564,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   const rowsCount = session.lineCount;
   return (
     // data-* : the layout the browser tests use to find a cell on the canvas.
-    <div className="relative min-h-0 flex-1" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-lines={rowsCount} data-marker-width={MARKER_WIDTH}>
+    <div className="relative min-h-[60dvh] flex-1 sm:min-h-0" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-lines={rowsCount} data-marker-width={MARKER_WIDTH}>
       {theme && (
         <DataEditor
           ref={ref}

@@ -60,7 +60,7 @@ Chi tiết (luồng đã đi, lỗi đã sửa, số test) ở git log (`2C-2`, 
 
 Không chặn bước con (CLAUDE.md, "Điện thoại là ưu tiên thấp"); gom sửa một đợt, Opus quyết khi nào.
 
-- `stage2c2.spec.ts:188` phone "sắp xếp nhiều cấp..." fail 4/4 lần (ổn định, không chập chờn). Lệnh: `pnpm test:e2e stage2c2 --project=phone -g "sắp xếp nhiều cấp"`. Nguyên nhân: ở 375px thanh công cụ view (thêm Nhập, Xuất, Tìm dòng trùng, Thùng rác, Thêm cột ở 2C-4/2D) xuống nhiều hàng, khung grid chỉ còn cao 73 px (1 dòng), nên `GridDriver.read(5,0)` bấm trượt. Chỉ là bố cục điện thoại; desktop pass. Sửa: gọn thanh công cụ ở điện thoại (gom vào menu "...") hoặc cho grid chiều cao tối thiểu.
+- (Đã sửa 19/11) `stage2c2.spec.ts:188` phone: gom 6 nút thanh công cụ vào menu "…" (aria-label "Thêm thao tác") dưới `sm`, grid `min-h-[60dvh] sm:min-h-0`. Test: `pnpm -r typecheck`, `pnpm lint`, `pnpm test:e2e stage2c1 stage2c2 stage2c3 stage2c4 stage2d --project=phone` (17 pass, 23 skip có sẵn), `pnpm test:e2e stage2e --project=desktop` (6/6 pass).
 
 - `stage1.spec.ts` phone "cài đặt hệ thống" hết giờ 1 lần, chạy lại pass; nghi cùng nguyên nhân Vite tải lại trang (đã sửa ở f8835de), chưa xác minh. Lệnh: `pnpm test:e2e stage1 --project=phone`. Sau f8835de: 3 lần liền 16/16 pass (19/11, chạy trong 2C-3), chưa thấy fail lại.
 

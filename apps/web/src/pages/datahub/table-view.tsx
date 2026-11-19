@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { formatCount } from "@soe/shared";
-import { Columns3, Copy, Download, Maximize2, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+import { Columns3, Copy, Download, Maximize2, MoreHorizontal, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, errorMessage, Field, Input, Modal, Select } from "@/components/ui/form";
+import { Popover } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -124,6 +125,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   // Rows added by the import (made by the worker) are not part of what the open grid knows: after an import it reads the table again.
   const [reloadKey, setReloadKey] = useState(0);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [colUI, setColUI] = useState<{ kind: "manage" } | { kind: "add" } | { kind: "edit"; col: Column } | null>(null);
   const deleteCol = useColumnDelete(table);
   const [search, setSearch] = useState("");
@@ -181,6 +183,15 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
     auto.change(patch);
   };
 
+  const canEditData = table.access === "owner" || table.access === "edit_data";
+  const actions = [
+    { key: "cols", label: "Cột của bảng", icon: <Columns3 size={16} aria-hidden />, run: () => setColUI({ kind: "manage" }), disabled: false, show: true },
+    { key: "export", label: "Xuất", icon: <Download size={16} aria-hidden />, run: () => setExportOpen(true), disabled: false, show: true },
+    { key: "import", label: "Nhập", icon: <Upload size={16} aria-hidden />, run: () => setImportOpen(true), disabled: false, show: canEditData },
+    { key: "dup", label: "Tìm dòng trùng", icon: <Copy size={16} aria-hidden />, run: () => setDupOpen(true), disabled: false, show: canEditData },
+    { key: "trash", label: "Thùng rác", icon: <Trash size={16} aria-hidden />, run: () => setTrashOpen(true), disabled: false, show: canEditData },
+    { key: "add", label: "Thêm cột", icon: <Plus size={16} aria-hidden />, run: () => setColUI({ kind: "add" }), disabled: table.columns.length >= table.max_columns, show: table.access === "owner" },
+  ].filter((x) => x.show);
   const sig = `${table.id}:${columnsSignature(table)}:${querySignature(query)}:${reloadKey}`;
   const saveText = auto.status === "saving" ? "Đang lưu view…" : auto.status === "saved" ? "Đã lưu view" : "";
 
@@ -197,12 +208,24 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
         onCleanDead={cleanDead}
         extra={
           <>
-            <Button variant="secondary" onClick={() => setColUI({ kind: "manage" })}><Columns3 size={16} aria-hidden /> Cột của bảng</Button>
-            <Button variant="secondary" onClick={() => setExportOpen(true)}><Download size={16} aria-hidden /> Xuất</Button>
-            {(table.access === "owner" || table.access === "edit_data") && <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden /> Nhập</Button>}
-            {(table.access === "owner" || table.access === "edit_data") && <Button variant="secondary" onClick={() => setDupOpen(true)}><Copy size={16} aria-hidden /> Tìm dòng trùng</Button>}
-            {(table.access === "owner" || table.access === "edit_data") && <Button variant="secondary" onClick={() => setTrashOpen(true)}><Trash size={16} aria-hidden /> Thùng rác</Button>}
-            {table.access === "owner" && <Button variant="secondary" onClick={() => setColUI({ kind: "add" })} disabled={table.columns.length >= table.max_columns}><Plus size={16} aria-hidden /> Thêm cột</Button>}
+            <span className="contents max-sm:hidden">{actions.map((a) => <Button key={a.key} variant="secondary" disabled={a.disabled} onClick={a.run}>{a.icon} {a.label}</Button>)}</span>
+            <span className="sm:hidden">
+              <Popover
+                open={moreOpen}
+                onOpenChange={setMoreOpen}
+                label="Thêm thao tác"
+                align="end"
+                width="w-64"
+                className="flex flex-col gap-1 p-1"
+                trigger={<Button variant="secondary" aria-label="Thêm thao tác" className="min-h-11 min-w-11"><MoreHorizontal size={16} aria-hidden /></Button>}
+              >
+                {actions.map((a) => (
+                  <button key={a.key} type="button" disabled={a.disabled} className="flex min-h-11 items-center gap-2 rounded px-3 text-left hover:bg-muted disabled:opacity-50" onClick={() => { setMoreOpen(false); a.run(); }}>
+                    {a.icon} {a.label}
+                  </button>
+                ))}
+              </Popover>
+            </span>
           </>
         }
       />
