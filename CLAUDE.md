@@ -100,7 +100,7 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`.
 4. Có giao diện tối thiểu để dùng, đạt mục "Chuẩn giao diện".
 5. **Đã kiểm thử giao diện thực tế** (với stage có giao diện): chạy api + worker + web thật, mở trên trình duyệt thật (Playwright có chụp màn hình, hoặc Claude in Chrome), đi hết các luồng chính của stage với từng vai trò liên quan, kiểm tra không có lỗi console/network, kiểm tra ở bề ngang desktop (1280px) và điện thoại (375px; bắt buộc với trang công khai như form), dò hết danh sách kiểm tra ở mục "Chuẩn giao diện", chạy phần bắt buộc của từng skill trong bảng "Dùng skill nào, lúc nào", và thử dữ liệu xấu nhất theo quy trình `break-ui` (tên rất dài, số rất lớn, danh sách rỗng, 10.000 dòng). Lỗi tìm thấy phải sửa xong mới coi là xong. Ghi kết quả kiểm thử (luồng đã đi, lỗi đã sửa) vào `progress.md`.
-6. `progress.md` đã cập nhật, đã commit.
+6. `progress.md` đã cập nhật; cột "Trạng thái" của stage trong bảng "Stage code" ở `CLAUDE.md` đã ghi "Đã xong" (Opus ghi sau khi rà soát đạt); đã commit.
 
 ## Phân vai khi code
 
