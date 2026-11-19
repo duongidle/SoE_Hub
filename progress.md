@@ -10,7 +10,7 @@ Cập nhật: 19/11/2026
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
 1. 2A đã push `main` + `dev`. 2B+ Opus đã rà soát (19/11): đạt, `pnpm lint`/`typecheck`/`test` 511 pass. 2C-1 Opus đã rà soát: đạt, còn 3 việc chuyển sang phần sau: (a) kéo thanh cuộn xuống cuối bảng 100.000 dòng mất 5,8 s, yêu cầu nhảy tới vị trí bất kỳ < 1 s (đọc thẳng cửa sổ quanh vị trí, đúng cả khi lọc/sắp/nhóm) — giao trong 2C-2; (b) cột Liên kết, Đính kèm sửa được — 2C-3; (c) `impeccable audit` cho grid — 2C-2.
-2. **2C-2 xong, Opus đã rà (19/11)**: đọc diff và kết quả; lỗi e2e 100.000 dòng do Vite tải lại trang khi Playwright ghi trace (sửa ở `vite.config.ts`). Quyết định ở `design/module2-datahub.md` mục "Stage 2C-2". **Tiếp: 2C-3 (Sonnet).** Sau đó 2C-4, 2D, kiểm thử cuối Stage 2, rồi Opus rà và push `main` theo yêu cầu của Dương.
+2. **2C-2 xong, Opus đã rà (19/11)**: đọc diff và kết quả; lỗi e2e 100.000 dòng do Vite tải lại trang khi Playwright ghi trace (sửa ở `vite.config.ts`). Quyết định ở `design/module2-datahub.md` mục "Stage 2C-2". **Tiếp: 2C-3 (Sonnet).** Sau đó 2C-4, 2D, 2E (kiểm thử đầy đủ cả Stage 2), rồi Opus rà và push `main` theo yêu cầu của Dương.
 3. Ghi nhớ cho các phần sau của Stage 2:
    - 2B: golden test được đọc thẳng `examples/Quản lý Deal SoE (Dương TVD).xlsx` (Dương cho phép), không commit dữ liệu lấy từ file, máy không có file thì test tự bỏ qua.
    - 2C: làm cả công cụ **Tìm dòng trùng** (Module 2 mục 7a).
@@ -63,7 +63,7 @@ Opus rà soát 2C-2 bằng diff từ `8e9ca42` và kết quả kiểm thử bên
 
 ## Câu hỏi còn mở
 
-- **Test chập chờn cần sửa (quy định 19/11):** e2e `stage1` ở bản điện thoại (375x812) từng hết giờ, chạy lại thì pass (ghi ở kết quả 2C-2). Riêng lần Opus chạy lại e2e sau 2C-2 (fail cả hai lần, dù Sonnet báo pass hết): Opus ghi rõ spec và lỗi vào đây. Giao Sonnet tìm nguyên nhân và sửa trước khi làm tiếp 2C-3: `pnpm test:e2e stage1 --project=phone`, chạy lặp vài lần để đo tần suất.
+- **Test chập chờn cần sửa (quy định 19/11):** (1) Ca Opus chạy lại sau 2C-2: `stage2c2.spec.ts:366` (luồng 100.000 dòng) fail 2/2 lần, `.dvn-scroller` null. Nguyên nhân: Vite tải lại trang khi Playwright ghi trace vào `apps/web/e2e/results/`; đã sửa ở `vite.config.ts` (f8835de), sau đó 3/3 lần pass. **Đã xong.** (2) `stage1.spec.ts` phone "cài đặt hệ thống" hết giờ 1 lần, chạy lại pass; nghi cùng nguyên nhân Vite, chưa xác minh. Giao Sonnet (đang làm 2C-3) chạy `pnpm test:e2e stage1 --project=phone` 3 lần liền; còn fail thì tìm nguyên nhân và sửa trước khi báo xong 2C-3.
 
 
 - 2C-1: (1) Cây truy cập (bảng ẩn cho trình đọc màn hình) của Glide không dựng trên React 19 nên grid chưa đọc được bằng trình đọc màn hình; khung chi tiết dòng là DOM thường nên đọc được. Cần Dương quyết có bắt buộc không (bắt buộc thì phải thêm bảng DOM song song hoặc đổi thư viện). (2) Cột Mã dòng hiện `#<số dòng>` (dễ đọc), trong khi export/API trả mã dòng dạng uuid. (3) Không có "nhảy tới dòng thứ N" của bảng rất lớn (keyset); lọc/sắp xếp/tìm ở 2C-2 thay cho việc đó. (4) Cột Liên kết và Đính kèm mới chỉ xem; sửa cần ô chọn dòng đích và tải file (2C-3). (5) Hoàn tác/làm lại chỉ trong phiên mở bảng (máy khách), không đọc lịch sử dòng của server.
