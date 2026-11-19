@@ -37,7 +37,7 @@ Cập nhật: 19/11/2026
 - 2C-3: quản lý cột (thêm/sửa/xoá, kiểu, thuộc tính, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện công thức mẫu; ô chọn dòng đích cho cột Liên kết.
 - 2C-4: Tìm dòng trùng (mục 7a), chia sẻ, thùng rác, cài đặt giới hạn Admin.
 - 2D: import/export, import công thức, load test 100k dòng.
-- 2E: Sonnet kiểm thử đầy đủ cả Stage 2 ("Định nghĩa xong" điểm 2–5) theo việc Opus chia, sửa lỗi tìm thấy; Opus đọc kết quả và quyết định đạt.
+- 2E: Sonnet kiểm thử **chức năng** cả Stage 2 ("Định nghĩa xong" điểm 2–5; không rà chuẩn giao diện, để Stage 12) theo việc Opus chia, sửa lỗi tìm thấy; Opus đọc kết quả và quyết định đạt.
 
 ## Bước tiếp theo
 
@@ -45,7 +45,7 @@ Opus rà soát 2C-2 bằng diff từ `8e9ca42` và kết quả kiểm thử bên
 
 ### Việc cho kiểm thử cuối Stage 2 (dời từ 2C-2)
 
-- `impeccable detect --url` cho grid + thanh công cụ view trên trang thật (api + worker + web dev).
+- (Dời sang Stage 12) `impeccable detect --url` cho grid + thanh công cụ view.
 - Theo dõi lỗi hết giờ `stage1.spec.ts` phone "cài đặt hệ thống" (thấy 1 lần, chạy lại thì pass; có thể cùng nguyên nhân Vite tải lại trang, đã sửa ở `vite.config.ts`).
 
 ### Kết quả kiểm thử 2C-2
