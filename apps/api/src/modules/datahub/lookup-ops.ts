@@ -75,6 +75,50 @@ export const lookupOperations = [
     },
   }),
 
+  defineQuery({
+    name: "datahub.relation.search",
+    summary: "Tìm dòng của bảng đích để chọn vào ô Liên kết: theo từ khoá (chữ trong dòng) hoặc số dòng, phân trang theo số dòng. Chỉ chủ datahub.",
+    description:
+      "Chỉ chủ datahub ghi được ô Liên kết nên chỉ chủ tìm được. Trả `label` (cột chữ đầu tiên của bảng đích, không có thì `#<số dòng>`) giống `datahub.relation.labels`. " +
+      "Phân trang: gửi `next_after` của trang trước vào `after`.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({
+      table_id: Id,
+      column: z.string().min(1).max(100).describe("Mã hoặc tên cột Liên kết."),
+      q: z.string().trim().max(100).optional(),
+      after: z.coerce.number().int().min(0).optional().describe("Chỉ lấy dòng có số dòng lớn hơn giá trị này."),
+      limit: z.coerce.number().int().min(1).max(100).default(30),
+    }),
+    output: z.object({ data: z.array(z.object({ id: Id, row_no: z.number().int(), label: z.string() })), next_after: z.number().int().nullable() }),
+    http: { method: "GET", path: "/tables/:table_id/relation-search" },
+    handler: async (ctx, i) => {
+      const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      const schema = await TableSchema.load(ctx.db, acc);
+      const col = schema.tryResolve(i.column);
+      if (!col || col.deletedAt || col.type !== "relation") throw new AppError("validation_error", "Cột này không phải cột Liên kết.");
+      const target = col.config.target_table_id as string;
+      const cols = await ctx.db.execute(sql`SELECT key FROM dh_columns WHERE /*scope*/ table_id = ${target}::uuid AND deleted_at IS NULL AND type IN ('text', 'long_text', 'email', 'phone', 'url') ORDER BY position, created_at, id LIMIT 1`);
+      const key = (cols.rows[0] as { key: string } | undefined)?.key;
+      const label = key ? sql`COALESCE(NULLIF(r.data->>${sql.raw(`'${assertColumnKey(key)}'`)}, ''), '#' || r.row_no::text)` : sql`'#' || r.row_no::text`;
+      const where = [sql`/*scope*/ r.table_id = ${target}::uuid`, sql`r.deleted_at IS NULL`, sql`t.deleted_at IS NULL`, sql`d.deleted_at IS NULL`, sql`d.id = ${acc.datahub.id}::uuid`, sql`d.owner_id = ${acc.datahub.ownerId}::uuid`];
+      if (i.after !== undefined) where.push(sql`r.row_no > ${i.after}::bigint`);
+      const q = (i.q ?? "").trim();
+      if (q) {
+        const num = /^#?(\d{1,15})$/.exec(q);
+        const like = `%${likeEscape(q)}%`;
+        const byText = sql`soe_unaccent(lower(r.search)) LIKE soe_unaccent(lower(${like})) ESCAPE '\\'`;
+        where.push(num ? sql`(${byText} OR r.row_no = ${Number(num[1])}::bigint)` : byText);
+      }
+      const res = await ctx.db.execute(sql`SELECT r.id, r.row_no::int AS row_no, ${label} AS label FROM dh_rows r JOIN dh_tables t ON t.id = r.table_id JOIN dh_datahubs d ON d.id = t.datahub_id
+        WHERE ${sql.join(where, sql` AND `)} ORDER BY r.row_no LIMIT ${i.limit + 1}`);
+      const rows = res.rows as { id: string; row_no: number; label: string }[];
+      const more = rows.length > i.limit;
+      const data = more ? rows.slice(0, i.limit) : rows;
+      return { data, next_after: more ? data[data.length - 1]!.row_no : null };
+    },
+  }),
+
   defineCommand({
     name: "datahub.row.restore_batch",
     summary: "Khôi phục nhiều dòng từ thùng rác trong một giao dịch (tối đa 500). Dùng cho \"Hoàn tác\" sau khi xoá nhiều dòng.",

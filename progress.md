@@ -63,6 +63,8 @@ Opus rà soát 2C-2 bằng diff từ `8e9ca42` và kết quả kiểm thử bên
 
 ## Câu hỏi còn mở
 
+- **Test chập chờn cần sửa (quy định 19/11):** e2e `stage1` ở bản điện thoại (375x812) từng hết giờ, chạy lại thì pass (ghi ở kết quả 2C-2). Opus chạy lại e2e sau 2C-2 thì fail cả hai lần. Giao Sonnet tìm nguyên nhân và sửa trước khi làm tiếp 2C-3: `pnpm test:e2e stage1 --project=phone`, chạy lặp vài lần để đo tần suất.
+
 
 - 2C-1: (1) Cây truy cập (bảng ẩn cho trình đọc màn hình) của Glide không dựng trên React 19 nên grid chưa đọc được bằng trình đọc màn hình; khung chi tiết dòng là DOM thường nên đọc được. Cần Dương quyết có bắt buộc không (bắt buộc thì phải thêm bảng DOM song song hoặc đổi thư viện). (2) Cột Mã dòng hiện `#<số dòng>` (dễ đọc), trong khi export/API trả mã dòng dạng uuid. (3) Không có "nhảy tới dòng thứ N" của bảng rất lớn (keyset); lọc/sắp xếp/tìm ở 2C-2 thay cho việc đó. (4) Cột Liên kết và Đính kèm mới chỉ xem; sửa cần ô chọn dòng đích và tải file (2C-3). (5) Hoàn tác/làm lại chỉ trong phiên mở bảng (máy khách), không đọc lịch sử dòng của server.
 - 2C-1 chưa thử trên điện thoại thật (chạm trong grid canvas, bàn phím ảo với khung chọn, cuộn cảm ứng) và chưa chạy `impeccable audit`.

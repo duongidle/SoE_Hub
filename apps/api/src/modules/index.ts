@@ -7,6 +7,7 @@ import { Registry } from "../core/registry";
 import type { StorageDriver } from "../storage/types";
 import { authEvents } from "./auth/events";
 import { datahubEvents, datahubOperations } from "./datahub";
+import { attachmentOperations } from "./datahub/attachment-ops";
 import { authOperations } from "./auth/operations";
 import { tokenOperations } from "./auth/tokens";
 import { guestEvents, guestOperations } from "./guest";
@@ -36,6 +37,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...guestOperations,
     ...transferOperations,
     ...datahubOperations,
+    ...attachmentOperations(deps.config, deps.storage),
   );
   return { registry, events };
 }
