@@ -17,7 +17,8 @@ Cập nhật: 19/11/2026
    - 2C: làm cả ô **Lọc theo thời gian** (Module 2 mục 5.4, bổ sung 18/11): lưu trong `config.time_filter` của view, server dịch sang `between`/toán tử ngày; không cần đổi schema.
    - Bảng gộp thuộc Stage 3 (Module 3 mục 4), không làm ở Stage 2.
 4. **Module 4 đã chốt (19/11)**; CLAUDE.md và Module 1 đã ghi các thay đổi của mục 18. Khi code Stage 4 làm mục 19 (đối chiếu Module 2).
-5. Golden test 2B đã làm (đọc file mẫu, 3.322 công thức); số liệu và hai điểm lạ của file mẫu ở `design/module2-datahub.md` mục 2B.
+5. **Từ 19/11 kiểm thử theo cấp** (`CLAUDE.md` mục "Kiểm thử theo cấp"): bước con Sonnet chỉ test nhanh ở desktop; Opus rà bằng diff + kết quả; kiểm thử đầy đủ (cả bộ e2e, 375px, skill, `break-ui`) Opus làm một lần ở 2D. Chuẩn giao diện đã tách sang `design/chuan-giao-dien.md`.
+6. Golden test 2B đã làm (đọc file mẫu, 3.322 công thức); số liệu và hai điểm lạ của file mẫu ở `design/module2-datahub.md` mục 2B.
 
 ## Đã xong
 
@@ -34,8 +35,8 @@ Cập nhật: 19/11/2026
 - **2C-1 xong**: danh sách datahub, trang datahub (tab bảng, URL gửi được), grid Glide ảo hoá đọc keyset (100.000 dòng cuộn 60 fps), mọi kiểu cột, ô "đang tính", sửa ô/dán/điền xuống/sửa hàng loạt/xoá + Hoàn tác/hoàn tác-làm lại, khung chi tiết dòng + lịch sử, SSE; API mới `datahub.people.lookup`, `datahub.relation.labels`, `datahub.row.restore_batch`.
 - **2C-2 xong phần giao diện (Sonnet, chờ Opus rà soát)**: nhảy cuộn bảng 100.000 dòng 70–120 ms; tab view, lọc lồng nhau, ô Thời gian, sắp xếp nhiều cấp, nhóm + dòng tổng, cột (ẩn/cố định/thứ tự/độ rộng), chiều cao dòng, tô màu, tìm kiếm, tự lưu và bản riêng. Chi tiết `design/module2-datahub.md` mục "Stage 2C-2".
 - 2C-3: quản lý cột (thêm/sửa/xoá, kiểu, thuộc tính, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện công thức mẫu; ô chọn dòng đích cho cột Liên kết.
-- 2C-4: Tìm dòng trùng (mục 7a), chia sẻ, thùng rác, cài đặt giới hạn Admin; kiểm thử giao diện cả 2C theo "Định nghĩa xong" điểm 5.
-- 2D: import/export, import công thức, load test 100k dòng, e2e cả stage.
+- 2C-4: Tìm dòng trùng (mục 7a), chia sẻ, thùng rác, cài đặt giới hạn Admin.
+- 2D: import/export, import công thức, load test 100k dòng; rồi Opus kiểm thử đầy đủ cả Stage 2 ("Định nghĩa xong" điểm 2–5), giao Sonnet sửa lỗi tìm thấy.
 
 ### Kết quả kiểm thử 2C-1
 
@@ -45,7 +46,7 @@ Cập nhật: 19/11/2026
 
 ## Bước tiếp theo
 
-Opus rà soát 2C-2 (diff từ `8e9ca42`, `pnpm test:e2e stage2c2`). Sau đó **2C-3**: quản lý cột (thêm/sửa/xoá, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện mẫu, ô chọn dòng đích cho cột Liên kết. Chạy nhanh: `pnpm exec vitest run apps/web`; giao diện: `pnpm test:e2e stage2c2 --project=desktop`.
+Opus rà soát 2C-2 bằng diff từ `8e9ca42` và kết quả kiểm thử bên dưới (không chạy lại trừ khi nghi). Sau đó **2C-3**: quản lý cột (thêm/sửa/xoá, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện mẫu, ô chọn dòng đích cho cột Liên kết. Chạy nhanh: `pnpm exec vitest run apps/web`; giao diện: e2e của đúng spec bước đó, `--project=desktop`.
 
 ### Kết quả kiểm thử 2C-2
 

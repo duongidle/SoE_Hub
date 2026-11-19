@@ -10,7 +10,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `promt.md`    | Brief gốc của Dương. Chỉ đọc                                                                                                                                                                                                                          |
 | `examples/`   | File mẫu chứa **dữ liệu thật của Base** (deal, com, onboarding, chính sách). **Mọi agent được đọc tự do, lúc nào cũng được** (Dương cho phép 18/11/2026). Không sửa. **Không bao giờ commit** file hay dữ liệu lấy từ đây (đã nằm trong `.gitignore`) |
-| `design/`     | Thiết kế đã chốt: `moduleX-<ten>.md`, `ha-tang.md`                                                                                                                                                                                                    |
+| `design/`     | Thiết kế đã chốt: `moduleX-<ten>.md`, `ha-tang.md`, `chuan-giao-dien.md` (chuẩn giao diện, đọc khi làm giao diện)                                                                                                                                      |
 | `progress.md` | Trạng thái và tiến độ hiện tại                                                                                                                                                                                                                        |
 | `CLAUDE.md`   | File này                                                                                                                                                                                                                                              |
 
@@ -30,7 +30,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 ### Code
 
 1. **Chỉ code module đã có file thiết kế `Đã chốt`.** Với module đó, code tự do theo thứ tự stage ở mục "Stage code"; không cần chờ lệnh riêng. Module chưa chốt thiết kế thì không code.
-2. **Engine trước, giao diện sau.** Giao diện của mỗi stage chỉ cần đủ dùng, đủ xem; có stage làm đẹp riêng ở cuối. "Đủ dùng" vẫn phải đạt mục "Chuẩn giao diện" bên dưới ngay từ stage đó; Stage 12 chỉ lo thẩm mỹ và chuyển động, không phải chỗ sửa font, độ tương phản, wording.
+2. **Engine trước, giao diện sau.** Giao diện của mỗi stage chỉ cần đủ dùng, đủ xem; có stage làm đẹp riêng ở cuối. "Đủ dùng" vẫn phải đạt `design/chuan-giao-dien.md` ngay từ stage đó; Stage 12 chỉ lo thẩm mỹ và chuyển động, không phải chỗ sửa font, độ tương phản, wording.
 3. **Tự quyết chi tiết nhỏ.** Khi code, các chi tiết nhỏ (đặt tên, cấu trúc file, thư viện phụ, cách xử lý lỗi, giá trị mặc định hợp lý) thì Claude tự phản biện, tự ra quy định và ghi lại vào file thiết kế của module (mục "Quyết định khi code"). Chỉ hỏi Dương khi điều cần hỏi quyết định một chức năng quan trọng, đổi một quy định đã chốt, hoặc chạm dữ liệu thật / thao tác khó hoàn tác.
 4. **Làm liền từ đầu đến cuối.** Không dừng giữa chừng để hỏi những việc nhỏ. Gặp chỗ cần Dương quyết thì ghi vào `progress.md` mục "Câu hỏi còn mở", chọn phương án an toàn tạm thời, làm tiếp phần còn lại, và báo ở cuối.
 5. Mỗi stage chỉ coi là xong khi đạt "Định nghĩa xong" ở mục "Stage code".
@@ -98,23 +98,33 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 1. Chức năng đúng theo file thiết kế; mọi lệch hoặc bổ sung đã ghi vào mục "Quyết định khi code" của file đó.
 2. Test unit và test phân quyền của stage đều pass; test của các stage trước không bị hỏng.
 3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`.
-4. Có giao diện tối thiểu để dùng, đạt mục "Chuẩn giao diện".
-5. **Đã kiểm thử giao diện thực tế** (với stage có giao diện): chạy api + worker + web thật, mở trên trình duyệt thật (Playwright có chụp màn hình, hoặc Claude in Chrome), đi hết các luồng chính của stage với từng vai trò liên quan, kiểm tra không có lỗi console/network, kiểm tra ở bề ngang desktop (1280px) và điện thoại (375px; bắt buộc với trang công khai như form), dò hết danh sách kiểm tra ở mục "Chuẩn giao diện", chạy phần bắt buộc của từng skill trong bảng "Dùng skill nào, lúc nào", và thử dữ liệu xấu nhất theo quy trình `break-ui` (tên rất dài, số rất lớn, danh sách rỗng, 10.000 dòng). Lỗi tìm thấy phải sửa xong mới coi là xong. Ghi kết quả kiểm thử (luồng đã đi, lỗi đã sửa) vào `progress.md`.
+4. Có giao diện tối thiểu để dùng, đạt `design/chuan-giao-dien.md`.
+5. **Đã qua lần kiểm thử cuối stage** (mục "Kiểm thử theo cấp" bên dưới; với stage có giao diện): chạy api + worker + web thật, mở trên trình duyệt thật (Playwright có chụp màn hình, hoặc Claude in Chrome), đi hết các luồng chính của stage với từng vai trò liên quan, kiểm tra không có lỗi console/network, kiểm tra ở bề ngang desktop (1280px) và điện thoại (375px theo mức trong `design/chuan-giao-dien.md` mục "Bề ngang và điện thoại"), dò hết danh sách kiểm tra trong `design/chuan-giao-dien.md`, chạy phần bắt buộc của từng skill trong bảng "Dùng skill nào, lúc nào", và thử dữ liệu xấu nhất theo quy trình `break-ui` (tên rất dài, số rất lớn, danh sách rỗng, 10.000 dòng). Lỗi tìm thấy phải sửa xong mới coi là xong. Ghi kết quả kiểm thử (luồng đã đi, lỗi đã sửa) vào `progress.md`.
 6. `progress.md` đã cập nhật; cột "Trạng thái" của stage trong bảng "Stage code" ở `CLAUDE.md` đã ghi "Đã xong" (Opus ghi sau khi rà soát đạt); đã commit.
+
+**Kiểm thử theo cấp** (Dương chốt 19/11/2026, để giảm quota; kiểm thử nặng chỉ chạy một lần mỗi stage):
+
+| Lúc nào | Ai | Chạy gì |
+| ------- | -- | ------- |
+| Mỗi bước con | Sonnet | Test nhanh: `typecheck`, `lint`, unit test của phần vừa sửa (`pnpm exec vitest run <thư mục/file>`), e2e của đúng spec bước đó, chỉ ở desktop. Không chạy cả bộ e2e, không chạy 375px, không chạy bộ skill giao diện hay `break-ui`. Ghi lệnh đã chạy và kết quả vào `progress.md`. |
+| Rà bước con | Opus | Đọc diff và kết quả test Sonnet ghi lại, so với thiết kế. Chỉ chạy lại test khi thấy nghi. |
+| Cuối stage (bước con cuối, ví dụ 2D) | Opus | Kiểm thử đầy đủ một lần: `pnpm test` toàn bộ, toàn bộ e2e ở hai bề ngang, đi luồng thật trên trình duyệt, "Định nghĩa xong" điểm 2–5. Lỗi tìm thấy Opus ghi vào `progress.md` (cách tái hiện, mức độ) và giao Sonnet sửa; Sonnet sửa xong chạy lại test nhanh của chỗ đó; Opus kiểm lại đúng chỗ đã sửa, không chạy lại cả bộ trừ khi bản sửa đụng phần dùng chung. |
+
+Đổi lại, lỗi giao diện dồn về cuối stage. Nên bước con vẫn phải code đúng quy định trong `design/chuan-giao-dien.md` từ đầu; kiểm thử cuối stage là để bắt sót, không phải chỗ làm lại giao diện.
 
 ## Phân vai khi code
 
 | Stage    | Ai code                                                   | Ai kiểm soát |
 | -------- | --------------------------------------------------------- | ------------ |
 | 0–1      | Opus (đã làm)                                             | Opus         |
-| 2 trở đi | **Sonnet** code và tự kiểm thử (test + giao diện thực tế) | **Opus**     |
+| 2 trở đi | **Sonnet** code và test nhanh                              | **Opus** (kiểm thử đầy đủ cuối stage) |
 
 Thiết kế module vẫn do Opus đề xuất và Dương chốt. Từ Stage 2, Opus là người kiểm soát:
 
 0. **Opus không tự sửa code hay test**, kể cả sửa nhỏ phát hiện khi rà soát (Dương nhắc 18/11/2026). Opus chỉ chạy lệnh để kiểm tra (git, test, lint, typecheck), ghi lỗi và giao Sonnet sửa. Opus vẫn tự viết thiết kế, `CLAUDE.md` và ghi chú điều phối trong `progress.md`.
 1. Đọc thiết kế, chia stage thành các việc nhỏ có tiêu chí nghiệm thu rõ ràng (file nào, chức năng gì, test nào phải có, luồng giao diện nào phải chạy được), rồi giao từng việc cho Sonnet.
-   **Mỗi prompt giao cho Sonnet phải ghi rõ:** (a) đọc `CLAUDE.md` trước khi làm bất cứ việc gì, rồi `progress.md` và file thiết kế liên quan; (b) **sau mỗi bước nhỏ** (một nhóm chức năng, một bộ test pass, một file tài liệu) thì cập nhật `progress.md` (đánh dấu xong, ghi bước tiếp theo cụ thể) và **commit ngay**, không đợi xong cả việc, để hết quota giữa chừng không mất gì; (c) không push.
-2. Rà soát kết quả của Sonnet: đọc diff, chạy test, kiểm tra giao diện; đánh giá so với thiết kế và tiêu chí.
+   **Mỗi prompt giao cho Sonnet phải ghi rõ:** (a) đọc `CLAUDE.md` trước khi làm bất cứ việc gì, rồi `progress.md` và file thiết kế liên quan (thêm `design/chuan-giao-dien.md` nếu việc có giao diện); chỉ chạy test nhanh theo mục "Kiểm thử theo cấp"; (b) **sau mỗi bước nhỏ** (một nhóm chức năng, một bộ test pass, một file tài liệu) thì cập nhật `progress.md` (đánh dấu xong, ghi bước tiếp theo cụ thể) và **commit ngay**, không đợi xong cả việc, để hết quota giữa chừng không mất gì; (c) không push.
+2. Rà soát kết quả của Sonnet theo mục "Kiểm thử theo cấp": bước con thì đọc diff và kết quả test, cuối stage thì kiểm thử đầy đủ; đánh giá so với thiết kế và tiêu chí.
 3. Phản biện và yêu cầu sửa khi chưa đạt; chỉ đánh dấu xong khi đạt "Định nghĩa xong".
 4. Sonnet không được tự đổi quy định đã chốt; chỗ nào thiết kế chưa rõ thì hỏi Opus, Opus tự quyết chi tiết nhỏ và chỉ hỏi Dương việc quan trọng.
 5. **Sửa quá 5 vòng chưa xong thì dừng, báo Opus.** Một vòng là một lần sửa rồi chạy lại test hoặc kiểm thử mà cùng một lỗi vẫn còn (lỗi đổi dạng nhưng cùng chỗ vẫn tính là cùng lỗi). Đến vòng thứ 5 chưa sửa được, Sonnet dừng sửa và báo Opus:
@@ -136,141 +146,7 @@ REST API được sinh từ registry ngay từ Stage 0, nên mỗi stage tự c�
 
 ## Chuẩn giao diện
 
-Theo `promt.md` mục 17: trực quan, dễ thao tác là ưu tiên; font thống nhất, tương phản, sizing chuẩn production; wording gọn, không giọng AI. Áp dụng cho mọi stage có giao diện, không đợi Stage 12.
-
-SoE Hub là công cụ làm việc (bảng, dashboard, form): ưu tiên dễ quét, nhất quán, quen tay. Không trang trí lạ mắt. Chỉ Knowledge, AI Hub và form công khai được đầu tư thẩm mỹ nhiều hơn ở Stage 12.
-
-Mục này gồm hai phần: **quy định** từ mục "Hệ thống thiết kế" trở xuống (luôn áp dụng), và **bộ skill giao diện** để làm và kiểm thử theo quy trình của chúng. Hai bên mâu thuẫn thì quy định trong `CLAUDE.md` thắng.
-
-### Bộ skill giao diện (bắt buộc cài)
-
-Agent nào làm hoặc rà soát giao diện (Sonnet code, Opus kiểm soát) phải có đủ 6 skill dưới đây. Đầu phiên, kiểm tra `~/.claude/skills/<tên>/SKILL.md`; thiếu skill nào thì chạy lệnh cài bên dưới trước khi làm giao diện. Lệnh cài đúng phiên bản đã dùng cho dự án, chỉ cài skill còn thiếu, không ghi đè skill đã có. Cài xong thì đọc thẳng file `SKILL.md` là dùng được ngay; lệnh gọi skill (`/tên-skill`) chỉ có từ phiên sau. Máy không có mạng hoặc cài lỗi thì ghi vào `progress.md`, làm theo quy định trong file này, và báo Opus.
-
-```bash
-set -e
-DEST="${DEST:-$HOME/.claude/skills}"; TMP="$(mktemp -d)"; mkdir -p "$DEST"
-get() { git init -q "$TMP/$3" && git -C "$TMP/$3" fetch -q --depth 1 "https://github.com/$1" "$2" && git -C "$TMP/$3" checkout -q FETCH_HEAD; }
-get emilkowalski/skills                  c8a79627b59d72d764d6ab6f2c87c09a48169833 emil
-get pbakaus/impeccable                   687bc381bc9091bf252c0a05303640561014a425 imp
-get nextlevelbuilder/ui-ux-pro-max-skill 0da327f37b436c173ce51177678b65ca92e6f3f7 uux
-for s in emil-design-eng break-ui mobile-native; do [ -d "$DEST/$s" ] || cp -R "$TMP/emil/skills/$s" "$DEST/"; done
-[ -d "$DEST/impeccable" ] || cp -R "$TMP/imp/.claude/skills/impeccable" "$DEST/"
-for s in ui-ux-pro-max ui-styling; do [ -d "$DEST/$s" ] || cp -R "$TMP/uux/.claude/skills/$s" "$DEST/"; done
-rm -rf "$TMP"
-```
-
-Không chép skill vào repo (repo public, skill có giấy phép riêng). Muốn nâng phiên bản thì Opus đổi mã commit ở trên, đọc lại thay đổi của skill, rồi commit `CLAUDE.md`.
-
-**Dùng skill nào, lúc nào:**
-
-| Skill             | Khi nào                                                  | Phần bắt buộc làm                                                                                                  |
-| ----------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `ui-ux-pro-max`   | Mọi trang, mọi thành phần                                | Trước khi báo xong: rà `references/quick-reference.md` mục 1–3 và 8 (accessibility, tương tác, hiệu năng, form)    |
-| `ui-styling`      | Dựng thành phần shadcn/Tailwind                          | Theo mẫu thành phần và theming của skill, nhưng màu/font lấy theo quy định bên dưới                                |
-| `break-ui`        | Mỗi màn hình có dữ liệu, trước khi báo xong              | Đủ quy trình: lập bảng mọi giá trị hiển thị → bộ dữ liệu xấu nhất → nút chuyển dữ liệu (chỉ ở dev) → báo lỗi → sửa |
-| `mobile-native`   | Trang dùng trên điện thoại (form công khai, onboarding…) | Rà bảng "Never Ship" và phần "Baseline"                                                                            |
-| `impeccable`      | Rà soát và Stage 12                                      | Chạy `audit` cho màn mới; `harden` (lỗi, dữ liệu biên), `clarify` (wording) khi rà; `polish` ở Stage 12            |
-| `emil-design-eng` | Khi làm chuyển động, hiệu ứng bấm, popover, toast        | Dùng khung quyết định "có nên animate không" trước khi viết hiệu ứng                                               |
-
-Giới hạn khi dùng skill trong dự án này:
-
-- Không chạy lệnh skill tạo file thiết kế riêng trong repo (`ui-ux-pro-max --persist`, `impeccable init` / `document` tạo `PRODUCT.md`, `DESIGN.md`) và không bật hook của `impeccable`, trừ khi Opus quyết. Token thiết kế chỉ nằm ở `apps/web/src/index.css`.
-- Gợi ý của skill về màu, font, phong cách chỉ là tham khảo; đã chốt ở đây thì theo đây (ví dụ font Be Vietnam Pro + chữ số Roboto).
-- Không đưa dữ liệu thật trong `examples/` vào câu truy vấn hay bộ dữ liệu thử của skill.
-
-### Hệ thống thiết kế
-
-- **Màu:** chỉ dùng token trong `apps/web/src/index.css` (background, foreground, muted, border, primary, ok, warn, bad…). Không viết mã màu cứng trong component; cần màu mới thì thêm token. Màu nhấn (primary) chỉ cho nút chính, mục đang chọn, trạng thái; không dùng để trang trí. Mỗi màn chỉ một nút chính.
-- **Font:** Be Vietnam Pro cho toàn bộ chữ, tự host bằng gói `@fontsource/be-vietnam-pro` (không gọi Google Fonts), các độ đậm 400 / 500 / 600 / 700, `font-display: swap`.
-- **Chữ số trong ô dữ liệu:** Be Vietnam Pro không có số đều độ rộng (đã kiểm tra bản 5.3.0: không có `tnum`, số 1 hẹp hơn số 0). Nên ô số trong grid, bảng, thẻ chỉ số, trục biểu đồ dùng họ font `SoE Number`: `@font-face` lấy chữ số của Roboto (`@fontsource/roboto`, chữ số mặc định đều độ rộng, chạy được cả trong grid vẽ bằng canvas) với `unicode-range: U+0030-0039`, xếp trước Be Vietnam Pro. Số luôn căn phải.
-- **Cỡ chữ:** thang cố định 12 / 14 / 16 / 20 / 24 / 30 px. Chữ thân trong app 14px, line-height 1.5; không chữ nào dưới 12px. Tiêu đề phân cấp bằng cỡ và độ đậm (600–700), nhãn 500, thân 400. Ô nhập tối thiểu 16px trên điện thoại.
-- **Khoảng cách:** bội số 4px (4, 8, 12, 16, 24, 32, 48). Không dùng giá trị tuỳ tiện như `mt-[13px]`. Nhóm liên quan thì gần, phần khác nhau thì xa; khoảng trên tiêu đề lớn hơn khoảng dưới.
-- **Icon:** chỉ `lucide-react`, một độ dày nét, cỡ 16 hoặc 20px. Không dùng emoji hay ký tự Unicode thay icon. Icon trang trí cạnh chữ thì `aria-hidden`; nút chỉ có icon phải có `aria-label` và tooltip.
-- **Thành phần dùng chung** đặt ở `apps/web/src/components/ui` (kiểu shadcn). Không tự viết lại nút, ô nhập, hộp thoại, bảng ở từng trang. Cùng một hành động ("Lưu") phải trông giống nhau ở mọi nơi.
-- **Không làm:** chữ gradient, hiệu ứng kính mờ để trang trí, viền màu dày bên trái thẻ, thẻ lồng thẻ, nhãn nhỏ phía trên tiêu đề, đánh số 01/02/03 cho mục, bóng đổ cứng không mờ.
-
-### Trạng thái thành phần
-
-- Mọi thành phần tương tác có đủ: bình thường, hover, focus, đang bấm, vô hiệu, đang tải, lỗi.
-- Hover chỉ đặt trong `@media (hover: hover) and (pointer: fine)` (Tailwind 4 tự làm với `hover:`). Không có chức năng nào chỉ hiện khi hover; trên cảm ứng phải bấm được.
-- Mọi màn có dữ liệu có đủ 4 trạng thái:
-  - **Đang tải:** khung xương (skeleton) cùng bố cục với nội dung thật, không để màn trắng, không đặt spinner giữa nội dung.
-  - **Rỗng:** nói rõ chưa có gì và có nút cho việc nên làm tiếp ("Tạo bảng đầu tiên"). Kết quả lọc rỗng thì có nút "Xoá bộ lọc".
-  - **Lỗi:** nói chuyện gì xảy ra và cách xử lý (có nút "Thử lại"). Không hiện mã lỗi kỹ thuật, stack trace, JSON thô, `undefined`, `NaN`; mã lỗi server được dịch sang câu tiếng Việt.
-  - **Không có quyền:** nói rõ là không có quyền, không hiện trang trống.
-- Nút đang gửi thì khoá và hiện trạng thái chờ, không cho bấm hai lần. Thao tác xoá hoặc khó hoàn tác phải xác nhận, nút nguy hiểm màu `bad` và đặt tách khỏi nút chính; nếu được thì có "Hoàn tác" thay cho hỏi lại.
-- Thao tác xong báo ngắn bằng toast ("Đã lưu"), tự tắt sau 3–5 giây, không cướp focus.
-- Hộp thoại có nút đóng, Esc đóng được; đang có thay đổi chưa lưu thì hỏi trước khi đóng. Không dùng hộp thoại khi làm trực tiếp trên trang được. Dropdown, popover hiển thị qua portal để không bị cắt bởi khung cuộn.
-
-### Form và ô nhập
-
-- Mỗi ô có nhãn hiện rõ (không dùng placeholder làm nhãn); ô bắt buộc có dấu `*`; ô phức tạp có dòng gợi ý bên dưới.
-- **Chọn thay vì gõ:** chỗ nào chọn thứ hệ thống đã biết (datahub, bảng, cột, trường của nguồn dữ liệu, câu hỏi, lựa chọn, toán tử, người, team) thì phải có danh sách tự sinh, đầy đủ để chọn; không bắt gõ tay. Gõ tay chỉ là cách phụ và luôn có gợi ý khi gõ. Thứ đã chọn bị xoá hay đổi tên thì báo rõ, không để chuỗi chết (Dương chốt 19/11/2026).
-- Kiểm tra khi rời ô, không kiểm tra theo từng phím. Lỗi hiện ngay dưới ô, nói rõ sai gì và sửa thế nào ("Email phải có đuôi @base.vn"), không chỉ "Không hợp lệ".
-- Gửi thất bại thì giữ nguyên dữ liệu đã nhập và đưa focus về ô lỗi đầu tiên.
-- Dùng đúng loại ô để điện thoại bật đúng bàn phím: `type="email"`, `inputmode="numeric"` cho mã, `inputmode="decimal"` cho số tiền; `autocomplete` đúng cho đăng nhập; cho phép dán và trình quản lý mật khẩu; ô mật khẩu có nút hiện/ẩn.
-- Form dài (bài test, khảo sát) tự lưu nháp và có thanh tiến độ.
-
-### Bảng, số liệu, biểu đồ
-
-- Định dạng số và ngày theo `vi-VN`, qua **một bộ hàm định dạng dùng chung** (không định dạng tay ở từng trang):
-  - Số `1.234.567`; thập phân dấu phẩy `12,5`; tiền `1.234.567 ₫`; phần trăm `12,5%`; số âm có dấu trừ.
-  - Ngày `dd/mm/yyyy`; ngày giờ `dd/mm/yyyy HH:mm`; múi giờ `Asia/Ho_Chi_Minh`. Thời gian tương đối ("5 phút trước") chỉ dùng trong 7 ngày, sau đó hiện ngày cụ thể.
-  - Giá trị trống hiện "—", không hiện `null`, `0` giả, ô trắng gây hiểu nhầm.
-  - Cùng một giá trị phải hiện giống nhau ở mọi chỗ (grid, dashboard, export, thông báo).
-- **Không bao giờ cắt bớt số, tiền, ngày.** Chữ dài: tên cần nhận diện thì xuống dòng (tối đa 2 dòng); thông tin phụ thì cắt cuối kèm tooltip xem đầy đủ; tên file, email dài thì cắt giữa.
-- Danh sách trên 50 dòng thì ảo hoá hoặc phân trang. Lọc, sắp xếp, tìm kiếm chạy ở server (đã chốt ở phần Datahub).
-- Cột sắp xếp được có chỉ báo chiều sắp xếp. Quay lại trang trước giữ nguyên bộ lọc, vị trí cuộn; mọi màn chính có URL riêng để gửi link được.
-- Biểu đồ: đúng loại (xu hướng → đường, so sánh → cột, tỉ trọng → tròn, tối đa 5 phần; nhiều hơn thì dùng cột). Luôn có chú giải, tooltip hiện số chính xác, trục có đơn vị và kỳ (ngày/tuần/tháng). Không phân biệt chuỗi chỉ bằng cặp đỏ/xanh lá. Đường lưới nhạt. Không có dữ liệu thì hiện trạng thái rỗng, không vẽ khung trục trống.
-
-### Dễ đọc, dễ thao tác
-
-- Độ tương phản WCAG AA: chữ thường ≥ 4.5:1 (kể cả placeholder và chữ phụ), chữ lớn, icon có nghĩa và viền thành phần ≥ 3:1.
-- Không truyền tin chỉ bằng màu: trạng thái (thắng, thua, quá hạn…) luôn có chữ hoặc icon đi kèm.
-- Dùng được bằng bàn phím: thấy rõ ô đang focus (không xoá focus ring), Tab đúng thứ tự nhìn thấy, Enter gửi form, kéo thả có cách làm thay bằng nút hoặc bàn phím.
-- Vùng bấm: desktop ≥ 24×24px, điện thoại ≥ 44×44px, các vùng bấm cách nhau ≥ 8px.
-- Tiêu đề trang theo thứ tự h1 → h2 → h3, không nhảy cấp. Mục điều hướng đang chọn được làm nổi; điều hướng có cả icon và chữ, giữ cùng vị trí ở mọi trang.
-- Phóng to trình duyệt 200% không vỡ bố cục; không khoá zoom.
-
-### Bề ngang và điện thoại
-
-- Desktop 1280px là màn chính; các mốc 375 / 768 / 1024 / 1440. Desktop ≥ 1024px dùng thanh bên, nhỏ hơn thì thu gọn.
-- 375px không được tràn ngang cả trang; bảng rộng thì cuộn trong bảng. Đoạn văn dài (Knowledge) giới hạn 65–75 ký tự mỗi dòng.
-- Thẻ meta: `width=device-width, initial-scale=1, viewport-fit=cover`. Không dùng `user-scalable=no` hay `maximum-scale=1`.
-- CSS nền cho điện thoại: `-webkit-tap-highlight-color: transparent` ở `html`; nút và link có `touch-action: manipulation` và `user-select: none` (không đặt `user-select: none` lên nội dung); ô nhập 16px.
-- Chiều cao toàn màn hình dùng `100dvh` cho khung app, không dùng `100vh`. Thanh cố định ở đỉnh/đáy có `env(safe-area-inset-*)`. Khung cuộn bên trong có `overscroll-behavior: contain`.
-- Trang công khai (form) phải thử thêm trên điện thoại thật hoặc ít nhất 375px với bàn phím ảo mở; điều gì chỉ xác minh được trên máy thật thì ghi vào `progress.md`.
-
-### Chuyển động
-
-- Chuyển động chỉ để báo trạng thái hoặc phản hồi thao tác, không trang trí. Không có hiệu ứng khi tải trang; không hiệu ứng cho thao tác bằng phím tắt hay thao tác lặp hàng trăm lần mỗi ngày.
-- Thời lượng: phản hồi khi bấm 100–160ms, tooltip 125–200ms, dropdown 150–250ms, hộp thoại 200–300ms. Dùng `ease-out` (`cubic-bezier(0.23, 1, 0.32, 1)`) khi xuất hiện; không dùng `ease-in`. Đóng nhanh hơn mở.
-- Chỉ animate `transform` và `opacity`; không animate width/height/top/left. Không xuất hiện từ `scale(0)` (bắt đầu từ 0.95 + mờ). Nút có `:active` thu nhẹ `scale(0.97)`.
-- Tôn trọng `prefers-reduced-motion`. Chuyển động không được chặn thao tác của người dùng.
-
-### Wording
-
-- Tiếng Việt, ngắn, rõ. Mỗi câu một ý, dùng từ thường ngày.
-- Nút bắt đầu bằng động từ và nói đúng việc: "Lưu", "Tạo bảng", "Xoá 3 dòng". Không dùng "OK", "Submit", "Xác nhận" chung chung.
-- Không "Vui lòng…", không "Hệ thống đã…", không câu giải thích dài, không emoji, không câu cảm thán. Không giọng AI kiểu "Tuyệt vời!", "Hãy cùng…", "Dưới đây là…".
-- Thông báo thành công ngắn: "Đã lưu", "Đã xoá 3 dòng". Lỗi nói nguyên nhân và cách sửa.
-- Số lượng ghi đúng: "0 dòng", "1 dòng", "1.284 dòng"; "Hiển thị 40 / 1.284".
-- Thuật ngữ thống nhất toàn app: Datahub, bảng, cột, dòng, view, deal, chỉ số, dashboard. Một khái niệm chỉ một tên.
-
-### Kiểm thử bằng dữ liệu xấu nhất
-
-Trước khi báo xong một màn hình, thay dữ liệu mẫu bằng dữ liệu xấu nhất **ở tầng dữ liệu** (fixture, seed, API), không sửa markup để tạo lỗi. Dùng giá trị thực tế hoặc đúng giới hạn của schema, không gõ chuỗi vô nghĩa. Bộ tối thiểu:
-
-- Tên: `Đặng Thị Ngọc Hân` (dấu chồng, dễ bị cắt nếu line-height chặt), `Nguyễn Trần Bảo Khánh Linh Phương` (rất dài), `Vy` (rất ngắn), thiếu tên.
-- Email dài liền không có khoảng trắng: `bartholomew.fitzgerald@northwind-holdings.example.com`.
-- Tên bảng, cột, deal dài đúng giới hạn schema; có ký tự `<b>`, `&amp;`, xuống dòng (phải hiện đúng là chữ).
-- Số: `0`, `1`, `1284`, `12.345.678.900`, số âm, phép tính dễ lệch làm tròn (`0,1 + 0,2` phải ra `0,3`), giá trị trống.
-- Danh sách: 0 dòng, 1 dòng, đúng 1 trang và 1 trang + 1, 10.000 dòng.
-- Ngày: hôm nay, tương lai, 3 năm trước, sát nửa đêm (đúng ngày theo giờ Việt Nam).
-- Trạng thái: mọi giá trị trạng thái cùng lúc, đang tải, lỗi API, không có quyền, người đang xem có trong danh sách.
-- Bề ngang: khung chứa thật (ví dụ thanh bên), 375px, 1440px, phóng to 200%.
-
-Lỗi hay gặp và cách sửa: chữ tràn khỏi ô trong flex/grid → `min-width: 0` (grid dùng `minmax(0, 1fr)`); email/URL tràn → `overflow-wrap: anywhere`; avatar, icon, nút cuối hàng bị bóp → `flex-shrink: 0`; nhãn trạng thái xuống dòng → `white-space: nowrap`; chữ có dấu bị cắt đầu/đuôi → nới line-height, bỏ `overflow: hidden` trên khối chữ; ảnh vỡ → ảnh dự phòng (chữ cái đầu) và `object-fit: cover`.
+Toàn bộ quy định giao diện (bộ skill và lệnh cài, hệ thống thiết kế, trạng thái thành phần, form, bảng và số liệu, tương phản, điện thoại, chuyển động, wording, dữ liệu xấu nhất) nằm ở **`design/chuan-giao-dien.md`**. Agent nào code hoặc rà soát giao diện phải đọc file đó trước khi làm; việc chỉ đụng server thì không cần đọc.
 
 ## Kết nối AI với SoE Hub (thiết kế, chi tiết ở Module 5)
 
