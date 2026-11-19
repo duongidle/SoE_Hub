@@ -522,4 +522,41 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 10. Giới hạn bảng và cột áp đúng cho datahub "Quản lý Deal".
 11. **Vai trò cột** (mục 3.7): lưu ở định nghĩa cột; khoá kỳ, forecast, snapshot, BANT, Index, API ngoài đọc cột theo vai trò; chặn đổi kiểu/bỏ cột làm vai trò mất cột.
 12. Bảng template riêng (Index) sinh cho mọi người trong phạm vi; ẩn/hiện khi đổi team.
-13. **Bước con đầu của Stage 4:** mở rộng chia sẻ Module 2 mục 10 (khoá phân chia, cho phép sửa theo cột, ô Người dùng chỉ nhận thành viên, gỡ thành viên đang được tag) cho mọi bảng, có test phân quyền; rồi mới dựng Deals trên đó.
+13. Phần Module 2 phải sửa do các quyết định 19/11 làm ở **bước con 4.1** (mục 19a), trước mọi phần khác của Stage 4.
+
+## 19a. Bước con 4.1: bổ sung Module 2 (code đã xong ở Stage 2)
+
+Các quyết định ngày 19/11/2026 (bảng template, chia sẻ thống nhất, vai trò cột) đổi phần Module 2 đã code. Bước con 4.1 làm hết danh sách này **trước** khi dựng Deals. Tên file là chỗ cần sửa chính, chưa phải danh sách đủ; Sonnet tự rà thêm nơi gọi.
+
+**A. Khoá phân chia và quyền (server)**
+
+1. Schema + migration (`packages/db/src/schema/datahub.ts`): cấu hình bảng `key_split` (bật/tắt), danh sách cột khoá (1–5), cột khoá chính; thuộc tính cột `allow_edit`. Mặc định: bảng thường `allow_edit` bật (giữ hành vi 2C-4), bảng template tắt.
+2. `access.ts`: `TableAccess.scope()` thêm điều kiện dòng khi khoá phân chia bật: tên người đọc **hoặc người họ quản lý** (cây tổ chức hiện tại, Module 1) ở bất kỳ cột khoá nào; chủ bảng thấy mọi dòng. Mọi truy vấn dòng phải đi qua điều kiện này: `rows-read.ts` (danh sách, một dòng, lịch sử dòng), `rows-groups.ts` (nhóm, dòng tổng), `duplicates.ts`, `trash.ts` (chỉ thấy và khôi phục dòng mình thấy), `export-job.ts`, `lookup-ops.ts` (`relation.search`, `relation.labels` khi bảng đích có khoá phân chia), `attachment-ops.ts` (không tải được file của dòng không thấy), `consistency.ts`.
+3. Ghi (`rows.ts`, `row-ops.ts`): sửa ô, sửa hàng loạt, dán, điền xuống, xoá, `row.restore_batch` đều kiểm: quyền Sửa, cột `allow_edit`, dòng nằm trong phạm vi thấy, luật sửa dòng của cấp dưới (Manager được; Leader khi người đó bật "Cho phép leader sửa", Module 1 mục 4.1). Thêm dòng: tự điền người thêm vào cột khoá chính.
+4. **SSE** (`events.ts`, `tableAudience`): đang gửi sự kiện dòng cho mọi người có quyền xem bảng. Khi khoá phân chia bật phải lọc theo người thấy dòng, nếu không sẽ **lộ dữ liệu**. Sửa cột khoá làm dòng vào hoặc ra khỏi phạm vi của ai thì gửi sự kiện thêm/bỏ dòng cho người đó.
+5. Index: tự tạo/bỏ index GIN cho mỗi cột khoá (cùng chỗ tạo index cho cột Liên kết, `structure.ts`).
+6. Cấu trúc (`columns.ts`, `structure.ts`): cột khoá phải là kiểu Người dùng, không đổi kiểu, không xoá khi còn là khoá (bỏ khỏi khoá trước); tối đa 5 khoá; tắt khoá phân chia thì giữ cấu hình cột khoá để bật lại.
+7. **Ô Người dùng chỉ nhận thành viên**: `cell-values.ts` kiểm ở mọi kênh (web, API, MCP, import, form); `datahub.people.lookup` chỉ gợi ý chủ bảng và thành viên; `import-plan.ts` báo lỗi theo dòng; mã lỗi mới trong `errors.ts`. Dữ liệu đã có tag người ngoài danh sách: không xoá, hiện "không còn quyền".
+8. Gỡ thành viên (`collab.ts`): trả số dòng đang tag người đó để giao diện cảnh báo; tag giữ nguyên, ô hiện "không còn quyền".
+9. Chuyển giao (`transfer.ts`): người đích nhận luôn tư cách thành viên và tag của người nguồn ở các bảng có khoá phân chia (deal đóng giữ người cũ theo luật đã chốt).
+10. Công thức trên bảng có khoá phân chia: cột Lookup/Rollup/công thức do chủ bảng định nghĩa được tính trên mọi dòng của chủ. Thành viên chỉ thấy kết quả trên dòng mình thấy, nhưng một rollup có thể **lộ tổng của các dòng bị ẩn**. Opus kiểm khi code; nếu phải đổi quy định thì hỏi Dương.
+11. Bỏ `PhysicalSource` và nguồn `physical` trong `column-source.ts` (Module 2 mục 3 còn hai nguồn cột).
+
+**B. Hạ tầng bảng template (engine Module 2, Module 4 dùng)**
+
+12. Cờ bảo vệ bảng và cột template: không đổi tên, không xoá, không đổi kiểu từ trang bảng; người nhận chỉ thêm cột riêng.
+13. Lớp cột (Cơ bản, Theo vai trò, Theo team, Tuỳ chỉnh) trên định nghĩa cột; cột Tuỳ chỉnh trên bảng chung chỉ người tạo cột thấy (dùng nguồn cột cá nhân).
+14. Vai trò cột (mục 3.7) trên định nghĩa cột; chặn đổi kiểu hoặc bỏ cột làm vai trò mất cột.
+15. Bảng hoặc cột template trùng tên với bảng/cột tự tạo: đổi cái tự tạo thành `<tên> (riêng)` và gửi thông báo.
+16. Thành viên tự sinh theo cây/team cho bảng template chung; cập nhật khi đổi cây tổ chức (nghe sự kiện của Module 1).
+
+**C. Giao diện**
+
+17. Hộp thoại Chia sẻ (2C-4): bật/tắt khoá phân chia, chọn cột khoá và cột khoá chính, cảnh báo khi gỡ thành viên đang được tag.
+18. Ngăn sửa cột (2C-3): tuỳ chọn "Cho phép sửa"; khi chọn cột khoá chỉ liệt kê cột kiểu Người dùng.
+19. Grid: ô của cột không cho phép sửa hiện chỉ đọc; ô Người dùng chỉ gợi ý thành viên; người đã bị gỡ hiện "không còn quyền".
+
+**D. Kiểm thử**
+
+20. Test phân quyền: thành viên × khoá phân chia bật/tắt × có/không cấp dưới × cột cho phép/không × kênh (REST, SSE, nhóm và dòng tổng, export, tìm dòng trùng, thùng rác, liên kết, tải file, import).
+21. Chạy lại test datahub cũ (`pnpm exec vitest run apps/api/test/datahub-*`) và e2e `stage2c3`, `stage2c4` vì phần này chạm `access.ts`, chia sẻ và ô Người dùng (phần dùng chung, Opus phải tự chạy lại khi rà).
