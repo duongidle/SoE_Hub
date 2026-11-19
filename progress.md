@@ -31,9 +31,23 @@ Cập nhật: 19/11/2026
 - **2B+ xong** (đã rà soát): tính lại theo phần, sự kiện `dòng, cột, cũ → mới`, `seq` và đợi tính xong, `pending` theo ô, đối soát hằng đêm; sửa 1 dòng nguồn ở bảng 100.000 dòng, 6 cột phụ thuộc: ghi 9 ms, worker 43 ms. Chi tiết mục 2B+.
 - **Stage 2 xong** (19/11): 2A, 2B, 2B+, 2C-1..2C-4, 2D (import/export, 100.000 dòng: import 12 s, export 8 s), 2E (kiểm thử cuối stage). Quyết định và số đo ở `design/module2-quyet-dinh-khi-code.md`; kết quả kiểm thử ở git log `2E-1`, `2E-2`. Chưa thử: link Google Sheet thật; import cột Liên kết/Người/Đính kèm chưa có.
 
+## Đang làm: Stage 3 (Module 3, Metric + Dashboard), Sonnet code, Opus rà
+
+Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử theo cấp"; quyết định ghi ở `design/module3-quyet-dinh-khi-code.md`):
+
+- **3A-1 engine metric lõi (server)**: schema (nguồn dữ liệu, chỉ số, biểu đồ, dashboard), `packages/metrics`: JSON chỉ số → một câu SQL gom nhóm áp phạm vi dữ liệu; mọi phép tổng hợp mục 5.1; nhóm thời gian (giờ VN, tuần từ thứ Hai, quý theo năm tài chính), khoảng tương đối; phân nhóm theo cột; lọc dùng cú pháp lọc của Module 0; ghép bảng theo cột liên kết/cột khoá có chẩn đoán và gom bảng nhiều dòng trước (mục 3); `metrics.query`; CRUD chỉ số + nguồn; test unit + phân quyền.
+- **3A-2 engine metric nâng cao (server)**: chỉ số phái sinh bằng engine công thức (`[Tên chỉ số]`), so kỳ trước/cùng kỳ năm trước, luỹ kế, cohort, mục tiêu (hằng số/bảng mục tiêu, % đạt), outlier IQR; chịu tải mục 6.1 (cache theo chỉ số + tham số + phạm vi, gộp yêu cầu trùng, 6 câu/người, `statement_timeout` 10 s); outbox xoá cache + SSE. Snapshot và "team tại thời điểm" chỉ để chỗ cắm (Stage 4).
+- **3B bảng gộp**: loại bảng chỉ đọc, ≤10 nguồn cùng chủ, ghép cột, cột Nguồn + Mã dòng gốc, chống trùng 3 cách, chẩn đoán, worker đồng bộ theo outbox, không lịch sử/nhật ký, nguồn mất thì báo lỗi giữ dữ liệu cũ; giao diện trình tạo bảng gộp; e2e.
+- **3C-1 dashboard + biểu đồ cơ bản (giao diện)**: tab Dashboard trong datahub, nhiều dashboard (mới, đổi tên, nhân bản, đổi thứ tự, xoá vào thùng rác, giới hạn 30 biểu đồ/20 dashboard), lưới kéo thả + đổi kích thước tự lưu, khung cấu hình biểu đồ, thư viện chỉ số/nguồn đã lưu ("Lưu thành..."), loại: Thẻ KPI, cột/thanh (nhóm, chồng, 100%), đường/vùng, kết hợp hai trục, tròn/donut, bảng, pivot, ô ghi chú; tuỳ chọn hiển thị chung; e2e.
+- **3C-2 biểu đồ còn lại + tương tác**: bullet, đồng hồ, phễu, box plot, histogram, scatter, ma trận 2×2/heatmap, waterfall, xếp hạng, cohort tam giác; bộ lọc chung (bản riêng + "Về mặc định"), lọc chéo, xem các dòng (theo quyền), xuất CSV/PNG, JSON xuất/nhập dashboard, chia sẻ dashboard (tính bằng quyền chủ, nhật ký, Guest được cấp); e2e.
+- **3D load test**: 100.000 dòng, 20 người cùng mở dashboard 30 biểu đồ, không cache sẵn; đạt khi mọi biểu đồ xong trong 3 s, không lỗi; tối ưu nếu chưa đạt (mục 6.1 điểm 5).
+- **3E kiểm thử cuối stage**: theo "Cách kiểm thử cuối stage để tiết kiệm token" (CLAUDE.md), chia 3E-1 (toàn bộ test) và 3E-2 (luồng chủ chốt theo vai trò + dữ liệu xấu nhất).
+
+Để Stage 4 (ghi rõ trong quyết định khi code): snapshot thật, team theo cây tại thời điểm của deal, dashboard hệ thống Deals, winrate theo cycle.
+
 ## Bước tiếp theo
 
-**Stage 3 (Module 3, Metric + dashboard), Sonnet code, Opus chia bước con.** Opus đọc `design/module3-metric-dashboard.md`, chia bước con (bước cuối là kiểm thử riêng, làm theo "Cách kiểm thử cuối stage để tiết kiệm token" trong CLAUDE.md), ghi vào đây rồi giao. Nhớ: `formatNumber` đã sửa ở 2E-2 (số nguyên giữ nguyên, số lẻ tối đa 15 chữ số có nghĩa); dashboard dùng lại, không tự định dạng.
+**3A-1 (Sonnet)**: đang giao 19/11.
 
 ## Lỗi điện thoại để sau
 
