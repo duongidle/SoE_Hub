@@ -10,7 +10,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `promt.md`    | Brief gốc của Dương. Chỉ đọc                                                                                                                                                                                                                          |
 | `examples/`   | File mẫu chứa **dữ liệu thật của Base** (deal, com, onboarding, chính sách). **Mọi agent được đọc tự do, lúc nào cũng được** (Dương cho phép 18/11/2026). Không sửa. **Không bao giờ commit** file hay dữ liệu lấy từ đây (đã nằm trong `.gitignore`) |
-| `design/`     | Thiết kế đã chốt: `moduleX-<ten>.md`, `ha-tang.md`, `chuan-giao-dien.md` (chuẩn giao diện, đọc khi làm giao diện)                                                                                                                                      |
+| `design/`     | Thiết kế đã chốt: `moduleX-<ten>.md`, `ha-tang.md`, `chuan-giao-dien.md` (chuẩn giao diện, đọc khi làm giao diện), `moduleX-quyet-dinh-khi-code.md` (quyết định khi code, tách ra khi dài; tra khi cần) |
 | `progress.md` | Trạng thái và tiến độ hiện tại                                                                                                                                                                                                                        |
 | `CLAUDE.md`   | File này                                                                                                                                                                                                                                              |
 
@@ -18,7 +18,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 
 ### Bắt đầu mỗi phiên
 
-**Đọc `CLAUDE.md` trước khi làm bất cứ việc gì, rồi đọc `progress.md`.** Áp dụng cho mọi agent: Opus, Sonnet và mọi agent được giao việc; không được dựa vào trí nhớ hay bản tóm tắt của file này. Khi code một stage, đọc thêm file thiết kế của module thuộc stage đó. Không cần đọc lại phiên cũ.
+**`CLAUDE.md` được Claude Code nạp sẵn vào mọi phiên, kể cả agent con, nên không gọi Read lại lúc bắt đầu.** Chỉ đọc lại bằng Read khi hội thoại đã bị tóm tắt, hoặc khi không thấy nội dung `CLAUDE.md` trong ngữ cảnh. Việc đầu tiên của mọi phiên là đọc `progress.md`. Áp dụng cho mọi agent: Opus, Sonnet và mọi agent được giao việc; không được dựa vào trí nhớ hay bản tóm tắt của file này. Khi code một stage, đọc thêm file thiết kế của module thuộc stage đó; file `moduleX-quyet-dinh-khi-code.md` (nếu có) chỉ tra khi cần biết bước trước đã làm thế nào. Không cần đọc lại phiên cũ.
 
 ### Thiết kế
 
@@ -31,7 +31,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 
 1. **Chỉ code module đã có file thiết kế `Đã chốt`.** Với module đó, code tự do theo thứ tự stage ở mục "Stage code"; không cần chờ lệnh riêng. Module chưa chốt thiết kế thì không code.
 2. **Engine trước, giao diện sau.** Giao diện của mỗi stage chỉ cần đủ dùng, đủ xem; có stage làm đẹp riêng ở cuối. "Đủ dùng" vẫn phải đạt `design/chuan-giao-dien.md` ngay từ stage đó; Stage 12 chỉ lo thẩm mỹ và chuyển động, không phải chỗ sửa font, độ tương phản, wording.
-3. **Tự quyết chi tiết nhỏ.** Khi code, các chi tiết nhỏ (đặt tên, cấu trúc file, thư viện phụ, cách xử lý lỗi, giá trị mặc định hợp lý) thì Claude tự phản biện, tự ra quy định và ghi lại vào file thiết kế của module (mục "Quyết định khi code"). Chỉ hỏi Dương khi điều cần hỏi quyết định một chức năng quan trọng, đổi một quy định đã chốt, hoặc chạm dữ liệu thật / thao tác khó hoàn tác.
+3. **Tự quyết chi tiết nhỏ.** Khi code, các chi tiết nhỏ (đặt tên, cấu trúc file, thư viện phụ, cách xử lý lỗi, giá trị mặc định hợp lý) thì Claude tự phản biện, tự ra quy định và ghi lại vào mục "Quyết định khi code" của module (Module 2: file `design/module2-quyet-dinh-khi-code.md`; module khác: cuối file thiết kế, tách ra file riêng như Module 2 khi mục này dài quá khoảng 100 dòng). Chỉ hỏi Dương khi điều cần hỏi quyết định một chức năng quan trọng, đổi một quy định đã chốt, hoặc chạm dữ liệu thật / thao tác khó hoàn tác.
 4. **Làm liền từ đầu đến cuối.** Không dừng giữa chừng để hỏi những việc nhỏ. Gặp chỗ cần Dương quyết thì ghi vào `progress.md` mục "Câu hỏi còn mở", chọn phương án an toàn tạm thời, làm tiếp phần còn lại, và báo ở cuối.
 5. Mỗi stage chỉ coi là xong khi đạt "Định nghĩa xong" ở mục "Stage code".
 
@@ -95,7 +95,7 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 
 **Định nghĩa xong của mỗi stage:**
 
-1. Chức năng đúng theo file thiết kế; mọi lệch hoặc bổ sung đã ghi vào mục "Quyết định khi code" của file đó.
+1. Chức năng đúng theo file thiết kế; mọi lệch hoặc bổ sung đã ghi vào mục "Quyết định khi code" của module đó.
 2. Test unit và test phân quyền của stage đều pass; test của các stage trước không bị hỏng.
 3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`.
 4. Có giao diện tối thiểu để dùng, đạt `design/chuan-giao-dien.md`.
@@ -127,7 +127,7 @@ Thiết kế module vẫn do Opus đề xuất và Dương chốt. Từ Stage 2,
 
 0. **Opus không tự sửa code hay test**, kể cả sửa nhỏ phát hiện khi rà soát (Dương nhắc 18/11/2026). Opus chỉ chạy lệnh để kiểm tra (git, test, lint, typecheck), ghi lỗi và giao Sonnet sửa. Opus vẫn tự viết thiết kế, `CLAUDE.md` và ghi chú điều phối trong `progress.md`.
 1. Đọc thiết kế, chia stage thành các việc nhỏ có tiêu chí nghiệm thu rõ ràng (file nào, chức năng gì, test nào phải có, luồng giao diện nào phải chạy được), rồi giao từng việc cho Sonnet.
-   **Mỗi prompt giao cho Sonnet phải ghi rõ:** (a) đọc `CLAUDE.md` trước khi làm bất cứ việc gì, rồi `progress.md` và file thiết kế liên quan (thêm `design/chuan-giao-dien.md` nếu việc có giao diện); chỉ chạy test nhanh theo mục "Kiểm thử theo cấp"; (b) **sau mỗi bước nhỏ** (một nhóm chức năng, một bộ test pass, một file tài liệu) thì cập nhật `progress.md` (đánh dấu xong, ghi bước tiếp theo cụ thể) và **commit ngay**, không đợi xong cả việc, để hết quota giữa chừng không mất gì; (c) không push.
+   **Mỗi prompt giao cho Sonnet phải ghi rõ:** (a) `CLAUDE.md` đã được nạp sẵn, không Read lại trừ khi hội thoại bị tóm tắt hoặc không thấy nó trong ngữ cảnh; đọc `progress.md` và file thiết kế liên quan (thêm `design/chuan-giao-dien.md` nếu việc có giao diện); chỉ chạy test nhanh theo mục "Kiểm thử theo cấp"; (b) **sau mỗi bước nhỏ** (một nhóm chức năng, một bộ test pass, một file tài liệu) thì cập nhật `progress.md` (đánh dấu xong, ghi bước tiếp theo cụ thể) và **commit ngay**, không đợi xong cả việc, để hết quota giữa chừng không mất gì; (c) không push.
 2. Rà soát kết quả của Sonnet theo mục "Kiểm thử theo cấp": bước con thì đọc diff và kết quả test, cuối stage thì điều phối và đọc kết quả kiểm thử đầy đủ của Sonnet; đánh giá so với thiết kế và tiêu chí.
 3. Phản biện và yêu cầu sửa khi chưa đạt; chỉ đánh dấu xong khi đạt "Định nghĩa xong".
 4. Sonnet không được tự đổi quy định đã chốt; chỗ nào thiết kế chưa rõ thì hỏi Opus, Opus tự quyết chi tiết nhỏ và chỉ hỏi Dương việc quan trọng.

@@ -117,7 +117,7 @@ npx vitest run apps/api/test/datahub-formulas-perf.test.ts --reporter=verbose   
 
 - Code: `apps/api/src/modules/datahub/`, schema `packages/db/src/schema/datahub.ts`.
 - API: các thao tác `datahub.*` có trong `docs/api/openapi.json` và `/api/docs`; request mẫu ở `docs/api/bruno/datahub/`.
-- Quyết định khi code: `design/module2-datahub.md`, mục "Quyết định khi code".
+- Quyết định khi code: `design/module2-quyet-dinh-khi-code.md`.
 - Test tốc độ 100.000 dòng (nạp dữ liệu, đo trước và sau index tự động, in số `[perf]`):
 
 ```bash
