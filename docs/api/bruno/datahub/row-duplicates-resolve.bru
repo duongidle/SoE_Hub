@@ -1,0 +1,31 @@
+meta {
+  name: datahub.row.duplicates.resolve
+  type: http
+  seq: 54
+}
+
+post {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/duplicates/resolve
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "groups": [
+      {}
+    ],
+    "all": {}
+  }
+}
+
+docs {
+  Xử lý dòng trùng: giữ một dòng và xoá các dòng còn lại (có thể gộp giá trị vào dòng giữ), cho vài nhóm hoặc cho mọi nhóm.
+  Quyền: `datahub:datahub:use`.
+}

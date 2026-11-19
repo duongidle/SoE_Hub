@@ -7,6 +7,7 @@ import { datahubEvents } from "./events";
 import { formulaOperations } from "./formula-ops";
 import { lookupOperations } from "./lookup-ops";
 import { DH_SETTINGS } from "./limits";
+import { duplicateOperations } from "./duplicates";
 import { rowOperations } from "./row-ops";
 import { structureOperations } from "./structure";
 import "./transfer";
@@ -18,7 +19,7 @@ for (const t of ["dh_datahubs", "dh_tables", "dh_columns", "dh_rows", "dh_views"
 registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.maxColumns, DH_SETTINGS.recalcParallel, DH_SETTINGS.consistentWaitMs, DH_SETTINGS.fiscalStartMonth);
 
 export { datahubEvents };
-export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations, ...lookupOperations];
+export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...duplicateOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations, ...lookupOperations];
 export { datahubJobs as exportJobs, sqlViewSubscriber } from "./export-views";
 export { reconcileColumns } from "./reconcile";
 export { formulaSubscriber, markVolatilePending, processPendingColumns, resetRunningColumns, startRecalcLoop } from "./recalc";

@@ -1,0 +1,26 @@
+meta {
+  name: datahub.row.duplicates
+  type: http
+  seq: 53
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/duplicates
+  body: none
+  auth: none
+}
+
+params:query {
+  columns: columns
+  ~offset: 0
+  ~limit: 50
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Tìm các nhóm dòng trùng nhau theo một hoặc vài cột (bỏ dấu, không phân biệt hoa thường, bỏ khoảng trắng thừa).
+  Quyền: `datahub:datahub:use`.
+}
