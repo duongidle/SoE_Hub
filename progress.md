@@ -47,7 +47,11 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 
 ## Bước tiếp theo
 
-**3A-1 xong, chờ Opus rà (19/11, Sonnet)**: migration `0010_metrics.sql` (mt_sources, mt_metrics, mt_dashboards, mt_charts); `packages/metrics` (JSON chỉ số → một câu SQL gom nhóm, đủ phép tổng hợp mục 5.1, nhóm thời gian giờ VN/quý tài chính, khoảng tương đối, lọc dùng lại `compileFilter`, ghép bảng theo khoá/liên kết, gom trước, chẩn đoán); API `metrics.query`, `metrics.metric.*`, `metrics.source.*` (+ diagnose, unmatched); OpenAPI + Bruno (`docs/api/bruno/metrics/`); quyết định ở `design/module3-quyet-dinh-khi-code.md`. Phần dùng chung đã đụng: `dateRangeNode` (shared/time-filter, ô Thời gian Datahub dùng lại), `datahub/errors.ts` (thêm tên trùng mt_*). Lệnh: `pnpm -r typecheck`, `pnpm lint`, `pnpm exec vitest run packages/metrics apps/api/test/metrics apps/api/test/datahub` (đều pass). Hiệu năng 100.000 dòng: tổng theo tháng × cột chọn 124 ms; ghép khoá 100k×100k 1,7 s (để 3A-2/3D). Bước tiếp theo: **3A-2** (chỉ số phái sinh, so kỳ, luỹ kế, cohort, mục tiêu, outlier, cache/giới hạn/timeout, SSE xoá cache), chỗ cắm ghi ở mục "Để sẵn chỗ" của file quyết định.
+**3A-1 xong, Opus rà 19/11: đạt** (commit 41a4b69..8186456; chi tiết `design/module3-quyet-dinh-khi-code.md` mục 3A-1). Đụng phần dùng chung (`packages/shared/src/time-filter.ts`, quyền đọc dòng) nên Opus tự chạy lại: typecheck, lint sạch; `vitest run packages/metrics packages/shared apps/api/test/metrics apps/api/test/datahub` 31 file, 364 test pass. Hiệu năng 100.000 dòng: 15–264 ms mỗi chỉ số; ghép theo khoá 100k×100k 1.655 ms (vượt 1 s, xử lý ở 3A-2/3D).
+**Opus quyết khi rà:** ghép bảng đổi từ inner sang **left** (dòng bảng chính không có đối tác vẫn vào số liệu, cột bảng ghép là rỗng; ghép thêm bảng không bao giờ làm đổi số của bảng chính; chẩn đoán vẫn báo dòng không khớp, 0 khớp vẫn báo lỗi). Làm đầu 3A-2.
+Ghi chú Stage 4: chia sẻ thống nhất (khoá phân chia, Module 2 mục 10, commit 74777ca) đổi `access.scope()`; engine metric đọc dòng qua `scope()` nên tự theo; khoá cache của 3A-2 phải gồm phạm vi dòng thực tế của người đọc.
+
+**Tiếp: 3A-2 (Sonnet)**, giao 19/11.
 
 ## Lỗi điện thoại để sau
 
