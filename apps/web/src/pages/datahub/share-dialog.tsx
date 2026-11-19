@@ -131,7 +131,7 @@ function AddShare({ dh }: { dh: DatahubBrief }) {
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Phạm vi">
-          <Select value={scope} onChange={(e) => setScope(e.target.value)}>
+          <Select value={scope} onChange={(e) => setScope(e.target.value)} aria-label="Phạm vi chia sẻ">
             <option value="">Cả datahub (kể cả bảng tạo sau)</option>
             {dh.tables.map((t) => (
               <option key={t.id} value={t.id}>Chỉ bảng: {t.name}</option>
@@ -139,7 +139,7 @@ function AddShare({ dh }: { dh: DatahubBrief }) {
           </Select>
         </Field>
         <Field label="Quyền">
-          <Select value={permission} onChange={(e) => setPermission(e.target.value as SharePermission)}>
+          <Select value={permission} onChange={(e) => setPermission(e.target.value as SharePermission)} aria-label="Quyền chia sẻ">
             {SHARE_PERMISSIONS.map((p) => (
               <option key={p} value={p}>{SHARE_PERMISSION_LABELS[p]}</option>
             ))}
