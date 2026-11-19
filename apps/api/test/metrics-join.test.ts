@@ -70,16 +70,37 @@ const run = (m: Record<string, unknown>, join: Record<string, unknown> = byKey, 
 
 describe("join by key columns", () => {
   it("folds the many-rows table to one value per deal: sums are never counted twice", async () => {
-    // Base value summed over the matched deals: D1 once (not three times), D2, D3.
+    // Left join: every deal counts, D1 once (not three times). Same number as without the join.
     const base = await run({ measure: { agg: "sum", field: "Giá trị" } });
-    expect(base.rows[0].value).toBe(1000 + 500 + 300);
+    expect(base.rows[0].value).toBe(1000 + 500 + 300 + 200 + 100 + 77);
     // The payments of a deal are summed first (D1: 600), then over the deals.
     const paid = await run({ measure: { agg: "sum", field: "TT.Số tiền" } });
     expect(paid.rows[0].value).toBe(600 + 50 + 10);
     const g = await run({ measure: { agg: "sum", field: "TT.Số tiền" }, group_by: ["Loại"] });
     const by = Object.fromEntries(g.rows.map((r: { groups: { label: string }[]; value: number }) => [r.groups[0]!.label, r.value]));
     expect(by).toEqual({ POD: 650, DCC: 10 });
-    expect((await run({ measure: { agg: "count" } })).rows[0].value).toBe(3);
+    expect((await run({ measure: { agg: "count" } })).rows[0].value).toBe(6);
+  });
+
+  it("joining another table never changes a number measured on the base table (unmatched and many-rows deals included)", async () => {
+    const plain = (m: Record<string, unknown>) => a("metrics.query", { datahub_id: dhId, metric: { name: "m", source: "Bảng 1", ...m } });
+    const total = { measure: { agg: "sum", field: "Giá trị" } };
+    const want = 1000 + 500 + 300 + 200 + 100 + 77;
+    expect((await plain(total)).rows[0].value).toBe(want);
+    expect((await run(total)).rows[0].value).toBe(want);
+    expect((await run(total, byLink)).rows[0].value).toBe(want);
+    expect((await run({ ...total, group_by: ["Loại"] })).rows.map((r: { value: number }) => r.value)).toEqual((await plain({ ...total, group_by: ["Loại"] })).rows.map((r: { value: number }) => r.value));
+    for (const agg of ["count", "avg", "max", "median"]) {
+      const m = agg === "count" ? { measure: { agg } } : { measure: { agg, field: "Giá trị" } };
+      expect((await run(m)).rows[0].value).toBe((await plain(m)).rows[0].value);
+    }
+  });
+
+  it("a deal without a partner has empty joined columns", async () => {
+    const r = await run({ measure: { agg: "count", field: "TT.Số tiền" } });
+    expect(r.rows[0].value).toBe(3); // only D1, D2, D3 have an amount
+    const g = await run({ measure: { agg: "count" }, group_by: ["TT.Số tiền"] });
+    expect(g.rows.some((x: { groups: { label: string }[] }) => x.groups[0]!.label === "(Trống)")).toBe(true);
   });
 
   it("the diagnosis comes with every answer", async () => {
@@ -116,7 +137,7 @@ describe("join by key columns", () => {
     const big = await run({ measure: { agg: "count" }, filter: { field: "TT.Số tiền", op: "gt", value: 100 } });
     expect(big.rows[0].value).toBe(1); // only D1 (600)
     const g = await run({ measure: { agg: "count" }, group_by: ["TT.Mã deal"] });
-    expect(g.rows).toHaveLength(3);
+    expect(g.rows).toHaveLength(4); // D1, D2, D3 and the deals without payment
   });
 
   it("0 rows matched is an error with the diagnosis and a hint", async () => {
@@ -148,7 +169,7 @@ describe("join by a relation column", () => {
   it("folds the linked rows of each deal and reports the deals linked to several rows", async () => {
     const r = await run({ measure: { agg: "sum", field: "TT.Số tiền" } }, byLink);
     expect(r.rows[0].value).toBe(600 + 50); // D1 (3 links) and D2 (1 link); D3 has no link
-    expect((await run({ measure: { agg: "sum", field: "Giá trị" } }, byLink)).rows[0].value).toBe(1000 + 500);
+    expect((await run({ measure: { agg: "sum", field: "Giá trị" } }, byLink)).rows[0].value).toBe(1000 + 500 + 300 + 200 + 100 + 77);
     expect(r.diagnostics.joins[0]).toMatchObject({ kind: "link", base_total: 6, matched: 2, unmatched: 4, duplicate_groups: 1, duplicate_rows: 3, folded: true });
   });
 

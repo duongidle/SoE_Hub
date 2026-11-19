@@ -232,7 +232,7 @@ function joinParts(base: MTable, j: PlanJoin): { link?: MColumn; pairs: { left: 
 
 const LINK_ELEMENTS = (ref: TableRef, col: MColumn): SQL => sql`jsonb_array_elements_text(CASE WHEN jsonb_typeof(${valueExpr(ref, col)}) = 'array' THEN ${valueExpr(ref, col)} ELSE '[]'::jsonb END)`;
 
-/** The `JOIN` of one joined table: its used columns folded to one jsonb `data` per base row, inner join (unmatched base rows drop out). */
+/** The `JOIN` of one joined table: its used columns folded to one jsonb `data` per base row, left join (a base row with no partner stays, its joined columns are empty). */
 function joinSql(rs: Resolver, i: number): SQL {
   const j = rs.joins[i]!;
   const ref = rs.refs[i + 1]!;
@@ -246,11 +246,11 @@ function joinSql(rs: Resolver, i: number): SQL {
   const obj = sql`jsonb_build_object(${fold})`;
   const alive = sql`${j.table.scope(r)} AND ${sql.raw(r)}.deleted_at IS NULL`;
   if (parts.link) {
-    return sql`JOIN LATERAL (SELECT ${obj} AS data FROM ${LINK_ELEMENTS(rs.refs[0]!, parts.link)} AS l(id) JOIN dh_rows ${sql.raw(r)} ON ${sql.raw(r)}.id = l.id::uuid AND ${alive} HAVING count(*) > 0) ${sql.raw(ref.alias)} ON true`;
+    return sql`LEFT JOIN LATERAL (SELECT ${obj} AS data FROM ${LINK_ELEMENTS(rs.refs[0]!, parts.link)} AS l(id) JOIN dh_rows ${sql.raw(r)} ON ${sql.raw(r)}.id = l.id::uuid AND ${alive} HAVING count(*) > 0) ${sql.raw(ref.alias)} ON true`;
   }
   const jkey = keyOf(parts.pairs.map((p) => valueExpr(rRef, p.right)));
   const bkey = keyOf(parts.pairs.map((p) => valueExpr(rs.refs[0]!, p.left)));
-  return sql`JOIN (SELECT ${jkey} AS k, ${obj} AS data FROM dh_rows ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL GROUP BY 1) ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = ${bkey}`;
+  return sql`LEFT JOIN (SELECT ${jkey} AS k, ${obj} AS data FROM dh_rows ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL GROUP BY 1) ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = ${bkey}`;
 }
 
 /** Plans one metric query. Throws `validation_error` / `invalid_filter` with `details.reason` the caller can act on. */

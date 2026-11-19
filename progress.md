@@ -51,7 +51,7 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 **Opus quyết khi rà:** ghép bảng đổi từ inner sang **left** (dòng bảng chính không có đối tác vẫn vào số liệu, cột bảng ghép là rỗng; ghép thêm bảng không bao giờ làm đổi số của bảng chính; chẩn đoán vẫn báo dòng không khớp, 0 khớp vẫn báo lỗi). Làm đầu 3A-2.
 Ghi chú Stage 4: chia sẻ thống nhất (khoá phân chia, Module 2 mục 10, commit 74777ca) đổi `access.scope()`; engine metric đọc dòng qua `scope()` nên tự theo; khoá cache của 3A-2 phải gồm phạm vi dòng thực tế của người đọc.
 
-**Tiếp: 3A-2 (Sonnet)**, giao 19/11.
+**3A-2 đang làm (Sonnet)**: [x] 0 ghép left (test pass); [ ] 1 phái sinh; [ ] 2 thời gian; [ ] 3 mục tiêu + outlier; [ ] 4 chịu tải; [ ] 5 xoá cache outbox + SSE; [ ] 6 hiệu năng ghép; [ ] 7 API/OpenAPI/Bruno; [ ] 8-9 test + quyết định. Bước kế: mục 1 (phái sinh) trong `packages/metrics` + `apps/api/src/modules/metrics/engine.ts`.
 
 ## Lỗi điện thoại để sau
 
