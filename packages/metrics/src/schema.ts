@@ -179,6 +179,7 @@ export const MetricDefSchema = z
     const issue = (path: string, message: string) => ctx.addIssue({ code: "custom", path: [path], message });
     if (m.formula !== undefined) {
       for (const k of ["source", "measure", "cohort", "cumulative", "outliers"] as const) if (m[k] !== undefined) issue(k, `Chỉ số phái sinh (formula) không dùng "${k}".`);
+      if (m.time?.field !== undefined) issue("time", 'Chỉ số phái sinh không chọn cột ngày (time.field): mỗi chỉ số nó dùng giữ cột ngày của mình; chỉ đặt "range" và "bucket".');
     } else {
       if (m.source === undefined) issue("source", 'Chỉ số cần "source" (hoặc "formula" cho chỉ số phái sinh).');
       if (m.measure === undefined) issue("measure", 'Chỉ số cần "measure" (hoặc "formula" cho chỉ số phái sinh).');

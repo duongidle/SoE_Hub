@@ -5,5 +5,5 @@ import { metricOperations } from "./ops";
 for (const t of ["mt_sources", "mt_metrics", "mt_dashboards", "mt_charts"]) registerOwnedTable(t);
 
 export { metricOperations };
-export { runMetric, mergeSpec, diagnoseJoins, unmatchedRows, validateSpec } from "./engine";
+export { runMetric, runDefinition, validateDefinition, mergeSpec, diagnoseJoins, unmatchedRows, validateSpec } from "./engine";
 export { resolveSource } from "./context";

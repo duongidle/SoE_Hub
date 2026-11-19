@@ -2,8 +2,8 @@ import { sql, type SQL } from "drizzle-orm";
 import { compileFilter, type FieldMap } from "@soe/db";
 import { AppError, dateRangeNode, type FilterNode } from "@soe/shared";
 import { findColumn, normRef, optionId, valueExpr, type MColumn, type MTable, type TableRef, type ValueKind } from "./columns";
-import { RangeSchema, parseJson, type Bucket, type CollapseAgg, type Group, type Measure, type TimeSpec } from "./schema";
-import { bucketLabel, bucketStart, dayOf, resolveRange } from "./time";
+import { RangeSchema, parseJson, type Bucket, type CollapseAgg, type Cohort, type Group, type Measure, type TimeSpec } from "./schema";
+import { bucketLabel, bucketStart, dayOf, periodIndex, resolveRange, type Shift } from "./time";
 
 /**
  * One metric -> ONE grouped SQL statement on Postgres (design module3 section 6). The statement reads `dh_rows` of the base table
@@ -33,6 +33,12 @@ export interface PlanInput {
   fiscalStartMonth: number;
   /** Vietnam-time date of "today" (relative ranges resolve against it). */
   today: string;
+  /** Read an earlier period instead of the range: the same days moved back, the time bucket moved forward so it lines up with the current one. */
+  shift?: Shift;
+  /** Cohort mode (section 5.3): groups are the start period and the number of periods until the event, then `group_by`. */
+  cohort?: Cohort;
+  /** Keep only values inside (`inside`) or outside (`outside`) these bounds of the measure column (IQR outliers). */
+  outliers?: { lower: number; upper: number; keep: "inside" | "outside" };
 }
 
 export interface GroupInfo {
@@ -253,8 +259,21 @@ function joinSql(rs: Resolver, i: number): SQL {
   return sql`LEFT JOIN (SELECT ${jkey} AS k, ${obj} AS data FROM dh_rows ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL GROUP BY 1) ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = ${bkey}`;
 }
 
-/** Plans one metric query. Throws `validation_error` / `invalid_filter` with `details.reason` the caller can act on. */
-export function buildMetricQuery(p: PlanInput): Built {
+interface Prepared {
+  rs: Resolver;
+  mCol: MColumn | null;
+  x: SQL | null;
+  agg: { sql: SQL; type: ValueType };
+  groups: GroupInfo[];
+  gSql: SQL[];
+  from: SQL;
+  where: SQL[];
+  range: Built["range"];
+  sm: number;
+}
+
+/** Resolves every column, the groups and the rows of the statement (scope, filter, range, cohort and outlier conditions). */
+function prepare(p: PlanInput, mode: "main" | "cohort_sizes" | "outlier_bounds" = "main"): Prepared {
   const aliases = new Set<string>();
   for (const j of p.joins) {
     const a = normRef(j.alias);
@@ -284,19 +303,43 @@ export function buildMetricQuery(p: PlanInput): Built {
   if (timeCol && timeCol.col.kind !== "date" && timeCol.col.kind !== "datetime") {
     bad(`Cột "${timeCol.col.name}" không phải cột ngày nên không dùng làm trục thời gian được.`, { reason: "bad_time", column: timeCol.col.name, column_kind: timeCol.col.kind });
   }
-  const addGroup = (r: Resolved, bucket?: Bucket) => {
+  const addGroup = (r: Resolved, bucket?: Bucket, shifted = false) => {
     const k = r.col.kind;
     if (k === "set") bad(`Không nhóm theo cột "${r.col.name}" (${r.col.typeLabel ?? "nhiều giá trị"}) được.`, { reason: "bad_group", column: r.col.name });
     if (k === "date" || k === "datetime") {
       const b = bucket ?? "day";
       groups.push({ column: r.col.name, kind: k, bucket: b });
-      gSql.push(sql`(${bucketStart(dayOf(r.expr, k), b, sm)})::text`);
+      const day = dayOf(r.expr, k);
+      gSql.push(sql`(${bucketStart(shifted && p.shift ? sql`(${day} + ${sql.raw(`interval '${p.shift.interval}'`)})::date` : day, b, sm)})::text`);
     } else {
       groups.push({ column: r.col.name, kind: k, ...(k === "enum" ? { options: r.col.options ?? [] } : {}) });
       gSql.push(k === "uuid" ? sql`(${r.expr})::text` : k === "number" ? sql`(${r.expr})::text` : r.expr);
     }
   };
-  if (timeCol && time?.bucket) addGroup(timeCol, time.bucket);
+  // Cohort: the start period, then the number of periods until the event (0 = the same period).
+  const cohortWhere: SQL[] = [];
+  if (p.cohort && mode !== "outlier_bounds") {
+    const c = p.cohort;
+    const bucket = c.bucket ?? "month";
+    const start = rs.resolve(c.start);
+    const event = rs.resolve(c.event);
+    for (const [label, r] of [["start", start], ["event", event]] as const) {
+      if (r.col.kind !== "date" && r.col.kind !== "datetime") bad(`Cohort.${label}: cột "${r.col.name}" không phải cột ngày.`, { reason: "bad_cohort", column: r.col.name, column_kind: r.col.kind });
+    }
+    const sDay = dayOf(start.expr, start.col.kind as "date" | "datetime");
+    const eDay = dayOf(event.expr, event.col.kind as "date" | "datetime");
+    addGroup(start, bucket);
+    const off = sql`(${periodIndex(eDay, bucket, sm)} - ${periodIndex(sDay, bucket, sm)})`;
+    if (mode === "main") {
+      groups.push({ column: `Kỳ sau ${start.col.name}`, kind: "number" });
+      gSql.push(sql`(${off})::text`);
+      cohortWhere.push(sql`${event.expr} IS NOT NULL`, sql`${off} >= 0`);
+      if (c.max_offset !== undefined) cohortWhere.push(sql`${off} <= ${lit(c.max_offset)}`);
+    }
+    cohortWhere.push(sql`${start.expr} IS NOT NULL`);
+    if (c.mature_after) cohortWhere.push(sql`${periodIndex(sDay, bucket, sm)} <= ${periodIndex(sql`${sql.raw(`DATE '${p.today}'`)}`, bucket, sm)} - ${lit(c.mature_after)}`);
+  }
+  if (timeCol && time?.bucket) addGroup(timeCol, time.bucket, true);
   for (const g of p.group_by ?? []) {
     const r = rs.resolve(g.field);
     if (g.bucket && r.col.kind !== "date" && r.col.kind !== "datetime") bad(`"bucket" chỉ dùng cho cột ngày, "${r.col.name}" không phải.`, { reason: "bad_group", column: r.col.name });
@@ -310,7 +353,7 @@ export function buildMetricQuery(p: PlanInput): Built {
   if (p.filter) nodes.push(normalizeFilter(rs, p.filter, fm));
   let range: Built["range"] = null;
   if (timeCol && time?.range) {
-    const dr = resolveRange(parseJson(RangeSchema, time.range, "Khoảng thời gian"), p.today, sm);
+    const dr = p.shift ? { from: p.shift.from, to: p.shift.to } : resolveRange(parseJson(RangeSchema, time.range, "Khoảng thời gian"), p.today, sm);
     if (dr.from && dr.to && dr.from > dr.to) bad("Ngày bắt đầu phải trước hoặc cùng ngày kết thúc.", { reason: "bad_time", from: dr.from, to: dr.to });
     const id = `${timeCol.t}:${timeCol.col.key}`;
     fm[id] = { type: timeCol.col.kind, expr: timeCol.expr, sortable: false };
@@ -320,8 +363,21 @@ export function buildMetricQuery(p: PlanInput): Built {
   nodes = nodes.filter(Boolean);
   if (nodes.length) where.push(compileFilter(nodes.length === 1 ? nodes[0]! : { and: nodes }, fm)!);
 
+  where.push(...cohortWhere);
+  if (p.outliers && mode !== "outlier_bounds") {
+    if (!x || !mCol || mCol.kind !== "number") bad("Loại giá trị ngoại lai cần phép đo trên một cột số (measure.field).", { reason: "bad_outliers", ...(mCol ? { column: mCol.name, column_kind: mCol.kind } : {}) });
+    const { lower, upper, keep } = p.outliers;
+    where.push(keep === "inside" ? sql`(${x} IS NULL OR (${x} >= ${lit(lower)} AND ${x} <= ${lit(upper)}))` : sql`(${x} IS NOT NULL AND (${x} < ${lit(lower)} OR ${x} > ${lit(upper)}))`);
+  }
+
   const joins = p.joins.map((_, i) => joinSql(rs, i));
   const from = sql`dh_rows b ${sql.join(joins, sql` `)}`;
+  return { rs, mCol, x, agg, groups, gSql, from, where, range, sm };
+}
+
+/** Plans one metric query. Throws `validation_error` / `invalid_filter` with `details.reason` the caller can act on. */
+export function buildMetricQuery(p: PlanInput): Built {
+  const { x, mCol, agg, groups, gSql, from, where, range, sm } = prepare(p);
   const wh = sql.join(where, sql` AND `);
   const k = gSql.length;
   const sel = (exprs: SQL[]) => sql.join(exprs.map((e, i) => sql`${e} AS ${sql.raw(`g${i}`)}`), sql`, `);
@@ -352,11 +408,38 @@ export function buildMetricQuery(p: PlanInput): Built {
   return { sql: stmt, groups, valueType: p.measure.agg === "trimmed_mean" ? "number" : agg.type, range, limit: p.limit, fiscalStartMonth: sm, joined: p.joins.map((j) => j.alias) };
 }
 
+
+/** Sizes of the cohorts: rows of each start period (same filters, mature cohorts only), by `group_by`. Same shape as a metric without `measure`. */
+export function buildCohortSizes(p: PlanInput): Built {
+  const { groups, gSql, from, where, range, sm } = prepare({ ...p, measure: { agg: "count" }, outliers: undefined }, "cohort_sizes");
+  const k = gSql.length;
+  const stmt = sql`SELECT ${sql.join(gSql.map((e, i) => sql`${e} AS ${sql.raw(`g${i}`)}`), sql`, `)}, count(*) AS value, count(*)::int AS n FROM ${from} WHERE ${sql.join(where, sql` AND `)} GROUP BY ${sql.join(gSql.map((_, i) => sql.raw(String(i + 1))), sql`, `)} ORDER BY ${sql.join(gSql.map((_, i) => sql`${sql.raw(String(i + 1))} NULLS LAST`), sql`, `)} LIMIT ${p.limit + 1}`;
+  void k;
+  return { sql: stmt, groups, valueType: "number", range, limit: p.limit, fiscalStartMonth: sm, joined: p.joins.map((j) => j.alias) };
+}
+
+/** Quartiles of the measure column over the rows the metric reads (no groups): the base of IQR outliers. One row: q1, q3, n. */
+export function buildOutlierBounds(p: PlanInput): SQL {
+  const { x, mCol, from, where } = prepare({ ...p, outliers: undefined, cohort: undefined, group_by: undefined, time: p.time ? { ...p.time, bucket: undefined } : undefined }, "outlier_bounds");
+  if (!x || !mCol || mCol.kind !== "number") bad("Loại giá trị ngoại lai cần phép đo trên một cột số (measure.field).", { reason: "bad_outliers", ...(mCol ? { column: mCol.name, column_kind: mCol.kind } : {}) });
+  return sql`SELECT percentile_cont(0.25) WITHIN GROUP (ORDER BY (${x})::float8) AS q1, percentile_cont(0.75) WITHIN GROUP (ORDER BY (${x})::float8) AS q3, count(${x})::int AS n FROM ${from} WHERE ${sql.join(where, sql` AND `)}`;
+}
+
 export interface MetricRow {
   groups: { value: string | number | boolean | null; label: string }[];
   value: number | string | null;
   /** Rows of the source that fall in the group. */
   count: number;
+  /** `compare`: the value of the same group in the earlier period, and the change from it (`change_pct` is a ratio: 0.25 = +25%, null when the earlier value is 0 or empty). */
+  previous?: number | string | null;
+  change?: number | null;
+  change_pct?: number | null;
+  /** `target`: the target of the group, the share reached (`achieved` is a ratio: 0.85 = 85%) and what is still missing (`gap`, negative when the target is exceeded). */
+  target?: number | null;
+  achieved?: number | null;
+  gap?: number | null;
+  /** Derived metric: the error of the formula for this group (`#DIV/0!`...); `value` is null then. */
+  error?: string;
 }
 
 export interface MetricTable {

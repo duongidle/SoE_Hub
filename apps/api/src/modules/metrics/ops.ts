@@ -3,11 +3,14 @@ import { z } from "zod";
 import { AppError, jsonParam, filterParam } from "@soe/shared";
 import { newId } from "@soe/db";
 import {
+  COMPARES,
   GroupSchema,
   MAX_GROUPS,
   MetricDefSchema,
+  OutliersSchema,
   QueryOverridesSchema,
   SourceDefSchema,
+  TargetSchema,
   TimeSpecSchema,
   parseJson,
   type MetricDef,
@@ -17,7 +20,7 @@ import { defineCommand, defineQuery } from "../../core/registry";
 import { loadDatahubAccess } from "../datahub/access";
 import { rethrowNameConflict } from "../datahub/errors";
 import { Id, Ts } from "../datahub/shared";
-import { diagnoseJoins, runMetric, unmatchedRows, validateSpec } from "./engine";
+import { diagnoseJoins, runDefinition, unmatchedRows, validateDefinition } from "./engine";
 import { resolveSource, type Ctx, type ResolvedSource } from "./context";
 
 type Raw = Record<string, unknown>;
@@ -73,11 +76,8 @@ async function listRows(ctx: Ctx, kind: Kind, datahubId: string) {
 }
 
 /** Checks a metric definition end to end (JSON shape, source, tables, columns, options, joins) and returns what it reads. */
-async function checkMetric(ctx: Ctx, datahubId: string, def: MetricDef): Promise<ResolvedSource> {
-  const rs = await resolveSource(ctx, def.source, datahubId);
-  if (rs.datahubId !== datahubId) throw new AppError("validation_error", "Nguồn của chỉ số thuộc datahub khác.", { reason: "cross_datahub" });
-  await validateSpec(ctx, rs, def);
-  return rs;
+async function checkMetric(ctx: Ctx, datahubId: string, def: MetricDef): Promise<{ tableIds: string[] }> {
+  return { tableIds: await validateDefinition(ctx, datahubId, def) };
 }
 
 async function checkSource(ctx: Ctx, datahubId: string, def: SourceDef): Promise<ResolvedSource> {
@@ -109,11 +109,19 @@ export const metricOperations = [
       filter: filterParam,
       order: z.enum(["group", "value_desc", "value_asc"]).optional(),
       limit: z.coerce.number().int().min(1).max(MAX_GROUPS).optional(),
+      compare: z.enum([...COMPARES, "none"]).optional().describe("So với kỳ trước (previous_period) hoặc cùng kỳ năm trước (year_ago); `none` tắt phép so sánh đã lưu trong chỉ số. Cần time.range."),
+      cumulative: z.enum(["true", "false"]).optional().transform((v) => (v === undefined ? undefined : v === "true")).describe("Cộng dồn theo thời gian (chỉ count và sum; cần time.bucket)."),
+      target: jsonParam(TargetSchema).describe("Mục tiêu: {value} hằng số, hoặc {table, value_field, period_field?, by?} lấy từ bảng mục tiêu."),
+      outliers: jsonParam(OutliersSchema).describe("Giá trị ngoại lai theo IQR: {mode: include|exclude|separate, k?}."),
     }),
     http: { method: "GET", path: "/metric-query" },
     handler: async (ctx, i) => {
       if (!!i.metric_id === !!i.metric) throw new AppError("validation_error", "Truyền đúng một trong `metric_id` hoặc `metric`.", { reason: "metric_required" });
-      const ov = parseJson(QueryOverridesSchema, { time: i.time, group_by: i.group_by, filter: i.filter, order: i.order, limit: i.limit }, "Tham số truy vấn");
+      const ov = parseJson(
+        QueryOverridesSchema,
+        { time: i.time, group_by: i.group_by, filter: i.filter, order: i.order, limit: i.limit, compare: i.compare === "none" ? null : i.compare, cumulative: i.cumulative, target: i.target, outliers: i.outliers },
+        "Tham số truy vấn",
+      );
       let def: MetricDef;
       let dh = i.datahub_id;
       let name = i.metric?.name ?? null;
@@ -125,9 +133,8 @@ export const metricOperations = [
       } else {
         def = i.metric!;
       }
-      const rs = await resolveSource(ctx, def.source, dh);
-      const a = await runMetric(ctx, rs, def, ov);
-      return { metric: { id: i.metric_id ?? null, name, agg: def.measure.agg, field: def.measure.field ?? null, format: def.format ?? null }, ...a };
+      const a = await runDefinition(ctx, def, ov, dh ? { datahubId: dh } : {});
+      return { metric: { id: i.metric_id ?? null, name, agg: def.measure?.agg ?? null, field: def.measure?.field ?? null, formula: def.formula ?? null, format: def.format ?? null }, ...a };
     },
   }),
 
