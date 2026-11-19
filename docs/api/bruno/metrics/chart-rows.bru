@@ -1,0 +1,30 @@
+meta {
+  name: metrics.chart.rows
+  type: http
+  seq: 33
+}
+
+get {
+  url: {{baseUrl}}/api/v1/chart-rows
+  body: none
+  auth: none
+}
+
+params:query {
+  chart_id: {{chart_id}}
+  ~series: 0
+  ~group: ["2026-10-01"]
+  ~filters: {"conditions":[{"field":"Loại deal","op":"eq","value":"POD"}]}
+  ~limit: 50
+  ~offset: 0
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Xem các dòng tạo nên một con số của biểu đồ, theo quyền của NGƯỜI XEM.
+  group: giá trị các cột nhóm của con số đang xem (dòng của biểu đồ vừa bấm); bỏ trống = cả chuỗi. Số tính bằng quyền của chủ dashboard, các dòng chỉ gồm phần người xem được thấy: total_visible / total_owner, note "Bạn thấy x/y dòng tạo nên con số này.". Người xem chưa có quyền xem bảng nguồn thì forbidden (reason no_source_access). Ghi nhật ký.
+  Quyền: `system:whoami`.
+}

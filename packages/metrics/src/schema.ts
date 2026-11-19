@@ -206,6 +206,12 @@ export const QueryOverridesSchema = z.strictObject({
   top: z.number().int().min(2).max(50).optional(),
   /** Add the totals of a table with two group columns: by the first, by the rest, and the grand total (the measure computed over each wider group). */
   totals: z.boolean().optional(),
+  /**
+   * Dashboard filters (3C-2; set by the server, not by `metrics.query` callers): conditions that apply only to the columns the metric's
+   * tables have (the others are skipped and reported), and a date range that applies only when the metric has a date column.
+   */
+  soft_filter: FilterSchema.optional(),
+  soft_range: RangeSchema.optional(),
 });
 export type QueryOverrides = z.output<typeof QueryOverridesSchema>;
 

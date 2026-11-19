@@ -462,6 +462,76 @@ export function buildOutlierBounds(p: PlanInput): SQL {
   return sql`SELECT percentile_cont(0.25) WITHIN GROUP (ORDER BY (${x})::float8) AS q1, percentile_cont(0.75) WITHIN GROUP (ORDER BY (${x})::float8) AS q3, count(${x})::int AS n FROM ${from} WHERE ${sql.join(where, sql` AND `)}`;
 }
 
+/** Part of a statement that is not the metric itself: the groups and how to read their labels. */
+export interface Planned {
+  sql: SQL;
+  groups: GroupInfo[];
+  range: Built["range"];
+  limit: number;
+  fiscalStartMonth: number;
+}
+
+/** The plan of a measure over a numeric column with no group and no time bucket (histogram). */
+const flatPlan = (p: PlanInput): PlanInput => ({ ...p, cohort: undefined, group_by: undefined, keepGroups: undefined, excludeFirst: undefined, time: p.time ? { ...p.time, bucket: undefined } : undefined });
+
+/**
+ * Histogram of the measure column: `bins` equal-width bins between the smallest and the largest value (the largest value falls in the last
+ * bin). One row per non-empty bin: lo, hi, n (values), b (bin number from 1), c (values in the bin). The bin edges are computed in
+ * `chart-view.ts` from lo, hi and the number of bins.
+ */
+export function buildHistogram(p: PlanInput, bins: number): SQL {
+  const { x, mCol, from, where } = prepare(flatPlan(p), "outlier_bounds");
+  if (!x || !mCol || mCol.kind !== "number") bad("Biểu đồ phân bố cần phép đo trên một cột số (measure.field).", { reason: "bad_histogram", ...(mCol ? { column: mCol.name, column_kind: mCol.kind } : {}) });
+  const n = lit(Math.max(2, Math.min(50, Math.trunc(bins))));
+  return sql`WITH v AS (SELECT (${x})::float8 AS x FROM ${from} WHERE ${sql.join(where, sql` AND `)} AND ${x} IS NOT NULL),
+    s AS (SELECT min(x) AS lo, max(x) AS hi, count(*)::int AS n FROM v)
+    SELECT s.lo, s.hi, s.n, (CASE WHEN s.hi = s.lo THEN 1 ELSE least(width_bucket(v.x, s.lo, s.hi, ${n}::int), ${n}::int) END)::int AS b, count(*)::int AS c
+    FROM v CROSS JOIN s GROUP BY s.lo, s.hi, s.n, 4 ORDER BY 4`;
+}
+
+/**
+ * Box plot of the measure column for each group (the groups of the plan, or one group): n, min, quartiles, max, the whiskers (the
+ * smallest and largest value still inside [Q1 - k*IQR, Q3 + k*IQR]) and the values outside (at most 60 per group, `n_out` counts all of them).
+ */
+export function buildBoxplot(p: PlanInput, k = 1.5): Planned {
+  const { x, mCol, from, where, groups, gSql, range, sm } = prepare({ ...p, cohort: undefined, keepGroups: undefined, excludeFirst: undefined }, "outlier_bounds");
+  if (!x || !mCol || mCol.kind !== "number") bad("Box plot cần phép đo trên một cột số (measure.field).", { reason: "bad_boxplot", ...(mCol ? { column: mCol.name, column_kind: mCol.kind } : {}) });
+  const g = gSql.map((_, i) => sql.raw(`g${i}`));
+  const selV = sql.join([...gSql.map((e, i) => sql`${e} AS ${sql.raw(`g${i}`)}`), sql`(${x})::float8 AS x`], sql`, `);
+  const kk = lit(k);
+  const lowB = sql`(q.q1 - ${kk} * (q.q3 - q.q1))`;
+  const upB = sql`(q.q3 + ${kk} * (q.q3 - q.q1))`;
+  const qSel = [...g, sql`percentile_cont(0.25) WITHIN GROUP (ORDER BY x) AS q1`, sql`percentile_cont(0.5) WITHIN GROUP (ORDER BY x) AS med`, sql`percentile_cont(0.75) WITHIN GROUP (ORDER BY x) AS q3`, sql`min(x) AS mn`, sql`max(x) AS mx`, sql`count(*)::int AS n`];
+  const join = g.length ? sql`JOIN v ON ${sql.join(g.map((c) => sql`v.${c} IS NOT DISTINCT FROM q.${c}`), sql` AND `)}` : sql`CROSS JOIN v`;
+  const qg = g.map((c) => sql`q.${c}`);
+  const keep = [...qg, sql`q.q1`, sql`q.med`, sql`q.q3`, sql`q.mn`, sql`q.mx`, sql`q.n`];
+  const order = g.length ? sql` ORDER BY ${sql.join(g.map((c) => sql`q.${c} NULLS LAST`), sql`, `)}` : sql``;
+  const stmt = sql`WITH v AS (SELECT ${selV} FROM ${from} WHERE ${sql.join(where, sql` AND `)} AND ${x} IS NOT NULL),
+    q AS (SELECT ${sql.join(qSel, sql`, `)} FROM v${g.length ? sql` GROUP BY ${sql.join(g, sql`, `)}` : sql``})
+    SELECT ${sql.join(keep, sql`, `)},
+      min(v.x) FILTER (WHERE v.x >= ${lowB}) AS lw, max(v.x) FILTER (WHERE v.x <= ${upB}) AS uw,
+      (array_agg(v.x ORDER BY v.x) FILTER (WHERE v.x < ${lowB} OR v.x > ${upB}))[1:60] AS outs,
+      (count(*) FILTER (WHERE v.x < ${lowB} OR v.x > ${upB}))::int AS n_out
+    FROM q ${join} GROUP BY ${sql.join(keep, sql`, `)}${order} LIMIT ${p.limit + 1}`;
+  return { sql: stmt, groups, range, limit: p.limit, fiscalStartMonth: sm };
+}
+
+/**
+ * The rows of the base table that make up one number: the rows the plan reads (scope, filter, time range...) whose groups equal
+ * `values` (one value per group column, in order; fewer values keep the rest open). Sorted by row number. Each row carries `total`.
+ */
+export function buildRowsQuery(p: PlanInput, values: (string | number | boolean | null)[], limit: number, offset: number): SQL {
+  const { gSql, groups, from, where } = prepare({ ...p, keepGroups: undefined, excludeFirst: undefined });
+  if (values.length > gSql.length) bad(`Có ${values.length} giá trị nhóm nhưng biểu đồ chỉ có ${gSql.length} cột nhóm.`, { reason: "bad_group_values", groups: gSql.length });
+  const conds = values.map((v, i) => {
+    const g = gSql[i]!;
+    if (v === null) return sql`(${g}) IS NULL`;
+    if (groups[i]!.kind === "boolean") return sql`(${g}) IS NOT DISTINCT FROM ${Boolean(v)}`;
+    return sql`(${g})::text = ${String(v)}`;
+  });
+  return sql`SELECT b.id, b.row_no, count(*) OVER ()::int AS total FROM ${from} WHERE ${sql.join([...where, ...conds], sql` AND `)} ORDER BY b.row_no LIMIT ${limit} OFFSET ${offset}`;
+}
+
 export interface MetricRow {
   groups: { value: string | number | boolean | null; label: string }[];
   value: number | string | null;
@@ -488,19 +558,24 @@ export interface MetricTable {
   truncated: boolean;
 }
 
+/** The group values of one result row (`g0`, `g1`...) with readable labels: option ids as names, periods as readable labels. */
+export function labelGroups(b: Pick<Built, "groups" | "fiscalStartMonth">, r: Record<string, unknown>): MetricRow["groups"] {
+  return b.groups.map((g, i) => {
+    const v = r[`g${i}`] as string | boolean | null;
+    if (v === null || v === undefined) return { value: null, label: "(Trống)" };
+    if (g.bucket) return { value: v as string, label: bucketLabel(v as string, g.bucket, b.fiscalStartMonth) };
+    if (g.kind === "enum") return { value: v as string, label: g.options?.find((o) => o.id === v)?.name ?? (v as string) };
+    if (g.kind === "number") return { value: Number(v), label: String(Number(v)) };
+    if (g.kind === "boolean") return { value: v as boolean, label: v ? "Có" : "Không" };
+    return { value: v as string, label: String(v) };
+  });
+}
+
 /** Turns the rows Postgres returned into the answer: numbers as numbers, option ids as names, periods as readable labels. */
 export function shape(b: Built, raw: Record<string, unknown>[]): MetricTable {
   const truncated = raw.length > b.limit;
   const rows = raw.slice(0, b.limit).map((r): MetricRow => {
-    const groups = b.groups.map((g, i) => {
-      const v = r[`g${i}`] as string | boolean | null;
-      if (v === null || v === undefined) return { value: null, label: "(Trống)" };
-      if (g.bucket) return { value: v as string, label: bucketLabel(v as string, g.bucket, b.fiscalStartMonth) };
-      if (g.kind === "enum") return { value: v as string, label: g.options?.find((o) => o.id === v)?.name ?? (v as string) };
-      if (g.kind === "number") return { value: Number(v), label: String(Number(v)) };
-      if (g.kind === "boolean") return { value: v as boolean, label: v ? "Có" : "Không" };
-      return { value: v as string, label: String(v) };
-    });
+    const groups = labelGroups(b, r);
     const val = r.value;
     return { groups, value: val === null || val === undefined ? null : b.valueType === "number" ? Number(val) : String(val), count: Number(r.n) };
   });

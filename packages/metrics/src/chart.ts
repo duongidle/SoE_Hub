@@ -1,14 +1,22 @@
 import { z } from "zod";
 import { CompareSchema, GroupSchema, MAX_GROUPS, MAX_GROUP_FIELDS, MetricDefSchema, OutliersSchema, TargetSchema, TimeSpecSchema } from "./schema";
 import { FilterSchema } from "@soe/shared";
+import { DashFiltersSchema } from "./dash-filter";
 
 /**
  * JSON of a chart on a dashboard (design module3 sections 2, 7, 8). The server keeps it as written (after checking the shape and
  * that every metric exists); it never computes anything from it: the screens ask `metrics.query` once per series.
  * Stage 3C-1 has the basic types; 3C-2 adds the rest (bullet, gauge, funnel...) by extending `CHART_TYPES`.
  */
-export const CHART_TYPES = ["kpi", "column", "bar", "line", "area", "combo", "pie", "donut", "table", "pivot", "note"] as const;
+export const CHART_TYPES = [
+  "kpi", "column", "bar", "line", "area", "combo", "pie", "donut", "table", "pivot", "note",
+  // 3C-2
+  "bullet", "gauge", "funnel", "boxplot", "histogram", "scatter", "matrix", "heatmap", "waterfall", "ranking", "cohort",
+] as const;
 export type ChartType = (typeof CHART_TYPES)[number];
+
+/** Chart types that read exactly one series (the others take several, or exactly two for scatter and matrix). */
+export const SINGLE_SERIES: readonly string[] = ["kpi", "pie", "donut", "table", "pivot", "bullet", "gauge", "boxplot", "histogram", "heatmap", "ranking", "cohort"];
 
 export const MAX_SERIES = 6;
 export const GRID_COLUMNS = 12;
@@ -24,6 +32,8 @@ export const SeriesSchema = z
     /** Combo chart: which axis and which drawing. */
     axis: z.enum(["left", "right"]).optional(),
     kind: z.enum(["bar", "line"]).optional(),
+    /** Waterfall: what this series does to the running total (default: the first series starts it, the others add). */
+    step: z.enum(["start", "add", "subtract"]).optional(),
     time: TimeSpecSchema.optional(),
     group_by: z.array(GroupSchema).max(MAX_GROUP_FIELDS).optional(),
     filter: FilterSchema.optional(),
@@ -57,6 +67,23 @@ export const ChartOptionsSchema = z.strictObject({
   totals: z.boolean().optional(),
   /** Pie: slices kept before the rest is folded into "Khác" (when the number can be added up). */
   max_slices: z.number().int().min(2).max(8).optional(),
+  /** Histogram: number of bins. */
+  bins: z.number().int().min(2).max(50).optional(),
+  /** Bullet: reference bands (for example KPI / Goal / Out performance), drawn behind the bar up to each value. */
+  bands: z.array(z.strictObject({ label: z.string().max(40), value: z.number().finite() })).max(4).optional(),
+  /** Gauge without a target: the ends of the scale (percent metrics default to 0..1). */
+  gauge_min: z.number().finite().optional(),
+  gauge_max: z.number().finite().optional(),
+  /** 2x2 matrix: where the quadrants split (default: the median of each axis, computed by the engine). */
+  x_split: z.number().finite().optional(),
+  y_split: z.number().finite().optional(),
+  /** Ranking: how many places are listed. */
+  top_n: z.number().int().min(1).max(50).optional(),
+  /** Waterfall: close with a bar of the running total (default true). */
+  total: z.boolean().optional(),
+  /** Dashboard filters (3C-2): this chart ignores the common filter bar, or the filters made by clicking other charts. */
+  ignore_filters: z.boolean().optional(),
+  ignore_cross: z.boolean().optional(),
 });
 export type ChartOptions = z.output<typeof ChartOptionsSchema>;
 
@@ -83,6 +110,14 @@ export const ChartDefSchema = z
     if (c.type === "note") {
       if (c.series.length) issue("series", "Ô ghi chú không có số liệu.");
     } else if (c.series.length === 0) issue("series", "Biểu đồ cần ít nhất một chuỗi số liệu.");
-    if (c.type !== "combo" && c.type !== "note" && c.series.length > 1 && ["kpi", "pie", "donut", "table", "pivot"].includes(c.type)) issue("series", `Loại "${c.type}" chỉ có một chuỗi số liệu.`);
+    if (c.type !== "combo" && c.type !== "note" && c.series.length > 1 && SINGLE_SERIES.includes(c.type)) issue("series", `Loại "${c.type}" chỉ có một chuỗi số liệu.`);
+    if ((c.type === "scatter" || c.type === "matrix") && c.series.length !== 2) issue("series", `Loại "${c.type}" cần đúng hai chuỗi số liệu: trục ngang rồi trục dọc.`);
   });
 export type ChartDef = z.output<typeof ChartDefSchema>;
+
+/** What a dashboard keeps in its `config` (3C-2): the default common filters, and whether Guests with a dashboard grant may open it. */
+export const DashboardConfigSchema = z.strictObject({
+  filters: z.lazy(() => DashFiltersSchema).optional(),
+  guest_visible: z.boolean().optional(),
+});
+export type DashboardConfig = z.output<typeof DashboardConfigSchema>;

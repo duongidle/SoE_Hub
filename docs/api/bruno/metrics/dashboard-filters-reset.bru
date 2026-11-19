@@ -1,0 +1,21 @@
+meta {
+  name: metrics.dashboard.filters.reset
+  type: http
+  seq: 38
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/dashboards/{{dashboard_id}}/my-filters
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Về mặc định: xoá bản bộ lọc riêng của bạn trên một dashboard.
+  Quyền: `system:whoami`.
+}

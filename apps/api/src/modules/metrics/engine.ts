@@ -6,8 +6,18 @@ import {
   RangeSchema,
   attachTarget,
   buildCohortSizes,
+  buildBoxplot,
+  buildHistogram,
   buildMetricQuery,
+  buildRowsQuery,
   countGroupsSql,
+  findColumn,
+  histogramBins,
+  labelGroups,
+  shapeBox,
+  optionId,
+  type BoxGroup,
+  type Histogram,
   buildOutlierBounds,
   checkJoin,
   combineDerived,
@@ -70,6 +80,8 @@ export interface MetricAnswer extends MetricTable {
     compare?: { kind: string; from: string; to: string };
     /** `outliers`: the IQR bounds (null when there were fewer than 4 values to tell). */
     outliers?: IqrBounds | null;
+    /** Dashboard filters that do not apply to this metric (the table has no such column or option): the names of their fields. */
+    skipped_filters?: string[];
   };
   /** `outliers.mode = "separate"`: the same metric over the values outside the bounds. */
   outlier_rows?: MetricTable;
@@ -92,6 +104,52 @@ export function mergeSpec(m: MetricSpec, ov: QueryOverrides = {}): MetricSpec {
   const group_by = ov.group_by ?? m.group_by;
   const outliers = ov.outliers === undefined ? m.outliers : (ov.outliers ?? undefined);
   return { measure: m.measure, ...(filter ? { filter } : {}), ...(time ? { time } : {}), ...(group_by ? { group_by } : {}), ...(m.cohort ? { cohort: m.cohort } : {}), ...(outliers ? { outliers } : {}) };
+}
+
+/** True when `ref` names a column of the base table or of a joined table (`Alias.Column`). */
+function resolvable(rs: ResolvedSource, ref: string): { col: ReturnType<typeof findColumn> } | null {
+  const own = findColumn(rs.base, ref);
+  if (own) return { col: own };
+  const n = normRef(ref);
+  for (const j of rs.joins) {
+    const prefix = `${normRef(j.alias)}.`;
+    if (!n.startsWith(prefix)) continue;
+    const col = findColumn(j.table, ref.slice(prefix.length));
+    return col ? { col } : null;
+  }
+  return null;
+}
+
+/**
+ * Keeps the conditions of a dashboard filter that this source can answer: the column exists, and for a Một lựa chọn column the value is one of
+ * its options. The others are left out and their fields listed in `skipped`, so a filter on "Loại" does not break a chart of another table.
+ */
+export function pruneFilter(rs: ResolvedSource, node: FilterNode, skipped: string[]): FilterNode | null {
+  if ("and" in node || "or" in node) {
+    const parts = ("and" in node ? node.and : node.or).map((n) => pruneFilter(rs, n, skipped)).filter((n): n is FilterNode => !!n);
+    if (!parts.length) return null;
+    return "and" in node ? { and: parts } : { or: parts };
+  }
+  const hit = resolvable(rs, node.field);
+  const miss = () => {
+    if (!skipped.includes(node.field)) skipped.push(node.field);
+    return null;
+  };
+  if (!hit?.col) return miss();
+  if (hit.col.kind === "enum" && node.value !== undefined && node.value !== null) {
+    const vals = Array.isArray(node.value) ? node.value : [node.value];
+    if (vals.some((v) => v !== null && optionId(hit.col!, v) === undefined)) return miss();
+  }
+  return node;
+}
+
+/** The spec of a query with the dashboard's `soft_filter` pruned for this source and ANDed in. */
+function withSoftFilter(rs: ResolvedSource, merged: MetricSpec, ov: QueryOverrides): { spec: MetricSpec; skipped: string[] } {
+  const skipped: string[] = [];
+  if (!ov.soft_filter) return { spec: merged, skipped };
+  const kept = pruneFilter(rs, ov.soft_filter, skipped);
+  const filter = and(merged.filter, kept ?? undefined);
+  return { spec: { ...merged, ...(filter ? { filter } : {}) }, skipped };
 }
 
 export async function diagnoseJoins(ctx: Ctx, rs: ResolvedSource): Promise<JoinDiagnosis[]> {
@@ -141,7 +199,8 @@ const rowsOf = async (ctx: Ctx, built: Built, tables: MTable[]): Promise<{ table
  */
 export async function runMetric(ctx: Ctx, rs: ResolvedSource, spec: MetricSpec, ov: QueryOverrides = {}, now: Date = new Date(), shift?: Shift): Promise<MetricAnswer> {
   const fiscal = await readSetting(ctx.db, DH_SETTINGS.fiscalStartMonth);
-  const merged = mergeSpec(spec, ov);
+  const soft = withSoftFilter(rs, mergeSpec(spec, ov), ov);
+  const merged = soft.spec;
   const plan: PlanInput = {
     base: rs.base,
     joins: rs.joins,
@@ -199,7 +258,7 @@ export async function runMetric(ctx: Ctx, rs: ResolvedSource, spec: MetricSpec, 
       otherGroups = Number((cnt.rows[0] as { n: number }).n) - ov.top;
     }
   }
-  const answer: MetricAnswer = { ...r.table, ...(otherGroups !== undefined ? { other_groups: otherGroups } : {}), diagnostics: { range: built.range, joins, ...(bounds !== undefined ? { outliers: bounds } : {}) }, ms };
+  const answer: MetricAnswer = { ...r.table, ...(otherGroups !== undefined ? { other_groups: otherGroups } : {}), diagnostics: { range: built.range, joins, ...(bounds !== undefined ? { outliers: bounds } : {}), ...(soft.skipped.length ? { skipped_filters: soft.skipped } : {}) }, ms };
   if (outside) {
     const o = await rowsOf(ctx, outside, tables);
     answer.outlier_rows = o.table;
@@ -301,8 +360,10 @@ export interface RunOpts {
 export async function runDefinition(ctx: Ctx, def: MetricDef, ov: QueryOverrides = {}, opts: RunOpts = {}): Promise<MetricAnswer> {
   const now = opts.now ?? new Date();
   const depth = opts.depth ?? 0;
-  const eff = effective(def, ov);
   const formula = isFormulaMetric(def);
+  // The dashboard's date range applies only to a metric that has a date column; the others keep their own range.
+  if (ov.soft_range && !formula && (def.time?.field || ov.time?.field)) ov = { ...ov, time: { ...ov.time, range: ov.soft_range } };
+  const eff = effective(def, ov);
   let rs: ResolvedSource | null = null;
   let dh = opts.datahubId;
   if (!formula) {
@@ -374,6 +435,8 @@ async function runFormula(ctx: Ctx, def: MetricDef & { formula: string }, eff: E
     limit: MAX_GROUPS,
     compare: null,
     target: null,
+    ...(ov.soft_filter ? { soft_filter: ov.soft_filter } : {}),
+    ...(ov.soft_range ? { soft_range: ov.soft_range } : {}),
   };
   const tables: MetricTable[] = [];
   const joins: JoinDiagnosis[] = [];
@@ -481,4 +544,79 @@ export async function validateDefinition(ctx: Ctx, datahubId: string, def: Metri
     tableIds = [...new Set([...tableIds, plan.base.id])];
   }
   return tableIds;
+}
+
+// ------------------------------------------------------------------------------------------------
+// distribution charts (histogram, box plot) and the rows behind a number
+// ------------------------------------------------------------------------------------------------
+
+/** What a statement outside the grouped metric reads: the metric's spec with the call's overrides and the dashboard's soft filter. */
+async function planOf(rs: ResolvedSource, spec: MetricSpec, ov: QueryOverrides, now: Date, limit: number): Promise<{ plan: PlanInput; tables: MTable[]; skipped: string[] }> {
+  const soft = withSoftFilter(rs, mergeSpec(spec, ov), ov);
+  return {
+    plan: { base: rs.base, joins: rs.joins, measure: soft.spec.measure, ...optional(soft.spec), ...(ov.order ? { order: ov.order } : {}), limit, fiscalStartMonth: 1 /* set by planFull */, today: businessDate(now) },
+    tables: [rs.base, ...rs.joins.map((j) => j.table)],
+    skipped: soft.skipped,
+  };
+}
+
+async function planFull(ctx: Ctx, rs: ResolvedSource, spec: MetricSpec, ov: QueryOverrides, now: Date, limit: number) {
+  const p = await planOf(rs, spec, ov, now, limit);
+  p.plan.fiscalStartMonth = await readSetting(ctx.db, DH_SETTINGS.fiscalStartMonth);
+  return p;
+}
+
+export interface HistogramAnswer extends Histogram {
+  diagnostics: MetricAnswer["diagnostics"];
+  ms: number;
+}
+
+/** Histogram of the measure column (`measure.field`, a number) in `bins` equal-width bins. The engine counts, `histogramBins` lays out the edges. */
+export async function runHistogram(ctx: Ctx, rs: ResolvedSource, spec: MetricSpec, ov: QueryOverrides, bins: number, now: Date = new Date()): Promise<HistogramAnswer> {
+  const { plan, tables, skipped } = await planFull(ctx, rs, spec, ov, now, 1);
+  const joins = await diagnoseJoins(ctx, rs);
+  const r = await runSql(ctx, buildHistogram(plan, bins), tables);
+  const range = buildMetricQuery({ ...plan, group_by: undefined }).range;
+  return { ...histogramBins(r.rows as never, bins), diagnostics: { range, joins, ...(skipped.length ? { skipped_filters: skipped } : {}) }, ms: r.ms };
+}
+
+export interface BoxplotAnswer {
+  groups: BoxGroup[];
+  truncated: boolean;
+  diagnostics: MetricAnswer["diagnostics"];
+  ms: number;
+}
+
+/** Box plot of the measure column for each group of the spec (none: one box). */
+export async function runBoxplot(ctx: Ctx, rs: ResolvedSource, spec: MetricSpec, ov: QueryOverrides, now: Date = new Date()): Promise<BoxplotAnswer> {
+  const { plan, tables, skipped } = await planFull(ctx, rs, spec, { ...ov, order: undefined }, now, Math.min(ov.limit ?? 30, 100));
+  const joins = await diagnoseJoins(ctx, rs);
+  const b = buildBoxplot(plan);
+  const r = await runSql(ctx, b.sql, tables);
+  const truncated = r.rows.length > b.limit;
+  const groups = r.rows.slice(0, b.limit).map((row) => shapeBox(labelGroups(b, row), row));
+  return { groups, truncated, diagnostics: { range: b.range, joins, ...(skipped.length ? { skipped_filters: skipped } : {}) }, ms: r.ms };
+}
+
+export interface RowIds {
+  items: { id: string; row_no: number }[];
+  total: number;
+}
+
+/**
+ * Ids of the base rows that make up one number (the rows of the metric's plan inside one group), in the reader's own scope: the plan is
+ * built from `rs`, the source resolved for the reader. The numbers of a shared dashboard come from the owner's `rs`; the rows from here.
+ */
+export async function runRowIds(ctx: Ctx, rs: ResolvedSource, spec: MetricSpec, ov: QueryOverrides, values: (string | number | boolean | null)[], limit: number, offset: number, now: Date = new Date()): Promise<RowIds> {
+  const { plan, tables } = await planFull(ctx, rs, spec, ov, now, 1);
+  // Outliers left out of the number are left out of its rows too.
+  if (spec.outliers && spec.outliers.mode !== "include") {
+    const qr = await runSql(ctx, buildOutlierBounds(plan), tables);
+    const q = qr.rows[0] as { q1: number | null; q3: number | null; n: number };
+    const bounds = iqrBounds(q.q1 === null ? null : Number(q.q1), q.q3 === null ? null : Number(q.q3), Number(q.n), spec.outliers.k);
+    if (bounds) plan.outliers = { lower: bounds.lower, upper: bounds.upper, keep: "inside" };
+  }
+  const r = await runSql(ctx, buildRowsQuery(plan, values, limit, offset), tables);
+  const rows = r.rows as { id: string; row_no: number; total: number }[];
+  return { items: rows.map((x) => ({ id: x.id, row_no: Number(x.row_no) })), total: rows[0]?.total ?? (offset > 0 ? -1 : 0) };
 }

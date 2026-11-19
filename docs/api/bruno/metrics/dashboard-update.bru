@@ -19,11 +19,13 @@ headers {
 body:json {
   {
     "version": 1,
-    "name": "Doanh thu quý 4"
+    "name": "Doanh thu quý 4",
+    "filters": { "range": "this_quarter", "conditions": [{ "field": "Loại deal", "op": "eq", "value": "POD" }] },
+    "guest_visible": false
   }
 }
 
 docs {
-  Đổi tên dashboard (gửi version đang thấy).
+  Đổi tên dashboard, đặt bộ lọc chung mặc định (filters; null xoá), mở/đóng dashboard cho Guest được cấp (guest_visible). Gửi ít nhất một trong ba, kèm version đang thấy.
   Quyền: `datahub:datahub:use`; chỉ chủ datahub.
 }

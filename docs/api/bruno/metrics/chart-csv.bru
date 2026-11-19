@@ -1,0 +1,28 @@
+meta {
+  name: metrics.chart.csv
+  type: http
+  seq: 34
+}
+
+get {
+  url: {{baseUrl}}/api/v1/chart-csv
+  body: none
+  auth: none
+}
+
+params:query {
+  chart_id: {{chart_id}}
+  ~series: 0
+  ~group: ["2026-10-01"]
+  ~filters: {"conditions":[{"field":"Loại deal","op":"eq","value":"POD"}]}
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Xuất CSV các dòng tạo nên số liệu của một biểu đồ, theo quyền của NGƯỜI XEM (tối đa 5.000 dòng).
+  Trả filename, csv (UTF-8 có BOM), rows, total_visible, total_owner, truncated (cắt ở 5.000 dòng). Ghi nhật ký.
+  Quyền: `system:whoami`.
+}

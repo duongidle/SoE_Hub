@@ -1,0 +1,20 @@
+meta {
+  name: metrics.dashboard.export
+  type: http
+  seq: 42
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboards/{{dashboard_id}}/export
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Xuất dashboard ra JSON (tên, bộ lọc mặc định, các biểu đồ với chỉ số viết đầy đủ). Chỉ chủ datahub.
+  Quyền: `datahub:datahub:use`.
+}

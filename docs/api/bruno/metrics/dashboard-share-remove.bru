@@ -1,0 +1,21 @@
+meta {
+  name: metrics.dashboard.share.remove
+  type: http
+  seq: 41
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/dashboards/{{dashboard_id}}/shares/{{share_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Bỏ chia sẻ dashboard với một người. Chỉ chủ datahub.
+  Quyền: `datahub:datahub:use`.
+}

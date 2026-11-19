@@ -1,0 +1,40 @@
+meta {
+  name: metrics.dashboard.import
+  type: http
+  seq: 43
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/dashboards/import
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "dashboard": {
+      "format": "soe-dashboard",
+      "version": 1,
+      "name": "Doanh thu quý",
+      "charts": [
+        {
+          "type": "kpi",
+          "title": "Doanh thu",
+          "series": [{ "metric": { "name": "Doanh thu", "source": "Deals", "measure": { "agg": "sum", "field": "Doanh thu" } } }],
+          "layout": { "x": 0, "y": 0, "w": 3, "h": 3 }
+        }
+      ]
+    }
+  }
+}
+
+docs {
+  Tạo dashboard mới từ JSON (kết quả của `metrics.dashboard.export`). Chỉ chủ datahub.
+  Quyền: `datahub:datahub:use`.
+}

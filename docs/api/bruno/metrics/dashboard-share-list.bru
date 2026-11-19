@@ -1,0 +1,20 @@
+meta {
+  name: metrics.dashboard.share.list
+  type: http
+  seq: 39
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboards/{{dashboard_id}}/shares
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Những người được chia sẻ dashboard này. Chỉ chủ datahub.
+  Quyền: `datahub:datahub:use`.
+}

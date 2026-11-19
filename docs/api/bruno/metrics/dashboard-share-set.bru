@@ -1,0 +1,28 @@
+meta {
+  name: metrics.dashboard.share.set
+  type: http
+  seq: 40
+}
+
+put {
+  url: {{baseUrl}}/api/v1/dashboards/{{dashboard_id}}/shares
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "grantee_id": "{{grantee_id}}"
+  }
+}
+
+docs {
+  Chia sẻ dashboard cho một người: họ xem được số (tính bằng quyền của bạn), không cần quyền xem bảng nguồn. Chỉ chủ datahub.
+  Quyền: `datahub:datahub:use`.
+}

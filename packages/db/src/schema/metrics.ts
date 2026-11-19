@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { standardColumns } from "./columns";
 import { dhDatahubs } from "./datahub";
 
@@ -74,4 +74,32 @@ export const mtCharts = pgTable(
     config: jsonb("config").notNull().default(sql`'{}'::jsonb`),
   },
   (t) => [index("mt_charts_dashboard_idx").on(t.dashboardId)],
+);
+
+/**
+ * A dashboard shared with one person (3C-2, design module3 section 9): the person sees the numbers, which are computed with the
+ * owner's rights. Only the owner of the datahub adds or removes shares.
+ */
+export const mtDashboardShares = pgTable(
+  "mt_dashboard_shares",
+  {
+    id: uuid("id").primaryKey(),
+    dashboardId: uuid("dashboard_id").notNull().references(() => mtDashboards.id, { onDelete: "cascade" }),
+    granteeId: uuid("grantee_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdBy: uuid("created_by"),
+  },
+  (t) => [uniqueIndex("mt_dashboard_shares_uq").on(t.dashboardId, t.granteeId), index("mt_dashboard_shares_grantee_idx").on(t.granteeId)],
+);
+
+/** The common filters a viewer set on a dashboard (their own copy; the dashboard keeps its default in `config.filters`). */
+export const mtDashboardPrefs = pgTable(
+  "mt_dashboard_prefs",
+  {
+    dashboardId: uuid("dashboard_id").notNull().references(() => mtDashboards.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    config: jsonb("config").notNull().default(sql`'{}'::jsonb`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.dashboardId, t.userId] })],
 );

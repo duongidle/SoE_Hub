@@ -1,0 +1,20 @@
+meta {
+  name: metrics.dashboard.shared
+  type: http
+  seq: 36
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboards/shared
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Các dashboard người khác chia sẻ cho bạn (và, với Guest, các dashboard được cấp).
+  Quyền: `system:whoami`.
+}

@@ -1,0 +1,29 @@
+meta {
+  name: metrics.chart.data
+  type: http
+  seq: 32
+}
+
+get {
+  url: {{baseUrl}}/api/v1/chart-data
+  body: none
+  auth: none
+}
+
+params:query {
+  ~chart_id: {{chart_id}}
+  ~chart: {"type":"histogram","series":[{"metric":{"name":"Giá trị deal","source":"{{table_id}}","measure":{"agg":"sum","field":"Doanh thu"}}}],"options":{"bins":10}}
+  ~datahub_id: {{datahub_id}}
+  ~filters: {"range":"this_quarter","conditions":[{"field":"Loại deal","op":"eq","value":"POD"}],"cross":[{"chart_id":"{{chart_id}}","field":"Trạng thái","kind":"enum","value":"Won"}]}
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Số liệu của một biểu đồ (đã tính sẵn mọi thứ biểu đồ cần), kèm bộ lọc chung và lọc chéo.
+  Truyền chart_id (biểu đồ đã lưu; chủ, người được chia sẻ, Guest được cấp đều gọi được, số tính bằng quyền của chủ dashboard) HOẶC chart + datahub_id (xem trước biểu đồ chưa lưu, chỉ chủ). filters: bộ lọc chung (range, conditions) và lọc chéo (cross); điều kiện không áp dụng được cho bảng của biểu đồ thì bị bỏ qua và nêu trong notes.
+  Kết quả: series (mỗi chuỗi như metrics.query) và view cho loại cần tính thêm (funnel, waterfall, histogram, boxplot, scatter, matrix, ranking, cohort).
+  Quyền: `system:whoami` (quyền truy cập kiểm trong thao tác).
+}
