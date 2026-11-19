@@ -246,6 +246,8 @@ Cách chặn trùng từ gốc vẫn là: cột **Duy nhất**, import kiểu **
 
 ## 8. Import
 
+Import vào bảng của người khác chỉ được khi chủ bật "Thành viên được thêm dòng hàng loạt" (mục 10). Chủ bảng luôn import được.
+
 ### 8.1 Các bước
 
 1. Chọn nguồn: file `.xlsx`, `.csv`, dán trực tiếp, hoặc link Google Sheets đang để "ai có link đều xem được". Không kết nối Google bằng OAuth.
@@ -305,6 +307,13 @@ Một cơ chế chia sẻ cho **mọi bảng** của mọi datahub, kể cả b�
 - **Ai thấy dòng khi bật:** chủ thấy mọi dòng. Thành viên thấy dòng có tên **mình hoặc người mình quản lý** (theo cây tổ chức hiện tại: Leader với team, Manager với cả cây) ở bất kỳ cột khoá nào. Luật này chỉ áp cho người đã là thành viên, nên datahub riêng vẫn riêng tư.
 - Sửa dòng của cấp dưới: Manager sửa được; Leader chỉ sửa khi người đó bật "Cho phép leader sửa" (Module 1 mục 4.1); trong mọi trường hợp vẫn phải có quyền Sửa và cột được cho phép.
 - Thành viên thêm dòng: tên người thêm được tự điền vào cột khoá chính (để họ thấy dòng mình vừa thêm).
+
+**Thêm dòng hàng loạt (tuỳ chọn "Thành viên được thêm dòng hàng loạt", Dương chốt 19/11/2026).** Thêm hàng loạt là mọi thao tác tạo **hơn một dòng mới** trong một lần: import file, dán vào grid làm sinh dòng mới, API/MCP tạo hoặc upsert nhiều dòng một lần (upsert chỉ sửa dòng có sẵn thì không tính).
+
+- Chủ bảng luôn làm được.
+- Thành viên làm được khi chủ bật tuỳ chọn. Mặc định **bật** với bảng thường (giữ hành vi Stage 2), **tắt** với bảng template (kể cả Deals). Tắt thì thành viên chỉ tạo từng dòng (giao diện, hoặc API/MCP mỗi lần một dòng).
+- Dán để sửa các ô đã có luôn được (theo quyền Sửa và cột cho phép).
+- Mục đích là chặn nhầm lẫn (import nhầm file vào bảng cả cây dùng), không phải chặn bảo mật: mọi dòng vẫn qua đủ kiểm tra quyền như thêm tay.
 - Bị gỡ khỏi mọi cột khoá: dòng biến mất khỏi bảng của người đó. Giá trị cột riêng họ đã nhập được giữ lại, gắn lại thì hiện lại.
 - Tổng hợp (nhóm, dòng tổng, dashboard, export, API, MCP) chỉ tính trên các dòng người đọc thấy.
 - **Lookup, Rollup và công thức đọc sang bảng có khoá phân chia được tính theo từng người đọc** (Dương chốt 19/11/2026): mỗi thành viên nhận kết quả chỉ tính trên các dòng họ thấy, để không lộ tổng của dòng bị ẩn. Kết quả vẫn tính sẵn và lưu, theo nguồn cột cá nhân (mục 3, mỗi thành viên một giá trị). Bảng nguồn đổi dòng hoặc đổi cột khoá thì tính lại theo phần cho những thành viên bị ảnh hưởng (mục 6.7). Chủ bảng nhận kết quả trên mọi dòng.
@@ -332,7 +341,7 @@ Admin cài trong Cài đặt giới hạn, mặc định cho mọi người và 
 ## 12. API
 
 - REST đầy đủ cho datahub, bảng, cột, dòng, view, chia sẻ, import, export.
-- Dòng: tạo/sửa/xoá đơn lẻ; hàng loạt tối đa 500 dòng mỗi lần; upsert theo cột khoá; lọc bằng cú pháp Module 0; chọn cột bằng `fields=`; lịch sử một dòng.
+- Dòng: tạo/sửa/xoá đơn lẻ; hàng loạt tối đa 500 dòng mỗi lần (tạo nhiều dòng mới theo tuỳ chọn "Thành viên được thêm dòng hàng loạt", mục 10); upsert theo cột khoá; lọc bằng cú pháp Module 0; chọn cột bằng `fields=`; lịch sử một dòng.
 - Tham chiếu cột qua API bằng mã cột hoặc tên cột (tên được dịch sang mã).
 - Thùng rác 7 ngày cho dòng, bảng, datahub; khôi phục qua giao diện và API.
 

@@ -542,6 +542,8 @@ Các quyết định ngày 19/11/2026 (bảng template, chia sẻ thống nhất
 10. **Lookup, Rollup, công thức đọc sang bảng có khoá phân chia tính theo từng người đọc** (Module 2 mục 10, Dương chốt 19/11): lưu theo nguồn cột cá nhân, mỗi thành viên một giá trị chỉ tính trên dòng họ thấy; `recalc.ts`, `partial.ts` tính lại theo phần cho thành viên bị ảnh hưởng khi dòng nguồn hoặc cột khoá đổi. Load test: 20 thành viên × bảng 100.000 dòng, ghi số đo.
 11. Bỏ `PhysicalSource` và nguồn `physical` trong `column-source.ts` (Module 2 mục 3 còn hai nguồn cột).
 
+11a. **Thêm dòng hàng loạt** (Module 2 mục 10): tuỳ chọn bảng `members_bulk_create` (bảng thường bật, bảng template tắt). Tắt thì thành viên không chủ sở hữu bị chặn: `import-job.ts`/`datahub.import.start` (2D đang cho người có quyền Sửa import), `rows.ts` khi một lần ghi tạo hơn một dòng mới (API/MCP hàng loạt, upsert sinh dòng mới), và dán trong grid sinh dòng mới (web chặn trước, server vẫn kiểm). Mã lỗi riêng; giao diện ẩn nút Nhập dữ liệu và báo khi dán vượt số dòng đang có.
+
 **B. Hạ tầng bảng template (engine Module 2, Module 4 dùng)**
 
 12. Cờ bảo vệ bảng và cột template: không đổi tên, không xoá, không đổi kiểu từ trang bảng; người nhận chỉ thêm cột riêng.
@@ -552,11 +554,11 @@ Các quyết định ngày 19/11/2026 (bảng template, chia sẻ thống nhất
 
 **C. Giao diện**
 
-17. Hộp thoại Chia sẻ (2C-4): bật/tắt khoá phân chia, chọn cột khoá và cột khoá chính, cảnh báo khi gỡ thành viên đang được tag.
+17. Hộp thoại Chia sẻ (2C-4): bật/tắt khoá phân chia, chọn cột khoá và cột khoá chính, tuỳ chọn "Thành viên được thêm dòng hàng loạt", cảnh báo khi gỡ thành viên đang được tag.
 18. Ngăn sửa cột (2C-3): tuỳ chọn "Cho phép sửa"; khi chọn cột khoá chỉ liệt kê cột kiểu Người dùng.
 19. Grid: ô của cột không cho phép sửa hiện chỉ đọc; ô Người dùng chỉ gợi ý thành viên; người đã bị gỡ hiện "không còn quyền".
 
 **D. Kiểm thử**
 
-20. Test phân quyền: thành viên × khoá phân chia bật/tắt × có/không cấp dưới × cột cho phép/không × kênh (REST, SSE, nhóm và dòng tổng, export, tìm dòng trùng, thùng rác, liên kết, tải file, import).
+20. Test phân quyền: thành viên × khoá phân chia bật/tắt × có/không cấp dưới × cột cho phép/không × kênh (REST, SSE, nhóm và dòng tổng, export, tìm dòng trùng, thùng rác, liên kết, tải file, import, dán sinh dòng mới, API hàng loạt × tuỳ chọn thêm hàng loạt).
 21. Chạy lại test datahub cũ (`pnpm exec vitest run apps/api/test/datahub-*`) và e2e `stage2c3`, `stage2c4` vì phần này chạm `access.ts`, chia sẻ và ô Người dùng (phần dùng chung, Opus phải tự chạy lại khi rà).
