@@ -1,0 +1,27 @@
+meta {
+  name: datahub.relation.search
+  type: http
+  seq: 50
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/relation-search
+  body: none
+  auth: none
+}
+
+params:query {
+  column: column
+  ~q: q
+  ~after: 0
+  ~limit: 30
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Tìm dòng của bảng đích để chọn vào ô Liên kết: theo từ khoá (chữ trong dòng) hoặc số dòng, phân trang theo số dòng. Chỉ chủ datahub.
+  Quyền: `datahub:datahub:use`.
+}

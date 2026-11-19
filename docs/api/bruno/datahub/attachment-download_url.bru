@@ -1,0 +1,20 @@
+meta {
+  name: datahub.attachment.download_url
+  type: http
+  seq: 52
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/attachments/{{file_id}}/download-url
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Link tải một file đang nằm trong ô Đính kèm của bảng (có hạn, mặc định 5 phút).
+  Quyền: `datahub:datahub:use`.
+}

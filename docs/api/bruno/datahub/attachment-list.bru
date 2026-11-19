@@ -1,0 +1,24 @@
+meta {
+  name: datahub.attachment.list
+  type: http
+  seq: 51
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/attachments
+  body: none
+  auth: none
+}
+
+params:query {
+  ids: ids
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Tên, loại và dung lượng của các file đang nằm trong ô Đính kèm của bảng.
+  Quyền: `datahub:datahub:use`.
+}
