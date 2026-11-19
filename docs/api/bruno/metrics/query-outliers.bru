@@ -1,0 +1,25 @@
+meta {
+  name: metrics.query (giá trị ngoại lai)
+  type: http
+  seq: 24
+}
+
+get {
+  url: {{baseUrl}}/api/v1/metric-query
+  body: none
+  auth: none
+}
+
+params:query {
+  metric_id: {{metric_id}}
+  outliers: {"mode":"separate","k":1.5}
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Khoảng [Q1 - k*IQR, Q3 + k*IQR] tính trên toàn bộ dòng sau lọc. mode: include (tính cả, chỉ báo diagnostics.outliers), exclude (bỏ dòng ngoài khoảng), separate (số liệu trong khoảng + outlier_rows cho dòng ngoài khoảng). Cần phép đo trên cột số; dưới 4 giá trị thì không có khoảng.
+  Quyền: `datahub:datahub:use`. Kết quả được cache theo phạm vi dữ liệu của người gọi; quá 10 giây báo query_too_heavy.
+}

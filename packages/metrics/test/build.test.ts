@@ -107,3 +107,22 @@ describe("reading a column through its source", () => {
     expect(q.sql).not.toContain("b.data->>'c_money'");
   });
 });
+
+describe("key join statement (3A-2 section 6: speed)", () => {
+  const other: MTable = { ...table, id: "22222222-2222-4222-8222-222222222222", name: "Thanh toán", scope: (a) => sql`/*scope*/ ${sql.raw(a)}.table_id = '22222222-2222-4222-8222-222222222222'::uuid`, columns: [{ key: "p_name", name: "Tên", kind: "text" }, { key: "p_amt", name: "Số tiền", kind: "number" }] };
+  const join = { alias: "TT", table: other, on: [{ left: "Tên", right: "Tên" }] };
+  it("computes the key of a base row once (fenced subquery) and compares keys with the C collation", () => {
+    const q = text({ joins: [join], measure: { agg: "sum", field: "TT.Số tiền" } });
+    expect(q.sql).toContain("OFFSET 0) b LEFT JOIN");
+    expect(q.sql).toContain("AS jk1");
+    expect(q.sql).toContain("ON j1.k = b.jk1");
+    expect(q.sql).toContain('COLLATE "C"');
+    // the scope marker is inside the fence too: no row of another table can come through it
+    expect(q.sql.indexOf("/*scope*/")).toBeLessThan(q.sql.indexOf("OFFSET 0"));
+  });
+  it("a statement without a key join is unchanged (no fence)", () => {
+    const q = text({ measure: { agg: "sum", field: "Tiền" } });
+    expect(q.sql).not.toContain("OFFSET 0");
+    expect(q.sql).toMatch(/FROM dh_rows b\s+WHERE/);
+  });
+});

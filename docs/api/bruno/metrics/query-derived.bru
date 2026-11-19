@@ -1,0 +1,28 @@
+meta {
+  name: metrics.query (chỉ số phái sinh)
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/api/v1/metric-query
+  body: none
+  auth: none
+}
+
+params:query {
+  metric: {"name":"Doanh thu trên số deal","formula":"=[Tổng doanh thu] / [Số deal]"}
+  datahub_id: {{datahub_id}}
+  time: {"range":"this_quarter","bucket":"month"}
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Chỉ số phái sinh: công thức kiểu Excel, `[Tên chỉ số]` là chỉ số đã lưu cùng datahub (tạo bằng metrics.metric.create). Cần datahub_id khi gửi tại chỗ.
+  Mỗi chỉ số được tham chiếu giữ cột ngày của mình; chỉ gửi khoảng (range) và nhóm (bucket). Lỗi công thức (#DIV/0!...) nằm ở rows[].error, value = null.
+  Lồng tối đa 5 tầng; vòng tròn báo formula_cycle.
+  Quyền: `datahub:datahub:use`. Kết quả được cache theo phạm vi dữ liệu của người gọi; quá 10 giây báo query_too_heavy.
+}

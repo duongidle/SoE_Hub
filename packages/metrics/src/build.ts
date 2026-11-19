@@ -214,7 +214,9 @@ const normPart = (x: SQL): SQL => sql`coalesce(soe_unaccent(lower(btrim((${x})::
 /** Normalised key of a row from key values: accents removed, not case sensitive, trimmed; null when every part is empty. */
 function keyOf(parts: SQL[]): SQL {
   const cat = sql`concat_ws(chr(31), ${sql.join(parts.map(normPart), sql`, `)})`;
-  return sql`(CASE WHEN replace(${cat}, chr(31), '') = '' THEN NULL ELSE ${cat} END)`;
+  // COLLATE "C": keys are only compared for equality (bytes), never ordered for people. Under a locale collation Postgres sorts and
+  // merge-joins 100,000 keys in about 300 ms each; with "C" it is a memcmp (3x faster statement, same result, design module3 6.1).
+  return sql`((CASE WHEN replace(${cat}, chr(31), '') = '' THEN NULL ELSE ${cat} END) COLLATE "C")`;
 }
 
 /** Checks the join definition against the tables and returns the key columns, or the relation column. */
@@ -239,7 +241,7 @@ function joinParts(base: MTable, j: PlanJoin): { link?: MColumn; pairs: { left: 
 const LINK_ELEMENTS = (ref: TableRef, col: MColumn): SQL => sql`jsonb_array_elements_text(CASE WHEN jsonb_typeof(${valueExpr(ref, col)}) = 'array' THEN ${valueExpr(ref, col)} ELSE '[]'::jsonb END)`;
 
 /** The `JOIN` of one joined table: its used columns folded to one jsonb `data` per base row, left join (a base row with no partner stays, its joined columns are empty). */
-function joinSql(rs: Resolver, i: number): SQL {
+function joinSql(rs: Resolver, i: number): { join: SQL; fence?: SQL } {
   const j = rs.joins[i]!;
   const ref = rs.refs[i + 1]!;
   const r = `r${i + 1}`;
@@ -252,11 +254,14 @@ function joinSql(rs: Resolver, i: number): SQL {
   const obj = sql`jsonb_build_object(${fold})`;
   const alive = sql`${j.table.scope(r)} AND ${sql.raw(r)}.deleted_at IS NULL`;
   if (parts.link) {
-    return sql`LEFT JOIN LATERAL (SELECT ${obj} AS data FROM ${LINK_ELEMENTS(rs.refs[0]!, parts.link)} AS l(id) JOIN dh_rows ${sql.raw(r)} ON ${sql.raw(r)}.id = l.id::uuid AND ${alive} HAVING count(*) > 0) ${sql.raw(ref.alias)} ON true`;
+    return { join: sql`LEFT JOIN LATERAL (SELECT ${obj} AS data FROM ${LINK_ELEMENTS(rs.refs[0]!, parts.link)} AS l(id) JOIN dh_rows ${sql.raw(r)} ON ${sql.raw(r)}.id = l.id::uuid AND ${alive} HAVING count(*) > 0) ${sql.raw(ref.alias)} ON true` };
   }
   const jkey = keyOf(parts.pairs.map((p) => valueExpr(rRef, p.right)));
   const bkey = keyOf(parts.pairs.map((p) => valueExpr(rs.refs[0]!, p.left)));
-  return sql`LEFT JOIN (SELECT ${jkey} AS k, ${obj} AS data FROM dh_rows ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL GROUP BY 1) ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = ${bkey}`;
+  // The key of the base row is computed ONCE per row inside the fenced subquery of `prepare` (column jkN); written in the ON clause
+  // Postgres evaluates it again for every probe and every equality check (about 2x slower on 100,000 rows).
+  const col = sql.raw(`jk${i + 1}`);
+  return { join: sql`LEFT JOIN (SELECT ${jkey} AS k, ${obj} AS data FROM dh_rows ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL GROUP BY 1) ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = b.${col}`, fence: sql`${bkey} AS ${col}` };
 }
 
 interface Prepared {
@@ -371,7 +376,10 @@ function prepare(p: PlanInput, mode: "main" | "cohort_sizes" | "outlier_bounds" 
   }
 
   const joins = p.joins.map((_, i) => joinSql(rs, i));
-  const from = sql`dh_rows b ${sql.join(joins, sql` `)}`;
+  const fence = joins.flatMap((j) => (j.fence ? [j.fence] : []));
+  // `OFFSET 0` keeps Postgres from flattening the subquery back into the join (then the key would be evaluated per probe again).
+  const base = fence.length ? sql`(SELECT b.*, ${sql.join(fence, sql`, `)} FROM dh_rows b WHERE ${p.base.scope("b")} AND b.deleted_at IS NULL OFFSET 0) b` : sql`dh_rows b`;
+  const from = sql`${base} ${sql.join(joins.map((j) => j.join), sql` `)}`;
   return { rs, mCol, x, agg, groups, gSql, from, where, range, sm };
 }
 

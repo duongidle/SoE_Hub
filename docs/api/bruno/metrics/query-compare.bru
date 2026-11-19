@@ -1,0 +1,27 @@
+meta {
+  name: metrics.query (so kỳ trước / cùng kỳ năm trước)
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/api/v1/metric-query
+  body: none
+  auth: none
+}
+
+params:query {
+  metric_id: {{metric_id}}
+  time: {"range":"this_month","bucket":"day"}
+  compare: previous_period
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  compare = previous_period (kỳ liền trước: tháng này -> tháng trước, quý -> quý trước, khoảng khác lùi đúng số ngày) hoặc year_ago (cùng ngày, lùi 12 tháng). `none` tắt phép so sánh đã lưu trong chỉ số. Cần time.range.
+  Mỗi dòng thêm previous, change, change_pct (0,25 = +25%; null khi kỳ trước bằng 0). diagnostics.compare ghi ngày thật của kỳ trước.
+  Quyền: `datahub:datahub:use`. Kết quả được cache theo phạm vi dữ liệu của người gọi; quá 10 giây báo query_too_heavy.
+}

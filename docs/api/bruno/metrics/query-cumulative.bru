@@ -1,0 +1,26 @@
+meta {
+  name: metrics.query (luỹ kế)
+  type: http
+  seq: 22
+}
+
+get {
+  url: {{baseUrl}}/api/v1/metric-query
+  body: none
+  auth: none
+}
+
+params:query {
+  metric_id: {{metric_id}}
+  time: {"range":"this_year","bucket":"month"}
+  cumulative: true
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Cộng dồn theo thời gian, riêng từng tổ hợp nhóm. Chỉ count và sum; cần time.field và time.bucket (đặt trong chỉ số hoặc trong time). Kết hợp được với compare.
+  Quyền: `datahub:datahub:use`. Kết quả được cache theo phạm vi dữ liệu của người gọi; quá 10 giây báo query_too_heavy.
+}

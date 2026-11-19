@@ -97,7 +97,11 @@ export const metricOperations = [
       "Phép tổng hợp: count, count_distinct, sum, avg, min, max, median, percentile (p), trimmed_mean (trim), stddev, stddev_pop. Nhóm thời gian: day, week (từ thứ Hai), month, quarter, year, theo giờ Việt Nam; quý và năm theo tháng bắt đầu năm tài chính của hệ thống. " +
       "Khoảng thời gian (`time.range`): preset (today, this_week, last_week, this_month, last_month, this_quarter, last_quarter, this_year, last_year, last_n_days + n), kỳ cụ thể (period), khoảng ngày (between) hoặc `{kind:\"last_n_months\", n}`. " +
       "Số được tính trong phạm vi dữ liệu của người gọi. Bảng ghép: mỗi dòng của bảng chính được ghép với đúng một giá trị gom của bảng kia nên không bao giờ đếm đôi; 0 dòng ghép được thì báo lỗi `join_no_match` kèm cách sửa. " +
-      "Trả `diagnostics.joins` (số dòng ghép được, không khớp, khoá trùng) và `diagnostics.range` (ngày thật của khoảng thời gian). `truncated` = true khi nhiều nhóm hơn `limit`.",
+      "Trả `diagnostics.joins` (số dòng ghép được, không khớp, khoá trùng) và `diagnostics.range` (ngày thật của khoảng thời gian). `truncated` = true khi nhiều nhóm hơn `limit`. " +
+      "Chỉ số phái sinh: `metric` có `formula` (ví dụ `=[Doanh thu] / [Số deal]`, `[Tên chỉ số]` là chỉ số đã lưu cùng datahub) thay cho `source`/`measure`; cần `datahub_id` khi gửi tại chỗ. " +
+      "`compare` (previous_period | year_ago) thêm `previous`, `change`, `change_pct` cho mỗi dòng. `cumulative=true` cộng dồn theo thời gian (count, sum; cần time.field và time.bucket). " +
+      "`target` thêm `target`, `achieved`, `gap` (hằng số hoặc bảng mục tiêu). `outliers` loại hoặc tách giá trị ngoài khoảng IQR (`diagnostics.outliers` cho biên). Chỉ số có `cohort` trả thêm `cohort_sizes`. " +
+      "Chịu tải: kết quả được cache theo câu truy vấn + phạm vi dữ liệu của người gọi cho đến khi dữ liệu nguồn đổi (lời gọi trùng đang chạy được gộp, `ms` = 0 khi lấy từ cache); mỗi người tối đa 6 câu chạy cùng lúc; mỗi câu tối đa 10 giây, quá thì lỗi `validation_error` với `details.reason = \"query_too_heavy\"` kèm gợi ý thu hẹp khoảng thời gian hoặc bộ lọc.",
     permission: "datahub:datahub:use",
     aiAllowed: true,
     input: z.object({

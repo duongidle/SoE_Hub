@@ -126,3 +126,28 @@ Phần còn lại của 3A-2 (mục 4–9) chưa làm.
 - **Độ trễ:** cache chỉ bị xoá sau khi worker xử lý sự kiện (cùng độ trễ với SSE hiện có); trong khoảng đó một lời gọi có thể nhận số cũ. Chấp nhận: dashboard tải lại ngay khi có tín hiệu.
 - **Chỗ cắm Stage 4 (chưa làm):** snapshot thật (câu SQL đọc bảng snapshot, `scopeKey` kèm mã snapshot) và "team tại thời điểm" (nguồn cột). Cả hai đổi câu SQL/`scopeKey` nên cache theo chúng mà không sửa `runner.ts`.
 - Test: `apps/api/test/metrics-load.test.ts` (22 test).
+
+### Hiệu năng ghép theo khoá (mục 6)
+
+- **Số đo (máy dev, 100.000 × 100.000 dòng, tổng theo năm, lần gọi đầu không cache; `metrics-perf.test.ts`): trước 1.655 ms (SQL 930 ms), sau ~705 ms (SQL ~425 ms), 3 lần chạy liền 703–707 ms.** Đạt mục tiêu < 1 s, test nay đòi `< 1000` (trước là `< 5000`).
+- Nguyên nhân tìm bằng `EXPLAIN ANALYZE` (lặp lại trên bảng thử ngoài test): (1) Postgres **sắp xếp 100.000 khoá text theo collation của locale** (~300 ms mỗi lần) khi chọn merge join / GroupAggregate; (2) khoá của dòng bảng chính viết trong `ON` bị tính lại ở mỗi lần thăm bảng băm và mỗi lần so bằng (~2 lần chi phí). Việc chuẩn hoá khoá (bỏ dấu, chữ thường) chỉ tốn ~60 ms/100.000 dòng, không phải nút thắt.
+- Hai sửa, đều ở `packages/metrics/src/build.ts`: **(a)** khoá ghép là biểu thức `... COLLATE "C"` (`keyOf`): khoá chỉ so bằng nhau, không xếp thứ tự cho người đọc; collation tất định so bằng đúng từng byte nên kết quả ghép không đổi, còn sắp xếp thành `memcmp`. Câu chẩn đoán đi từ 713 ms xuống ~300 ms. **(b)** Với phép ghép theo khoá, bảng chính được bọc trong truy vấn con có hàng rào `OFFSET 0` tính khoá **một lần mỗi dòng** (cột `jkN`), phép ghép so `j.k = b.jkN`. Điều kiện phạm vi bảng chính nằm cả trong hàng rào.
+- Giá phải trả: với phép ghép theo khoá, bộ lọc và khoảng thời gian áp **sau** hàng rào, nên không đẩy xuống bước quét bảng chính (không dùng được index tự động trên cột lọc) và khoá được tính cho mọi dòng bảng chính (~60 ms/100.000 dòng). Với bảng chính 100.000 dòng đây vẫn rẻ hơn lợi ích; phép ghép theo cột Liên kết (`link`) và truy vấn không ghép không bị đổi. 3D có thể xét lại nếu bảng chính lớn hơn nhiều.
+- Không đổi `work_mem` (thử `64MB`: chỉ giảm ~100 ms, bỏ). Không cần index mới.
+- Test: `packages/metrics/test/build.test.ts` ("key join statement": hàng rào, `COLLATE "C"`, phạm vi trong hàng rào; truy vấn không ghép giữ nguyên), `apps/api/test/metrics-join.test.ts` pass nguyên (số liệu ghép đúng).
+
+### API và tài liệu (mục 7)
+
+- Mọi tham số mới của `metrics.query` (`compare`, `cumulative`, `target`, `outliers`, chỉ số phái sinh bằng `formula`) đã có trong OpenAPI từ 3A-2 mục 1–3; mục này **viết lại mô tả** của `metrics.query` cho đủ chúng, cache và lỗi `query_too_heavy`; chạy lại `pnpm docs:openapi` (`docs/api/openapi.json`).
+- Bruno: thêm `docs/api/bruno/metrics/query-derived.bru`, `query-compare.bru`, `query-cumulative.bru`, `query-target.bru`, `query-outliers.bru` (cùng đường dẫn `GET /api/v1/metric-query`, mỗi file một ví dụ tham số kèm giải thích). Không có endpoint mới ở 3A-2 (kênh cache là nội bộ, không phải REST). Tín hiệu SSE `metrics.data.changed` nằm trong danh mục sự kiện.
+
+### Test (mục 8–9)
+
+- Thêm: `apps/api/test/metrics-load.test.ts` (22 test: scopeKey, cache, phạm vi, mất quyền, tham số và ngày hôm nay trong khoá, câu đang chạy khi bảng đổi, LRU/TTL, gộp yêu cầu, giới hạn 6 câu, timeout, xoá cache theo dòng/công thức tính lại/chia sẻ/cấu trúc/cây tổ chức/nối lại kết nối, tín hiệu SSE); `packages/metrics/test/build.test.ts` (ghép theo khoá). Test phân quyền: `metrics-access.test.ts` pass nguyên; thêm phần phạm vi/mất quyền ở `metrics-load`.
+- **Snapshot và "team tại thời điểm": chỉ để chỗ cắm** (Stage 4), chưa làm: xem mục "Chỗ cắm Stage 4" ở phần cache. Khi cắm, `scopeKey` kèm mã snapshot và câu SQL đọc bảng snapshot; không phải sửa `runner.ts`.
+
+### Câu hỏi còn mở của 3A-2 (không chặn)
+
+- Dashboard mở lâu có thể nhận nhiều tín hiệu `metrics.data.changed` khi có ghi hàng loạt (mỗi sự kiện dòng một tín hiệu): 3C nên debounce khi tải lại. Nếu muốn gộp ở server thì đổi subscriber thành gộp theo (datahub, 500 ms): chưa làm.
+- Cache nằm trong bộ nhớ từng tiến trình api; chạy nhiều api thì mỗi cái tự tính lần đầu (3D đo). Chưa có trần toàn hệ thống số câu chạy cùng lúc (chỉ 6/người + pool 10 kết nối).
+- `statement_timeout` (10 s), 6 câu/người, TTL 5 phút, 2.000 câu cache đang là hằng số trong `metricLimits`; chưa đưa lên cài đặt hệ thống.

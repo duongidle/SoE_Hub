@@ -95,6 +95,6 @@ describe(`metrics over ${ROWS} rows`, () => {
     const { r, ms } = await timed({ source: { table: x.tableId, joins: [{ table: payId, as: "TT", on: [{ left: "Mã deal", right: "Mã deal" }] }] }, measure: { agg: "sum", field: "TT.Số tiền" }, time: { field: "Ngày chốt", bucket: "year" } });
     console.warn(`[perf] join by key: ${ms} ms (sql ${r.ms} ms), matched ${r.diagnostics.joins[0].matched}/${r.diagnostics.joins[0].base_total}`);
     expect(r.diagnostics.joins[0]).toMatchObject({ matched: ROWS, base_total: ROWS });
-    expect(ms).toBeLessThan(5000);
+    expect(ms).toBeLessThan(1000); // 1,655 ms before the key was computed once per row and compared with COLLATE "C" (3A-2 section 6)
   });
 });

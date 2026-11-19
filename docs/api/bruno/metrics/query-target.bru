@@ -1,0 +1,27 @@
+meta {
+  name: metrics.query (mục tiêu)
+  type: http
+  seq: 23
+}
+
+get {
+  url: {{baseUrl}}/api/v1/metric-query
+  body: none
+  auth: none
+}
+
+params:query {
+  metric_id: {{metric_id}}
+  time: {"range":"this_year","bucket":"month"}
+  target: {"table":"Mục tiêu","value_field":"Chỉ tiêu","period_field":"Kỳ"}
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Mục tiêu là hằng số {"value": 5000000000} hoặc lấy từ bảng mục tiêu cùng datahub {table, value_field, period_field?, by?}.
+  by ánh xạ cột nhóm của chỉ số sang cột của bảng mục tiêu, ví dụ {"Loại deal":"Loại"}. Mỗi dòng thêm target, achieved (0,85 = 85%), gap (mục tiêu trừ giá trị, âm khi vượt).
+  Quyền: `datahub:datahub:use`. Kết quả được cache theo phạm vi dữ liệu của người gọi; quá 10 giây báo query_too_heavy.
+}
