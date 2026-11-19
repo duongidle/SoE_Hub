@@ -53,6 +53,15 @@ Ghi chú Stage 4: chia sẻ thống nhất (khoá phân chia, Module 2 mục 10,
 
 **3A-2 đang làm (Sonnet)**: [x] 0 ghép left (test pass); [ ] 1 phái sinh; [ ] 2 thời gian; [ ] 3 mục tiêu + outlier; [ ] 4 chịu tải; [ ] 5 xoá cache outbox + SSE; [ ] 6 hiệu năng ghép; [ ] 7 API/OpenAPI/Bruno; [ ] 8-9 test + quyết định. Bước kế: mục 1 (phái sinh) trong `packages/metrics` + `apps/api/src/modules/metrics/engine.ts`.
 
+## Việc đã xếp cho Stage 4 (sửa lại code Stage 2)
+
+**Bước con 4.1 làm đầu tiên của Stage 4**, trước khi dựng Deals. Danh sách đủ (21 việc, kèm file cần sửa) ở `design/module4-quan-ly-deal.md` mục 19a. Tóm tắt:
+- Khoá phân chia (lọc dòng theo người, kể cả cấp dưới), áp cho mọi chỗ đọc dòng và **SSE** (đang gửi cả dòng không được thấy).
+- Cho phép sửa theo cột; ô Người dùng chỉ nhận thành viên; gỡ thành viên đang được tag.
+- Tuỳ chọn "Thành viên được thêm dòng hàng loạt": chặn import, dán sinh dòng mới, API nhiều dòng (2D đang cho import).
+- Lookup/Rollup sang bảng có khoá phân chia tính theo từng người đọc.
+- Hạ tầng bảng template (cờ bảo vệ, lớp cột, vai trò cột); bỏ `PhysicalSource`.
+
 ## Lỗi điện thoại để sau
 
 Không chặn bước con (CLAUDE.md, "Điện thoại là ưu tiên thấp"); gom sửa một đợt, Opus quyết khi nào.
