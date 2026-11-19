@@ -5,7 +5,7 @@ Cập nhật: 19/11/2026
 ## Giai đoạn hiện tại
 
 - Thiết kế: Module 0–4 đã chốt (Module 4 chốt 19/11, mục 7 Thanh toán còn là khung). **Module 5, 6: bản nháp vòng 1 xong** (`design/module5-ket-noi-ai.md`, `design/module6-thong-bao.md`, 19/11), chờ Dương phản biện. **Module 7 đã chốt** (19/11; CLAUDE.md, Module 0, 4 đã ghi thay đổi; Module 2 mục 11 chưa ghi giới hạn 150 cột vì Sonnet đang sửa file đó, ghi khi rảnh). Câu hỏi ở mục cuối mỗi file.
-- Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1, 2C-2 xong và Opus đã rà soát (19/11); **2C-3, 2C-4 xong, Opus đã rà (19/11)**; tiếp 2D, rồi 2E. Dương yêu cầu: làm xong 2B+ và 2C rồi push lên `main` và báo.
+- Code: Stage 0 và Stage 1 xong. Stage 2: 2A, 2B, 2B+, 2C-1, 2C-2 xong và Opus đã rà soát (19/11); **2C-3, 2C-4 xong, Opus đã rà (19/11)**; **2D xong, chờ Opus rà**; tiếp 2E. Dương yêu cầu: làm xong 2B+ và 2C rồi push lên `main` và báo.
 
 ## Ghi chú điều phối (Opus) — đọc trước khi làm tiếp
 
@@ -36,21 +36,15 @@ Cập nhật: 19/11/2026
 - **2C-2 xong, Opus đã rà (19/11)**: nhảy cuộn bảng 100.000 dòng 70–120 ms; tab view, lọc lồng nhau, ô Thời gian, sắp xếp nhiều cấp, nhóm + dòng tổng, cột, chiều cao dòng, tô màu, tìm kiếm, tự lưu và bản riêng. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-2".
 - **2C-3 xong, sửa lại theo rà soát của Opus (3 việc, 19/11), chờ Opus rà lại**: quản lý cột (thêm/sửa/xoá có Hoàn tác, mọi kiểu, đổi kiểu báo trước), trình soạn công thức (gợi ý, cú pháp, lỗi gạch chân, xem trước, mẫu, chèn tham chiếu), Liên kết/Lookup/Rollup, ô chọn dòng đích ảo hoá, ô Đính kèm tải lên/tải về, phân quyền người Xem/Sửa. API mới `datahub.relation.search`, `datahub.attachment.list`, `datahub.attachment.download_url`. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-3".
 - **2C-4 xong, Opus đã rà (19/11)**: Tìm dòng trùng, Chia sẻ, Thùng rác, giới hạn Admin theo người, e2e `stage2c4`. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-4".
-- **2D (Sonnet, đang làm)**: kế hoạch (đánh dấu [x] khi xong):
-  - [x] 1 Hạ tầng việc nền: bảng `dh_jobs` (migration 0009), `storage.put/read`, vòng lặp worker nhận việc, lệnh `datahub.job.*` (`modules/datahub/jobs.ts`)
-  - [x] 2 Export CSV/XLSX/JSON (theo bảng/view/datahub, nền) + test + phân quyền (`export-job.ts`, `apps/api/test/datahub-export.test.ts` 9 pass)
-  - [x] 3 Import: đọc xlsx/csv/dán/link Google Sheet (`import-read.ts` đọc xlsx riêng), `datahub.import.analyze|sheet|preview|start` (`import-job.ts`, `import-plan.ts`), chạy nền; `datahub-import.test.ts` 16 pass
-  - [x] 4 Import công thức (`excel-formula.ts`; lý do từng cột; cảnh báo `LEFT(ngày,2)`); golden trên file mẫu `datahub-import-golden.test.ts` (Index: 34 cột công thức, 7 giữ giá trị kèm lý do)
-  - [x] 5 Giao diện: hộp thoại Import 5 bước (`import-dialog.tsx`), hộp thoại Export (`export-dialog.tsx`), nút ở danh sách datahub/trang datahub/bảng
-  - [x] 6 e2e `stage2d.spec.ts` 5/5 pass x3 (desktop), Bruno, OpenAPI
-  - [ ] 7 Load test 100.000 dòng, ghi "Stage 2D" vào quyết định khi code
+- **2D xong, chờ Opus rà (19/11)**: việc nền `dh_jobs` (migration 0009, `datahub.job.*`), export CSV/XLSX/JSON, import xlsx/csv/dán/link Google Sheet (`datahub.import.analyze|sheet|preview|start`), import công thức (`excel-formula.ts`, lý do từng cột, cảnh báo `LEFT(ngày)`), giao diện `import-dialog.tsx` + `export-dialog.tsx`, tải 100.000 dòng. Chi tiết, số đo và lỗi đã sửa ở `design/module2-quyet-dinh-khi-code.md` mục "Stage 2D".
 - 2E: Sonnet kiểm thử **chức năng** cả Stage 2 ("Định nghĩa xong" điểm 2–5; không rà chuẩn giao diện, để Stage 12) theo việc Opus chia, sửa lỗi tìm thấy; Opus đọc kết quả và quyết định đạt.
 
 ## Bước tiếp theo
 
-**2D đang làm: bước 7**: load test 100.000 dòng (import + export) bằng `apps/api/test/datahub-import-export-perf.test.ts` (tạo file này), ghi số đo và mục "Stage 2D" vào `design/module2-quyet-dinh-khi-code.md`; chạy lại `pnpm exec vitest run apps/api/test/datahub-*` phần đụng tới. Rồi 2E.
+**Opus rà 2D** (đụng phần dùng chung: `table-view.tsx`, storage `put/read`, registry, worker; Sonnet đã chạy lại 35 e2e desktop của 2C-1..2C-4, đều pass). Rồi **2E** (kiểm thử đầy đủ Stage 2).
 
-2C-4 xong và đã rà (xem git log). Chưa làm: xoá hẳn ngay, gợi ý người theo team (`Lệch hoặc bổ sung` mục 2C-4); `form.table_max_columns` chờ Module 7.
+Test 2D (desktop, test nhanh): `pnpm -r typecheck`, `pnpm exec eslint .` sạch; `pnpm exec vitest run apps packages` 688 pass (54 file, 296 s); `pnpm test:e2e stage2d --project=desktop` 5/5 pass, 3 lần liền (~20 s); `pnpm test:e2e stage2c1 stage2c2 stage2c3 stage2c4 --project=desktop` 35/35 pass (3,1 phút). Không có test chập chờn ở 2D. Tải 100.000 dòng: import 12 s, export XLSX 7,8 s, CSV 8,3 s.
+Chưa làm/để sau: thử link Google Sheet thật; nhập cột Liên kết/Người/Đính kèm; tự thêm lựa chọn vào cột lựa chọn có sẵn; chưa chạy 375px (theo quy trình).
 
 ### Việc cho kiểm thử cuối Stage 2 (dời từ 2C-2)
 
@@ -73,7 +67,7 @@ Không chặn bước con (CLAUDE.md, "Điện thoại là ưu tiên thấp"); g
 - 2C-1: (1) Cây truy cập (bảng ẩn cho trình đọc màn hình) của Glide không dựng trên React 19 nên grid chưa đọc được bằng trình đọc màn hình; khung chi tiết dòng là DOM thường nên đọc được. Cần Dương quyết có bắt buộc không (bắt buộc thì phải thêm bảng DOM song song hoặc đổi thư viện). (2) Cột Mã dòng hiện `#<số dòng>` (dễ đọc), trong khi export/API trả mã dòng dạng uuid. (3) Không có "nhảy tới dòng thứ N" của bảng rất lớn (keyset); lọc/sắp xếp/tìm ở 2C-2 thay cho việc đó. (4) Cột Liên kết và Đính kèm mới chỉ xem; sửa cần ô chọn dòng đích và tải file (2C-3). (5) Hoàn tác/làm lại chỉ trong phiên mở bảng (máy khách), không đọc lịch sử dòng của server.
 - 2C-1 chưa thử trên điện thoại thật (chạm trong grid canvas, bàn phím ảo với khung chọn, cuộn cảm ứng) và chưa chạy `impeccable audit`.
 - 2B+: ngân sách đối soát 1.000.000 dòng/đêm và thời gian chờ mặc định 5 s là giá trị tự chọn; Dương chỉnh nếu cần.
-- 2B: 2D phải cảnh báo `LEFT(ngày,2)` khi import (324 công thức trong file mẫu dựa vào chữ hiển thị `MM/yyyy`).
+- 2B: cảnh báo `LEFT(ngày,2)` khi import đã làm ở 2D (báo ở bước Kiểm tra, không tự sửa công thức). Dương xem có muốn tự đổi sang `TEXT(ngày,"mm")` không.
 - Module 5 (mục 11), Module 6 (mục 12), Module 7 (mục 13): câu hỏi ở mục cuối mỗi file, chờ Dương trả lời rồi chốt; chốt xong cập nhật CLAUDE.md theo mục "Thay đổi so với quy định đã chốt" của từng file.
 - Module 4: bảng Thanh toán (mục 7) chờ Dương bàn với Manager (nguồn tiền về, com POD, nguồn Level BC/Performance BC, thu hồi com, com POD Express và Data).
 - `docker-compose.yml` chưa chạy thử (máy dev không có Docker); Google chưa thử với Google thật (xem `design/ha-tang.md` mục 4).
