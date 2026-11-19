@@ -32,9 +32,16 @@ Cập nhật: 19/11/2026
 - **Stage 3 xong** (20/11, Opus quyết đạt): 3A-1, 3A-2 (engine metric, cache), 3B (bảng gộp), 3C-1, 3C-2 (dashboard, 22 loại biểu đồ, bộ lọc chung/lọc chéo, xem dòng, CSV/PNG, JSON, chia sẻ dashboard, Guest), 3D (load: 20 người lạnh max 900 ms), 3E (kiểm thử cuối: `pnpm test` 981 pass, e2e desktop 93/93, spec `stage3e` theo vai trò + dữ liệu xấu nhất + 3 luồng phone; 3 lỗi hiển thị số đã sửa; 38 op `metrics.*` đủ OpenAPI + Bruno). Rà lần 1 3C-2 trả lại lỗi người được chia sẻ dò được dữ liệu thô qua bộ lọc (sửa `checkViewerFilters`). Quyết định, số đo: `design/module3-quyet-dinh-khi-code.md`.
 - **Stage 2 xong** (19/11): 2A, 2B, 2B+, 2C-1..2C-4, 2D (import/export, 100.000 dòng: import 12 s, export 8 s), 2E (kiểm thử cuối stage). Quyết định và số đo ở `design/module2-quyet-dinh-khi-code.md`; kết quả kiểm thử ở git log `2E-1`, `2E-2`. Chưa thử: link Google Sheet thật; import cột Liên kết/Người/Đính kèm chưa có.
 
-## Đang làm: chưa có (Stage 3 xong; Stage 4 chờ bắt đầu)
+## Đang làm: Stage 4 (Module 4, Quản lý Deal), Sonnet code, Opus rà
 
-**Bước tiếp theo:** Stage 4, bắt đầu bằng bước con **4.1** (sửa lại code Stage 2 theo Module 4 mục 19a; mục "Việc đã xếp cho Stage 4" bên dưới). Opus chia 4.1 thành việc nhỏ, giao Sonnet. Ghi nhận còn lại của Stage 3 (để Stage 4 / Stage 12): người xem qua chia sẻ dashboard không tự tải lại khi dữ liệu đổi; chữ giữa gauge đè nhãn trục (bố cục, Stage 12); lọc chéo khó bấm cột < 1 px cạnh cột rất lớn; thang gauge phần trăm làm tròn ở web (chỉ thang hiển thị, giá trị do server tính).
+Bước con 4.1 (Module 4 mục 19a, 25 việc) chia 4 phiên, làm lần lượt (cùng đụng `access.ts`/`rows.ts`):
+- **4.1a khoá phân chia + quyền (server)**: 19a việc 1–9, 11a; test phân quyền việc 20 phần server. *Đang làm.*
+- **4.1b tính theo người đọc**: việc 10 (Lookup/Rollup/công thức sang bảng có khoá phân chia, mỗi thành viên một giá trị, tính lại theo phần), việc 11 (bỏ `PhysicalSource`), load test 20 thành viên × 100.000 dòng; **đo lại load 3D với phạm vi riêng từng người** (mục dưới).
+- **4.1c hạ tầng bảng template**: việc 12–16.
+- **4.1d giao diện + việc nhỏ**: việc 17–19, 19a–19d; e2e.
+Các bước sau 4.1 (Opus chia chi tiết khi tới): bảng template + trang Template + Deals/Index/Probation KPI; thanh toán và com theo đợt (mục 7, 12); chốt kỳ, snapshot, forecast, BANT; chỉ số theo vai trò cột + dashboard Deals + API ngoài + `data_grants.options` (mục 19 việc 14–16); kiểm thử cuối Stage 4.
+
+**Ghi nhận còn lại của Stage 3** (để Stage 4 / Stage 12): người xem qua chia sẻ dashboard không tự tải lại khi dữ liệu đổi; chữ giữa gauge đè nhãn trục (Stage 12); lọc chéo khó bấm cột < 1 px cạnh cột rất lớn; thang gauge phần trăm làm tròn ở web (chỉ thang hiển thị).
 
 ## Việc đã xếp cho Stage 4 (sửa lại code Stage 2)
 
