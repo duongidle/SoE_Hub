@@ -36,37 +36,30 @@ Cập nhật: 19/11/2026
 - **2C-2 xong, Opus đã rà (19/11)**: nhảy cuộn bảng 100.000 dòng 70–120 ms; tab view, lọc lồng nhau, ô Thời gian, sắp xếp nhiều cấp, nhóm + dòng tổng, cột, chiều cao dòng, tô màu, tìm kiếm, tự lưu và bản riêng. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-2".
 - **2C-3 xong, sửa lại theo rà soát của Opus (3 việc, 19/11), chờ Opus rà lại**: quản lý cột (thêm/sửa/xoá có Hoàn tác, mọi kiểu, đổi kiểu báo trước), trình soạn công thức (gợi ý, cú pháp, lỗi gạch chân, xem trước, mẫu, chèn tham chiếu), Liên kết/Lookup/Rollup, ô chọn dòng đích ảo hoá, ô Đính kèm tải lên/tải về, phân quyền người Xem/Sửa. API mới `datahub.relation.search`, `datahub.attachment.list`, `datahub.attachment.download_url`. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-3".
 - **2C-4 xong, Opus đã rà (19/11)**: Tìm dòng trùng, Chia sẻ, Thùng rác, giới hạn Admin theo người, e2e `stage2c4`. Chi tiết `design/module2-quyet-dinh-khi-code.md` mục "Stage 2C-4".
-- 2D: import/export, import công thức, load test 100k dòng.
+- **2D (Sonnet, đang làm)**: kế hoạch (đánh dấu [x] khi xong):
+  - [ ] 1 Hạ tầng việc nền: bảng `dh_jobs` (migration 0009), `storage.put/read`, vòng lặp worker nhận việc, lệnh `datahub.job.*`
+  - [ ] 2 Export CSV/XLSX/JSON (theo bảng/view/datahub, nền) + test + phân quyền
+  - [ ] 3 Import: đọc xlsx/csv/dán/link Google Sheet, `datahub.import.analyze|preview|start`, chạy nền, báo lỗi
+  - [ ] 4 Import công thức (dịch Excel sang engine, lý do từng cột, cảnh báo `LEFT(ngày,2)`)
+  - [ ] 5 Giao diện: hộp thoại Import (các bước), nút Export
+  - [ ] 6 e2e `stage2d.spec.ts`, Bruno, OpenAPI
+  - [ ] 7 Load test 100.000 dòng, ghi "Stage 2D" vào quyết định khi code
 - 2E: Sonnet kiểm thử **chức năng** cả Stage 2 ("Định nghĩa xong" điểm 2–5; không rà chuẩn giao diện, để Stage 12) theo việc Opus chia, sửa lỗi tìm thấy; Opus đọc kết quả và quyết định đạt.
 
 ## Bước tiếp theo
 
-**Giao 2D (Sonnet)** (import/export, import công thức, load test 100k dòng), rồi 2E.
+**2D đang làm: bước 1 (hạ tầng việc nền).** Rồi 2E.
 
-2C-4 đã commit đủ 6 việc. Kết quả test (desktop, test nhanh): `pnpm -r typecheck`, `pnpm exec eslint .` sạch; `pnpm exec vitest run apps/api/test/datahub-duplicates apps/web/test/duplicates` 11 pass; `pnpm test:e2e stage2c4 --project=desktop` 4/4 pass, 3 lần liền (16,4-16,7 s); `pnpm test:e2e stage2c1 stage2c2 stage2c3 --project=desktop` 31/31 pass (2,7 phút; đụng `table-view.tsx`). Không chạy 375px, không chạy cả bộ e2e.
-Lỗi tìm thấy và đã sửa: (1) `DuplicatesDialog` set state trong effect (lint) và phân trang "Tải thêm nhóm" lệch offset: viết lại, trang đầu `useQuery`, trang sau bằng nút, ẩn nhóm đã xử lý; (2) `duplicates.ts` có 4 lỗi lint (import type, biểu thức); (3) trong spec: chọn ô Quyền bị nhập nhằng nên thêm `aria-label` cho hai ô chọn của hộp Chia sẻ. Không có test chập chờn.
-Lưu ý cho Opus: việc xoá hẳn ngay và gợi ý người theo team chưa làm (ghi ở mục "Lệch hoặc bổ sung"); `form.table_max_columns` chờ Module 7.
+2C-4 xong và đã rà (xem git log). Chưa làm: xoá hẳn ngay, gợi ý người theo team (`Lệch hoặc bổ sung` mục 2C-4); `form.table_max_columns` chờ Module 7.
 
 ### Việc cho kiểm thử cuối Stage 2 (dời từ 2C-2)
 
 - (Dời sang Stage 12) `impeccable detect --url` cho grid + thanh công cụ view.
 - Theo dõi lỗi hết giờ `stage1.spec.ts` phone "cài đặt hệ thống" (thấy 1 lần, chạy lại thì pass; có thể cùng nguyên nhân Vite tải lại trang, đã sửa ở `vite.config.ts`).
 
-### Kết quả kiểm thử 2C-2
+### Kết quả kiểm thử 2C-2, 2C-3
 
-- `pnpm lint`, `typecheck` sạch; `pnpm test` 606 pass (21 mới ở `apps/web/test/view-config.test.ts`); `pnpm test:e2e`: stage1 + stage2c1 + `stage2c2.spec.ts` (10 luồng) ở 1280x800 và 375x812, không lỗi console/network (chạy đầy đủ lần cuối: 74 pass, 8 bỏ qua; một lần trước đó stage1 phone hết giờ, chạy lại thì pass).
-- Đã đi (chủ, người Xem, người Sửa): tab view (thêm tên 100 ký tự có `<b>`, đổi tên, sao chép, xoá, URL giữ view), lọc lồng nhau + lọc rỗng + "Xoá bộ lọc", sắp xếp theo cột công thức, nhóm + dòng tổng + đóng/mở nhóm, ô Thời gian (số dòng khớp server, kỳ cụ thể ‹ ›, chip), cột (ẩn, thứ tự, cố định), chiều cao dòng, tô màu (server trả `marks`), tìm kiếm, view dùng cột đã xoá, người Xem/Sửa đổi view chung thành bản riêng + "Về mặc định", 10.000 dòng lọc + sắp, nhóm quá 1.000 nhóm, 100.000 dòng nhảy tới cuối/giữa/10%/77% (70–120 ms tới khi server trả lời; đúng cả khi sắp xếp và nhóm), 40 cột tên dài ở 375px.
-- Lỗi tìm thấy và đã sửa: view ghi tên cột (API/AI) bị coi là cột đã xoá (nay đổi sang key khi nạp); danh sách tên người tra cả mã lựa chọn (400); bộ lọc một điều kiện bị bọc thừa trong nhóm; bấm dòng nhóm mở rồi đóng ngay (click + activate cùng bắn); nhãn dòng nhóm bị cắt (nay chỉ giá trị + số dòng, tên cột trong tooltip); vùng chạm dưới 44px ở nút icon, ô tích, nút × của chip trên điện thoại.
-- `impeccable audit`: bộ dò mã nguồn (`impeccable detect`) không báo gì ở `pages/datahub` và popover; rà tay (a11y, vùng chạm, tương phản bằng token, tab/focus, 375px, không animation mới). `ui-ux-pro-max` mục 1–3, 8 và `break-ui` đã rà. **Chưa dò trang thật bằng `detect --url`** (chưa có máy chủ dev chạy sau test) và chưa thử trên máy thật.
-
-### Kết quả kiểm thử 2C-3
-
-- **Sửa theo rà soát Opus (19/11):** (1) `checkRefs` đòi mọi mã file trong ô là file của người ghi: nay `checkFiles` chỉ kiểm mã mới của dòng; test `datahub-column-ui` có ca người Sửa thêm file vào ô của chủ, chủ gỡ file của người Sửa, chép mã lạ (kể cả mã ở dòng khác), create, upsert, restore_batch. (2) `stage2c2` `openTool` khớp nhầm nút "Cột của bảng": regex nay loại trừ; nguyên tắc mới: bước con đụng thành phần dùng chung thì chạy lại e2e desktop của mọi spec dùng nó. (3) Liên kết chọn bảng của mọi datahub của cùng chủ (server `relation.labels`/`relation.search` theo `owner_id`; giao diện Datahub → Bảng; e2e tạo cột liên kết sang datahub khác); test phân quyền: bảng của chủ khác bị từ chối, chủ khác không đọc được. Test sau sửa: eslint, typecheck sạch; vitest 102 pass (datahub-column-ui, datahub-lookup, datahub-rows, apps/web); `pnpm test:e2e stage2c1 stage2c2 stage2c3 --project=desktop` 31/31 pass, 2 lần liền (2,8 và 2,7 phút).
-- Lệnh đã chạy: `pnpm exec eslint .` (sạch), `pnpm -r typecheck` (sạch), `pnpm exec vitest run apps/web apps/api/test/datahub-column-ui.test.ts apps/api/test/openapi.test.ts apps/api/test/datahub-lookup.test.ts apps/api/test/datahub-columns.test.ts apps/api/test/datahub-access.test.ts` (9 file, 140 test pass; mới: `column-config` 20, `formula-assist` 19, `datahub-column-ui` 3), `pnpm test:e2e stage2c3 --project=desktop` 6/6 pass, chạy liên tiếp 4 lần cuối đều 6/6. Chưa chạy `pnpm test` toàn bộ, chưa chạy 375px (theo quy trình; dời sang 2E).
-- Đã đi: thêm cột (lỗi tên trống, `[ ]`, trùng không phân biệt hoa thường, lỗi độ dài tối đa, mô tả, bắt buộc), cột Một lựa chọn (trùng tên lựa chọn, màu, thứ tự, đổi tên lựa chọn), đổi kiểu Văn bản sang Số có hộp báo trước ("Giữ lại" không đổi gì; "Đổi kiểu và xoá 1 ô"), xoá + Hoàn tác, công thức (gợi ý hàm và cột, cú pháp in đậm, lỗi gạch chân và bằng lời, lưu bị từ chối, xem trước 5 dòng, chèn tham chiếu, công thức mẫu, sửa công thức, vòng lặp bị từ chối), Liên kết/Lookup/Rollup (chọn từ danh sách, chọn dòng đích trong khung chi tiết và trong ô của grid, bảng đích 1.203 dòng chỉ vẽ dưới 20 dòng, worker tính lookup), Đính kèm (loại file không nhận, tải lên, hiện tên và dung lượng, tải về đúng nội dung, gỡ), người Xem và người Sửa (server trả 403 cho mọi lệnh cấu trúc, công thức không hiện, người Sửa tải file lên được và không chọn được liên kết, người Xem chỉ tải về).
-- Lỗi tìm thấy và đã sửa: (1) lỗi hiện ra khi rời ô làm nút Lưu của hộp thoại dài trượt khỏi con trỏ nên bấm không được, nay nút cố định ở đáy hộp; (2) ô tên bị tự focus bằng bộ hẹn giờ 50 ms nên chữ gõ ngay sau khi mở hộp thoại lọt vào ô tên, nay dùng `autoFocus`; (3) nút trong popover mở từ hộp thoại modal không bấm được (`pointer-events: none`), nay `Popover` đặt `pointer-events: auto`; (4) lệnh cột nhận mã cột hoặc tên, giao diện gửi `id` nên 404, nay gửi `key`; (5) tải file lên bị 403 vì PUT gửi kèm cookie phiên mà không có CSRF, nay `credentials: "omit"` và đổi địa chỉ ký về cùng origin; (6) hộp "Cột của bảng" chặn bấm vào toast "Hoàn tác", nay đóng khi xoá.
-- **Chập chờn, chưa tìm ra nguyên nhân:** `stage2c3.spec.ts` luồng 2 ("cột Một lựa chọn") fail 1 lần ở `colByName("Giai đoạn")` sau khi sửa lựa chọn (cột không thấy dù toast "Đã lưu cột" đã hiện), không tái hiện lại trong 10 lần chạy sau (4 lần riêng luồng, 6 lần cả file). Nghi: test đợi theo toast, mà toast của bước trước còn trên màn hình nên đọc trạng thái máy chủ quá sớm. Đã đổi các chỗ đó sang `expect.poll` theo trạng thái máy chủ (hàm `created`, `optionsOf`). Nếu còn thấy thì ghi lại log máy chủ. Chưa kết luận được là lỗi test hay lỗi ứng dụng.
-- Ca `stage1.spec.ts` điện thoại (nhiệm vụ Opus thêm giữa chừng): chạy `pnpm test:e2e stage1 --project=phone` 3 lần liền, cả 3 lần 16/16 pass (34,8 s, 32,7 s, 33,8 s). Chạy trước khi Opus huỷ việc này.
+Chi tiết (luồng đã đi, lỗi đã sửa, số test) ở git log (`2C-2`, `2C-3`) và `design/module2-quyet-dinh-khi-code.md`. Còn mở từ 2C-3: `stage2c3.spec.ts` luồng 2 chập chờn 1 lần (không tái hiện sau 10 lần chạy; đã đổi sang `expect.poll`). Nếu thấy lại thì ghi log máy chủ.
 
 ## Lỗi điện thoại để sau
 
