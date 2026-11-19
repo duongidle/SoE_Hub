@@ -63,15 +63,18 @@ export async function createAdmin(base: string, email: string, name: string, pas
 export interface SeedPerson {
   email: string;
   name: string;
-  roles: ("manager" | "leader" | "user")[];
+  roles: ("manager" | "leader" | "user" | "guest")[];
   manager?: string;
+  /** Email of the direct leader (a user under a leader). */
+  leader?: string;
+  guestPreset?: "sale" | "data";
 }
 
 /** Adds people to the org chart as the admin, then activates each one (the approver, here the admin, reads the code in the inbox). */
 export async function seedPeople(base: string, admin: ApiClient, people: SeedPerson[], password: string): Promise<Record<string, string>> {
   const ids: Record<string, string> = {};
   for (const p of people) {
-    const m = await admin.call<{ id: string }>("POST", "/org/members", { email: p.email, full_name: p.name, roles: p.roles, ...(p.manager ? { manager_id: ids[p.manager] } : {}) });
+    const m = await admin.call<{ id: string }>("POST", "/org/members", { email: p.email, full_name: p.name, roles: p.roles, ...(p.manager ? { manager_id: ids[p.manager] } : {}), ...(p.leader ? { leader_id: ids[p.leader] } : {}), ...(p.guestPreset ? { guest_preset: p.guestPreset } : {}) });
     ids[p.email] = m.id;
   }
   for (const p of people) {

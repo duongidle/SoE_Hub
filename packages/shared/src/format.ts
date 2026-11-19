@@ -34,12 +34,15 @@ export function formatNumber(v: number | null | undefined, o: NumberFormatOption
   if (!isNum(v)) return EMPTY;
   const grouping = o.thousands !== false;
   if (o.decimals !== undefined) return nf(o.decimals, o.decimals, grouping).format(roundHalfAway(v, o.decimals)).replace("-0", "0");
-  // Drop float noise (0.30000000000000004 -> 0.3) before choosing the digits to show.
-  return nf(0, MAX_FRACTION, grouping).format(Number(v.toPrecision(12)));
+  // Drop float noise (0.30000000000000004 -> 0.3) before choosing the digits to show. Only fractions have noise: a whole number
+  // is exact up to 2^53 and must never be rounded (1.999.999.999.999.998 stays that, not ...000).
+  return nf(0, MAX_FRACTION, grouping).format(Number.isInteger(v) ? v : Number(v.toPrecision(15)));
 }
 
 /** Rounds half away from zero (Excel's ROUND), so 2,5 with 0 decimals shows 3 as the user expects. */
 function roundHalfAway(v: number, decimals: number): number {
+  // A whole number is already rounded; the correction below would move values near 2^52 by one.
+  if (Number.isInteger(v)) return v;
   const f = 10 ** decimals;
   const r = Math.round(Math.abs(v) * f * (1 + Number.EPSILON)) / f;
   return v < 0 ? -r : r;

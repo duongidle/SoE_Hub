@@ -8,6 +8,12 @@ describe("formatNumber", () => {
     expect(formatNumber(12.5)).toBe("12,5");
     expect(formatNumber(-1234567.5)).toBe("-1.234.567,5");
     expect(formatNumber(0)).toBe("0");
+    // 2E-2: a whole number is never rounded (16 digits, and near 2^52).
+    expect(formatNumber(1_999_999_999_999_998)).toBe("1.999.999.999.999.998");
+    expect(formatNumber(999_999_999_999_999)).toBe("999.999.999.999.999");
+    expect(formatNumber(-4_503_599_627_370_497, { decimals: 0 })).toBe("-4.503.599.627.370.497");
+    expect(formatCurrency(4_503_599_627_370_497)).toBe("4.503.599.627.370.497 ₫");
+    expect(formatNumber(123_456_789.123)).toBe("123.456.789,123");
   });
   it("removes float noise: 0,1 + 0,2 shows 0,3", () => {
     expect(formatNumber(0.1 + 0.2)).toBe("0,3");
