@@ -52,7 +52,9 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 
 **3D xong, Opus rà 20/11: đạt** (1c3635f, ddb06d0; số đo ở file quyết định mục 3D). 20 người lạnh cùng dashboard 30 biểu đồ: p95 846 ms, max 900 ms, không lỗi; nhanh vì 20 người chung một khoá cache (số tính theo quyền chủ) nên chỉ chạy 44 câu SQL. Ca 20 bộ lọc khác nhau: max 8,8 s (6 bộ lọc 2,96 s), giới hạn là CPU Postgres. Opus chấp nhận cho Stage 3; **4.1 bắt buộc đo lại** (mục "Việc đã xếp cho Stage 4").
 
-**Tiếp theo: 3E-1** (toàn bộ test: `pnpm test`, cả bộ e2e desktop, luồng chính ở điện thoại; sửa lỗi), rồi **3E-2** (luồng chủ chốt theo vai trò + dữ liệu xấu nhất, kiểm OpenAPI + Bruno đủ).
+**3E-1 xong (Sonnet, 20/11):** `pnpm -r typecheck` và `pnpm lint` sạch; `pnpm test` 71 file, 980 pass, 5 skip có sẵn; `pnpm test:e2e --project=desktop` 85/85 (6,5 phút); `pnpm test:e2e stage3c1 stage3c2 --project=phone` 16/16 skip (spec Stage 3 tự bỏ qua điện thoại, chưa có luồng phone cho dashboard). Điểm 3: 38 op `metrics.*` có đủ trong `docs/api/openapi.json` và `docs/api/bruno/metrics/` (38/38, không thiếu). Không tìm thấy lỗi, không đổi code.
+
+**Tiếp theo: 3E-2** (luồng chủ chốt theo vai trò + dữ liệu xấu nhất). Trước đó (đã xong): ~~3E-1~~. Cũ: **3E-1** (toàn bộ test: `pnpm test`, cả bộ e2e desktop, luồng chính ở điện thoại; sửa lỗi), rồi **3E-2** (luồng chủ chốt theo vai trò + dữ liệu xấu nhất, kiểm OpenAPI + Bruno đủ).
 
 ## Điều chỉnh Stage 3 so với Module 3 đã đọc (Dương chốt 19/11)
 
