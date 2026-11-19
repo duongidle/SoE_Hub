@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { formatCount } from "@soe/shared";
-import { Columns3, Maximize2, Pencil, Plus, Redo2, Trash2, Undo2 } from "lucide-react";
+import { Columns3, Copy, Maximize2, Pencil, Plus, Redo2, Trash2, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, errorMessage, Field, Input, Modal, Select } from "@/components/ui/form";
@@ -20,6 +20,7 @@ import { TableGrid, type GridApi } from "./grid";
 import { PersonPicker, RatingPicker } from "./pickers";
 import { ColumnEditor } from "./column-editor";
 import { ColumnManager, useColumnDelete } from "./column-manager";
+import { DuplicatesDialog } from "./duplicates-dialog";
 import { RowPanel } from "./row-panel";
 import { ViewTabs } from "./view-tabs";
 import { ViewTools } from "./view-tools";
@@ -114,6 +115,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   useEffect(() => () => void auto.flush(), [auto]);
 
   const config = auto.config;
+  const [dupOpen, setDupOpen] = useState(false);
   const [colUI, setColUI] = useState<{ kind: "manage" } | { kind: "add" } | { kind: "edit"; col: Column } | null>(null);
   const deleteCol = useColumnDelete(table);
   const [search, setSearch] = useState("");
@@ -188,10 +190,12 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
         extra={
           <>
             <Button variant="secondary" onClick={() => setColUI({ kind: "manage" })}><Columns3 size={16} aria-hidden /> Cột của bảng</Button>
+            {(table.access === "owner" || table.access === "edit_data") && <Button variant="secondary" onClick={() => setDupOpen(true)}><Copy size={16} aria-hidden /> Tìm dòng trùng</Button>}
             {table.access === "owner" && <Button variant="secondary" onClick={() => setColUI({ kind: "add" })} disabled={table.columns.length >= table.max_columns}><Plus size={16} aria-hidden /> Thêm cột</Button>}
           </>
         }
       />
+      {dupOpen && <DuplicatesDialog table={table} onClose={() => setDupOpen(false)} />}
       {colUI?.kind === "manage" && <ColumnManager table={table} level={table.access} onClose={() => setColUI(null)} onAdd={() => setColUI({ kind: "add" })} onEdit={(c) => setColUI({ kind: "edit", col: c })} onDelete={(c) => { setColUI(null); void deleteCol(c); }} />}
       {colUI?.kind === "add" && <ColumnEditor table={table} onClose={() => setColUI(null)} />}
       {colUI?.kind === "edit" && <ColumnEditor key={colUI.col.id} table={table} column={colUI.col} onClose={() => setColUI(null)} />}

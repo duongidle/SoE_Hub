@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatCount } from "@soe/shared";
 import { Check, Copy } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, ErrorText, errorMessage, Modal, Select } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
@@ -58,58 +58,67 @@ export function DuplicatesDialog({ table, onClose }: { table: TableDetail; onClo
 
 function Results({ table, columns }: { table: TableDetail; columns: string[] }) {
   const qc = useQueryClient();
-  const [groups, setGroups] = useState<DuplicateGroup[]>([]);
-  const [offset, setOffset] = useState(0);
-  const q = useQuery({ queryKey: ["dh-duplicates", table.id, columns, offset], queryFn: () => findDuplicates(table.id, columns, offset, PAGE), gcTime: 0 });
-  // Pages add up; a resolved group leaves the list.
-  useEffect(() => {
-    if (q.data) setGroups((g) => (offset === 0 ? q.data.groups : [...g, ...q.data.groups]));
-  }, [q.data, offset]);
-  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+  // The first page comes from a query; later pages are added by the button. A resolved group is hidden (its rows are gone on the server, so the next offset is the number of groups still shown).
+  const q = useQuery({ queryKey: ["dh-duplicates", table.id, columns], queryFn: () => findDuplicates(table.id, columns, 0, PAGE), gcTime: 0, staleTime: Infinity, refetchOnWindowFocus: false });
+  const [more, setMore] = useState<DuplicateGroup[]>([]);
+  const [gone, setGone] = useState<Set<string>>(new Set());
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<unknown>(null);
+  const [hasMore, setHasMore] = useState<boolean | null>(null);
   const [bulk, setBulk] = useState(false);
 
   const refresh = () => {
-    setOffset(0);
-    setGroups([]);
-    setRemovedIds(new Set());
+    setMore([]);
+    setGone(new Set());
+    setHasMore(null);
     void qc.invalidateQueries({ queryKey: ["dh-duplicates", table.id] });
   };
 
-  if (q.isLoading && offset === 0) return <div className="flex flex-col gap-2" aria-busy="true" aria-label="Đang tìm dòng trùng"><Skeleton className="h-6 w-64" /><Skeleton className="h-32 w-full" /></div>;
-  if (q.error && groups.length === 0) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tìm được dòng trùng" />;
-  const total = q.data?.total_groups ?? 0;
-  if (total === 0 && groups.length === 0) return <EmptyState title="Không có dòng trùng" hint="Không có nhóm dòng nào giống nhau theo các cột đã chọn." />;
-  const shown = groups.filter((g) => !g.ids.every((id) => removedIds.has(id) || g.ids.length === 1));
+  if (q.isLoading) return <div className="flex flex-col gap-2" aria-busy="true" aria-label="Đang tìm dòng trùng"><Skeleton className="h-6 w-64" /><Skeleton className="h-32 w-full" /></div>;
+  if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tìm được dòng trùng" />;
+  const data = q.data!;
+  const shown = [...data.groups, ...more].filter((g) => !gone.has(g.ids[0]!));
+  const goneRows = [...data.groups, ...more].filter((g) => gone.has(g.ids[0]!)).reduce((n, g) => n + g.count, 0);
+  const totalGroups = Math.max(0, data.total_groups - gone.size);
+  const totalRows = Math.max(0, data.total_rows - goneRows);
+  if (data.total_groups === 0) return <EmptyState title="Không có dòng trùng" hint="Không có nhóm dòng nào giống nhau theo các cột đã chọn." />;
+  const canMore = (hasMore ?? data.has_more) && shown.length < totalGroups;
+  const loadMore = async () => {
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const r = await findDuplicates(table.id, columns, shown.length, PAGE);
+      setMore((m) => [...m, ...r.groups]);
+      setHasMore(r.has_more);
+    } catch (e) {
+      setMoreError(e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-3" data-testid="duplicate-results">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm" aria-live="polite">
-          {formatCount(q.data?.total_groups ?? 0, "nhóm trùng")}, {formatCount(q.data?.total_rows ?? 0, "dòng")}
+          {formatCount(totalGroups, "nhóm trùng")}, {formatCount(totalRows, "dòng")}
         </p>
-        <Button variant="secondary" onClick={() => setBulk(true)}>Xử lý mọi nhóm</Button>
+        <Button variant="secondary" onClick={() => setBulk(true)} disabled={totalGroups === 0}>Xử lý mọi nhóm</Button>
       </div>
       <ul className="flex flex-col gap-3">
         {shown.map((g) => (
           <li key={g.ids[0]}>
-            <GroupCard
-              table={table}
-              group={g}
-              onDone={(ids) => {
-                setRemovedIds((s) => new Set([...s, ...ids]));
-                setGroups((all) => all.filter((x) => x.ids[0] !== g.ids[0]));
-                void qc.invalidateQueries({ queryKey: ["dh-duplicates", table.id] });
-              }}
-            />
+            <GroupCard table={table} group={g} onDone={() => setGone((s) => new Set([...s, g.ids[0]!]))} />
           </li>
         ))}
       </ul>
-      {q.data?.has_more && groups.length < (q.data.total_groups ?? 0) && (
-        <Button variant="secondary" onClick={() => setOffset(groups.length + removedIds.size ? groups.length : offset + PAGE)} loading={q.isFetching}>
+      {canMore && (
+        <Button variant="secondary" onClick={() => void loadMore()} loading={loadingMore}>
           Tải thêm nhóm
         </Button>
       )}
-      {bulk && <BulkDialog table={table} columns={columns} total={q.data?.total_groups ?? 0} onClose={() => setBulk(false)} onDone={() => { setBulk(false); refresh(); }} />}
+      <ErrorText error={moreError ? new Error(errorMessage(moreError)) : null} />
+      {bulk && <BulkDialog table={table} columns={columns} total={totalGroups} onClose={() => setBulk(false)} onDone={() => { setBulk(false); refresh(); }} />}
     </div>
   );
 }

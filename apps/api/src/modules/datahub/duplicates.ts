@@ -1,7 +1,7 @@
 import { sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { AppError, DH_BATCH_MAX } from "@soe/shared";
-import { exprOf } from "@soe/db";
+import { exprOf, type Executor } from "@soe/db";
 import { defineCommand, defineQuery } from "../../core/registry";
 import { loadTableAccess, type TableAccess } from "./access";
 import { columnTypeDef } from "./column-types";
@@ -53,7 +53,7 @@ interface GroupRef {
 }
 
 /** The groups in display order (largest first, then by the first row number), a page of them, plus the totals. */
-async function readGroups(ctx: { db: import("@soe/db").Executor }, access: TableAccess, schema: TableSchema, columns: string[], offset: number, limit: number, idCap = MAX_IDS_PER_GROUP) {
+async function readGroups(ctx: { db: Executor }, access: TableAccess, schema: TableSchema, columns: string[], offset: number, limit: number, idCap = MAX_IDS_PER_GROUP) {
   const k = keySql(schema, columns);
   const base = sql`SELECT id, row_no, ${k.key} AS dk FROM dh_rows WHERE ${access.scope()} AND deleted_at IS NULL AND ${k.keyed}`;
   const totals = await ctx.db.execute(sql`WITH k AS (${base}), g AS (SELECT dk, count(*) AS n FROM k GROUP BY dk HAVING count(*) > 1) SELECT count(*)::int AS groups, coalesce(sum(n), 0)::int AS rows FROM g`);
@@ -155,7 +155,12 @@ export const duplicateOperations = [
         }
       }
       let removed = 0;
-      for (const p of plan) for (const id of p.remove) ops.push({ op: "delete", id }), removed++;
+      for (const p of plan) {
+        for (const id of p.remove) {
+          ops.push({ op: "delete", id });
+          removed++;
+        }
+      }
       let seq = 0;
       // Updates first so a merge never reads a deleted row; each slice is one call to the row writer in this transaction.
       for (let at = 0; at < ops.length; at += DH_BATCH_MAX) {
@@ -173,7 +178,7 @@ function splitRefs(columns: string, schema: TableSchema): string[] {
   return columns.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-type Db = import("@soe/db").Executor;
+type Db = Executor;
 
 async function loadRows(db: Db, acc: TableAccess, ids: string[]) {
   const res = await db.execute(sql`SELECT id, row_no, version, data, created_at, created_by, updated_at, updated_by FROM dh_rows WHERE ${acc.scope()} AND deleted_at IS NULL AND id = ANY(${`{${ids.join(",")}}`}::uuid[])`);
@@ -204,7 +209,10 @@ async function allPlan(db: Db, acc: TableAccess, schema: TableSchema, groups: Gr
       let best = -1;
       for (const id of ordered) {
         const n = filled(id);
-        if (n > best) (best = n), (keepId = id);
+        if (n > best) {
+          best = n;
+          keepId = id;
+        }
       }
     }
     const remove = ordered.filter((id) => id !== keepId);
