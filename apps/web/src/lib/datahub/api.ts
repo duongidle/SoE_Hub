@@ -153,3 +153,27 @@ export async function uploadFile(file: File): Promise<FileBrief> {
   await api("POST", `/files/${init.file.id}/complete`, {});
   return init.file;
 }
+
+// ---- duplicate rows (design module2 section 7a) ----------------------------------------------------
+export interface DuplicateGroup {
+  ids: string[];
+  /** True size of the group (`ids` lists at most 50). */
+  count: number;
+}
+export interface DuplicatePage {
+  columns: { key: string; name: string }[];
+  total_groups: number;
+  total_rows: number;
+  groups: DuplicateGroup[];
+  has_more: boolean;
+}
+export const findDuplicates = (tableId: string, columns: string[], offset = 0, limit = 20) => api<DuplicatePage>("GET", `/tables/${tableId}/duplicates${qs({ columns: columns.join(","), offset, limit })}`);
+export interface ResolveResult {
+  groups_resolved: number;
+  rows_removed: number;
+  rows_merged: number;
+  remaining_groups: number;
+  seq: number;
+}
+export const resolveDuplicates = (tableId: string, body: { groups: { keep_id: string; remove_ids: string[]; values?: Record<string, unknown> }[] } | { all: { columns: string[]; keep: "first" | "last" | "most_filled"; fill_empty: boolean } }) =>
+  api<ResolveResult>("POST", `/tables/${tableId}/duplicates/resolve`, body);
