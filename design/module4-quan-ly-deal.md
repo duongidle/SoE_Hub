@@ -631,7 +631,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 
 - Menu Quản lý Deal: Deals, Index, Probation KPI, bảng tự tạo, Dashboard; Manager thấy thêm bảng của Manager và mục Quản lý (phân deal, chính sách com, chốt kỳ, snapshot, nhập lịch sử).
 - Thanh toán: bảng Đợt thanh toán với view Chờ tiền về / Đã về tháng này / Do AI nhập chưa kiểm; hộp thoại lập lịch cho một deal; công cụ **Ghép tiền về** (nhập hoặc dán thông tin UNC, danh sách gợi ý kèm lý do, chia một khoản vào nhiều đợt, hàng Tiền về chưa ghép); màn **Chốt kỳ tháng N** (mục 12). Sổ com với view Com của tôi theo kỳ.
-- Deals: grid Module 2, view hệ thống (Ưu tiên hôm nay, Đang mở, Cần chấm lại), ngăn chi tiết deal (người tham gia, BANT, lịch sử).
+- Deals: grid Module 2, view hệ thống (Ưu tiên hôm nay, Đang mở, Cần chấm lại), ngăn chi tiết deal (người tham gia, BANT, **các đợt thanh toán của deal** kèm trạng thái và com của tôi từng đợt, lịch sử). Một deal luôn là một dòng; đợt thanh toán không bao giờ thành dòng deal mới.
 - Trang Template (mục 3.8): lối vào, danh sách bảng theo phạm vi, tạo bảng template, bốn lớp, thuộc tính cột, quyền sửa ô, vai trò cột, quyền Leader theo bảng, xem trước ảnh hưởng ("áp dụng cho 18 người"), danh sách bản sửa của các team. Nhãn `Mẫu` / `Riêng` / `Team sửa` trên tiêu đề cột.
 - Datahub: datahub "Quản lý Deal" hiện trong danh sách với biểu tượng khoá.
 
