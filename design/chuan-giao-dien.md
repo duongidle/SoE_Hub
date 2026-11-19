@@ -6,7 +6,7 @@ Theo `promt.md` mục 17: trực quan, dễ thao tác là ưu tiên; font thốn
 
 SoE Hub là công cụ làm việc (bảng, dashboard, form): ưu tiên dễ quét, nhất quán, quen tay. Không trang trí lạ mắt. Chỉ Knowledge, AI Hub và form công khai được đầu tư thẩm mỹ nhiều hơn ở Stage 12.
 
-Quy định ở file này áp dụng ngay khi code (Sonnet làm đúng từ đầu). Việc **kiểm tra** theo danh sách, chạy skill và `break-ui` chỉ làm ở **Stage 12** (làm lại giao diện hoàn chỉnh), không làm ở bước con hay kiểm thử cuối các stage 2–11 (Dương chốt 19/11/2026; `CLAUDE.md` mục "Code" điểm 2). Ngoại lệ: trang công khai (form, onboarding) vẫn kiểm ở 375px khi làm stage của nó.
+Quy định ở file này áp dụng ngay khi code (Sonnet làm đúng từ đầu). Việc **kiểm tra** theo danh sách, chạy skill và `break-ui` chỉ làm ở **Stage 12** (làm lại giao diện hoàn chỉnh), không làm ở bước con hay kiểm thử cuối các stage 2–11 (Dương chốt 19/11/2026; `CLAUDE.md` mục "Code" điểm 2). Ngoại lệ: Dynamic Form (Stage 7, cả builder lẫn form công khai) và Onboarding (Stage 9) rà đủ file này, bộ skill và `break-ui` ngay ở kiểm thử cuối stage của chúng, kể cả 375px.
 
 File này gồm hai phần: **quy định** từ mục "Hệ thống thiết kế" trở xuống (luôn áp dụng), và **bộ skill giao diện** để làm và kiểm thử theo quy trình của chúng. Hai bên mâu thuẫn thì quy định trong file này thắng.
 
