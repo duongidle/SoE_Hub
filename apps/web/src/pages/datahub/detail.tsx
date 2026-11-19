@@ -134,7 +134,7 @@ function TableTabs({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) 
         )}
         {owner && (
           <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "merge" })} data-testid="add-merged-table">
-            <Layers size={16} aria-hidden /> Thêm bảng gộp
+            <Layers size={16} aria-hidden /> Tạo bảng gộp
           </Button>
         )}
       </div>

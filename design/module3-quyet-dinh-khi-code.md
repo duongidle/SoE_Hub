@@ -188,7 +188,7 @@ Phần còn lại của 3A-2 (mục 4–9) chưa làm.
 
 - `assertWritable` ở `applyRowOps` và `restoreRows` (một cửa của mọi ghi dòng: API, import, dán, tìm dòng trùng) từ chối cả **chủ**; người được chia sẻ quyền Sửa bị hạ xuống Xem ở `loadTableAccess` (nên mọi chỗ kiểm `edit_data` đều chặn). Cột: bảng gộp chỉ thêm được cột **công thức/lookup/rollup**; cột dữ liệu chỉ đổi tên, mô tả, định dạng, vị trí; không xoá, không khôi phục, không đổi kiểu (qua `datahub.merge.update`).
 - Chỉ chủ datahub tạo, cấu hình (`merge.update`), đồng bộ tay, xem nhóm trùng và dòng gốc. Người được chia sẻ xem `merge.get` ở dạng rút gọn (trạng thái, tổng số dòng; không có cấu hình, tên nguồn, nhóm trùng). Một bảng gộp không làm nguồn của bảng gộp khác (tránh vòng).
-- Giao diện: nút "Thêm bảng gộp" ở thanh bảng (chỉ chủ), thanh trạng thái trên grid, trình cấu hình, danh sách nhóm trùng, liên kết "Mở bảng nguồn" ở khung chi tiết dòng (chỉ chủ; mở bảng nguồn, không nhảy tới dòng vì chưa có địa chỉ tới một dòng). "Nhập dữ liệu" của datahub không liệt kê bảng gộp.
+- Giao diện: nút "Tạo bảng gộp" ở thanh bảng (tên khác "Thêm bảng" để không đụng bộ chọn của các e2e cũ) (chỉ chủ), thanh trạng thái trên grid, trình cấu hình, danh sách nhóm trùng, liên kết "Mở bảng nguồn" ở khung chi tiết dòng (chỉ chủ; mở bảng nguồn, không nhảy tới dòng vì chưa có địa chỉ tới một dòng). "Nhập dữ liệu" của datahub không liệt kê bảng gộp.
 
 ### Test
 
