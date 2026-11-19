@@ -1,7 +1,7 @@
 # Module 4 — Quản lý Deal
 
 > Trạng thái: **Đã chốt** · 19/11/2026 (bản nháp vòng 2 ngày 18/11, Dương chốt nguyên bản).
-> **Sửa 19/11/2026 lần 2 (Dương chốt sau khi hỏi Manager):** thanh toán và com theo đợt, deal chỉ Won khi tiền về, Sổ com, chốt kỳ gộp khoá kỳ với chốt com, ghép tiền về (mục 7 viết lại); Closing date do hệ thống điền, thêm Ngày dự kiến chốt, bỏ cột `Không tính vào báo cáo`, % com tính trên com sale (mục 4, 5, 9, 10, 11, 12); chuyển vai trò cột khi kỳ đã chốt, vai trò trong dashboard (mục 3.7, 13).
+> **Sửa 19/11/2026 lần 2, Dương chốt toàn bộ cùng ngày (sau khi hỏi Manager):** nguyên tắc dữ liệu là công thức, chức năng thuộc module (mục 1.5); Người tham gia lên lớp Cơ bản; bảng Tiền về; thanh toán và com theo đợt, deal chỉ Won khi tiền về, Sổ com, chốt kỳ gộp khoá kỳ với chốt com, ghép tiền về (mục 7 viết lại); Closing date do hệ thống điền, thêm Ngày dự kiến chốt, bỏ cột `Không tính vào báo cáo`, % com tính trên com sale (mục 4, 5, 9, 10, 11, 12); chuyển vai trò cột khi kỳ đã chốt, vai trò trong dashboard (mục 3.7, 13).
 > Không ghi số của chính sách thật vào file này (repo public); số nằm trong `examples/` và trong dữ liệu chính sách của hệ thống.
 > Phụ thuộc: [Module 0](module0-nen-tang.md) (registry, lịch sử dòng, khoá kỳ, snapshot, outbox), [Module 1](module1-tai-khoan-phan-quyen.md) (cây tổ chức, phạm vi deal, Guest, chuyển giao), [Module 2](module2-datahub.md) (engine bảng, nguồn cột, công thức, liên kết, view), [Module 3](module3-metric-dashboard.md) (chỉ số, dashboard, snapshot trong chỉ số).
 > Đổi bởi [Module 7](module7-dynamic-form.md) (chốt 19/11/2026): datahub "Quản lý Deal" không làm đích và không làm nguồn dữ liệu của Form (mở rộng mục 15).

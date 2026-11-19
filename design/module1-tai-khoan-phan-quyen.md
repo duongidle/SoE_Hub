@@ -161,6 +161,7 @@ Chỉ Manager cấp, chỉ với dữ liệu trong cây mình.
 | Dữ liệu | Deals (Module 4), bảng tổng hợp, dashboard |
 | Phạm vi | Cả cây, hoặc một team |
 | Cột | Cột hệ thống + cột chung. **Không bao giờ có cột cá nhân** |
+| Tỉ lệ người tham gia (chỉ Deals) | Bật/tắt, mặc định tắt. Bật thì Guest thấy % doanh thu, % com trong `Người tham gia`; tắt thì chỉ thấy tên và vai trò. Không bao giờ thấy số tiền com (Module 4 mục 15, Dương chốt 19/11/2026) |
 | Kênh | Xem trên web / tải file / API |
 | Hết hạn | Không bắt buộc |
 
