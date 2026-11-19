@@ -244,8 +244,10 @@ Thêm vào lớp Cơ bản vì hệ thống cần:
 | # | Cột | Lý do |
 |---|---|---|
 | 16 | Mã deal | Công thức, tự ra khi có dòng mới: `="D-"&TEXT(ROW_NO(), "000000")`. Tạm thời chưa bắt Manager quản lý theo mã; sau này đổi cách đặt mã thì sửa công thức. Sửa công thức thì mã của **mọi** deal đổi theo, nên trình sửa cảnh báo trước. API, liên kết và lịch sử dùng `id` của dòng, không dùng mã này, nên đổi mã không làm hỏng dữ liệu |
-| 17 | Thành viên deal | Tự điền từ cột `Người tham gia` của Manager: tên và vai trò của từng người, **không có tỉ lệ**. Để ai cũng biết deal có những ai |
-| 17a | Vai trò của tôi | Nhãn `Leading` / `Associate` / `Advisor`, tự điền, mỗi người một giá trị (mục 4.5) |
+| 17 | **Người tham gia** | Người dùng có thuộc tính (mục 4.5). **Lớp Cơ bản: mọi người thấy, chỉ Manager sửa** (sửa 19/11 lần 2). Mọi người tham gia thấy tên, vai trò, % doanh thu, % com của nhau, để biết deal chia cho mình và người khác bao nhiêu. Thay cho cột `Thành viên deal` cũ |
+| 17e | Tổng % com đã chia | Tự điền, giá trị chung. Cảnh báo khi khác mức trần `Tỉ lệ SoE` |
+| 17f | Số đợt, Số đợt đã về | Rollup từ Đợt thanh toán |
+| 17a | Vai trò của tôi (cột hỗ trợ tính) | Nhãn `Leading` / `Associate` / `Advisor`, tự điền, mỗi người một giá trị (mục 4.5) |
 | 17b | % doanh thu của tôi | Phần trăm, tự điền, mỗi người một giá trị |
 | 17c | Tính vào số deal của tôi | Có/không, tự điền, mỗi người một giá trị (mục 4.5) |
 | 17d | Doanh thu tính cho tôi | Công thức, mỗi người một giá trị: `[Doanh thu] * [% doanh thu tính cho tôi]`. Vai trò `doanh thu được tính`. `% doanh thu tính cho tôi` là % của mình (User), tổng % của team (Leader), tổng % đã chia (Manager) |
@@ -257,6 +259,8 @@ Thêm vào lớp Cơ bản vì hệ thống cần:
 | 23 | Thanh toán | Công thức: `Chưa có lịch` / `Chờ tiền về` / `Đang thu` / `Đã thu đủ` |
 | 24 | Com đã nhận của tôi, Com tạm tính của tôi, Com chờ nhận của tôi | Rollup từ Sổ com theo người đọc (dòng `Đã chốt` + `Điều chỉnh`; dòng `Tạm tính`); chờ nhận = các đợt chưa về × Tỉ lệ com sale × % Com cá nhân |
 
+- **Cột "của tôi" (14, 17a–17d) là cột hỗ trợ tính, ẩn mặc định.** Người dùng nhìn `Người tham gia`. Các cột này có mặt để công thức (Index, com dự kiến, doanh thu tính cho tôi) lấy "phần của tôi" bằng hàm Excel thường, không cần hàm biết ai đang xem (mục 4.5). Ai cần thì bật hiện trong view của mình.
+- **Số tiền com chỉ thấy của mình:** mỗi người thấy % com của mọi người tham gia nhưng chỉ thấy **số tiền** com của chính mình (`Com dự kiến của tôi`, các cột com của tôi, Sổ com theo khoá phân chia). `Com của deal` (tổng tiền) chỉ Manager thấy.
 - **Bỏ cột `Không tính vào báo cáo`** của sheet cũ. Cột này dùng cho Associate, Advisor chọn không tính doanh thu hoặc số deal, tức là lựa chọn của **từng người tham gia**, không phải của deal. Thay bằng hai thuộc tính trong `Người tham gia`: `% doanh thu` (0 là không tính doanh thu) và `Tính vào số deal` (mục 4.5). Một nguồn duy nhất, không có chỗ hai giá trị nói ngược nhau.
 - Không đưa vào template ban đầu (Manager thêm khi cần, hoặc mỗi người tự thêm): Link CRM, Văn phòng, Đơn vị kinh doanh, Giai đoạn, Việc tiếp theo, Lý do thắng/thua, Thời gian showcase.
 
@@ -266,7 +270,7 @@ Thêm vào lớp Cơ bản vì hệ thống cần:
 |---|---|
 | User | Không thêm (đã có các cột com và doanh thu "của tôi") |
 | Leader | `% com của team` (tự điền: tổng % com của thành viên team mình trong deal), `% doanh thu của team`, `Com đã nhận của team`, `Com chờ nhận của team` (rollup Sổ com và Đợt như cột "của tôi") |
-| Manager | **`Người tham gia`**: chia deal cho ai, vai trò gì, % doanh thu, % com, tính vào số deal (mục 4.5). `Tổng % com đã chia` (tự điền; cảnh báo khi khác mức trần `Tỉ lệ SoE`), `Com của deal` (rollup mọi dòng Sổ com của deal), `Số đợt`, `Số đợt đã về` |
+| Manager | `Com của deal` (rollup mọi dòng Sổ com của deal). `Người tham gia`, `Tổng % com đã chia`, `Số đợt` đã chuyển sang lớp Cơ bản (mục 4.1) |
 
 ### 4.3 Quyền sửa mặc định
 
@@ -278,7 +282,7 @@ Theo mục 3.6: thành viên có quyền Sửa; cột được cho phép thì m�
 | Status | Có, trừ `Won` và `Huỷ` | `Won` chỉ do xác nhận tiền về đặt (mục 4.4). `Huỷ` chỉ Manager |
 | Loại deal, Closing date | Không | Manager. Closing date hệ thống điền, Manager sửa tay khi cần |
 | Người tham gia | Không | Manager |
-| Cột tự điền từ Người tham gia (14, 17, 17a–17c, cột % của team) | Không | Sửa qua Người tham gia |
+| Cột tự điền từ Người tham gia (14, 17a–17c, 17e, cột % của team) | Không | Sửa qua Người tham gia |
 | Cột rollup, cột công thức | — | Không ai sửa ô |
 | Cột tuỳ chỉnh của mình | — | Chỉ chủ cột |
 
@@ -302,7 +306,7 @@ Kiểm chứng `Disqualified`: trong `Raw PODPS`, deal Disqualified chỉ dừng
 
 ### 4.5 Người tham gia
 
-- Cột `Người tham gia` nằm ở **bảng Deals của Manager** (lớp Theo vai trò: Manager), kiểu **Người dùng** (chọn nhiều người trong hệ thống). Mỗi người được chọn kèm bốn ô: **Vai trò** (nhãn `Leading` / `Associate` / `Advisor`), **% doanh thu**, **% com** (phần trăm **trên com của sale**), **Tính vào số deal** (có/không). Giống bảng "Danh sách SoE tham gia deal" của BPM. Manager điền (tay hoặc nhờ AI đọc phiếu request), hoặc API bắn vào.
+- Cột `Người tham gia` nằm ở **lớp Cơ bản** của Deals (mọi người tham gia thấy, chỉ Manager sửa; sửa 19/11 lần 2, trước đây chỉ ở bảng của Manager), kiểu **Người dùng** (chọn nhiều người trong hệ thống). Mỗi người được chọn kèm bốn ô: **Vai trò** (nhãn `Leading` / `Associate` / `Advisor`), **% doanh thu**, **% com** (phần trăm **trên com của sale**), **Tính vào số deal** (có/không). Giống bảng "Danh sách SoE tham gia deal" của BPM. Manager điền (tay hoặc nhờ AI đọc phiếu request), hoặc API bắn vào.
 - Đây là **nguồn duy nhất** của việc chia deal. Bảng của người khác chỉ nhận dữ liệu từ cột này, không ai khác sửa được.
 - Chọn ai thì deal hiện trong bảng Deals của người đó. Hệ thống **gửi dữ liệu xuống**: tự điền các cột mỗi-người-một-giá-trị của họ: `Vai trò của tôi`, `% doanh thu của tôi`, `% Com cá nhân`, `Tính vào số deal của tôi`; với Leader thêm `% com của team`, `% doanh thu của team`; với Manager thêm `Tổng % com đã chia`. Chọn cách gửi xuống thay vì để mỗi người tự lookup, vì lookup "phần của tôi" cần một hàm biết ai đang xem, mà ta đã thống nhất không thêm hàm riêng.
 - **% com** là mặc định cho các đợt chưa về. Mỗi đợt có cột `Chia com đợt này` riêng (mục 7.2), điền sẵn từ đây lúc xác nhận tiền về. Đổi % com ở deal không đổi com của đợt đã về.
@@ -497,7 +501,7 @@ Bốn cột B, A, N, T, mỗi cột: `Có bằng chứng` / `Chưa rõ` / `Âm`.
 - **Có phiên bản theo ngày hiệu lực:** Manager thêm một bộ dòng mới với `Hiệu lực từ` mới, không sửa dòng cũ. Dòng đã có hiệu lực bị khoá.
 - `Tỉ lệ com sale` là công thức thường trên Deals, tra đúng phiên bản theo Closing date (deal mở: Ngày dự kiến chốt). Sổ com đọc nó khi sinh dòng. Ví dụ phần POD: `SUMIFS([Chính sách com].[Tỉ lệ], [Chính sách com].[Hiệu lực từ], MAXIFS([Chính sách com].[Hiệu lực từ], [Chính sách com].[Hiệu lực từ], "<="&[Closing date]), [Chính sách com].[Nguồn lead], [Nguồn lead], [Chính sách com].[Level], [Level BC], [Chính sách com].[Performance], [Performance BC])` (dùng `IF([Closing date]="", [Ngày dự kiến chốt], [Closing date])` làm ngày tra). Không nhân tỉ lệ SoE. Template dựng sẵn công thức này; Manager sửa khi chính sách đổi cách tính.
 - Thiếu đầu vào (ví dụ chưa có Level BC) thì `Tỉ lệ com sale` và com để trống kèm lý do, không đoán; màn chốt kỳ liệt kê các deal này.
-- Ai thấy com: chính người đó, Leader của họ, Manager của cây, Admin (chỉ đọc). Guest không bao giờ thấy.
+- Ai thấy com (sửa 19/11 lần 2): **% com** của mọi người tham gia: mọi người tham gia deal. **Số tiền com** của một người: chính người đó, Leader của họ, Manager của cây, Admin (chỉ đọc). Guest: không thấy số tiền com; % com và % doanh thu trong `Người tham gia` chỉ khi Manager cấp rõ (mục 15).
 
 ## 10. Chỉ số
 
@@ -619,7 +623,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 
 - Tạo deal, phân deal, chia tỉ lệ, `Huỷ`, chính sách com, lập lịch thanh toán, xác nhận và ghép tiền về, chia com theo đợt, chốt kỳ, mở lại kỳ, điều chỉnh com, snapshot: Manager (cây mình), trực tiếp hoặc qua kết nối AI/API của Manager (Module 5).
 - Sửa template (lớp Cơ bản, Theo vai trò): Admin, Manager. Lớp Theo team: Leader.
-- Guest: đăng ký loại dữ liệu "Deals" với khung cấp dữ liệu Module 1 mục 5.2: chỉ cột lớp Cơ bản kiểu "giá trị chung", không bao giờ cột tuỳ chỉnh, cột theo người và com.
+- Guest: đăng ký loại dữ liệu "Deals" với khung cấp dữ liệu Module 1 mục 5.2: chỉ cột lớp Cơ bản kiểu "giá trị chung", không bao giờ cột tuỳ chỉnh, cột theo người ("của tôi") và số tiền com. `Người tham gia` mặc định chỉ hiện tên và vai trò; Manager cấp thêm **tỉ lệ** (% doanh thu, % com) cho Guest cụ thể khi cần, ví dụ bộ phận Data (Dương chốt 19/11/2026).
 - Chuyển giao: deal mở chuyển vai trò sang người đích, deal đóng giữ người cũ; datahub "Quản lý Deal" của người nguồn: bảng tự tạo chuyển sang người đích; Probation KPI giữ tên người nguồn.
 - Form (Module 7) không ghi vào Deals.
 
@@ -661,6 +665,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 | Bảng Thanh toán riêng của Manager, mỗi dòng một lần tiền về (mục 7 cũ, khung) | Hai bảng chung **Đợt thanh toán** và **Sổ com**, khoá phân chia; bốn command; ghép tiền về (mục 7) | Module 2 mục 10 (khoá phân chia), CLAUDE.md |
 | Won do người chọn; Closing date nhập tay, deal mở dùng làm ngày dự kiến | **Won chỉ khi tiền về đợt đầu**; Closing date hệ thống điền; thêm Ngày dự kiến chốt (mục 4.1, 4.4) | CLAUDE.md |
 | `%Com team` = tỉ lệ tra × tỉ lệ SoE; % com cá nhân cộng tới 100% | `Tỉ lệ com sale`; % com là **% trên com sale**, tổng ≤ `Tỉ lệ SoE` (trần) (mục 9) | — |
+| `Người tham gia` chỉ ở bảng của Manager; người khác thấy `Thành viên deal` không có tỉ lệ; com chỉ người đó, Leader, Manager thấy | `Người tham gia` ở lớp Cơ bản: người tham gia thấy % của nhau, số tiền com chỉ của mình; Guest được cấp tỉ lệ khi Manager chọn (mục 4.1, 9, 15) | CLAUDE.md, Module 1 mục 5.2 |
 | Cột `Không tính vào báo cáo` | Bỏ; thay bằng % doanh thu và `Tính vào số deal` trong Người tham gia (mục 4.5) | — |
 | Doanh thu Index, KPI theo Closing date | Theo ngày tiền về của từng đợt (mục 5) | Module 3 (chỉ số mặc định) |
 
