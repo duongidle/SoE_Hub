@@ -1,5 +1,7 @@
 import { api, apiList, qs, type Page } from "@/lib/api";
-import type { BatchResult, Column, DatahubBrief, HistoryItem, Limits, Person, Row, TableDetail } from "./types";
+import type { TimeFilter, TimeRange } from "@soe/shared";
+import type { BatchResult, Column, DatahubBrief, GroupResult, HistoryItem, Limits, Person, Row, TableDetail, TimeRangeInfo } from "./types";
+import type { GroupFn, ViewConfig, ViewDto } from "./view-config";
 
 /** Calls of the Datahub API used by the screens. Every number and name shown comes from these answers; nothing is computed here. */
 
@@ -8,6 +10,8 @@ export const dhKeys = {
   datahub: (id: string) => ["datahub", id] as const,
   table: (id: string) => ["dh-table", id] as const,
   limits: ["dh-limits"] as const,
+  views: (tableId: string) => ["dh-views", tableId] as const,
+  timeRange: (range: unknown) => ["dh-time-range", range] as const,
 };
 
 export const listDatahubs = (scope: "mine" | "shared" | "all" = "all") => api<DatahubBrief[]>("GET", `/datahubs${qs({ scope })}`);
@@ -29,13 +33,46 @@ export interface RowQuery {
   filter?: unknown;
   sort?: string;
   search?: string;
+  timeFilter?: TimeFilter;
+  marks?: unknown[];
   limit?: number;
   cursor?: string | null;
+  /** Window read: skip this many rows (counted from the end of the list with `reverse`). */
+  offset?: number;
+  reverse?: boolean;
   includeTotal?: boolean;
 }
 
+const json = (v: unknown) => (v === undefined ? undefined : (v as object));
+
 export const fetchRows = (tableId: string, q: RowQuery = {}): Promise<Page<Row>> =>
-  apiList<Row>(`/tables/${tableId}/rows${qs({ filter: q.filter as object | undefined, sort: q.sort, search: q.search, limit: q.limit ?? 200, cursor: q.cursor, include_total: q.includeTotal ? true : undefined })}`);
+  apiList<Row>(
+    `/tables/${tableId}/rows${qs({
+      filter: json(q.filter),
+      sort: q.sort,
+      search: q.search,
+      time_filter: json(q.timeFilter),
+      marks: q.marks?.length ? (q.marks as object) : undefined,
+      limit: q.limit ?? 200,
+      cursor: q.cursor,
+      offset: q.offset,
+      reverse: q.reverse ? true : undefined,
+      include_total: q.includeTotal ? true : undefined,
+    })}`,
+  );
+
+export const fetchGroups = (tableId: string, q: { filter?: unknown; timeFilter?: TimeFilter; search?: string; group: { field: string; dir: "asc" | "desc" }[]; aggs?: Record<string, GroupFn> }) =>
+  api<GroupResult>("GET", `/tables/${tableId}/row-groups${qs({ filter: json(q.filter), time_filter: json(q.timeFilter), search: q.search, group: q.group as unknown as object, aggs: q.aggs && Object.keys(q.aggs).length ? q.aggs : undefined })}`);
+
+export const resolveTimeRange = (range: TimeRange) => api<TimeRangeInfo>("GET", `/datahub/time-range${qs({ range: range as unknown as object })}`);
+
+// ---- views (design module2 section 5)
+export const listViews = (tableId: string) => api<{ views: ViewDto[]; last_view_id: string | null }>("GET", `/tables/${tableId}/views`);
+export const createView = (tableId: string, body: { name: string; shared?: boolean; config?: ViewConfig }) => api<ViewDto>("POST", `/tables/${tableId}/views`, body);
+export const updateView = (viewId: string, body: { name?: string; position?: number; config?: Record<string, unknown> }) => api<ViewDto>("PATCH", `/views/${viewId}`, body);
+export const resetView = (viewId: string) => api<ViewDto>("POST", `/views/${viewId}/reset`, {});
+export const deleteView = (viewId: string) => api<{ id: string; deleted: true }>("DELETE", `/views/${viewId}`);
+export const rememberView = (tableId: string, viewId: string) => api("PUT", `/tables/${tableId}/last-view`, { view_id: viewId });
 
 export const fetchRowsByIds = async (tableId: string, ids: string[]): Promise<Row[]> => (await fetchRows(tableId, { filter: { field: "_id", op: "in", value: ids }, limit: Math.min(500, Math.max(1, ids.length)) })).data;
 

@@ -1,5 +1,7 @@
 import { ApiError } from "@/lib/api";
-import { batchRows, fetchRowsByIds, restoreRowsBatch } from "./api";
+import { batchRows, fetchGroups, fetchRowsByIds, restoreRowsBatch } from "./api";
+import { GroupLayout, type GroupLine } from "./group-layout";
+import type { SessionQuery } from "./view-config";
 import { sameValue } from "./cells";
 import { LabelCache } from "./labels";
 import { RowsStore } from "./rows-store";
@@ -32,20 +34,119 @@ export class TableSession {
   saving = 0;
   private savingListeners = new Set<() => void>();
 
+  /** Rows come in the order of the query; with a grouping the lines of the grid are the groups and the rows of the open groups. */
+  groupLines: GroupLine[] = [];
+  groupsStatus: "idle" | "loading" | "ready" | "error" = "idle";
+  groupsError: unknown = null;
+  /** The group list was cut (too many groups at one level). */
+  groupsTruncated = false;
+  /** Groups the person closed (header only). Lost with the session. */
+  closed = new Set<string>();
+  layout: GroupLayout | null = null;
+  private layoutVersion = 0;
+  private layoutListeners = new Set<() => void>();
+  private groupsBusy = false;
+  private groupsAgain = false;
+  private groupsTimer: ReturnType<typeof setTimeout> | null = null;
+  private stopped = false;
+
   constructor(
     readonly table: TableDetail,
-    query: ConstructorParameters<typeof RowsStore>[1] = {},
+    readonly query: SessionQuery = {},
   ) {
-    this.store = new RowsStore(table.id, query);
+    this.store = new RowsStore(table.id, { filter: query.filter, sort: query.sort, search: query.search, timeFilter: query.timeFilter, marks: query.marks });
     this.labels = new LabelCache(table.id);
     this.byKey = new Map(table.columns.map((c) => [c.key, c]));
   }
 
+  get grouped(): boolean {
+    return !!this.query.group?.length;
+  }
+  /** Nothing narrows or reorders the rows: a row created now sits at the end. */
+  private get plain(): boolean {
+    const q = this.query;
+    return !q.filter && !q.sort && !q.search && !q.timeFilter && !this.grouped;
+  }
+
   start(): void {
+    this.stopped = false;
     this.store.start();
+    if (this.grouped && this.groupsStatus === "idle") void this.loadGroups();
   }
   stop(): void {
+    this.stopped = true;
     this.store.stop();
+    if (this.groupsTimer) clearTimeout(this.groupsTimer);
+  }
+
+  subscribeLayout = (fn: () => void): (() => void) => {
+    this.layoutListeners.add(fn);
+    return () => this.layoutListeners.delete(fn);
+  };
+  getLayoutVersion = (): number => this.layoutVersion;
+  private bumpLayout(): void {
+    this.layoutVersion++;
+    this.layoutListeners.forEach((f) => f());
+  }
+
+  /** Lines the grid draws: the number of rows, or with a grouping the headers plus the rows of the open groups. */
+  get lineCount(): number {
+    if (!this.grouped) return this.store.count;
+    return this.layout?.count ?? 0;
+  }
+
+  /** (Re)builds the lines of a grouped table from the group list the server answered. */
+  private rebuildLayout(): void {
+    this.layout = this.grouped ? new GroupLayout(this.groupLines, this.query.group!.length, this.closed) : null;
+    this.bumpLayout();
+  }
+
+  /** Reads the groups and their totals (one request at a time; a change that arrives meanwhile asks for one more read). */
+  async loadGroups(): Promise<void> {
+    if (!this.grouped || this.stopped) return;
+    if (this.groupsBusy) {
+      this.groupsAgain = true;
+      return;
+    }
+    this.groupsBusy = true;
+    if (this.groupsStatus === "idle") this.groupsStatus = "loading";
+    try {
+      const res = await fetchGroups(this.table.id, { filter: this.query.filter, timeFilter: this.query.timeFilter, search: this.query.search, group: this.query.group!, aggs: this.query.aggs });
+      if (this.stopped) return;
+      this.groupLines = res.groups;
+      this.groupsTruncated = res.truncated;
+      this.groupsStatus = "ready";
+      this.groupsError = null;
+      this.rebuildLayout();
+    } catch (e) {
+      if (this.stopped) return;
+      this.groupsError = e;
+      if (this.groupsStatus !== "ready") this.groupsStatus = "error";
+      this.bumpLayout();
+    } finally {
+      this.groupsBusy = false;
+      if (this.groupsAgain && !this.stopped) {
+        this.groupsAgain = false;
+        void this.loadGroups();
+      }
+    }
+  }
+
+  private scheduleGroups(): void {
+    if (!this.grouped || this.stopped) return;
+    if (this.groupsTimer) clearTimeout(this.groupsTimer);
+    this.groupsTimer = setTimeout(() => void this.loadGroups(), 200);
+  }
+
+  toggleGroup(key: string): void {
+    if (this.closed.has(key)) this.closed.delete(key);
+    else this.closed.add(key);
+    this.rebuildLayout();
+  }
+
+  /** Reads again what is on screen (after someone else's change): the rows, and the groups when the table is grouped. */
+  async syncAll(from: number, to: number): Promise<void> {
+    await Promise.all([this.store.sync(from, to).catch(() => undefined), this.grouped ? this.loadGroups() : undefined]);
   }
 
   onSaving = (fn: () => void): (() => void) => {
@@ -58,6 +159,8 @@ export class TableSession {
     return p.finally(() => {
       this.saving--;
       this.savingListeners.forEach((f) => f());
+      // A write can move a row to another group or change a total.
+      this.scheduleGroups();
     });
   }
 
@@ -160,7 +263,7 @@ export class TableSession {
     for (let i = 0; i < values.length; i += BATCH) {
       const res = await this.track(batchRows(this.table.id, values.slice(i, i + BATCH).map((data) => ({ op: "create", data }))));
       const rows = res.results.map((r) => r.row).filter((r): r is Row => !!r);
-      this.store.append(rows);
+      this.store.append(rows, { positionKnown: this.plain });
       created.push(...rows);
     }
     const ids = created.map((r) => r.id);
@@ -171,7 +274,7 @@ export class TableSession {
       },
       redo: async () => {
         const res = await this.track(restoreRowsBatch(this.table.id, ids));
-        this.store.append(res.rows);
+        this.store.append(res.rows, { positionKnown: this.plain });
       },
     };
     return { rows: created, entry };

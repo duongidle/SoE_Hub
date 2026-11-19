@@ -71,6 +71,8 @@ export interface Row {
   data: Record<string, unknown>;
   /** Keys of the computed columns of this row that are waiting to be recalculated. */
   pending?: string[];
+  /** Indexes of the colour rules of the view this row satisfies (decided by the server). */
+  marks?: number[];
 }
 
 export interface RowPage {
@@ -103,4 +105,22 @@ export interface Person {
 export interface BatchResult {
   results: { op: string; outcome: string; id: string; row: Row | null; seq: number }[];
   seq: number;
+}
+
+/** `datahub.row.groups`: groups in display order with their row counts and totals. */
+export interface GroupResult {
+  groups: { depth: number; path: (string | number | boolean | null)[]; count: number; aggs: Record<string, number | string | null> }[];
+  truncated: boolean;
+}
+
+/** `datahub.time_filter.resolve`: a range as dates, and where today falls. */
+export interface TimeRangeInfo {
+  from: string | null;
+  to: string | null;
+  today: string;
+  fiscal_start_month: number;
+  year: number;
+  month: number;
+  fiscal_year: number;
+  fiscal_quarter: number;
 }
