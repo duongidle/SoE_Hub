@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, ChevronLeft, ChevronRight, Layers, MoreHorizontal, Pencil, Plus, Share2, Trash2, Upload } from "lucide-react";
+import { Link, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+import { ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Layers, MoreHorizontal, Pencil, Plus, Share2, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SHARE_PERMISSION_LABELS } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { createTable, deleteTable, dhKeys, getDatahub, restoreTable, updateTable
 import type { DatahubBrief, TableBrief } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
 import { nameError } from "./list";
+import { DashboardArea } from "./dashboard/dashboard-area";
 import { ImportDialog } from "./import-dialog";
 import { MergeDialog } from "./merge-dialog";
 import { ShareDialog } from "./share-dialog";
@@ -21,15 +22,16 @@ import { TableView } from "./table-view";
 
 /** `/datahub/:datahubId/:tableId` — the tabs of the tables of one datahub, and the open table below them. */
 export function DatahubPage() {
-  const { datahubId, tableId } = useParams({ strict: false }) as { datahubId: string; tableId?: string };
+  const { datahubId, tableId, dashboardId } = useParams({ strict: false }) as { datahubId: string; tableId?: string; dashboardId?: string };
+  const onDashboard = useRouterState({ select: (s) => /\/dashboard(\/|$)/.test(s.location.pathname) });
   const nav = useNavigate();
   const q = useQuery({ queryKey: dhKeys.datahub(datahubId), queryFn: () => getDatahub(datahubId), retry: (n, e) => !(e instanceof ApiError) && n < 2 });
   const dh = q.data;
 
   // No table in the address: open the first one (the address then holds the table, so the link can be sent).
   useEffect(() => {
-    if (dh && !tableId && dh.tables[0]) void nav({ to: "/datahub/$datahubId/$tableId", params: { datahubId, tableId: dh.tables[0].id }, replace: true });
-  }, [dh, tableId, datahubId, nav]);
+    if (dh && !tableId && !onDashboard && dh.tables[0]) void nav({ to: "/datahub/$datahubId/$tableId", params: { datahubId, tableId: dh.tables[0].id }, replace: true });
+  }, [dh, tableId, onDashboard, datahubId, nav]);
 
   if (q.isLoading) {
     return (
@@ -46,10 +48,10 @@ export function DatahubPage() {
   if (q.error || !dh) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được datahub" />;
 
   const current = dh.tables.find((t) => t.id === tableId);
-  return <DatahubBody dh={dh} tableId={tableId} current={current} />;
+  return <DatahubBody dh={dh} tableId={tableId} current={current} dashboard={onDashboard ? { id: dashboardId } : null} />;
 }
 
-function DatahubBody({ dh, tableId, current }: { dh: DatahubBrief; tableId?: string; current?: TableBrief }) {
+function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; tableId?: string; current?: TableBrief; dashboard: { id?: string } | null }) {
   const [sharing, setSharing] = useState(false);
   const [importing, setImporting] = useState(false);
   return (
@@ -76,8 +78,10 @@ function DatahubBody({ dh, tableId, current }: { dh: DatahubBrief; tableId?: str
       </div>
       {sharing && <ShareDialog dh={dh} onClose={() => setSharing(false)} />}
       {importing && <ImportDialog target={{ datahub: { id: dh.id, name: dh.name, access: dh.access, tables: dh.tables.filter((t) => t.kind !== "merged").map((t) => ({ id: t.id, name: t.name })) } }} onClose={() => setImporting(false)} />}
-      <TableTabs dh={dh} currentId={tableId} />
-      {dh.tables.length === 0 ? (
+      <TableTabs dh={dh} currentId={dashboard ? undefined : tableId} dashboardOn={!!dashboard} />
+      {dashboard ? (
+        dh.access === "owner" ? <DashboardArea dh={dh} dashboardId={dashboard.id} /> : <NoAccessState title="Không mở được dashboard" hint="Chỉ chủ datahub xem và sửa dashboard. Chia sẻ dashboard sẽ có ở bước sau." />
+      ) : dh.tables.length === 0 ? (
         <EmptyState title="Datahub chưa có bảng nào" hint={dh.access === "owner" ? "Tạo bảng đầu tiên để thêm dữ liệu." : "Chủ datahub chưa chia sẻ bảng nào cho bạn."} />
       ) : !current ? (
         tableId ? <NoAccessState title="Không mở được bảng" hint="Bảng này không tồn tại, đã bị xoá, hoặc không được chia sẻ cho bạn." /> : <Skeleton className="h-64 w-full" />
@@ -88,7 +92,7 @@ function DatahubBody({ dh, tableId, current }: { dh: DatahubBrief; tableId?: str
   );
 }
 
-function TableTabs({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) {
+function TableTabs({ dh, currentId, dashboardOn }: { dh: DatahubBrief; currentId?: string; dashboardOn: boolean }) {
   const owner = dh.access === "owner";
   const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "merge" } | { kind: "rename"; t: TableBrief } | { kind: "delete"; t: TableBrief } | null>(null);
   const qc = useQueryClient();
@@ -127,6 +131,11 @@ function TableTabs({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) 
             </div>
           );
         })}
+        {owner && (
+          <Link to="/datahub/$datahubId/dashboard" params={{ datahubId: dh.id }} role="tab" aria-selected={dashboardOn} data-testid="dashboard-tab" className={cn("ml-2 inline-flex shrink-0 items-center gap-1 border-b-2 px-3 py-3 text-sm sm:py-2", dashboardOn ? "border-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground")}>
+            <BarChart3 size={14} aria-hidden /> Dashboard
+          </Link>
+        )}
         {owner && (
           <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "add" })}>
             <Plus size={16} aria-hidden /> Thêm bảng

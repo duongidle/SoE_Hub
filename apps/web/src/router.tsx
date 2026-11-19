@@ -30,6 +30,8 @@ export const router = createRouter({
     lazyPage("/datahub", () => import("@/pages/datahub/list"), "DatahubListPage"),
     lazyPage("/datahub/thung-rac", () => import("@/pages/datahub/trash"), "TrashPage"),
     lazyPage("/datahub/$datahubId", () => import("@/pages/datahub/detail"), "DatahubPage"),
+    lazyPage("/datahub/$datahubId/dashboard", () => import("@/pages/datahub/detail"), "DatahubPage"),
+    lazyPage("/datahub/$datahubId/dashboard/$dashboardId", () => import("@/pages/datahub/detail"), "DatahubPage"),
     lazyPage("/datahub/$datahubId/$tableId", () => import("@/pages/datahub/detail"), "DatahubPage"),
     r("/to-chuc", OrgPage),
     r("/tai-khoan", AccountPage),

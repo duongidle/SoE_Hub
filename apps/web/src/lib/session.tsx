@@ -55,7 +55,7 @@ export interface LiveSignal {
 /** Screens that need the raw signals (an open table) listen here instead of opening a second stream. */
 export const liveBus = new EventTarget();
 
-const DATAHUB_SIGNALS = ["datahub.row.created", "datahub.row.updated", "datahub.row.deleted", "datahub.row.restored", "datahub.formula.recalculated", "datahub.structure.changed", "datahub.share.changed", "datahub.merge.synced"];
+const DATAHUB_SIGNALS = ["datahub.row.created", "datahub.row.updated", "datahub.row.deleted", "datahub.row.restored", "datahub.formula.recalculated", "datahub.structure.changed", "datahub.share.changed", "datahub.merge.synced", "metrics.data.changed"];
 
 /** Listens to the SSE stream and refreshes the matching queries (signals only, never data). */
 export function useLiveUpdates(enabled: boolean) {
