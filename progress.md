@@ -39,7 +39,7 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 - **3B bảng gộp**: xong, Opus rà đạt 19/11.
 - **3C-1 dashboard + biểu đồ cơ bản (giao diện)**: tab Dashboard trong datahub, nhiều dashboard (mới, đổi tên, nhân bản, đổi thứ tự, xoá vào thùng rác, giới hạn 30 biểu đồ/20 dashboard), lưới kéo thả + đổi kích thước tự lưu, khung cấu hình biểu đồ, thư viện chỉ số/nguồn đã lưu ("Lưu thành..."), loại: Thẻ KPI, cột/thanh (nhóm, chồng, 100%), đường/vùng, kết hợp hai trục, tròn/donut, bảng, pivot, ô ghi chú; tuỳ chọn hiển thị chung; e2e.
 - **3C-2 biểu đồ còn lại + tương tác**: bullet, đồng hồ, phễu, box plot, histogram, scatter, ma trận 2×2/heatmap, waterfall, xếp hạng, cohort tam giác; bộ lọc chung (bản riêng + "Về mặc định"), lọc chéo, xem các dòng (theo quyền), xuất CSV/PNG, JSON xuất/nhập dashboard, chia sẻ dashboard (tính bằng quyền chủ, nhật ký, Guest được cấp); e2e.
-- **3D load test**: xong, chờ Opus rà. `LOAD_TEST=1 pnpm exec vitest run apps/api/test/metrics-load-3d.test.ts`; lượt lạnh 20 người max 900 ms (đạt), không cần tối ưu; số đo ở quyết định khi code mục 3D.
+- **3D load test**: xong, Opus rà đạt 20/11. `LOAD_TEST=1 pnpm exec vitest run apps/api/test/metrics-load-3d.test.ts`; lượt lạnh 20 người max 900 ms (đạt), không cần tối ưu; số đo ở quyết định khi code mục 3D.
 - **3E kiểm thử cuối stage**: theo "Cách kiểm thử cuối stage để tiết kiệm token" (CLAUDE.md), chia 3E-1 (toàn bộ test) và 3E-2 (luồng chủ chốt theo vai trò + dữ liệu xấu nhất).
 
 Để Stage 4 (ghi rõ trong quyết định khi code): snapshot thật, team theo cây tại thời điểm của deal, dashboard hệ thống Deals, winrate theo cycle.
@@ -50,7 +50,9 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 
 **3C-2 xong, Opus rà 20/11: đạt** (lần 1 trả lại 2 lỗi: người xem không phải chủ lọc được theo mọi cột của bảng nguồn nên dò được giá trị từng dòng, sửa bằng `checkViewerFilters`; e2e `stage3c2` dùng email cố định, trùng với `stage2e`). Commit d6466ec..f160028. Đụng phần dùng chung (`shell.tsx`, `echart.tsx`, `grid.tsx`, `modules/guest`, phân quyền) nên Opus tự chạy lại sau khi sửa: typecheck, lint sạch; `vitest run` 71 file, 980 pass; `pnpm test:e2e --project=desktop` 85/85. Quyết định (cờ `guest_visible`, nhật ký mức dashboard, không làm trình ghép bảng trong khung cấu hình): file quyết định mục 3C-2. Ghi nhận cho 3E/Stage 12: người xem qua chia sẻ dashboard không tự tải lại khi dữ liệu đổi; chưa chạy 375px.
 
-**3D load test xong (chờ Opus rà): đạt, không sửa engine.** Tiếp theo **3E**. (Đề bài 3D cũ: Module 3 mục 6.1 điểm 5): 100.000 dòng, 20 người cùng mở dashboard 30 biểu đồ (trộn đủ loại, gồm loại mới của 3C-2 qua `metrics.chart.data`), không cache sẵn; đạt khi mọi biểu đồ xong trong 3 s, không lỗi; tối ưu nếu chưa đạt. Đo thêm việc ghi chú từ 3B (nhiều người sửa nguồn của bảng gộp cùng lúc). Sau đó **3E** (3E-1 toàn bộ test, 3E-2 luồng chủ chốt theo vai trò + dữ liệu xấu nhất).
+**3D xong, Opus rà 20/11: đạt** (1c3635f, ddb06d0; số đo ở file quyết định mục 3D). 20 người lạnh cùng dashboard 30 biểu đồ: p95 846 ms, max 900 ms, không lỗi; nhanh vì 20 người chung một khoá cache (số tính theo quyền chủ) nên chỉ chạy 44 câu SQL. Ca 20 bộ lọc khác nhau: max 8,8 s (6 bộ lọc 2,96 s), giới hạn là CPU Postgres. Opus chấp nhận cho Stage 3; **4.1 bắt buộc đo lại** (mục "Việc đã xếp cho Stage 4").
+
+**Tiếp theo: 3E-1** (toàn bộ test: `pnpm test`, cả bộ e2e desktop, luồng chính ở điện thoại; sửa lỗi), rồi **3E-2** (luồng chủ chốt theo vai trò + dữ liệu xấu nhất, kiểm OpenAPI + Bruno đủ).
 
 ## Điều chỉnh Stage 3 so với Module 3 đã đọc (Dương chốt 19/11)
 
@@ -72,6 +74,7 @@ Module 3 vừa sửa sau khi Sonnet đọc (commit 36d3e03), vì Dương chốt 
 - Hạ tầng bảng template (cờ bảo vệ, lớp cột, vai trò cột); bỏ `PhysicalSource`.
 - View nhóm: thu gọn tất cả, lưu vào view; xuất dạng tổng hợp (việc 19a, 19b; Module 2 mục 5.1).
 - Kiểu cột "Ngày sửa của cột"; đổi tên lựa chọn cập nhật công thức so chữ (việc 19c, 19d).
+- **Đo lại load 3D sau 4.1 (Opus 20/11, bắt buộc):** khoá phân chia làm mỗi người một phạm vi, nên ca "20 bộ lọc khác nhau" của 3D (max 8,8 s) thành ca thật. Đo 20 người, phạm vi khác nhau, dashboard 30 biểu đồ trên Deals 100.000 dòng; đạt khi mọi biểu đồ xong trong 3 s. Chưa đạt thì tối ưu ở gốc (box plot đang self-join; ghép bảng tính lại khoá chuẩn hoá mỗi câu). Cache đang nằm trong bộ nhớ từng tiến trình api.
 - Sau 4.1, Stage 4 thêm: thanh toán và com theo đợt (Module 4 mục 7, 12: bốn command, ghép tiền về, chốt kỳ), chỉ số trỏ cột theo vai trò (Module 4 mục 19 việc 14–15).
 
 
