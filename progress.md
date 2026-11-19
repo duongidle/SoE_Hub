@@ -48,6 +48,11 @@ Cập nhật: 19/11/2026
 
 Opus rà soát 2C-2 bằng diff từ `8e9ca42` và kết quả kiểm thử bên dưới (không chạy lại trừ khi nghi). Sau đó **2C-3**: quản lý cột (thêm/sửa/xoá, đổi kiểu có báo trước), trình soạn công thức (mục 6.3) + thư viện mẫu, ô chọn dòng đích cho cột Liên kết. Chạy nhanh: `pnpm exec vitest run apps/web`; giao diện: e2e của đúng spec bước đó, `--project=desktop`.
 
+### Việc cho kiểm thử cuối Stage 2 (dời từ 2C-2)
+
+- `impeccable detect --url` cho grid + thanh công cụ view trên trang thật (api + worker + web dev).
+- Theo dõi lỗi hết giờ `stage1.spec.ts` phone "cài đặt hệ thống" (thấy 1 lần, chạy lại thì pass; có thể cùng nguyên nhân Vite tải lại trang, đã sửa ở `vite.config.ts`).
+
 ### Kết quả kiểm thử 2C-2
 
 - `pnpm lint`, `typecheck` sạch; `pnpm test` 606 pass (21 mới ở `apps/web/test/view-config.test.ts`); `pnpm test:e2e`: stage1 + stage2c1 + `stage2c2.spec.ts` (10 luồng) ở 1280x800 và 375x812, không lỗi console/network (chạy đầy đủ lần cuối: 74 pass, 8 bỏ qua; một lần trước đó stage1 phone hết giờ, chạy lại thì pass).
@@ -57,7 +62,6 @@ Opus rà soát 2C-2 bằng diff từ `8e9ca42` và kết quả kiểm thử bên
 
 ## Câu hỏi còn mở
 
-- 2C-2: (1) Kéo thả tab view và "vạch cố định" thay bằng menu/nút (khớp cách đã làm với tab bảng). (2) Tìm kiếm không lưu theo view (schema view không có trường này). (3) Nhóm: trạng thái đóng/mở nhóm chỉ giữ trong phiên. (4) Số hàng "Cao" 56 px và "Gọn" 32 px là giá trị tự chọn.
 
 - 2C-1: (1) Cây truy cập (bảng ẩn cho trình đọc màn hình) của Glide không dựng trên React 19 nên grid chưa đọc được bằng trình đọc màn hình; khung chi tiết dòng là DOM thường nên đọc được. Cần Dương quyết có bắt buộc không (bắt buộc thì phải thêm bảng DOM song song hoặc đổi thư viện). (2) Cột Mã dòng hiện `#<số dòng>` (dễ đọc), trong khi export/API trả mã dòng dạng uuid. (3) Không có "nhảy tới dòng thứ N" của bảng rất lớn (keyset); lọc/sắp xếp/tìm ở 2C-2 thay cho việc đó. (4) Cột Liên kết và Đính kèm mới chỉ xem; sửa cần ô chọn dòng đích và tải file (2C-3). (5) Hoàn tác/làm lại chỉ trong phiên mở bảng (máy khách), không đọc lịch sử dòng của server.
 - 2C-1 chưa thử trên điện thoại thật (chạm trong grid canvas, bàn phím ảo với khung chọn, cuộn cảm ứng) và chưa chạy `impeccable audit`.

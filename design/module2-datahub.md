@@ -559,7 +559,12 @@ Làm theo mục 5.1–5.4. Phần server đã xong (đọc cửa sổ `offset`/`
 
 **Test:** `apps/web/test/view-config.test.ts` (query của view, bộ lọc nháp, tên cột, cột ẩn/thứ tự/cố định, tự lưu và bản riêng, bước kỳ, bố cục nhóm), `apps/web/e2e/stage2c2.spec.ts` (10 luồng × 1280 và 375).
 
+**Quyết định của Opus khi rà soát (19/11)**
+- Đổi thứ tự tab view bằng menu "Chuyển sang trái/phải" và cố định cột bằng nút ghim "Cố định đến cột này": chấp nhận, khớp quyết định đổi thứ tự tab bảng ở 2C-1; mục 5.1 ghi "hoặc" cho cố định cột.
+- Tìm kiếm không lưu theo view (mục 5 không yêu cầu).
+- Đóng/mở nhóm chỉ giữ trong phiên; chiều cao dòng Gọn 32 / Vừa 36 / Cao 56 px.
+
+**Nguyên nhân gốc lỗi e2e luồng 100.000 dòng:** Playwright ghi trace vào `apps/web/e2e/results/` trong lúc test chạy; Vite theo dõi cả thư mục đó nên tải lại trang (`[vite] page reload e2e/results/...`), grid biến mất giữa chừng (`.dvn-scroller` null). Không phải lỗi giao diện. Sửa ở gốc: `vite.config.ts` đặt `server.watch.ignored: ["**/e2e/**"]`. Sau sửa: 3 lần `pnpm test:e2e stage2c2` (desktop + phone) đều 20/20 pass, log không còn dòng `page reload`.
+
 **Lệch hoặc bổ sung so với thiết kế**
-- Kéo thả tab view và cố định cột bằng kéo "vạch" chưa có; thay bằng menu/nút (đã nêu). 
-- Tìm kiếm không lưu theo view.
 - Khi có nhóm, ô "Tìm trong bảng" và bộ lọc vẫn tính theo server cho cả số dòng của nhóm.
