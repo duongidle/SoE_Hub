@@ -108,7 +108,7 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 | ------- | -- | ------- |
 | Mỗi bước con | Sonnet | Test nhanh: `typecheck`, `lint`, unit test của phần vừa sửa (`pnpm exec vitest run <thư mục/file>`), e2e của đúng spec bước đó, chỉ ở desktop. Không chạy cả bộ e2e, không chạy 375px, không chạy bộ skill giao diện hay `break-ui`. Ghi lệnh đã chạy và kết quả vào `progress.md`. |
 | Rà bước con | Opus | Đọc diff và kết quả test Sonnet ghi lại, so với thiết kế. Chỉ chạy lại test khi thấy nghi. |
-| Cuối stage (bước con cuối, ví dụ 2D) | Opus | Kiểm thử đầy đủ một lần: `pnpm test` toàn bộ, toàn bộ e2e ở hai bề ngang, đi luồng thật trên trình duyệt, "Định nghĩa xong" điểm 2–5. Lỗi tìm thấy Opus ghi vào `progress.md` (cách tái hiện, mức độ) và giao Sonnet sửa; Sonnet sửa xong chạy lại test nhanh của chỗ đó; Opus kiểm lại đúng chỗ đã sửa, không chạy lại cả bộ trừ khi bản sửa đụng phần dùng chung. |
+| Cuối stage (bước con cuối, ví dụ 2D) | Sonnet chạy, Opus điều phối | **Sonnet** kiểm thử đầy đủ một lần: `pnpm test` toàn bộ, toàn bộ e2e ở hai bề ngang (chụp màn hình), đi luồng thật trên trình duyệt, dò `design/chuan-giao-dien.md`, chạy bộ skill và `break-ui`, "Định nghĩa xong" điểm 2–5; ghi kết quả, lỗi tìm thấy và ảnh chụp vào `progress.md`, sửa lỗi, chạy lại spec liên quan. **Opus** chia việc kiểm thử cho Sonnet (luồng nào, vai trò nào, dữ liệu xấu nhất nào), đọc kết quả và ảnh chụp, tự đi tay vài luồng chính khi cần, hỗ trợ Sonnet tìm nguyên nhân gốc khi kẹt, và quyết định stage đã đạt hay chưa. |
 
 Đổi lại, lỗi giao diện dồn về cuối stage. Nên bước con vẫn phải code đúng quy định trong `design/chuan-giao-dien.md` từ đầu; kiểm thử cuối stage là để bắt sót, không phải chỗ làm lại giao diện.
 
@@ -117,14 +117,14 @@ Thứ tự thiết kế và thứ tự code khớp nhau: module sau chỉ dựa 
 | Stage    | Ai code                                                   | Ai kiểm soát |
 | -------- | --------------------------------------------------------- | ------------ |
 | 0–1      | Opus (đã làm)                                             | Opus         |
-| 2 trở đi | **Sonnet** code và test nhanh                              | **Opus** (kiểm thử đầy đủ cuối stage) |
+| 2 trở đi | **Sonnet** code, test nhanh, kiểm thử đầy đủ cuối stage    | **Opus**     |
 
 Thiết kế module vẫn do Opus đề xuất và Dương chốt. Từ Stage 2, Opus là người kiểm soát:
 
 0. **Opus không tự sửa code hay test**, kể cả sửa nhỏ phát hiện khi rà soát (Dương nhắc 18/11/2026). Opus chỉ chạy lệnh để kiểm tra (git, test, lint, typecheck), ghi lỗi và giao Sonnet sửa. Opus vẫn tự viết thiết kế, `CLAUDE.md` và ghi chú điều phối trong `progress.md`.
 1. Đọc thiết kế, chia stage thành các việc nhỏ có tiêu chí nghiệm thu rõ ràng (file nào, chức năng gì, test nào phải có, luồng giao diện nào phải chạy được), rồi giao từng việc cho Sonnet.
    **Mỗi prompt giao cho Sonnet phải ghi rõ:** (a) đọc `CLAUDE.md` trước khi làm bất cứ việc gì, rồi `progress.md` và file thiết kế liên quan (thêm `design/chuan-giao-dien.md` nếu việc có giao diện); chỉ chạy test nhanh theo mục "Kiểm thử theo cấp"; (b) **sau mỗi bước nhỏ** (một nhóm chức năng, một bộ test pass, một file tài liệu) thì cập nhật `progress.md` (đánh dấu xong, ghi bước tiếp theo cụ thể) và **commit ngay**, không đợi xong cả việc, để hết quota giữa chừng không mất gì; (c) không push.
-2. Rà soát kết quả của Sonnet theo mục "Kiểm thử theo cấp": bước con thì đọc diff và kết quả test, cuối stage thì kiểm thử đầy đủ; đánh giá so với thiết kế và tiêu chí.
+2. Rà soát kết quả của Sonnet theo mục "Kiểm thử theo cấp": bước con thì đọc diff và kết quả test, cuối stage thì điều phối và đọc kết quả kiểm thử đầy đủ của Sonnet; đánh giá so với thiết kế và tiêu chí.
 3. Phản biện và yêu cầu sửa khi chưa đạt; chỉ đánh dấu xong khi đạt "Định nghĩa xong".
 4. Sonnet không được tự đổi quy định đã chốt; chỗ nào thiết kế chưa rõ thì hỏi Opus, Opus tự quyết chi tiết nhỏ và chỉ hỏi Dương việc quan trọng.
 5. **Sửa quá 5 vòng chưa xong thì dừng, báo Opus.** Một vòng là một lần sửa rồi chạy lại test hoặc kiểm thử mà cùng một lỗi vẫn còn (lỗi đổi dạng nhưng cùng chỗ vẫn tính là cùng lỗi). Đến vòng thứ 5 chưa sửa được, Sonnet dừng sửa và báo Opus:
