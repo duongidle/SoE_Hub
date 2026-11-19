@@ -6,7 +6,7 @@ import { defineCommand, defineQuery } from "../../core/registry";
 import type { HandlerCtx } from "../../core/types";
 import { loadTableAccess, type TableAccess } from "./access";
 import { buildSearchText, columnTypeDef, convertValue, listColumnTypes, newColumnKey, newOptionId, normalizeConfig, normalizeDisplay, normalizeOptions } from "./column-types";
-import { pgError, rethrowNameConflict } from "./errors";
+import { DH_REASON, pgError, rethrowNameConflict } from "./errors";
 import { getLimits, quotaExceeded } from "./limits";
 import { emitStructure, Id, STRUCTURE_EVENT } from "./shared";
 import { columnOut, ColumnOut, indexFor } from "./structure";
@@ -97,6 +97,7 @@ const ColumnBody = {
   description: z.string().trim().max(1000).nullable().optional(),
   display: z.record(z.string(), z.unknown()).optional(),
   position: z.number().int().min(0).max(1000).optional(),
+  allow_edit: z.boolean().optional().describe("Thành viên có quyền Sửa có được sửa ô của cột này không (mặc định có). Chủ bảng luôn sửa được; cột công thức không ai sửa ô."),
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -185,6 +186,13 @@ const ReportOut = z.object({
   samples: z.array(z.object({ row_id: Id, row_no: z.number().int(), value: z.unknown(), reason: z.string() })),
 });
 
+/** A key column of the split lock keeps its type and stays (design module2 section 10): take it out of the keys first. */
+function assertNotKeyColumn(acc: TableAccess, col: DhColumn, what: string): void {
+  if (acc.table.split.keys.includes(col.key)) {
+    throw new AppError("forbidden", `Cột "${col.name}" đang là cột khoá phân chia, không ${what} được. Bỏ cột khỏi danh sách khoá trước.`, { reason: DH_REASON.keyColumn, column: col.name });
+  }
+}
+
 function checkTypeChange(col: DhColumn, type: string): void {
   const from = columnTypeDef(col.type);
   const to = columnTypeDef(type);
@@ -240,8 +248,8 @@ export const columnOperations = [
       const dflt = parseDefault(i.type, config, i.name, key, i.default_value);
       const position = i.position ?? (await nextPosition(ctx.db, acc));
       try {
-        await ctx.db.execute(sql`INSERT INTO dh_columns (id, table_id, key, name, type, config, position, required, is_unique, default_value, description, display, created_by, updated_by)
-          VALUES (${id}::uuid, ${acc.tableId}::uuid, ${key}, ${i.name}, ${i.type}, ${JSON.stringify(config)}::jsonb, ${position}::int, ${i.required ?? false}, ${i.unique ?? false}, ${dflt === null ? null : JSON.stringify(dflt)}::jsonb, ${i.description ?? null}, ${JSON.stringify(display)}::jsonb, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
+        await ctx.db.execute(sql`INSERT INTO dh_columns (id, table_id, key, name, type, config, position, required, allow_edit, is_unique, default_value, description, display, created_by, updated_by)
+          VALUES (${id}::uuid, ${acc.tableId}::uuid, ${key}, ${i.name}, ${i.type}, ${JSON.stringify(config)}::jsonb, ${position}::int, ${i.required ?? false}, ${i.allow_edit ?? true}, ${i.unique ?? false}, ${dflt === null ? null : JSON.stringify(dflt)}::jsonb, ${i.description ?? null}, ${JSON.stringify(display)}::jsonb, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
       } catch (e) {
         rethrowNameConflict(e);
       }
@@ -277,6 +285,7 @@ export const columnOperations = [
       name: DhNameSchema.optional(),
       config: z.record(z.string(), z.unknown()).optional(),
       required: z.boolean().optional(),
+      allow_edit: z.boolean().optional().describe("Thành viên có quyền Sửa có được sửa ô của cột này không."),
       unique: z.boolean().optional(),
       default_value: z.unknown().optional(),
       description: z.string().trim().max(1000).nullable().optional(),
@@ -310,7 +319,7 @@ export const columnOperations = [
       let dflt: Stored | null = col.defaultValue as Stored | null;
       if (i.default_value !== undefined || i.config !== undefined) dflt = parseDefault(col.type, config, name, col.key, i.default_value !== undefined ? i.default_value : col.defaultValue);
       try {
-        await ctx.db.execute(sql`UPDATE dh_columns SET name = ${name}, config = ${JSON.stringify(config)}::jsonb, required = ${i.required ?? col.required}, is_unique = ${unique},
+        await ctx.db.execute(sql`UPDATE dh_columns SET name = ${name}, config = ${JSON.stringify(config)}::jsonb, required = ${i.required ?? col.required}, allow_edit = ${i.allow_edit ?? col.allowEdit}, is_unique = ${unique},
           default_value = ${dflt === null ? null : JSON.stringify(dflt)}::jsonb, description = ${i.description === undefined ? col.description : i.description}, display = ${JSON.stringify(display)}::jsonb,
           position = ${i.position ?? col.position}::int, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
       } catch (e) {
@@ -341,6 +350,7 @@ export const columnOperations = [
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
       const { col } = await loadColumn(ctx.db, acc, i.column);
       if (acc.table.kind === "merged" && !isComputedType(col.type)) throw new AppError("forbidden", "Không xoá được cột dữ liệu của bảng gộp. Bỏ cột ở phần cấu hình ghép cột.", { reason: "merged_table_columns" });
+      assertNotKeyColumn(acc, col, "xoá");
       await ctx.db.execute(sql`UPDATE dh_columns SET deleted_at = now(), deleted_by = ${ctx.actor.userId}::uuid, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
       ctx.audit({ type: "datahub_column", id: col.id, details: { table_id: acc.tableId, name: col.name } });
       await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_deleted");
@@ -389,6 +399,7 @@ export const columnOperations = [
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
       if (acc.table.kind === "merged") throw new AppError("forbidden", "Không đổi kiểu cột của bảng gộp.", { reason: "merged_table_columns" });
       const { schema, col } = await loadColumn(ctx.db, acc, i.column);
+      assertNotKeyColumn(acc, col, "đổi kiểu");
       checkTypeChange(col, i.type);
       const cfg = await targetConfig(ctx.db, acc, col, i.type, i.config);
       const report = await convertColumn(ctx, acc, schema, col, i.type, cfg, false);
@@ -410,6 +421,7 @@ export const columnOperations = [
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
       if (acc.table.kind === "merged") throw new AppError("forbidden", "Không đổi kiểu cột của bảng gộp.", { reason: "merged_table_columns" });
       const { schema, col } = await loadColumn(ctx.db, acc, i.column);
+      assertNotKeyColumn(acc, col, "đổi kiểu");
       checkTypeChange(col, i.type);
       const cfg = await targetConfig(ctx.db, acc, col, i.type, i.config);
       const dry = await convertColumn(ctx, acc, schema, col, i.type, cfg, false);

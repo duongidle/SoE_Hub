@@ -15,7 +15,7 @@ import {
 import { loadPlanInputs, loadSource, mergeableColumns, planWithWarnings, PROBLEM_TEXT, requestSync, type SourceProblem } from "./merge-sync";
 import { emitStructure, Id, STRUCTURE_EVENT, Ts } from "./shared";
 import { normName, TableSchema } from "./table-schema";
-import { TableOut } from "./structure";
+import { TableOut, tableOut } from "./structure";
 
 type Ctx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId">;
 type Raw = Record<string, unknown>;
@@ -297,10 +297,8 @@ export const mergeOperations = [
       ctx.audit({ type: "datahub_table", id, details: { datahub_id: dh.id, name: i.name, merged: true, sources: i.sources.length } });
       await emitStructure(ctx, dh.id, id, "table_created");
       const acc = await loadTableAccess(ctx, id);
-      const t = await ctx.db.execute(sql`SELECT id, datahub_id, name, description, position, row_count, version, sql_view, kind FROM dh_tables WHERE /*scope*/ id = ${id}::uuid`);
-      const r = t.rows[0] as Raw;
       return {
-        table: { id, datahub_id: dh.id, name: r.name as string, description: (r.description as string | null) ?? null, position: r.position as number, row_count: r.row_count as number, access: acc.level, version: r.version as number, sql_view: null, kind: "merged" as const },
+        table: await tableOut(ctx.db, acc),
         merge: await mergeOut(ctx.db, id, true),
       };
     },

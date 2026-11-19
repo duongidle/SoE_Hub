@@ -23,7 +23,7 @@ async function attached(db: Executor, acc: TableAccess, ids: string[]): Promise<
   const found = new Set<string>();
   for (const key of keys) {
     const res = await db.execute(sql`SELECT DISTINCT f.id FROM unnest(${`{${ids.join(",")}}`}::uuid[]) AS f(id)
-      WHERE EXISTS (SELECT 1 FROM dh_rows r WHERE ${acc.scope("r")} AND r.deleted_at IS NULL AND r.data->${sql.raw(`'${key}'`)} ? f.id::text)`);
+      WHERE EXISTS (SELECT 1 FROM dh_rows r WHERE ${acc.rows("r")} AND r.deleted_at IS NULL AND r.data->${sql.raw(`'${key}'`)} ? f.id::text)`);
     (res.rows as { id: string }[]).forEach((r) => found.add(r.id));
   }
   return found;

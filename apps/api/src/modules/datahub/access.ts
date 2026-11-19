@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import { sql, type SQL } from "drizzle-orm";
 import { AppError } from "@soe/shared";
 import type { Executor } from "@soe/db";
 import type { HandlerCtx } from "../../core/types";
+import { assertColumnKey } from "./types";
 
 /**
  * Who may do what with a datahub (design module2 section 10, module1 section 4.2). Datahubs are private to their owner:
@@ -25,6 +27,29 @@ export interface TableInfo {
   deleted: boolean;
   /** `merged` = a merged table (design module3 section 4): read-only for everyone, its rows come from the worker. */
   kind: "normal" | "merged";
+  /** Split lock (design module2 section 10). `enabled` off keeps `keys` so the lock can be turned on again. */
+  split: { enabled: boolean; keys: string[]; primary: string | null };
+  /** May members who are not the owner create more than one row at a time (import, paste, batch)? */
+  membersBulkCreate: boolean;
+}
+
+/**
+ * Who a non-owner member of a split-lock table is, for row decisions: `ids` = the rows they see are those that hold one of these ids in a key
+ * column (themselves and every person they manage in the CURRENT organization tree). `manager` / `leader` = the managed people whose rows they
+ * may also EDIT: all of a Manager's tree, and the people whose Leader they are AND who switched on "Cho phép leader sửa" (module1 section 4.1).
+ */
+export interface ReaderScope {
+  self: string;
+  ids: string[];
+  editIds: Set<string>;
+}
+
+/** Condition "a key column of this row holds one of `ids`", one comparison per key column (design module2 section 10: OR over the key columns). */
+function keyMatch(keys: string[], ids: string[], alias?: string): SQL {
+  if (keys.length === 0 || ids.length === 0) return sql`false`;
+  const arr = `{${ids.join(",")}}`;
+  const data = alias ? `${alias}.data` : "data";
+  return sql`(${sql.join(keys.map((k) => sql`((${sql.raw(data)}->>${sql.raw(`'${assertColumnKey(k)}'`)})::uuid = ANY(${arr}::uuid[]))`), sql` OR `)})`;
 }
 
 /**
@@ -38,7 +63,48 @@ export class TableAccess {
     readonly datahub: { id: string; ownerId: string; name: string; deleted: boolean },
     readonly level: Level,
     readonly actorId: string,
+    /** Set only for a non-owner reader of a table whose split lock is on. Null = this reader sees every row. */
+    readonly reader: ReaderScope | null = null,
   ) {}
+
+  /** The table is split-locked for this reader: their rows depend on who they are. */
+  get restricted(): boolean {
+    return this.reader !== null;
+  }
+
+  /**
+   * `scope()` plus, for a reader under the split lock, "a key column holds me or someone I manage". THE condition for every query on
+   * `dh_rows` made for a person (list, one row, groups, totals, export, duplicates, trash, labels, attachments, metrics, the merged table's source).
+   * Writes use it too, so a row that is not theirs cannot be reached with its id. `scope()` alone stays for columns, views and other table data.
+   */
+  rows(alias?: string): SQL {
+    const base = this.scope(alias);
+    if (!this.reader) return base;
+    return sql`${base} AND ${keyMatch(this.table.split.keys, this.reader.ids, alias)}`;
+  }
+
+  /** In JS: does this reader see a row with these cells? (Same rule as `rows()`.) */
+  seesRow(data: Record<string, unknown>): boolean {
+    if (!this.reader) return true;
+    const ids = this.table.split.keys.map((k) => data[k]).filter((v): v is string => typeof v === "string");
+    return ids.some((id) => this.reader!.ids.includes(id));
+  }
+
+  /**
+   * May this reader edit a row they see? The owner and a table without the split lock: yes (the Edit permission was checked by `require`).
+   * Under the split lock: a row that names the reader, or a person the reader may edit for (a Manager for their whole tree, a Leader
+   * for the people who allowed it).
+   */
+  canEditRow(data: Record<string, unknown>): boolean {
+    if (!this.reader) return true;
+    const ids = this.table.split.keys.map((k) => data[k]).filter((v): v is string => typeof v === "string");
+    return ids.some((id) => id === this.reader!.self || this.reader!.editIds.has(id));
+  }
+
+  /** More than one new row in one go is the owner's, or a member's when the owner allowed it (module2 section 10). */
+  bulkCreateAllowed(): boolean {
+    return this.level === "owner" || this.table.membersBulkCreate;
+  }
 
   get tableId() {
     return this.table.id;
@@ -63,7 +129,11 @@ export class TableAccess {
  * (add the reader and the columns of the lock), and every cache (metrics, later others) follows. Callers never build their own key.
  */
 export function scopeKey(a: TableAccess): string {
-  return `${a.tableId}:${a.level}`;
+  if (!a.reader) return `${a.tableId}:${a.level}`;
+  // Under the split lock the rows depend on the reader: the key is the key columns and the ids the reader sees, so two readers who see the same
+  // rows share an answer, and a change in the tree (other people to manage) changes the key by itself.
+  const h = createHash("sha256").update(JSON.stringify([a.table.split.keys, [...a.reader.ids].sort()])).digest("hex").slice(0, 24);
+  return `${a.tableId}:${a.level}:s:${h}`;
 }
 
 /**
@@ -73,7 +143,7 @@ export function scopeKey(a: TableAccess): string {
  */
 export function readableRows(a: TableAccess, alias?: string): SQL {
   const del = alias ? sql.raw(`${alias}.deleted_at`) : sql.raw("deleted_at");
-  return sql`${a.scope(alias)} AND ${del} IS NULL`;
+  return sql`${a.rows(alias)} AND ${del} IS NULL`;
 }
 
 export interface LoadOptions {
@@ -95,6 +165,7 @@ export async function loadTableAccess(ctx: Ctx, tableId: string, need: Level = "
   const u = ctx.actor.userId;
   const res = await ctx.db.execute(sql`
     SELECT t.id, t.datahub_id, t.name, t.next_row_no, t.row_count, t.version, t.deleted_at AS t_deleted, t.kind,
+           t.key_split, t.key_columns, t.key_primary, t.members_bulk_create,
            d.owner_id, d.name AS datahub_name, d.deleted_at AS d_deleted, ${LEVEL_SQL(u)} AS level
     FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
     WHERE /*scope*/ t.id = ${tableId}::uuid`);
@@ -104,11 +175,14 @@ export async function loadTableAccess(ctx: Ctx, tableId: string, need: Level = "
   const level = (r?.kind === "merged" && r.level === "edit_data" ? "view" : r?.level) as Level | null | undefined;
   const ok = r && level && (state === "alive" ? !r.t_deleted && !r.d_deleted : !!r.t_deleted && !r.d_deleted);
   if (!r || !level || !ok) throw new AppError("not_found", "Không tìm thấy bảng.");
+  const split = { enabled: !!r.key_split, keys: (r.key_columns as string[] | null) ?? [], primary: (r.key_primary as string | null) ?? null };
+  const reader = split.enabled && level !== "owner" ? await loadReader(ctx.db, u) : null;
   const acc = new TableAccess(
-    { id: r.id as string, datahubId: r.datahub_id as string, name: r.name as string, nextRowNo: r.next_row_no as number, rowCount: r.row_count as number, version: r.version as number, deleted: !!r.t_deleted, kind: r.kind === "merged" ? "merged" : "normal" },
+    { id: r.id as string, datahubId: r.datahub_id as string, name: r.name as string, nextRowNo: r.next_row_no as number, rowCount: r.row_count as number, version: r.version as number, deleted: !!r.t_deleted, kind: r.kind === "merged" ? "merged" : "normal", split, membersBulkCreate: !!r.members_bulk_create },
     { id: r.datahub_id as string, ownerId: r.owner_id as string, name: r.datahub_name as string, deleted: !!r.d_deleted },
     level,
     u,
+    reader,
   );
   acc.require(need);
   return acc;
@@ -181,4 +255,46 @@ export async function datahubAudience(db: Executor, datahubId: string): Promise<
     UNION
     SELECT grantee_id FROM dh_shares WHERE /*scope:system*/ datahub_id = ${datahubId}::uuid`);
   return (res.rows as { id: string }[]).map((r) => r.id);
+}
+
+/**
+ * The people a person manages in the CURRENT tree (design module1 section 2.3): a Manager manages everyone whose `manager_id` is theirs, a Leader
+ * the people whose `leader_id` is theirs. `editIds` = those the person may also edit for: a Manager's whole tree, a Leader's people who switched on
+ * "Cho phép leader sửa" (`dh_user_prefs.leader_can_edit`). A person with no one under them sees and edits only themselves.
+ */
+export async function loadReader(db: Executor, userId: string): Promise<ReaderScope> {
+  const res = await db.execute(sql`SELECT m.user_id, (m.manager_id = ${userId}::uuid) AS as_manager, coalesce(p.leader_can_edit, false) AS lce
+    FROM org_memberships m LEFT JOIN dh_user_prefs p ON p.user_id = m.user_id
+    WHERE m.valid_to IS NULL AND m.user_id <> ${userId}::uuid AND (m.manager_id = ${userId}::uuid OR m.leader_id = ${userId}::uuid)`);
+  const ids = [userId];
+  const editIds = new Set<string>();
+  for (const r of res.rows as { user_id: string; as_manager: boolean; lce: boolean }[]) {
+    ids.push(r.user_id);
+    if (r.as_manager || r.lce) editIds.add(r.user_id);
+  }
+  return { self: userId, ids, editIds };
+}
+
+/**
+ * SSE audience of an event about some ROWS of a table (design module2 section 10). Without the split lock it is everyone who can see the table.
+ * Under the lock it is the owner and the members who see at least one of the rows: those that name them or someone they manage in a key column.
+ * `extraKeyUsers` = the ids the rows held BEFORE the change (a row whose key moved leaves the old holder's view, so they must hear of it too).
+ * Runs in the worker (system scope).
+ */
+export async function rowAudience(db: Executor, tableId: string, rowIds: string[], extraKeyUsers: string[] = []): Promise<string[]> {
+  const t = await db.execute(sql`SELECT t.key_split, t.key_columns, d.owner_id FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id WHERE /*scope:system*/ t.id = ${tableId}::uuid`);
+  const info = t.rows[0] as { key_split: boolean; key_columns: string[]; owner_id: string } | undefined;
+  const everyone = await tableAudience(db, tableId);
+  if (!info || !info.key_split) return everyone;
+  const holders = new Set<string>(extraKeyUsers);
+  if (rowIds.length) {
+    const res = await db.execute(sql`SELECT data FROM dh_rows WHERE /*scope:system*/ table_id = ${tableId}::uuid AND id = ANY(${`{${rowIds.join(",")}}`}::uuid[])`);
+    for (const r of res.rows as { data: Record<string, unknown> }[]) for (const k of info.key_columns) if (typeof r.data[k] === "string") holders.add(r.data[k] as string);
+  }
+  const members = everyone.filter((id) => id !== info.owner_id);
+  if (members.length === 0 || holders.size === 0) return [info.owner_id];
+  const hold = `{${[...holders].join(",")}}`;
+  const res = await db.execute(sql`SELECT x.id FROM unnest(${`{${members.join(",")}}`}::uuid[]) AS x(id)
+    WHERE x.id = ANY(${hold}::uuid[]) OR EXISTS (SELECT 1 FROM org_memberships o WHERE o.valid_to IS NULL AND o.user_id = ANY(${hold}::uuid[]) AND (o.manager_id = x.id OR o.leader_id = x.id))`);
+  return [info.owner_id, ...(res.rows as { id: string }[]).map((r) => r.id)];
 }

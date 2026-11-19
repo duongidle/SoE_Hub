@@ -12,6 +12,7 @@ import { FormulaTranslator, type ReasonCode, type SheetMap } from "./excel-formu
 import { colIndex } from "./import-read";
 import { analyzeSheet, buildRow, ImportMappingSchema, MAX_ERRORS_KEPT, resolveSheet, VALIDATE_SAMPLE, type CellIssue, type ExistingColumn, type ImportMapping, type ResolvedCol, type ResolvedSheet, type SheetAnalysis } from "./import-plan";
 import { fetchGoogleSheet, openBook, type SourceBook } from "./import-read";
+import { bulkCreateOff } from "./errors";
 import { assertJobRoom, callAs, cancelRequested, jobActor, JobCancelled, jobOut, JobOut, loadJob, patchJob, registerJobRunner, type JobEnv, type JobRow } from "./jobs";
 import { getLimits } from "./limits";
 import { Id } from "./shared";
@@ -170,7 +171,7 @@ function decideFormulas(sheets: { rs: ResolvedSheet; scan: SheetScan }[], tableN
 // preparing a mapping (shared by preview, start and the runner)
 // ------------------------------------------------------------------------------------------------
 
-async function existingColumnsOf(ctx: Ctx, tableId: string, need: "view" | "edit_data" | "owner"): Promise<{ cols: ExistingColumn[]; level: string; name: string; datahubId: string }> {
+async function existingColumnsOf(ctx: Ctx, tableId: string, need: "view" | "edit_data" | "owner"): Promise<{ cols: ExistingColumn[]; level: string; name: string; datahubId: string; bulkCreate: boolean }> {
   const acc = await loadTableAccess(ctx, tableId, need);
   const schema = await TableSchema.load(ctx.db, acc);
   return {
@@ -178,6 +179,7 @@ async function existingColumnsOf(ctx: Ctx, tableId: string, need: "view" | "edit
     level: acc.level,
     name: acc.table.name,
     datahubId: acc.datahub.id,
+    bulkCreate: acc.bulkCreateAllowed(),
   };
 }
 
@@ -187,6 +189,8 @@ interface Prepared {
   tableNames: string[];
   decisions: Map<string, FormulaDecision>;
   blocking: string[];
+  /** The import would write into a table whose owner does not let members add rows in bulk (a member is importing). */
+  bulkOff: boolean;
   datahub: { id: string | null; level: string | null; name: string; tableCount: number; maxColumns: number };
   limits: Awaited<ReturnType<typeof getLimits>>;
 }
@@ -194,6 +198,7 @@ interface Prepared {
 async function prepare(ctx: Ctx, storage: StorageDriver, job: Pick<JobRow, "sourceKey" | "sourceName">, mapping: ImportMapping): Promise<Prepared> {
   const book = await openJobBook(storage, job);
   const blocking: string[] = [];
+  let bulkOff = false;
   const limits = await getLimits(ctx.db, ctx.actor.userId);
 
   let datahub: Prepared["datahub"];
@@ -224,6 +229,11 @@ async function prepare(ctx: Ctx, storage: StorageDriver, job: Pick<JobRow, "sour
       if (datahub.id && ex.datahubId !== datahub.id) throw new AppError("validation_error", `Bảng của sheet "${m.sheet}" không thuộc datahub đã chọn.`);
       existing = ex.cols;
       existingTable = { id: m.table.table_id, level: ex.level, name: ex.name };
+      // The owner may switch off "Thành viên được thêm dòng hàng loạt" (module2 section 10): importing is exactly that.
+      if (!ex.bulkCreate) {
+        bulkOff = true;
+        blocking.push(`Sheet "${m.sheet}": chủ bảng không cho thành viên nhập dữ liệu hàng loạt vào bảng này.`);
+      }
     } else {
       newTables++;
       const k = m.table.name.trim().toLowerCase();
@@ -249,7 +259,7 @@ async function prepare(ctx: Ctx, storage: StorageDriver, job: Pick<JobRow, "sour
   if (datahub.tableCount + newTables > limits.tables) blocking.push(`Datahub sẽ có ${datahub.tableCount + newTables} bảng, vượt giới hạn ${limits.tables} bảng mỗi datahub.`);
   const tableNames = mapping.sheets.map((m, i) => (m.table.mode === "new" ? m.table.name : (sheets[i]!.existingTable?.name ?? m.sheet)));
   const decisions = mapping.import_formulas || mapping.sheets.some((m) => m.columns?.some((c) => c.formula === "formula")) ? decideFormulas(sheets, tableNames, book) : new Map();
-  return { book, sheets, tableNames, decisions, blocking, datahub, limits };
+  return { book, sheets, tableNames, decisions, blocking, bulkOff, datahub, limits };
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -327,6 +337,7 @@ async function runImport(env: JobEnv, job: JobRow): Promise<void> {
   const ctx: Ctx = { db: env.db, actor: jobActor(owner) };
   await patchJob(env.db, job.id, { phase: "reading" });
   const prep = await prepare(ctx, env.storage, job, mapping);
+  if (prep.bulkOff) bulkCreateOff();
   if (prep.blocking.length) throw new AppError("validation_error", prep.blocking[0]!);
   const total = prep.sheets.reduce((n, s) => n + s.scan.rows, 0);
   await patchJob(env.db, job.id, { phase: "creating", progressTotal: total, progressDone: 0 });
@@ -662,6 +673,7 @@ export function importOperations(cfg: Config, storage: StorageDriver) {
         const job = await loadSourceJob(ctx, i.job_id, "draft");
         if (!("id" in i.mapping.datahub) && !(await ctx.access.can("datahub:datahub:create"))) throw new AppError("forbidden", "Bạn không có quyền tạo datahub.");
         const prep = await prepare(ctx, storage, job, i.mapping);
+        if (prep.bulkOff) bulkCreateOff();
         if (prep.blocking.length) throw new AppError("validation_error", prep.blocking[0]!, { blocking: prep.blocking });
         const total = prep.sheets.reduce((n, s) => n + s.scan.rows, 0);
         const [upd] = await ctx.db

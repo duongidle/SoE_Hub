@@ -35,7 +35,7 @@ Cập nhật: 19/11/2026
 ## Đang làm: Stage 4 (Module 4, Quản lý Deal), Sonnet code, Opus rà
 
 Bước con 4.1 (Module 4 mục 19a, 25 việc) chia 4 phiên, làm lần lượt (cùng đụng `access.ts`/`rows.ts`):
-- **4.1a khoá phân chia + quyền (server)**: 19a việc 1–9, 11a; test phân quyền việc 20 phần server. *Đang làm.*
+- **4.1a khoá phân chia + quyền (server)**: 19a việc 1–9, 11a; test phân quyền việc 20 phần server. *Code xong (20/11), đang chạy test hồi quy.* Làm: migration 0013 (`key_split`, `key_columns`, `key_primary`, `members_bulk_create`, `allow_edit`, `dh_user_prefs`); `access.ts` (`rows()`, `loadReader`, `scopeKey`, `rowAudience`); ghi/đọc/SSE/ô Người dùng/gỡ thành viên/chuyển giao/thêm hàng loạt; lệnh mới `datahub.table.share_options.set`, `datahub.prefs.get/set`, `datahub.share.tagged`; test `apps/api/test/datahub-split-lock.test.ts` (25 pass). Quyết định: `design/module4-quyet-dinh-khi-code.md` mục 4.1a. Còn: chạy lại `pnpm exec vitest run apps/api/test/datahub* apps/api/test/metrics*` và e2e `stage2c3 stage2c4 --project=desktop`; bổ sung test ma trận (tải file, import theo vai trò).
 - **4.1b tính theo người đọc**: việc 10 (Lookup/Rollup/công thức sang bảng có khoá phân chia, mỗi thành viên một giá trị, tính lại theo phần), việc 11 (bỏ `PhysicalSource`), load test 20 thành viên × 100.000 dòng; **đo lại load 3D với phạm vi riêng từng người** (mục dưới).
 - **4.1c hạ tầng bảng template**: việc 12–16.
 - **4.1d giao diện + việc nhỏ**: việc 17–19, 19a–19d; e2e.

@@ -5,6 +5,7 @@ import { compileFilter, getTrashRetentionDays, newId, type Executor } from "@soe
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { HandlerCtx } from "../../core/types";
 import { loadDatahubAccess, loadTableAccess, type TableAccess } from "./access";
+import { taggedRows } from "./split-ops";
 import { getLimits } from "./limits";
 import { GROUP_FNS } from "./rows-groups";
 import { Id, Ts } from "./shared";
@@ -322,7 +323,7 @@ export const shareOperations = [
     aiAllowed: true,
     emits: ["datahub.share.changed"],
     input: z.object({ datahub_id: Id, share_id: Id }),
-    output: z.object({ id: Id, removed: z.literal(true) }),
+    output: z.object({ id: Id, removed: z.literal(true), tagged_rows: z.number().int().describe("Số dòng đang tag người vừa bị gỡ ở ô Người dùng: tag giữ nguyên, ô hiện \"không còn quyền\".") }),
     http: { method: "DELETE", path: "/datahubs/:datahub_id/shares/:share_id" },
     handler: async (ctx, i) => {
       const dh = await loadDatahubAccess(ctx, i.datahub_id, "owner");
@@ -331,7 +332,9 @@ export const shareOperations = [
       if (!row) throw new AppError("not_found", "Không tìm thấy chia sẻ.");
       ctx.audit({ type: "datahub_share", id: i.share_id, details: { datahub_id: dh.id, table_id: row.table_id, grantee_id: row.grantee_id } });
       await ctx.emit("datahub.share.changed", { aggregateType: "datahub", aggregateId: dh.id, payload: { datahub_id: dh.id, table_id: row.table_id, grantee_id: row.grantee_id } });
-      return { id: i.share_id, removed: true as const };
+      // The tags stay (no history is lost); the person only stops seeing the table. `datahub.share.tagged` gives the same number BEFORE removing.
+      const tagged = await taggedRows(ctx.db, dh.id, row.table_id, row.grantee_id);
+      return { id: i.share_id, removed: true as const, tagged_rows: tagged.rows };
     },
   }),
 ];
@@ -435,7 +438,7 @@ export const trashOperations = [
       if (i.table_id) {
         const acc = await loadTableAccess(ctx, i.table_id, "edit_data");
         if (acc.level === "owner") columns = (await ctx.db.execute(sql`SELECT id, key, name, type, deleted_at FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NOT NULL ORDER BY deleted_at DESC`)).rows as Raw[];
-        rows = (await ctx.db.execute(sql`SELECT id, row_no, deleted_at, deleted_by FROM dh_rows WHERE ${acc.scope()} AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 500`)).rows as Raw[];
+        rows = (await ctx.db.execute(sql`SELECT id, row_no, deleted_at, deleted_by FROM dh_rows WHERE ${acc.rows()} AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 500`)).rows as Raw[];
       }
       const withPurge = <T extends Raw>(list: Raw[]) => list.map((r) => ({ ...r, purge_at: purge(r.deleted_at as Date | string) }) as unknown as T);
       return {

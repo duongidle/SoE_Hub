@@ -1,0 +1,20 @@
+meta {
+  name: datahub.share.tagged
+  type: http
+  seq: 74
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahubs/{{datahub_id}}/shares/{{share_id}}/tagged
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Người này đang được tag ở bao nhiêu dòng (ô Người dùng) trong các bảng của chia sẻ? Dùng để cảnh báo trước khi gỡ thành viên (chỉ chủ).
+  Quyền: `datahub:datahub:use`.
+}

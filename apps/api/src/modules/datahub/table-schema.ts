@@ -19,6 +19,7 @@ export function columnFromDb(r: Raw): DhColumn {
     config: (r.config as DhColumn["config"]) ?? {},
     position: r.position as number,
     required: !!r.required,
+    allowEdit: r.allow_edit === undefined ? true : !!r.allow_edit,
     isUnique: !!r.is_unique,
     defaultValue: r.default_value ?? null,
     description: (r.description as string | null) ?? null,

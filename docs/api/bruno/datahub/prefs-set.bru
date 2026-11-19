@@ -1,0 +1,28 @@
+meta {
+  name: datahub.prefs.set
+  type: http
+  seq: 73
+}
+
+put {
+  url: {{baseUrl}}/api/v1/datahub/prefs
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "leader_can_edit": false
+  }
+}
+
+docs {
+  Bật/tắt "Cho phép leader sửa deal của tôi" (module1 mục 4.1). Leader sửa được những cột mà chính bạn sửa được, không hơn.
+  Quyền: `datahub:datahub:use`.
+}

@@ -9,7 +9,7 @@ import type { TableAccess } from "./access";
 import { sourceOf, type CellWrite, type LoadedRow } from "./column-source";
 import { isComputedType } from "./cell-values";
 import { buildSearchText, columnTypeDef } from "./column-types";
-import { pgError } from "./errors";
+import { bulkCreateOff, columnNotEditable, pgError, rowNotEditable, rowOutsideScope } from "./errors";
 import { nextChangeSeq } from "./change-queue";
 import { recordChanges, type RowChange } from "./partial";
 import { RowFormulas } from "./row-formulas";
@@ -140,6 +140,19 @@ async function checkFiles(db: Executor, actorId: string, plans: { kind: string; 
   for (const f of fresh) if (f.ids.some((x) => !ok.has(x))) issues.push({ row: f.row, column: f.column, message: `File ở cột "${f.column}" không tồn tại hoặc không phải file của bạn.` });
 }
 
+/**
+ * A user cell may name only a member of the table: its owner, or someone it is shared with (design module2 section 10). Checked for every
+ * value that is NEW in a row (a new row, or a cell that changed); what is already stored stays, even when that person was removed later.
+ */
+async function checkMembers(db: Executor, access: TableAccess, uses: { row: number; column: string; id: string }[], issues: { row: number; column: string; message: string }[]): Promise<void> {
+  if (uses.length === 0) return;
+  const ids = [...new Set(uses.map((u) => u.id))];
+  const res = await db.execute(sql`SELECT s.grantee_id AS id FROM dh_shares s WHERE /*scope*/ s.datahub_id = ${access.datahub.id}::uuid AND (s.table_id IS NULL OR s.table_id = ${access.tableId}::uuid) AND s.grantee_id = ANY(${uuidArray(ids)}::uuid[])`);
+  const ok = new Set((res.rows as { id: string }[]).map((r) => r.id));
+  ok.add(access.datahub.ownerId);
+  for (const u of uses) if (!ok.has(u.id)) issues.push({ row: u.row, column: u.column, message: `Người ở cột "${u.column}" chưa là thành viên của bảng. Chia sẻ bảng cho người đó trước.` });
+}
+
 function throwIssues(issues: { row: number; column: string; message: string }[]): void {
   if (issues.length) throw new AppError("validation_error", issues.length === 1 ? issues[0]!.message : `Dữ liệu có ${issues.length} lỗi.`, { issues });
 }
@@ -222,7 +235,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
       return String(v);
     });
     const keyExpr = sql.raw(`data->>'${keyCol.key}'`);
-    const res = await db.execute(sql`SELECT id, ${keyExpr} AS v FROM dh_rows WHERE ${access.scope()} AND deleted_at IS NULL AND ${keyExpr} = ANY(${`{${vals.map((v) => `"${v.replace(/(["\\])/g, "\\$1")}"`).join(",")}}`}::text[])`);
+    const res = await db.execute(sql`SELECT id, ${keyExpr} AS v FROM dh_rows WHERE ${access.rows()} AND deleted_at IS NULL AND ${keyExpr} = ANY(${`{${vals.map((v) => `"${v.replace(/(["\\])/g, "\\$1")}"`).join(",")}}`}::text[])`);
     for (const r of res.rows as { id: string; v: string }[]) existingByKey.set(r.v, r.id);
   }
 
@@ -265,12 +278,16 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   const loaded = new Map<string, LoadedRow>();
   const targetIds = plans.filter((p) => p.kind !== "create").map((p) => p.id);
   if (targetIds.length) {
-    const res = await db.execute(sql`SELECT ${ROW_COLS} FROM dh_rows WHERE ${access.scope()} AND deleted_at IS NULL AND id = ANY(${uuidArray(targetIds)}::uuid[]) ORDER BY id FOR UPDATE`);
+    const res = await db.execute(sql`SELECT ${ROW_COLS} FROM dh_rows WHERE ${access.rows()} AND deleted_at IS NULL AND id = ANY(${uuidArray(targetIds)}::uuid[]) ORDER BY id FOR UPDATE`);
     for (const r of res.rows as Record<string, unknown>[]) loaded.set(r.id as string, rowFromDb(r));
     for (const id of targetIds) if (!loaded.has(id)) throw new AppError("not_found", "Không tìm thấy dòng (có thể đã bị xoá).", { row_id: id });
   }
 
+  // Under the split lock a reader may see a row they cannot edit (a Leader's view of a team member's deal): editing and deleting need the right to edit THAT row.
+  if (access.restricted) for (const p of plans) if (p.kind !== "create" && !access.canEditRow(loaded.get(p.id)!.data)) rowNotEditable(p.id);
   await checkFiles(db, actorId, plans, loaded, schema, issues);
+  const userUses: { row: number; column: string; id: string }[] = [];
+  const lockedColumns = new Set<string>();
   const changedColumns = new Set<string>();
   const computedKeys = new Set(schema.all.filter((c) => isComputedType(c.type)).map((c) => c.key));
   const history: { rowId: string; version: number; op: "create" | "update" | "delete"; changes: FieldChange[] }[] = [];
@@ -324,6 +341,8 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
       if (!same(was, v)) {
         const col = schema.resolve(k);
         if (v === null && col.required) issues.push({ row: p.indexes[0]!, column: col.name, message: `Cột "${col.name}" là bắt buộc, không để trống được.` });
+        if (access.level !== "owner" && !col.allowEdit) lockedColumns.add(col.name);
+        if (col.type === "user" && typeof v === "string") userUses.push({ row: p.indexes[0]!, column: col.name, id: v });
         changes.push({ field: k, old: was, new: v });
         changedColumns.add(k);
       }
@@ -340,6 +359,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     outcome.set(p, "updated");
   }
   throwIssues(issues);
+  if (lockedColumns.size) columnNotEditable([...lockedColumns]);
   if (conflicts.length || versionConflicts.length) {
     throw new AppError(
       "conflict",
@@ -350,6 +370,12 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
 
   // ---- 5. creates ------------------------------------------------------------------------------------
   const creates = plans.filter((p) => p.kind === "create");
+  if (creates.length > 1 && !access.bulkCreateAllowed()) bulkCreateOff();
+  if (creates.length && access.level !== "owner") {
+    const locked = new Set<string>();
+    for (const p of creates) for (const k of p.cells.keys()) if (!schema.resolve(k).allowEdit) locked.add(schema.resolve(k).name);
+    if (locked.size) columnNotEditable([...locked]);
+  }
   if (creates.length) {
     const requiredCols = schema.alive.filter((c) => c.required && columnTypeDef(c.type).writable);
     const autoCols = schema.alive.filter((c) => c.type === "auto_number");
@@ -373,6 +399,11 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
         if (v === null) delete data[k];
         else data[k] = v;
       }
+      // A member's new row carries their name in the main key column, so they see it (design module2 section 10).
+      const primary = access.reader ? access.table.split.primary : null;
+      if (primary && data[primary] === undefined) data[primary] = actorId;
+      if (access.reader && !access.seesRow(data)) rowOutsideScope();
+      for (const c of schema.alive) if (c.type === "user" && typeof data[c.key] === "string") userUses.push({ row: p.indexes[0]!, column: c.name, id: data[c.key] as string });
       for (const c of autoCols) data[c.key] = autoStart.get(c.key)! + n;
       for (const c of requiredCols) {
         if (data[c.key] === undefined) issues.push({ row: p.indexes[0]!, column: c.name, message: `Cột "${c.name}" là bắt buộc.` });
@@ -387,6 +418,8 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     });
     throwIssues(issues);
   }
+  await checkMembers(db, access, userUses, issues);
+  throwIssues(issues);
 
   // ---- 6. write ----------------------------------------------------------------------------------------
   const out = new Map<string, LoadedRow>();
@@ -401,7 +434,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     if (updateRows.length) {
       const res = await db.execute(sql`UPDATE dh_rows r SET data = v.data, search = v.search, version = r.version + 1, updated_at = now(), updated_by = ${actorId}::uuid
         FROM jsonb_to_recordset(${JSON.stringify(updateRows)}::jsonb) AS v(id uuid, data jsonb, search text)
-        WHERE ${access.scope("r")} AND r.id = v.id AND r.deleted_at IS NULL
+        WHERE ${access.rows("r")} AND r.id = v.id AND r.deleted_at IS NULL
         RETURNING r.id, r.row_no, r.version, r.data, r.created_at, r.created_by, r.updated_at, r.updated_by`);
       for (const r of res.rows as Record<string, unknown>[]) out.set(r.id as string, rowFromDb(r));
     }
@@ -410,7 +443,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   }
   if (deleteIds.length) {
     const res = await db.execute(sql`UPDATE dh_rows SET deleted_at = now(), deleted_by = ${actorId}::uuid, version = version + 1, updated_at = now(), updated_by = ${actorId}::uuid
-      WHERE ${access.scope()} AND deleted_at IS NULL AND id = ANY(${uuidArray(deleteIds)}::uuid[])
+      WHERE ${access.rows()} AND deleted_at IS NULL AND id = ANY(${uuidArray(deleteIds)}::uuid[])
       RETURNING ${ROW_COLS}`);
     for (const r of res.rows as Record<string, unknown>[]) {
       const row = rowFromDb(r);
@@ -438,8 +471,12 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   const seq = await nextChangeSeq(db);
   if (rowChanges.length) await recordChanges(db, access.tableId, rowChanges, seq);
   ctx.audit({ type: "datahub_row", id: access.tableId, details: { table_id: access.tableId, created: created.length, updated: updated.length, deleted: deleted.length, fields: columns } });
+  // Who held the key columns before and after: the worker needs it to tell people a row left or joined their view (split lock).
+  const keyUsers: string[] | undefined = access.table.split.enabled
+    ? [...new Set([...loaded.values(), ...[...newData.values()].map((data) => ({ data }))].flatMap((r) => access.table.split.keys.map((k) => r.data[k]).filter((v): v is string => typeof v === "string")))].slice(0, 2000)
+    : undefined;
   const emit = async (event: string, rowIds: string[]) => {
-    if (rowIds.length) await ctx.emit(event, { aggregateType: "datahub_table", aggregateId: access.tableId, payload: { table_id: access.tableId, row_ids: rowIds, columns, seq } });
+    if (rowIds.length) await ctx.emit(event, { aggregateType: "datahub_table", aggregateId: access.tableId, payload: { table_id: access.tableId, row_ids: rowIds, columns, seq, ...(keyUsers ? { key_users: keyUsers } : {}) } });
   };
   await emit("datahub.row.created", created);
   await emit("datahub.row.updated", updated);
@@ -460,10 +497,12 @@ export async function restoreRows(ctx: Ctx, access: TableAccess, schema: TableSc
   const actorId = ctx.actor.userId;
   ctx.audit({ type: "datahub_row", id: access.tableId, details: { table_id: access.tableId, restored: rowIds.length } });
   const res = await ctx.db.execute(sql`UPDATE dh_rows SET deleted_at = NULL, deleted_by = NULL, version = version + 1, updated_at = now(), updated_by = ${actorId}::uuid
-    WHERE ${access.scope()} AND deleted_at IS NOT NULL AND id = ANY(${uuidArray(rowIds)}::uuid[])
+    WHERE ${access.rows()} AND deleted_at IS NOT NULL AND id = ANY(${uuidArray(rowIds)}::uuid[])
     RETURNING ${ROW_COLS}`);
   const rows = (res.rows as Record<string, unknown>[]).map(rowFromDb);
   if (rows.length !== rowIds.length) throw new AppError("not_found", "Có dòng không nằm trong thùng rác (hoặc đã bị xoá hẳn).");
+  // Same right as deleting it: a row the reader may not edit cannot be brought back by them either (the whole call is rolled back).
+  if (access.restricted) for (const r of rows) if (!access.canEditRow(r.data)) rowNotEditable(r.id);
   await ctx.db.execute(sql`UPDATE dh_tables SET row_count = row_count + ${rows.length}::int WHERE /*scope*/ id = ${access.tableId}::uuid`);
   await ctx.db.insert(rowHistory).values(rows.map((r) => ({ tableId: access.tableId, rowId: r.id, version: r.version, op: "restore", changes: [] as FieldChange[], actor: toActorRef(ctx.actor) })));
   const seq = await nextChangeSeq(ctx.db);

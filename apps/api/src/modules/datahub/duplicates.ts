@@ -55,7 +55,7 @@ interface GroupRef {
 /** The groups in display order (largest first, then by the first row number), a page of them, plus the totals. */
 async function readGroups(ctx: { db: Executor }, access: TableAccess, schema: TableSchema, columns: string[], offset: number, limit: number, idCap = MAX_IDS_PER_GROUP) {
   const k = keySql(schema, columns);
-  const base = sql`SELECT id, row_no, ${k.key} AS dk FROM dh_rows WHERE ${access.scope()} AND deleted_at IS NULL AND ${k.keyed}`;
+  const base = sql`SELECT id, row_no, ${k.key} AS dk FROM dh_rows WHERE ${access.rows()} AND deleted_at IS NULL AND ${k.keyed}`;
   const totals = await ctx.db.execute(sql`WITH k AS (${base}), g AS (SELECT dk, count(*) AS n FROM k GROUP BY dk HAVING count(*) > 1) SELECT count(*)::int AS groups, coalesce(sum(n), 0)::int AS rows FROM g`);
   const t = totals.rows[0] as { groups: number; rows: number };
   const page = await ctx.db.execute(sql`
@@ -181,7 +181,7 @@ function splitRefs(columns: string, schema: TableSchema): string[] {
 type Db = Executor;
 
 async function loadRows(db: Db, acc: TableAccess, ids: string[]) {
-  const res = await db.execute(sql`SELECT id, row_no, version, data, created_at, created_by, updated_at, updated_by FROM dh_rows WHERE ${acc.scope()} AND deleted_at IS NULL AND id = ANY(${`{${ids.join(",")}}`}::uuid[])`);
+  const res = await db.execute(sql`SELECT id, row_no, version, data, created_at, created_by, updated_at, updated_by FROM dh_rows WHERE ${acc.rows()} AND deleted_at IS NULL AND id = ANY(${`{${ids.join(",")}}`}::uuid[])`);
   return new Map((res.rows as Record<string, unknown>[]).map((r) => [r.id as string, rowFromDb(r)]));
 }
 

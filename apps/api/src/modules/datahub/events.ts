@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { EventDef } from "../../core/events";
-import { datahubAudience, tableAudience } from "./access";
+import { datahubAudience, rowAudience, tableAudience } from "./access";
 
 /**
  * Datahub events (design module2 sections 6.5, 7, 13). Signals go only to people who can see the table (owner and
@@ -13,6 +13,11 @@ const rowPayload = z.object({
   columns: z.array(z.string()),
   /** Change sequence of the write (design module2 section 6.7). */
   seq: z.number().int().optional(),
+  /**
+   * Under the split lock (design module2 section 10): ids that the changed rows held in their key columns BEFORE and after the change. Lets the
+   * worker tell the people who saw a row and no longer do (and the new holders) without reading old values from anywhere.
+   */
+  key_users: z.array(z.uuid()).max(2000).optional(),
 });
 
 const rowEvent = (name: string, description: string): EventDef => ({
@@ -20,7 +25,7 @@ const rowEvent = (name: string, description: string): EventDef => ({
   version: 1,
   description,
   schema: rowPayload,
-  audience: async (p: { table_id: string }, db) => ({ users: await tableAudience(db, p.table_id) }),
+  audience: async (p: { table_id: string; row_ids: string[]; key_users?: string[] }, db) => ({ users: await rowAudience(db, p.table_id, p.row_ids, p.key_users) }),
 });
 
 export const datahubEvents: EventDef[] = [
@@ -56,7 +61,10 @@ export const datahubEvents: EventDef[] = [
       /** Change sequence the column has incorporated up to (design module2 section 6.7). */
       seq: z.number().int().nullable().optional(),
     }),
-    audience: async (p: { table_id: string }, db) => ({ users: await tableAudience(db, p.table_id) }),
+    // Cells of rows: only the people who see those rows. A column-level `pending` / `done` carries no row, so it goes to everyone who sees the table.
+    audience: async (p: { table_id: string; state: string; changes?: { row_id: string }[] }, db) => ({
+      users: p.state === "changed" && p.changes?.length ? await rowAudience(db, p.table_id, [...new Set(p.changes.map((c) => c.row_id))]) : await tableAudience(db, p.table_id),
+    }),
   },
   {
     name: "datahub.reconcile.mismatch",

@@ -25,3 +25,32 @@ export function rethrowNameConflict(e: unknown): never {
   }
   throw e;
 }
+
+/**
+ * Refusals of the split lock and shared editing (design module2 section 10). Each is `forbidden` (or `validation_error` for a bad value) with a
+ * stable `reason` the screen can react to. The message never holds a cell value.
+ */
+export const DH_REASON = {
+  columnNotEditable: "column_not_editable",
+  rowNotEditable: "row_not_editable",
+  bulkCreateOff: "bulk_create_off",
+  userNotMember: "user_not_member",
+  rowOutsideScope: "row_outside_scope",
+  keyColumn: "key_column_rule",
+} as const;
+
+export const columnNotEditable = (names: string[]): never => {
+  throw new AppError("forbidden", `Cột ${names.map((n) => `"${n}"`).join(", ")} không cho phép bạn sửa. Chỉ chủ bảng sửa được.`, { reason: DH_REASON.columnNotEditable, columns: names });
+};
+
+export const rowNotEditable = (rowId: string): never => {
+  throw new AppError("forbidden", "Bạn thấy dòng này nhưng chưa được sửa: dòng của người khác chỉ Manager (hoặc Leader khi người đó cho phép) mới sửa được.", { reason: DH_REASON.rowNotEditable, row_id: rowId });
+};
+
+export const bulkCreateOff = (): never => {
+  throw new AppError("forbidden", "Chủ bảng không cho thành viên thêm nhiều dòng một lúc (nhập file, dán, API hàng loạt). Hãy thêm từng dòng.", { reason: DH_REASON.bulkCreateOff });
+};
+
+export const rowOutsideScope = (): never => {
+  throw new AppError("forbidden", "Dòng mới phải thuộc về bạn hoặc người bạn quản lý, nếu không bạn sẽ không thấy nó.", { reason: DH_REASON.rowOutsideScope });
+};

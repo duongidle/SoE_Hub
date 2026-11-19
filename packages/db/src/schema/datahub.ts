@@ -47,8 +47,22 @@ export const dhTables = pgTable(
     sqlView: text("sql_view"),
     /** `normal` | `merged` (design module3 section 4): a merged table is read-only, its rows are copied from source tables by the worker. */
     kind: text("kind").notNull().default("normal"),
+    /**
+     * Split lock (design module2 section 10, Stage 4.1a): when `key_split` is on, a member who is not the owner sees only the rows whose
+     * key columns (`key_columns`: keys of 1-5 columns of type user) hold their own id or the id of a person they manage.
+     * `key_primary` (one of `key_columns`) is filled with the adder's id on a row a member adds. The configuration is kept when the lock is off.
+     */
+    keySplit: boolean("key_split").notNull().default(false),
+    keyColumns: text("key_columns")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    keyPrimary: text("key_primary"),
+    /** May members who are not the owner create more than one row in one go (import, paste, batch)? Default on; template tables turn it off (module4 3.5). */
+    membersBulkCreate: boolean("members_bulk_create").notNull().default(true),
   },
   (t) => [
+    check("dh_tables_key_cols_chk", sql`cardinality(${t.keyColumns}) <= 5`),
     check("dh_tables_kind_chk", sql`${t.kind} IN ('normal', 'merged')`),
     uniqueIndex("dh_tables_name_uq").on(t.datahubId, t.nameNorm).where(sql`${t.deletedAt} IS NULL`),
     index("dh_tables_datahub_idx").on(t.datahubId),
@@ -71,6 +85,8 @@ export const dhColumns = pgTable(
     config: jsonb("config").notNull().default(sql`'{}'::jsonb`),
     position: integer("position").notNull().default(0),
     required: boolean("required").notNull().default(false),
+    /** May a member (not the owner) with the Edit permission write this column's cells? Default on; template tables start off (design module2 section 10). */
+    allowEdit: boolean("allow_edit").notNull().default(true),
     isUnique: boolean("is_unique").notNull().default(false),
     defaultValue: jsonb("default_value"),
     description: text("description"),
@@ -226,6 +242,19 @@ export const dhShares = pgTable(
     check("dh_shares_permission_chk", sql`${t.permission} IN ('view', 'edit_data')`),
   ],
 );
+
+/**
+ * Per-person datahub preferences. `leader_can_edit`: "Cho phép leader sửa deal của tôi" (module1 section 4.1): the person's Leader may
+ * edit the rows that carry this person's name in a split-lock table, with the columns the person may edit. Default off. The Deals screen
+ * of Stage 4 shows the switch; the command `datahub.prefs.set` already stores it.
+ */
+export const dhUserPrefs = pgTable("dh_user_prefs", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id),
+  leaderCanEdit: boolean("leader_can_edit").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+});
 
 /** Per-user overrides of the Datahub limits (design section 11). Null = use the system default. */
 export const dhUserLimits = pgTable("dh_user_limits", {

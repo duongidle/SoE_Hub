@@ -10,6 +10,7 @@ import { DH_SETTINGS } from "./limits";
 import { duplicateOperations } from "./duplicates";
 import { mergeOperations } from "./merge-ops";
 import { rowOperations } from "./row-ops";
+import { splitOperations } from "./split-ops";
 import { structureOperations } from "./structure";
 import "./transfer";
 import "./export-job";
@@ -22,7 +23,7 @@ for (const t of ["dh_datahubs", "dh_tables", "dh_columns", "dh_rows", "dh_views"
 registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.maxColumns, DH_SETTINGS.recalcParallel, DH_SETTINGS.consistentWaitMs, DH_SETTINGS.fiscalStartMonth);
 
 export { datahubEvents };
-export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...duplicateOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations, ...lookupOperations, ...mergeOperations];
+export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...duplicateOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations, ...lookupOperations, ...mergeOperations, ...splitOperations];
 export { exportOperations } from "./export-job";
 export { importOperations } from "./import-job";
 export { jobOperations, processJobs, resetRunningJobs, startJobLoop, purgeJobFiles } from "./jobs";

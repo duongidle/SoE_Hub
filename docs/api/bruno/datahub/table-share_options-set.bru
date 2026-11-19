@@ -1,0 +1,33 @@
+meta {
+  name: datahub.table.share_options.set
+  type: http
+  seq: 71
+}
+
+put {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/share-options
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "key_split": false,
+    "key_columns": [
+      "key_column"
+    ],
+    "key_primary": "key_primary",
+    "members_bulk_create": false
+  }
+}
+
+docs {
+  Đặt khoá phân chia (bật/tắt, cột khoá, cột khoá chính) và tuỳ chọn "Thành viên được thêm dòng hàng loạt" của bảng (chỉ chủ).
+  Quyền: `datahub:datahub:use`.
+}

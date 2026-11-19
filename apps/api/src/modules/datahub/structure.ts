@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AppError, DhNameSchema } from "@soe/shared";
 import { newId, type Executor } from "@soe/db";
 import { defineCommand, defineQuery } from "../../core/registry";
-import { LEVEL_SQL, loadDatahubAccess, loadTableAccess } from "./access";
+import { LEVEL_SQL, loadDatahubAccess, loadReader, loadTableAccess } from "./access";
 import { getLimits, quotaExceeded } from "./limits";
 import { rethrowNameConflict } from "./errors";
 import { emitStructure, Id, STRUCTURE_EVENT, Ts } from "./shared";
@@ -11,6 +11,7 @@ import { columnFromDb } from "./table-schema";
 import { isComputedType } from "./cell-values";
 import { displayConfig, OwnerIndex } from "./computed";
 import { columnTypeDef } from "./column-types";
+import { assertColumnKey } from "./types";
 
 const LevelOut = z.enum(["owner", "edit_data", "view"]);
 
@@ -44,13 +45,22 @@ async function tablesOf(db: Executor, userId: string, datahubIds: string[]): Pro
   const out = new Map<string, z.infer<typeof TableBrief>[]>();
   if (datahubIds.length === 0) return out;
   const res = await db.execute(sql`SELECT * FROM (
-      SELECT t.id, t.datahub_id, t.name, t.position, t.row_count, t.kind, ${LEVEL_SQL(userId)} AS level, t.created_at
+      SELECT t.id, t.datahub_id, t.name, t.position, t.row_count, t.kind, t.key_split, t.key_columns, ${LEVEL_SQL(userId)} AS level, t.created_at
       FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
       WHERE /*scope*/ t.datahub_id = ANY(${`{${datahubIds.join(",")}}`}::uuid[]) AND t.deleted_at IS NULL AND d.deleted_at IS NULL
     ) x WHERE level IS NOT NULL ORDER BY position, created_at`);
+  let reader: Awaited<ReturnType<typeof loadReader>> | null = null;
   for (const r of res.rows as Raw[]) {
     const list = out.get(r.datahub_id as string) ?? [];
-    list.push({ id: r.id as string, name: r.name as string, position: r.position as number, row_count: r.row_count as number, access: r.level as "owner" | "edit_data" | "view", kind: r.kind === "merged" ? "merged" : "normal" });
+    let rowCount = r.row_count as number;
+    // A table under the split lock tells a member only how many rows THEY see.
+    if (r.key_split && r.level !== "owner") {
+      const rd = (reader ??= await loadReader(db, userId));
+      const keys = (r.key_columns as string[]) ?? [];
+      const cond = keys.length ? sql.join(keys.map((k) => sql`((data->>${sql.raw(`'${assertColumnKey(k)}'`)})::uuid = ANY(${`{${rd.ids.join(",")}}`}::uuid[]))`), sql` OR `) : sql`false`;
+      rowCount = ((await db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE /*scope*/ table_id = ${r.id as string}::uuid AND deleted_at IS NULL AND (${cond})`)).rows[0] as { n: number }).n;
+    }
+    list.push({ id: r.id as string, name: r.name as string, position: r.position as number, row_count: rowCount, access: r.level as "owner" | "edit_data" | "view", kind: r.kind === "merged" ? "merged" : "normal" });
     out.set(r.datahub_id as string, list);
   }
   return out;
@@ -84,6 +94,9 @@ const TableOut = z.object({
   version: z.number().int(),
   sql_view: z.string().nullable(),
   kind: z.enum(["normal", "merged"]),
+  /** Split lock (design module2 section 10). `key_columns` keeps its list while the lock is off. Row count is what YOU see when the lock is on and you are not the owner. */
+  key_split: z.object({ enabled: z.boolean(), key_columns: z.array(z.object({ key: z.string(), name: z.string() })), primary: z.string().nullable() }),
+  members_bulk_create: z.boolean().describe("Thành viên không phải chủ có được thêm nhiều dòng một lúc (nhập file, dán, API hàng loạt) không."),
 });
 
 export const ColumnOut = z.object({
@@ -94,6 +107,7 @@ export const ColumnOut = z.object({
   config: z.record(z.string(), z.unknown()),
   position: z.number().int(),
   required: z.boolean(),
+  allow_edit: z.boolean().describe("Thành viên có quyền Sửa có được sửa ô của cột này không."),
   unique: z.boolean(),
   default_value: z.unknown(),
   description: z.string().nullable(),
@@ -116,7 +130,7 @@ export function columnOut(c: ReturnType<typeof columnFromDb>, ix: OwnerIndex | n
   if (def.type === "auto_number") delete config.seq;
   if (isComputedType(c.type) || c.type === "relation") config = displayConfig({ type: c.type, config, tableId: c.tableId }, ix);
   const calc = isComputedType(c.type) ? { status: c.calcStatus as "ready" | "pending" | "running", done: c.calcDone, total: c.calcTotal, at: c.calcAt, seq: c.calcSeq } : null;
-  return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, version: c.version, calc };
+  return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, allow_edit: c.allowEdit, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, version: c.version, calc };
 }
 
 /** Index of the owner's tables, loaded only when a column needs names of other objects. */
@@ -382,20 +396,27 @@ export const structureOperations = [
   }),
 ];
 
-async function tableOut(db: Executor, acc: Awaited<ReturnType<typeof loadTableAccess>>): Promise<z.infer<typeof TableOut>> {
+export async function tableOut(db: Executor, acc: Awaited<ReturnType<typeof loadTableAccess>>): Promise<z.infer<typeof TableOut>> {
   const res = await db.execute(sql`SELECT id, datahub_id, name, description, position, row_count, version, sql_view, kind FROM dh_tables WHERE ${sql`/*scope*/ id = ${acc.tableId}::uuid`}`);
   const r = res.rows[0] as Raw;
+  const split = acc.table.split;
+  const names = split.keys.length ? await db.execute(sql`SELECT key, name FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NULL AND key = ANY(${`{${split.keys.join(",")}}`}::text[])`) : { rows: [] };
+  const nameOf = new Map((names.rows as { key: string; name: string }[]).map((c) => [c.key, c.name]));
+  // Under the split lock the count is the rows THIS reader sees, never the size of the whole table.
+  const rowCount = acc.restricted ? ((await db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE ${acc.rows()} AND deleted_at IS NULL`)).rows[0] as { n: number }).n : (r.row_count as number);
   return {
     id: r.id as string,
     datahub_id: r.datahub_id as string,
     name: r.name as string,
     description: (r.description as string | null) ?? null,
     position: r.position as number,
-    row_count: r.row_count as number,
+    row_count: rowCount,
     access: acc.level,
     version: r.version as number,
     sql_view: (r.sql_view as string | null) ?? null,
     kind: r.kind === "merged" ? "merged" : "normal",
+    key_split: { enabled: split.enabled, key_columns: split.keys.map((k) => ({ key: k, name: nameOf.get(k) ?? k })), primary: split.primary },
+    members_bulk_create: acc.table.membersBulkCreate,
   };
 }
 

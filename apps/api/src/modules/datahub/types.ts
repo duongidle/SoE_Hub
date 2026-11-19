@@ -14,6 +14,8 @@ export interface DhColumn {
   config: Record<string, any>;
   position: number;
   required: boolean;
+  /** A member (not the owner) with the Edit permission may write this column's cells (design module2 section 10). */
+  allowEdit: boolean;
   isUnique: boolean;
   defaultValue: unknown;
   description: string | null;

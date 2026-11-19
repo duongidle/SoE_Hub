@@ -101,7 +101,7 @@ export async function listRows(db: Executor, access: TableAccess, schema: TableS
   const filter = schema.normalizeFilter(andFilter(q.filter, q.timeFilter ? await timeFilterNode(db, schema, q.timeFilter) : undefined));
   const sortItems = schema.normalizeSort(q.sort);
   const sel = schema.parseSelect(q.fields);
-  const where: SQL[] = [access.scope(), sql`deleted_at IS NULL`];
+  const where: SQL[] = [access.rows(), sql`deleted_at IS NULL`];
   for (const tok of (q.search ?? "").split(/\s+/).filter(Boolean).slice(0, 8)) {
     where.push(sql`soe_unaccent(lower(search)) LIKE soe_unaccent(lower(${`%${escapeLike(tok)}%`})) ESCAPE '\\'`);
   }
@@ -140,7 +140,7 @@ export async function getRow(db: Executor, access: TableAccess, schema: TableSch
   const consistency = await awaitConsistency(db, access.tableId, o);
   const sel = schema.parseSelect(o.fields);
   const meta = sel ? ["id", ...sel.meta.filter((m) => m !== "id")] : DEFAULT_META;
-  const res = await db.execute(sql`SELECT ${sql.join(meta.map((m) => sql.raw(m)), sql`, `)}, ${dataSelect(schema, sel)} FROM dh_rows WHERE ${access.scope()} AND id = ${rowId}::uuid ${o.includeDeleted ? sql`` : sql`AND deleted_at IS NULL`}`);
+  const res = await db.execute(sql`SELECT ${sql.join(meta.map((m) => sql.raw(m)), sql`, `)}, ${dataSelect(schema, sel)} FROM dh_rows WHERE ${access.rows()} AND id = ${rowId}::uuid ${o.includeDeleted ? sql`` : sql`AND deleted_at IS NULL`}`);
   const r = res.rows[0] as Record<string, unknown> | undefined;
   if (!r) throw new AppError("not_found", "Không tìm thấy dòng.");
   const [row] = shape([r], schema, o.labels ?? false);
@@ -197,6 +197,11 @@ export interface HistoryItem {
 
 /** History of one row (newest first). Keyset on `version`: `before` = last version of the previous page. */
 export async function rowHistory(db: Executor, access: TableAccess, schema: TableSchema, rowId: string, o: { limit: number; before?: number }): Promise<{ items: HistoryItem[]; nextCursor: string | null }> {
+  // The history belongs to the row: a row the reader may not see (split lock, or another table's id) has no history for them either.
+  if (access.restricted) {
+    const seen = await db.execute(sql`SELECT 1 FROM dh_rows WHERE ${access.rows()} AND id = ${rowId}::uuid`);
+    if (seen.rows.length === 0) throw new AppError("not_found", "Không tìm thấy dòng.");
+  }
   const res = await db.execute(sql`SELECT version, op, at, actor, changes FROM row_history
     WHERE table_id = ${access.tableId} AND row_id = ${rowId}::uuid ${o.before !== undefined ? sql`AND version < ${o.before}` : sql``}
     ORDER BY version DESC LIMIT ${o.limit + 1}`);

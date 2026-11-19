@@ -21,29 +21,38 @@ export const lookupOperations = [
   defineQuery({
     name: "datahub.people.lookup",
     summary: "Tìm người để chọn vào cột Người dùng, hoặc đổi mã người thành tên: theo `ids` hoặc theo `q` (tên hoặc email).",
-    description: "Chỉ người đang hoạt động trong org chart. Tối đa 200 `ids` một lần; `q` trả tối đa `limit` người (mặc định 20).",
+    description:
+      "Chỉ người đang hoạt động trong org chart. Tối đa 200 `ids` một lần; `q` trả tối đa `limit` người (mặc định 20). " +
+      "Có `table_id`: `q` chỉ gợi ý chủ bảng và thành viên của bảng (ô Người dùng chỉ nhận thành viên), còn `ids` vẫn đổi mã ra tên cho mọi người kèm `member` (false = \"không còn quyền\"). Không có `table_id`: dùng để chọn người khi chia sẻ.",
     permission: "datahub:datahub:use",
     aiAllowed: true,
     input: z.object({
       ids: z.string().max(8000).optional().describe("Các mã người, ngăn cách bằng dấu phẩy."),
       q: z.string().trim().max(100).optional(),
       limit: z.coerce.number().int().min(1).max(50).default(20),
+      table_id: Id.optional().describe("Bảng có ô Người dùng đang chọn: giới hạn gợi ý ở thành viên của bảng."),
     }),
-    output: z.array(z.object({ id: Id, full_name: z.string(), email: z.string().nullable() })),
+    output: z.array(z.object({ id: Id, full_name: z.string(), email: z.string().nullable(), member: z.boolean().optional().describe("Chỉ có khi gửi `table_id`: người này là chủ hoặc thành viên của bảng.") })),
     http: { method: "GET", path: "/datahub/people" },
     handler: async (ctx, i) => {
       const ids = (i.ids ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
       if (ids.length > 200) throw new AppError("validation_error", "Tối đa 200 mã người mỗi lần.");
       if (ids.some((x) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(x))) throw new AppError("validation_error", "Mã người không hợp lệ.");
-      const where = [sql`kind = 'person'`];
-      if (ids.length) where.push(sql`id = ANY(${uuidArray(ids)}::uuid[])`);
+      const where = [sql`u.kind = 'person'`];
+      const acc = i.table_id ? await loadTableAccess(ctx, i.table_id) : null;
+      // Members of a table: its owner and everyone it is shared with (the whole datahub or this table).
+      const member = acc
+        ? sql`(u.id = ${acc.datahub.ownerId}::uuid OR EXISTS (SELECT 1 FROM dh_shares s WHERE /*scope*/ s.datahub_id = ${acc.datahub.id}::uuid AND (s.table_id IS NULL OR s.table_id = ${acc.tableId}::uuid) AND s.grantee_id = u.id))`
+        : null;
+      if (ids.length) where.push(sql`u.id = ANY(${uuidArray(ids)}::uuid[])`);
       else {
         if (!i.q) return [];
         const like = `%${likeEscape(i.q)}%`;
-        where.push(sql`status = 'active'`, sql`(soe_unaccent(lower(full_name)) LIKE soe_unaccent(lower(${like})) ESCAPE '\\' OR lower(email) LIKE lower(${like}) ESCAPE '\\')`);
+        where.push(sql`u.status = 'active'`, sql`(soe_unaccent(lower(u.full_name)) LIKE soe_unaccent(lower(${like})) ESCAPE '\\' OR lower(u.email) LIKE lower(${like}) ESCAPE '\\')`);
+        if (member) where.push(member);
       }
-      const res = await ctx.db.execute(sql`SELECT id, full_name, email FROM users WHERE ${sql.join(where, sql` AND `)} ORDER BY full_name LIMIT ${ids.length ? 200 : i.limit}`);
-      return res.rows as { id: string; full_name: string; email: string | null }[];
+      const res = await ctx.db.execute(sql`SELECT u.id, u.full_name, u.email${member ? sql`, ${member} AS member` : sql``} FROM users u WHERE ${sql.join(where, sql` AND `)} ORDER BY u.full_name LIMIT ${ids.length ? 200 : i.limit}`);
+      return res.rows as { id: string; full_name: string; email: string | null; member?: boolean }[];
     },
   }),
 

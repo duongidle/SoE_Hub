@@ -1,0 +1,20 @@
+meta {
+  name: datahub.prefs.get
+  type: http
+  seq: 72
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/prefs
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Tuỳ chọn datahub của bạn: "Cho phép leader sửa" (Leader của bạn sửa được dòng mang tên bạn ở bảng có khoá phân chia).
+  Quyền: `datahub:datahub:use`.
+}

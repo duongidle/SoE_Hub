@@ -54,7 +54,7 @@ export async function listGroups(db: Executor, access: TableAccess, schema: Tabl
   if (q.group.length === 0 || q.group.length > MAX_GROUP_LEVELS) throw new AppError("validation_error", `Nhóm theo 1 đến ${MAX_GROUP_LEVELS} cột.`);
   const fields = schema.fieldMap();
   const filter = schema.normalizeFilter(andFilter(q.filter, q.timeFilter ? await timeFilterNode(db, schema, q.timeFilter) : undefined));
-  const where: SQL[] = [access.scope(), sql`deleted_at IS NULL`];
+  const where: SQL[] = [access.rows(), sql`deleted_at IS NULL`];
   for (const tok of (q.search ?? "").split(/\s+/).filter(Boolean).slice(0, 8)) {
     where.push(sql`soe_unaccent(lower(search)) LIKE soe_unaccent(lower(${`%${escapeLike(tok)}%`})) ESCAPE '\\'`);
   }
