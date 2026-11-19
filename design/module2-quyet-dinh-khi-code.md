@@ -287,3 +287,31 @@ Giao diện ở `apps/web/src/pages/datahub/` (`column-editor.tsx`, `column-mana
 - Gợi ý và danh sách tham chiếu không có tên bảng/cột của datahub **người khác** chia sẻ (luật 6.4).
 - Không có kéo-thả đổi thứ tự cột trong danh sách (thứ tự cột hiển thị do view, mục 5.1; `position` của cột chưa có giao diện đổi).
 - Menu tiêu đề cột "Sửa cột…", "Xoá cột" chưa có e2e (tiêu đề vẽ trên canvas); dùng "Cột của bảng" trong test.
+
+## Stage 2C-4 (Tìm dòng trùng, Chia sẻ, Thùng rác, giới hạn Admin)
+
+**Tìm dòng trùng (mục 7a)**
+- Server (`apps/api/src/modules/datahub/duplicates.ts`): `datahub.row.duplicates` (xem nhóm) và `datahub.row.duplicates.resolve` (xử lý). Khoá so là giá trị các cột đã chọn, chuẩn hoá bằng `soe_unaccent`, hoa thường, gộp khoảng trắng. Dòng có mọi cột khoá trống không có khoá nên không bao giờ tính là trùng. Tối đa 5 cột khoá. Một số liệu một nơi tính: giao diện chỉ đọc `total_groups`, `total_rows` của server (trừ số nhóm đã xử lý trong phiên ở máy khách để số hiện đúng ngay).
+- `resolve` với `all`: mỗi lần tối đa 1.000 nhóm, bỏ qua nhóm trên 2.000 dòng (báo "còn N nhóm lớn chưa xử lý"); giao diện gọi lặp tới khi hết hoặc không xử lý thêm được. Không gộp cột Đính kèm. Dòng bị xoá vào Thùng rác (khôi phục được).
+- Giao diện (`duplicates-dialog.tsx`): nút "Tìm dòng trùng" ở thanh công cụ view, chỉ khi `access` là `owner` hoặc `edit_data`; chọn 1 đến 5 cột; mỗi nhóm là một bảng nhỏ chọn dòng giữ (radio), tuỳ chọn "Gộp giá trị vào dòng giữ" (bấm ô của dòng khác để lấy giá trị), hoặc "Xử lý mọi nhóm" (giữ dòng đầu / cuối / nhiều ô nhập nhất, điền ô trống). Nhóm hơn 50 dòng chỉ hiện 50 dòng đầu và chỉ xử lý được bằng "Xử lý mọi nhóm" (nút xoá từng nhóm bị khoá, tránh xoá nhầm dòng không thấy).
+- Phân trang "Tải thêm nhóm": trang đầu là `useQuery`, các trang sau thêm bằng nút; offset = số nhóm đang hiện (nhóm đã xử lý biến mất ở server nên không cộng thêm); xử lý xong một nhóm thì ẩn nhóm đó, không tải lại cả danh sách (tránh nhảy offset).
+
+**Chia sẻ (mục 10)**
+- Nút "Chia sẻ" ở đầu trang datahub, chỉ chủ thấy (`ShareDialog`, `share-dialog.tsx`). Chọn người bằng ô tìm (`datahub.people.lookup` theo `q`, gõ tên hoặc email) rồi bấm chọn trong danh sách kết quả; không có ô gõ email tự do, nên không chia sẻ được cho người ngoài org chart. Phạm vi: "Cả datahub (kể cả bảng tạo sau)" hoặc "Chỉ bảng: <tên>"; quyền Xem / Sửa dữ liệu. Danh sách "Đang chia sẻ" có đổi quyền ngay trong dòng và "Thu hồi". Chủ không thấy chính mình trong kết quả.
+- Người nhận chỉ có Xem thì không thấy "Tìm dòng trùng", "Thùng rác"; người Sửa thấy hai nút này nhưng không thấy "Thêm cột" (cấu trúc là của chủ). Quyền do server kiểm; giao diện chỉ ẩn nút.
+- Thu hồi lúc người kia đang mở trang: trang của họ nhận 403/404 ở lần tải kế tiếp và hiện trạng thái "không mở được" (không xử lý thêm).
+
+**Thùng rác (mục 12)**
+- Trang `/datahub/thung-rac` (`TrashPage`, `trash.tsx`; liên kết "Thùng rác" ở đầu trang danh sách): datahub và bảng đã xoá của chủ, kèm lúc xoá và "Xoá hẳn <ngày>" (`purge_at`, tooltip có giờ và số ngày giữ). Hộp thoại "Thùng rác của bảng" (nút "Thùng rác" ở thanh công cụ view, cho chủ và người Sửa): dòng đã xoá (tối đa 500 mới nhất, ghi rõ khi bị cắt) và cột đã xoá (chỉ chủ; server chỉ trả cột cho chủ).
+- Khôi phục: gọi `*.restore`; server trả `conflict` với `details.reason = "duplicate_name"` khi tên bị dùng, giao diện mở hộp "Tên … đã bị dùng" để đặt tên mới rồi gọi lại với `name`. Lỗi khác hiện dưới nút. Khôi phục cột dùng `key` làm mã cột. `datahub.restore` và `table.restore` ở API web nhận thêm `name` tuỳ chọn.
+- Dòng trong thùng rác chỉ hiện `#số dòng` và lúc xoá (server không trả nội dung dòng đã xoá).
+
+**Giới hạn Admin theo người (mục 11)**
+- Trang `/quan-tri/datahub-gioi-han` (`DatahubLimitsPage` trong `pages/admin.tsx`, mục menu "Giới hạn Datahub", cần `system:setting:write`). Chọn người (cùng `PersonPicker` của trang Chuyển giao), nhập số datahub / bảng mỗi datahub / cột mỗi bảng; ô trống = dùng mặc định (gửi `null`). Kiểm số nguyên từ 1, trần 1.000 và cột 200 ngay ở form bằng tiếng Việt trước khi hỏi server. "Về mặc định" xoá mọi giới hạn riêng của người đó. Bảng "Đã đặt giới hạn riêng" liệt kê và có nút Sửa. Giới hạn chung vẫn ở Cài đặt hệ thống. `form.table_max_columns` chưa làm (Module 7 chưa code).
+
+**Test**
+- Máy chủ: `apps/api/test/datahub-duplicates.test.ts` (6). Web: `apps/web/test/duplicates.test.ts` (5). e2e `apps/web/e2e/stage2c4.spec.ts` (4 luồng, chỉ desktop): chia sẻ Xem + Sửa một bảng, quyền thực tế (403 khi ghi/đổi cấu trúc, bảng ngoài phạm vi đóng), đổi quyền, thu hồi; tìm trùng (từng nhóm, mọi nhóm, tên có `<b>`); thùng rác (dòng, cột, bảng, datahub, trùng tên hỏi tên mới); Admin đổi giới hạn rồi giới hạn có tác dụng và về mặc định. 403/404 sau thu hồi và 409 của khôi phục trùng tên được `Session.allow` trong spec vì là phản hồi dự kiến.
+
+**Lệch hoặc bổ sung so với thiết kế**
+- Chia sẻ chỉ tìm người theo `q` (cần gõ ít nhất một ký tự); chưa có danh sách "gợi ý theo team".
+- Thùng rác của bảng không hiện nội dung dòng đã xoá; chưa có "xoá hẳn ngay" (chỉ chờ quá hạn).
