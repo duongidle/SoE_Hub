@@ -16,13 +16,15 @@ Nguồn: `examples/Quản lý Deal SoE (Dương TVD).xlsx` (sheet **Deals** là 
 
 ### 1.1 Quản lý Deal là một datahub được bảo vệ
 
-Quản lý Deal và Datahub là **cùng một engine, cùng một nguồn dữ liệu**, chỉ khác cách hiển thị.
+Quản lý Deal chạy trên **engine Datahub** (bảng, cột, công thức, view, khoá phân chia như mọi bảng), nhưng là **chức năng riêng**, có menu riêng (sửa 19/11/2026, Dương chốt).
 
 | Menu | Người dùng thấy | Được làm |
 |---|---|---|
-| **Datahub** | Mọi datahub của mình, **gồm cả datahub "Quản lý Deal"** (bảng mặc định + bảng tự tạo) | Tạo datahub mới |
-| **Quản lý Deal** | Chỉ datahub "Quản lý Deal": bảng mặc định, bảng tự tạo, dashboard | Tạo bảng mới. Không thấy các datahub khác |
+| **Quản lý Deal** | Datahub "Quản lý Deal": bảng mặc định, bảng tự tạo, dashboard | Tạo bảng mới |
+| **Datahub** | Các datahub thường của mình. **Không** hiện datahub "Quản lý Deal" | Tạo datahub mới |
 
+- **Không hiện trong Datahub nhưng vẫn tham chiếu được.** Bảng của datahub "Quản lý Deal" (Deals, Index, Sổ com, bảng tự tạo…) vẫn là bảng của chính người đó, nên datahub thường của họ dùng được như mọi bảng của mình: công thức (`[Deals].[Doanh thu]`), cột Liên kết/Lookup/Rollup, nguồn bảng gộp và chỉ số (Module 3 mục 4.1). Trình soạn công thức và các ô chọn bảng liệt kê chúng trong nhóm riêng "Quản lý Deal". Dữ liệu đọc sang vẫn theo khoá phân chia của người đọc. Ngoại lệ đã chốt: không làm đích, không làm nguồn của Form (Module 7 mục 1.1).
+- Danh sách datahub (`datahub.list`, trang Datahub, tool `datahub_list` của Module 5) loại datahub "Quản lý Deal".
 - Mỗi Manager, Leader, User có một datahub "Quản lý Deal", tự sinh khi tài khoản được tạo. Admin và Guest không có.
 - Dashboard, view, công thức, liên kết, import/export, API chạy trên datahub này như mọi datahub.
 - Datahub "Quản lý Deal" **không tính** vào giới hạn số datahub. Bảng tự tạo trong nó tính vào giới hạn số bảng (Module 2 mục 11).
@@ -658,7 +660,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 - Thanh toán: bảng Đợt thanh toán với view Chờ tiền về / Đã về tháng này / Do AI nhập chưa kiểm; hộp thoại lập lịch cho một deal; công cụ **Ghép tiền về** (nhập hoặc dán thông tin UNC, danh sách gợi ý kèm lý do, chia một khoản vào nhiều đợt, hàng Tiền về chưa ghép); màn **Chốt kỳ tháng N** (mục 12). Sổ com với view Com của tôi theo kỳ.
 - Deals: grid Module 2, view hệ thống (Ưu tiên hôm nay, Đang mở, Cần chấm lại), ngăn chi tiết deal (người tham gia, BANT, **các đợt thanh toán của deal** kèm trạng thái và com của tôi từng đợt, lịch sử). Một deal luôn là một dòng; đợt thanh toán không bao giờ thành dòng deal mới.
 - Trang Template (mục 3.8): lối vào, danh sách bảng theo phạm vi, tạo bảng template, bốn lớp, thuộc tính cột, quyền sửa ô, vai trò cột, quyền Leader theo bảng, xem trước ảnh hưởng ("áp dụng cho 18 người"), danh sách bản sửa của các team. Nhãn `Mẫu` / `Riêng` / `Team sửa` trên tiêu đề cột.
-- Datahub: datahub "Quản lý Deal" hiện trong danh sách với biểu tượng khoá.
+- Datahub: datahub "Quản lý Deal" **không** hiện trong danh sách Datahub; trình soạn công thức và ô chọn bảng (liên kết, bảng gộp, nguồn chỉ số) có nhóm "Quản lý Deal" (mục 1.1).
 
 ## 17. Kiểm thử
 
@@ -675,6 +677,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 |---|---|---|
 | Template Deals: chỉ Admin (Module 1 mục 3.1, 3.2) | **Admin và Manager** | Module 1, CLAUDE.md |
 | Ba loại cột: hệ thống / chung / cá nhân | **Bốn lớp**: Cơ bản, Theo vai trò (Admin, Manager), Theo team (Leader), Tuỳ chỉnh. "Cột chung Manager đẩy cho cả cây" = cột template kiểu "giá trị chung" | Module 1, Module 2 mục 3, CLAUDE.md |
+| Datahub "Quản lý Deal" hiện cả trong menu Datahub (mục 1.1 bản 19/11) | Chỉ hiện ở menu Quản lý Deal; datahub thường vẫn tham chiếu bảng của nó bằng công thức, liên kết, bảng gộp, chỉ số (mục 1.1; sửa 19/11) | CLAUDE.md, Module 5 (menu theo đối tượng) |
 | Brief: datahub Deals không cho tạo thêm bảng | Datahub "Quản lý Deal" **được tạo thêm bảng**; datahub, bảng và cột mặc định được bảo vệ | Module 2 |
 | Datahub là của riêng, Leader/Manager không xem | Giữ nguyên cho bảng tự tạo và Index. **Ngoại lệ:** Deals và Probation KPI theo phạm vi deal (Leader xem team, Manager xem cây) | Module 1 mục 4 |
 | Cột hệ thống của Deals là cột cố định trong code | Cột mặc định là **cột thường do template sinh sẵn**; cột tính toán là công thức, Admin/Manager sửa cho mọi người, Leader sửa cho team, User không sửa (mục 3.3) | Module 2, CLAUDE.md |
