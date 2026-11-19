@@ -19,6 +19,9 @@ interface ManualColumn {
   from: Record<string, string>;
 }
 
+/** Keys are remembered by folded name: in automatic mode the name of a merged column comes from the first source, so it changes with the order. */
+const fold = (s: string) => s.trim().toLowerCase();
+
 const useDebounced = <T,>(value: T, ms: number): T => {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -44,7 +47,7 @@ export function MergeDialog({ datahubId, existing, onClose }: { datahubId: strin
   const [mode, setMode] = useState<"auto" | "manual">(cfg ? "manual" : "auto");
   const [manual, setManual] = useState<ManualColumn[]>(cfg ? cfg.columns.map((c) => ({ name: c.name, from: Object.fromEntries(Object.entries(c.from).map(([t, f]) => [t, f.column_name ?? ""]).filter(([, n]) => n)) })) : []);
   const [dedupOn, setDedupOn] = useState(!!cfg?.dedup);
-  const [dedupCols, setDedupCols] = useState<string[]>(cfg?.dedup?.columns ?? []);
+  const [dedupCols, setDedupCols] = useState<string[]>((cfg?.dedup?.columns ?? []).map(fold));
   const [strategy, setStrategy] = useState<MergeStrategy>(cfg?.dedup?.strategy ?? "priority");
   const [picked, setPicked] = useState("");
 
@@ -56,12 +59,15 @@ export function MergeDialog({ datahubId, existing, onClose }: { datahubId: strin
   const tables = useQueries({ queries: sources.map((id) => ({ queryKey: dhKeys.table(id), queryFn: () => getTable(id), enabled: mode === "manual" })) });
   const colsOf = (id: string) => (tables[sources.indexOf(id)]?.data?.columns ?? []).filter((c) => !NOT_MERGEABLE.has(c.type));
 
+  // Keys are sent as folded names: the server matches column names without case and spaces, so the key survives a reorder that renames an automatic column.
   const body: MergeInput = useMemo(() => {
     const columns = mode === "manual" ? manual.filter((c) => c.name.trim() && Object.values(c.from).some(Boolean)).map((c) => ({ name: c.name.trim(), from: Object.fromEntries(Object.entries(c.from).filter(([, v]) => v)) })) : undefined;
     return { sources, ...(columns ? { columns } : {}), dedup: dedupOn && dedupCols.length ? { columns: dedupCols, strategy } : null };
   }, [sources, mode, manual, dedupOn, dedupCols, strategy]);
   const debounced = useDebounced(JSON.stringify(body), 450);
-  const ready = sources.length > 0 && (mode === "auto" || (body.columns?.length ?? 0) > 0);
+  // `ready` is judged on what is really sent (the debounced body), never on the newer state: a request must not carry an older, empty form.
+  const sent = useMemo(() => JSON.parse(debounced) as MergeInput, [debounced]);
+  const ready = sent.sources.length > 0 && (mode === "auto" || (sent.columns?.length ?? 0) > 0);
   const preview = useQuery({
     queryKey: ["dh-merge-preview", datahubId, debounced],
     queryFn: () => previewMerge(datahubId, JSON.parse(debounced) as MergeInput),
@@ -98,7 +104,7 @@ export function MergeDialog({ datahubId, existing, onClose }: { datahubId: strin
     n.splice(to, 0, x!);
     return n;
   });
-  const toggleKey = (c: string) => setDedupCols((d) => (d.includes(c) ? d.filter((x) => x !== c) : d.length >= 5 ? d : [...d, c]));
+  const toggleKey = (c: string) => setDedupCols((d) => (d.includes(fold(c)) ? d.filter((x) => x !== fold(c)) : d.length >= 5 ? d : [...d, fold(c)]));
   const useManual = () => {
     if (mode === "manual") return;
     setManual((preview.data?.columns ?? []).map((c) => ({ name: c.name, from: { ...c.from } })));
@@ -205,7 +211,7 @@ export function MergeDialog({ datahubId, existing, onClose }: { datahubId: strin
                   {columnNames.length === 0 && <span className="text-sm text-muted-foreground">Chưa có cột nào để chọn.</span>}
                   {columnNames.map((c) => (
                     <label key={c} className="flex min-h-11 items-center gap-1.5 rounded-md border border-border px-2 text-sm sm:min-h-9">
-                      <input type="checkbox" checked={dedupCols.includes(c)} onChange={() => toggleKey(c)} data-testid={`merge-key-${c}`} />
+                      <input type="checkbox" checked={dedupCols.includes(fold(c))} onChange={() => toggleKey(c)} data-testid={`merge-key-${c}`} />
                       {c}
                     </label>
                   ))}

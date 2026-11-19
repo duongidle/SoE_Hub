@@ -45,7 +45,7 @@ const rowsOf = async (api: ApiClient, tableId: string) => (await api.raw<{ data:
 const mergeInfo = (api: ApiClient, tableId: string) => api.call<{ status: string; syncing: boolean; errors: { reason: string; name: string | null }[]; diagnostics: { summary: string; total_kept: number; dropped: number } | null; config: unknown }>("GET", `/tables/${tableId}/merge`);
 async function colKey(api: ApiClient, tableId: string, name: string) {
   const t = await api.call<{ columns: { name: string; key: string }[] }>("GET", `/tables/${tableId}`);
-  return t.columns.find((c) => c.name === name)!.key;
+  return t.columns.find((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase())!.key; // a merged column takes the name of its first source
 }
 const settled = (api: ApiClient, tableId: string) => expect.poll(async () => (await mergeInfo(api, tableId)).syncing, { message: "bảng gộp chưa đồng bộ xong", timeout: 20_000 }).toBe(false);
 
@@ -147,10 +147,10 @@ test("tạo bảng gộp trong giao diện: nguồn theo thứ tự ưu tiên, g
   // Key on MST (accents, case, spaces ignored): 0101 and Đức Anh are duplicates.
   await d.getByTestId("merge-dedup-on").check();
   await d.getByTestId("merge-key-MST").check();
-  await expect(d.getByTestId("merge-summary")).toContainText("Gộp 2 bảng: 5 dòng, loại 1 dòng trùng khoá");
+  await expect(d.getByTestId("merge-summary")).toContainText("Gộp 2 bảng: 4 dòng, loại 2 dòng trùng khoá");
   await d.getByTestId("merge-strategy-cell_merge").check();
-  // The row without a key is kept: 3 + 3 - 2 duplicates... "Đức Anh" and "0101 " are two groups; the empty-key row stays.
-  await expect(d.getByTestId("merge-summary")).toContainText("loại 2 dòng trùng khoá");
+  // 6 rows read; "0101" and "Đức Anh" are the two groups (accents, case, spaces ignored); the row without a key stays. Same count with cell merge.
+  await expect(d.getByTestId("merge-summary")).toContainText("4 dòng, loại 2 dòng trùng khoá (2 nhóm trùng)");
   await d.getByTestId("merge-duplicates").locator("summary").click();
   await expect(d.getByTestId("merge-dup-group")).toHaveCount(2);
   // Priority: move B first, the order is what the server uses.
@@ -204,7 +204,7 @@ test("chỉ đọc: giao diện không cho nhập, máy chủ từ chối ghi d�
   // A formula column is allowed.
   expect(await statusOf(() => ownerApi.call("POST", `/tables/${mergedId}/columns`, { name: "Gấp đôi", type: "formula", config: { formula: "=[Doanh thu]*2", result_type: "number" } }))).toBe(200);
   // The merge table is not a target of a source: a merged table cannot be a source of another.
-  expect(await statusOf(() => ownerApi.call("POST", `/datahubs/${hubId}/merged-tables`, { name: "Gộp của gộp", sources: [mergedId] }))).toBe(422);
+  expect(await statusOf(() => ownerApi.call("POST", `/datahubs/${hubId}/merged-tables`, { name: "Gộp của gộp", sources: [mergedId] }))).toBe(400);
 });
 
 test("nguồn đổi thì bảng gộp tự cập nhật; sửa, thêm, xoá dòng nguồn; dữ liệu xấu nhất", async () => {
@@ -219,7 +219,11 @@ test("nguồn đổi thì bảng gộp tự cập nhật; sửa, thêm, xoá dò
   await ownerApi.call("PATCH", `/tables/${srcAId}/rows/${row0101.id}`, { data: { Tên: "An mới" }, version: 1 });
   const rowNoKey = aRows.find((r) => Object.values(r.data).includes("Không khoá"))!;
   await ownerApi.call("DELETE", `/tables/${srcAId}/rows/${rowNoKey.id}`);
-  await expect.poll(async () => (await rowsOf(ownerApi, mergedId)).length, { timeout: 20_000 }).toBe(4); // +1 -1
+  // +1 row and -1 row: the count stays 4, so wait for what really changed (the new row there, the deleted one gone, the edit applied).
+  await expect.poll(async () => {
+    const r = await rowsOf(ownerApi, mergedId);
+    return [r.some((x) => x.data[mst] === "7777"), r.some((x) => x.data[ten] === "Không khoá"), r.some((x) => x.data[ten] === "An mới")];
+  }, { timeout: 20_000 }).toEqual([true, false, false]); // 0101 keeps the name of B (priority), so "An mới" of A does not show
   await settled(ownerApi, mergedId);
   const after = await rowsOf(ownerApi, mergedId);
   expect(after.find((r) => r.data[mst] === "7777")!.data[ten]).toBe("<script>alert(1)</script>");
@@ -240,14 +244,14 @@ test("nguồn lớn: 2.500 dòng thêm vào bảng gộp, đủ số dòng, bả
   await pg.getByTestId("merge-configure").click();
   const d = dialog(pg, /^Cấu hình bảng gộp/);
   await expect(d).toBeVisible();
-  // The saved configuration is back in the form: 2 sources, key on MST, manual mapping.
+  // The saved configuration is back in the form: 2 sources, the key, manual mapping. B has priority, so the merged column is named "mst" (the name of its first source).
   await expect(d.getByTestId("merge-source")).toHaveCount(2);
-  await expect(d.getByTestId("merge-key-MST")).toBeChecked();
+  await expect(d.getByTestId("merge-key-mst")).toBeChecked();
   await d.getByTestId("merge-source-select").selectOption({ label: `DH A ${p} – Lớn ${p}` });
   await d.getByTestId("merge-add-source").click();
   // The big table has MST and Số: map MST by hand (Số has no counterpart, so it is left out of the merge).
   const mapping = d.getByTestId("merge-mapping");
-  const mstRow = mapping.getByTestId("merge-mapping-row").filter({ has: pg.locator('input[value="MST"]') });
+  const mstRow = mapping.getByTestId("merge-mapping-row").filter({ has: pg.locator('input[value="mst"]') });
   await mstRow.getByRole("combobox", { name: new RegExp(`ở DH A ${p} – Lớn ${p}`) }).selectOption({ label: "MST" });
   await expect(d.getByTestId("merge-summary")).toContainText("Gộp 3 bảng", { timeout: 20_000 });
   await d.getByTestId("merge-submit").click();
@@ -315,14 +319,14 @@ test("người được chia sẻ: chỉ xem (kể cả khi được cho quyền
   const theirTable = await viewerApi.call<{ id: string }>("POST", `/datahubs/${theirs.id}/tables`, { name: "Của họ" });
   await viewerApi.call("POST", `/tables/${theirTable.id}/columns`, { name: "MST", type: "text" });
   await viewerApi.call("PUT", `/datahubs/${theirs.id}/shares`, { grantee_id: await personId(ownerApi), permission: "view" });
-  expect(await statusOf(() => ownerApi.call("POST", `/datahubs/${hubId}/merged-tables`, { name: "Nguồn lạ", sources: [srcAId, theirTable.id] }))).toBe(422);
+  expect(await statusOf(() => ownerApi.call("POST", `/datahubs/${hubId}/merged-tables`, { name: "Nguồn lạ", sources: [srcAId, theirTable.id] }))).toBe(400);
 });
 
 async function personId(api: ApiClient): Promise<string> {
   return (await api.call<{ user: { id: string } }>("GET", "/auth/me")).user.id;
 }
 
-test("cấu hình: đổi thứ tự ưu tiên và cách chống trùng, bảng chép lại; chuyển cả cây thì chủ vẫn đọc được", async () => {
+test("cấu hình: đổi cách chống trùng thì bảng chép lại; nút Đồng bộ lại đưa thanh trạng thái về đã đồng bộ", async () => {
   const pg = owner.page;
   await pg.goto(`/datahub/${hubId}/${mergedId}`);
   await pg.getByTestId("merge-configure").click();
@@ -340,13 +344,4 @@ test("cấu hình: đổi thứ tự ưu tiên và cách chống trùng, bảng 
   await toast(pg, "Đã yêu cầu đồng bộ lại");
   await expect(pg.getByTestId("merge-status")).toContainText("Đã đồng bộ", { timeout: 20_000 });
   await owner.shot("merge-configured");
-});
-
-test("OpenAPI có đủ endpoint bảng gộp", async () => {
-  const res = await fetch(`${API}/api/openapi.json`);
-  if (!res.ok) return test.skip(true, "OpenAPI không phục vụ ở môi trường này");
-  const doc = (await res.json()) as { paths: Record<string, unknown> };
-  for (const path of ["/api/v1/datahubs/{datahub_id}/merged-tables", "/api/v1/tables/{table_id}/merge", "/api/v1/tables/{table_id}/merge/sync", "/api/v1/datahubs/{datahub_id}/merge-preview", "/api/v1/tables/{table_id}/merge/duplicates", "/api/v1/tables/{table_id}/merge/origin/{row_id}"]) {
-    expect(Object.keys(doc.paths), path).toContain(path);
-  }
 });

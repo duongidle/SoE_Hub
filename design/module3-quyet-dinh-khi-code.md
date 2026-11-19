@@ -151,3 +151,51 @@ Phần còn lại của 3A-2 (mục 4–9) chưa làm.
 - Dashboard mở lâu có thể nhận nhiều tín hiệu `metrics.data.changed` khi có ghi hàng loạt (mỗi sự kiện dòng một tín hiệu): 3C nên debounce khi tải lại. Nếu muốn gộp ở server thì đổi subscriber thành gộp theo (datahub, 500 ms): chưa làm.
 - Cache nằm trong bộ nhớ từng tiến trình api; chạy nhiều api thì mỗi cái tự tính lần đầu (3D đo). Chưa có trần toàn hệ thống số câu chạy cùng lúc (chỉ 6/người + pool 10 kết nối).
 - `statement_timeout` (10 s), 6 câu/người, TTL 5 phút, 2.000 câu cache đang là hằng số trong `metricLimits`; chưa đưa lên cài đặt hệ thống.
+
+## Stage 3B: bảng gộp (Sonnet, 19/11)
+
+### Cấu trúc
+
+- Migration `0011_datahub_merged_tables.sql`: `dh_tables.kind` (`normal` | `merged`); `dh_merges` (một dòng mỗi bảng gộp: `config`, `source_ids` có index GIN, `status` pending/ok/error, `error`, `diagnostics`, `request_seq` / `synced_seq`, `synced_at`, `version`); `dh_merge_rows` (`ident` -> dòng gộp, kèm bảng và dòng nguồn; để mở dòng gốc và để giữ mã dòng gộp qua các lần đồng bộ). Bảng gộp là bảng của datahub, đếm vào giới hạn số bảng, dòng ở `dh_rows` như mọi bảng (không bảng riêng).
+- Mã: `datahub/merge-plan.ts` (thuần: cấu hình Zod, kiểu cột ghép được, chuẩn hoá khoá, `planMerge`), `merge-sync.ts` (đọc nguồn, ghi, vòng worker, `requestRescope`, subscriber), `merge-ops.ts` (lệnh). Worker: `startMergeLoop` (cùng nhịp với vòng công thức); test: `drainOutbox` của `dh-helpers` gọi thêm `processPendingMerges`.
+
+### Đọc nguồn qua phạm vi của chủ (Điều chỉnh mục 3)
+
+- Nguồn được nạp bằng `loadTableAccess` với **chủ bảng gộp làm actor**, yêu cầu mức `owner` (bảng do người khác chia sẻ, kể cả khi chủ đọc được, bị từ chối: `source_not_owned` lúc tạo, `no_access` lúc đồng bộ). Dòng đọc qua **`readableRows(access, alias)`** mới thêm ở `datahub/access.ts` ngay cạnh `scopeKey`: `access.scope()` + chưa vào thùng rác. Stage 4.1 (khoá phân chia) chỉ sửa `scope()`, `scopeKey` và `readableRows` ở file đó; bảng gộp không chép dòng chủ không thấy.
+- Đường đồng bộ lại khi phạm vi đổi: **`requestRescope(db, event)`** (`merge-sync.ts`) là một cửa duy nhất đổi "cái gì vừa đổi" thành "bảng gộp nào phải đồng bộ lại": dòng hoặc giá trị công thức của nguồn (`datahub.row.*`, `datahub.formula.recalculated` không phải `pending`), cấu trúc (cột, thùng rác, đổi chủ), `datahub.share.changed` (mọi bảng gộp trong datahub đó hoặc có nguồn ở đó), `org.member.changed` (mọi bảng gộp). Hôm nay "đồng bộ lại" là đọc lại cả nguồn qua `readableRows` (phạm vi = cả bảng) rồi so sánh, nên không ghi gì nếu không có gì đổi. 4.1 thêm trigger (đổi cột khoá, đổi cây) ngay trong hàm này.
+- Tất cả đi qua một subscriber (`datahub.merge`), nên khi nguồn là bảng template của Deals sau này không phải đổi chỗ nào khác.
+
+### Đồng bộ
+
+- Một transaction mỗi bảng gộp, khoá `pg_try_advisory_xact_lock` (hai worker không chạy cùng một bảng). `request_seq` tăng mỗi yêu cầu; đồng bộ đọc `request_seq` lúc bắt đầu và ghi `synced_seq` lúc xong, nên yêu cầu đến giữa lúc chạy không mất. Vòng worker lấy bảng có `request_seq > synced_seq`.
+- So sánh với dòng đang có theo `ident`: thêm, sửa (chỉ khi các ô do gộp quản lý đổi), xoá mềm, khôi phục (dòng nguồn quay lại thì **cùng dòng gộp**, không sinh dòng thứ hai). Mã dòng gộp ổn định: `ident` = khoá chuẩn hoá khi chống trùng (nên người thắng đổi thì dòng gộp vẫn là dòng đó), hoặc `nguồn:dòng` khi không có khoá hay khoá rỗng.
+- **Không lịch sử dòng, không nhật ký, không đổi `version` và "Ngày sửa"** (cùng luật với công thức). Phát `datahub.row.created/updated/deleted/restored` (cho SSE, cache metrics, `recordChanges` cho công thức/lookup/rollup đọc bảng gộp) và `datahub.merge.synced` (UI làm mới trạng thái). Công thức cùng dòng tính ngay trong transaction (`RowFormulas`), công thức đọc cả cột do worker tính như bảng thường. Bảng gộp là nguồn của metrics không cần đổi engine: cache bị xoá bằng chính subscriber `metrics.cache` nghe các sự kiện dòng đó.
+- Số đo (máy dev, `datahub-merge-perf.test.ts`): 100.000 + 50.000 dòng nguồn, 30.000 khoá trùng, bảng gộp 120.000 dòng: đồng bộ lần đầu ~13 s; sau khi sửa một dòng nguồn đồng bộ ~1,2 s và chỉ ghi 1 dòng. Đọc toàn bộ dòng nguồn vào bộ nhớ theo trang 5.000 (đủ cho cỡ này; nguồn lớn hơn nhiều thì cần đồng bộ từng phần: để 3D/Stage sau).
+
+### Nguồn mất
+
+- Nguồn bị xoá/vào thùng rác, mất quyền chủ (đổi chủ datahub), hoặc là bảng gộp: `status = error`, `error` liệt kê từng nguồn kèm lý do (`deleted`, `no_access`, `merged`). **Cả bảng ngừng cập nhật** (không đồng bộ nửa vời làm mất dòng của nguồn bị mất), giữ dữ liệu lần đồng bộ cuối; nguồn trở lại (khôi phục) thì tự đồng bộ lại. Người được chia sẻ thấy lỗi nhưng không thấy tên nguồn (họ có thể không được chia sẻ nguồn). Lỗi bất ngờ khi đồng bộ: `error` với `sync_failed`, đặt `synced_seq` để không lặp mỗi nhịp.
+- Cột nguồn bị xoá hoặc đổi sang nhóm kiểu không khớp: **không phải lỗi**, là cảnh báo (`missing_column`, `type_mismatch`) và ô để trống.
+
+### Ghép cột, kiểu, chống trùng
+
+- Tự ghép theo tên (`normName`: bỏ khoảng trắng đầu cuối, không phân biệt hoa thường); **tên cột lấy từ nguồn ưu tiên cao nhất có cột đó** (nên đổi thứ tự có thể đổi chữ hoa thường của tên; khoá chống trùng so tên không phân biệt hoa thường nên không vỡ). Ghép tay bằng `columns: [{name, from: {bảng: cột}}]`. Cột mới giữ **mã cột cũ khi cùng tên và cùng kiểu** (view, công thức, chỉ số đọc cột đó không đổi) khi cập nhật cấu hình.
+- Kiểu ghép được (nhóm): văn bản (text, long_text, email, phone, url), số (number, currency, percent, rating), ngày, ngày giờ, checkbox, người dùng, lựa chọn. Cùng kiểu giữ nguyên; cùng nhóm thành kiểu thường (text, number); **một/nhiều lựa chọn thành văn bản (tên lựa chọn, nhiều thì nối ", ")** vì mã lựa chọn riêng từng bảng. Khác nhóm: `incompatible_types` kèm danh sách kiểu. Đính kèm, liên kết, tự tăng, cột hệ thống không ghép (tự ghép thì bỏ qua, ghép tay thì lỗi). Cột công thức/lookup/rollup ở nguồn ghép theo kiểu kết quả, chép giá trị đã tính (thành cột thường ở bảng gộp, theo dõi tính lại của nguồn).
+- Khoá chống trùng 1–5 cột; chuẩn hoá bỏ dấu (đ -> d), chữ thường, gộp khoảng trắng. **Dòng có mọi cột khoá rỗng giữ nguyên, không so trùng** (kèm số `empty_key_rows`). Ba cách: `priority` (nguồn cao hơn, cùng nguồn thì dòng nhỏ số hơn), `latest` (`updated_at` lớn nhất, hoà thì theo ưu tiên), `cell_merge` (dòng ưu tiên cao nhất, ô rỗng lấy giá trị không rỗng đầu tiên theo ưu tiên). Cột `Nguồn` = "Tên datahub – Tên bảng" (tên bảng riêng lẻ lặp lại giữa các datahub, ví dụ "Bảng 1"), `Mã dòng gốc` = mã dòng của dòng thắng. Không chọn khoá: cảnh báo `no_key`.
+- Chẩn đoán trả mỗi lần (`datahub.merge.get`, `datahub.merge.preview`): câu đọc được ("Gộp 3 bảng: 1.240 dòng, loại 87 dòng trùng khoá (40 nhóm trùng)."), số dòng đọc/giữ/loại từng nguồn, cảnh báo, 20 nhóm trùng mẫu; `datahub.merge.duplicates` phân trang đủ nhóm (tính lại qua phạm vi của chủ); `datahub.merge.preview` chạy cả kế hoạch không ghi (nặng ngang một lần đồng bộ, giao diện gọi sau 450 ms không gõ).
+
+### Chỉ đọc và quyền
+
+- `assertWritable` ở `applyRowOps` và `restoreRows` (một cửa của mọi ghi dòng: API, import, dán, tìm dòng trùng) từ chối cả **chủ**; người được chia sẻ quyền Sửa bị hạ xuống Xem ở `loadTableAccess` (nên mọi chỗ kiểm `edit_data` đều chặn). Cột: bảng gộp chỉ thêm được cột **công thức/lookup/rollup**; cột dữ liệu chỉ đổi tên, mô tả, định dạng, vị trí; không xoá, không khôi phục, không đổi kiểu (qua `datahub.merge.update`).
+- Chỉ chủ datahub tạo, cấu hình (`merge.update`), đồng bộ tay, xem nhóm trùng và dòng gốc. Người được chia sẻ xem `merge.get` ở dạng rút gọn (trạng thái, tổng số dòng; không có cấu hình, tên nguồn, nhóm trùng). Một bảng gộp không làm nguồn của bảng gộp khác (tránh vòng).
+- Giao diện: nút "Thêm bảng gộp" ở thanh bảng (chỉ chủ), thanh trạng thái trên grid, trình cấu hình, danh sách nhóm trùng, liên kết "Mở bảng nguồn" ở khung chi tiết dòng (chỉ chủ; mở bảng nguồn, không nhảy tới dòng vì chưa có địa chỉ tới một dòng). "Nhập dữ liệu" của datahub không liệt kê bảng gộp.
+
+### Test
+
+- `apps/api/test/datahub-merge-plan.test.ts` (11, thuần), `datahub-merge.test.ts` (20: tạo, ghép cột tay và tự ghép, ba cách chống trùng, khoá rỗng, theo nguồn, công thức, chỉ đọc, không vết, quyền, giới hạn bảng, cập nhật cấu hình, nguồn mất/đổi chủ/cột mất, `requestRescope`, metrics), `datahub-merge-perf.test.ts` (100.000 + 50.000 dòng). e2e `apps/web/e2e/stage3b.spec.ts` (7 luồng desktop).
+- Lỗi giao diện tìm thấy khi viết e2e, đã sửa: bản xem trước gửi với biểu mẫu cũ (rỗng) vì điều kiện `enabled` đọc state thay vì thân đã debounce; khoá chống trùng lưu theo tên đã chuẩn hoá để không vỡ khi đổi thứ tự nguồn làm đổi chữ hoa thường của tên cột tự ghép.
+
+### Câu hỏi còn mở của 3B (không chặn)
+
+- Nguồn rất lớn (hàng triệu dòng): đồng bộ hiện đọc cả nguồn vào bộ nhớ; chưa có đồng bộ từng phần theo `row_ids` của sự kiện.
+- Chủ đổi tên một cột nguồn: cột gộp vẫn trỏ đúng (theo mã cột) nhưng tên cột gộp không đổi theo; chủ đổi tên bằng tay ở bảng gộp (cho phép).

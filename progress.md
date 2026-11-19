@@ -35,9 +35,8 @@ Cập nhật: 19/11/2026
 
 Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử theo cấp"; quyết định ghi ở `design/module3-quyet-dinh-khi-code.md`):
 
-- **3A-1 engine metric lõi (server)**: schema (nguồn dữ liệu, chỉ số, biểu đồ, dashboard), `packages/metrics`: JSON chỉ số → một câu SQL gom nhóm áp phạm vi dữ liệu; mọi phép tổng hợp mục 5.1; nhóm thời gian (giờ VN, tuần từ thứ Hai, quý theo năm tài chính), khoảng tương đối; phân nhóm theo cột; lọc dùng cú pháp lọc của Module 0; ghép bảng theo cột liên kết/cột khoá có chẩn đoán và gom bảng nhiều dòng trước (mục 3); `metrics.query`; CRUD chỉ số + nguồn; test unit + phân quyền.
-- **3A-2 engine metric nâng cao (server)** (xong, Opus rà đạt 19/11): chỉ số phái sinh bằng engine công thức (`[Tên chỉ số]`), so kỳ trước/cùng kỳ năm trước, luỹ kế, cohort, mục tiêu (hằng số/bảng mục tiêu, % đạt), outlier IQR; chịu tải mục 6.1 (cache theo chỉ số + tham số + phạm vi, gộp yêu cầu trùng, 6 câu/người, `statement_timeout` 10 s); outbox xoá cache + SSE. Snapshot và "team tại thời điểm" chỉ để chỗ cắm (Stage 4).
-- **3B bảng gộp**: loại bảng chỉ đọc, ≤10 nguồn cùng chủ, ghép cột, cột Nguồn + Mã dòng gốc, chống trùng 3 cách, chẩn đoán, worker đồng bộ theo outbox, không lịch sử/nhật ký, nguồn mất thì báo lỗi giữ dữ liệu cũ; giao diện trình tạo bảng gộp; e2e.
+- **3A-1, 3A-2 engine metric (server)**: xong, Opus rà đạt 19/11 (JSON chỉ số -> SQL, phép tổng hợp, thời gian, ghép bảng, phái sinh, so kỳ, luỹ kế, cohort, mục tiêu, outlier, cache + chịu tải, xoá cache bằng outbox + SSE). Chi tiết ở file quyết định.
+- **3B bảng gộp**: Sonnet xong 19/11, chờ Opus rà (chi tiết ở "Bước tiếp theo" ngay dưới).
 - **3C-1 dashboard + biểu đồ cơ bản (giao diện)**: tab Dashboard trong datahub, nhiều dashboard (mới, đổi tên, nhân bản, đổi thứ tự, xoá vào thùng rác, giới hạn 30 biểu đồ/20 dashboard), lưới kéo thả + đổi kích thước tự lưu, khung cấu hình biểu đồ, thư viện chỉ số/nguồn đã lưu ("Lưu thành..."), loại: Thẻ KPI, cột/thanh (nhóm, chồng, 100%), đường/vùng, kết hợp hai trục, tròn/donut, bảng, pivot, ô ghi chú; tuỳ chọn hiển thị chung; e2e.
 - **3C-2 biểu đồ còn lại + tương tác**: bullet, đồng hồ, phễu, box plot, histogram, scatter, ma trận 2×2/heatmap, waterfall, xếp hạng, cohort tam giác; bộ lọc chung (bản riêng + "Về mặc định"), lọc chéo, xem các dòng (theo quyền), xuất CSV/PNG, JSON xuất/nhập dashboard, chia sẻ dashboard (tính bằng quyền chủ, nhật ký, Guest được cấp); e2e.
 - **3D load test**: 100.000 dòng, 20 người cùng mở dashboard 30 biểu đồ, không cache sẵn; đạt khi mọi biểu đồ xong trong 3 s, không lỗi; tối ưu nếu chưa đạt (mục 6.1 điểm 5).
@@ -48,11 +47,11 @@ Bước con (mỗi bước một phiên Sonnet; test nhanh theo "Kiểm thử th
 ## Bước tiếp theo
 
 **3A-1, 3A-2 xong, Opus rà đạt 19/11** (chi tiết, số đo: `design/module3-quyet-dinh-khi-code.md` mục 3A-1, 3A-2; git log). 850 test pass sau 3A-2.
-**3B bảng gộp (Sonnet, đang làm 19/11):**
-- [x] Server: `dh_tables.kind`, `dh_merges`, `dh_merge_rows` (migration 0011); `merge-plan.ts` (thuần), `merge-sync.ts` (đọc nguồn qua `readableRows(access)` của chủ, đồng bộ, vòng worker, `requestRescope`), `merge-ops.ts` (create/update/get/sync/preview/duplicates/origin); bảng gộp chỉ đọc (`assertWritable`, cột); OpenAPI + 7 Bruno; sự kiện `datahub.merge.synced`. Test: `datahub-merge-plan.test.ts` (11), `datahub-merge.test.ts` (20).
-- [x] Giao diện: `merge-dialog.tsx` (trình tạo/cấu hình), `merge-status.tsx` (thanh trạng thái, chẩn đoán, nhóm trùng, link dòng gốc), nút "Thêm bảng gộp", grid chỉ đọc.
-- [ ] e2e `stage3b.spec.ts` chạy trên desktop; ghi kết quả; commit cuối.
-Test đã chạy: `pnpm -r typecheck`, `pnpm lint` sạch; `vitest run packages/metrics apps/api/test/metrics apps/api/test/datahub apps/api/test/openapi apps/api/test/registry apps/api/test/audit-noise apps/api/test/worker` 38 file, 467 pass.
+**3B bảng gộp: Sonnet xong 19/11, chờ Opus rà** (quyết định và số đo: `design/module3-quyet-dinh-khi-code.md` mục "Stage 3B").
+- Server: `dh_tables.kind`, `dh_merges`, `dh_merge_rows` (migration 0011); `datahub/merge-plan.ts` (thuần), `merge-sync.ts` (đọc nguồn qua `readableRows(access)` ở `access.ts`, đồng bộ, `requestRescope` là cửa duy nhất khi phạm vi đổi, vòng worker `startMergeLoop`), `merge-ops.ts` (create/update/get/sync/preview/duplicates/origin); chỉ đọc (`assertWritable`); OpenAPI + 7 Bruno.
+- Web: `merge-dialog.tsx`, `merge-status.tsx`; sửa nhỏ `table-view.tsx`, `detail.tsx`, `row-panel.tsx`, `lib/session.tsx`.
+- Đụng phần dùng chung (Opus nên tự chạy lại): `access.ts` (`TableInfo.kind`, cap quyền bảng gộp, `readableRows`), `rows.ts` (`assertWritable`), `columns.ts` (chặn cột dữ liệu bảng gộp), `structure.ts` (`kind` ở TableOut), `core/subscribers.ts`, `worker.ts`, `test/dh-helpers.ts` (`drainOutbox` chạy thêm `processPendingMerges`), `table-view.tsx` (grid chỉ xem ở bảng gộp).
+- Test: `pnpm -r typecheck`, `pnpm lint` sạch; `vitest run packages/metrics apps/api/test/metrics apps/api/test/datahub apps/api/test/openapi apps/api/test/registry apps/api/test/audit-noise apps/api/test/worker` 38 file, 467 pass (trước khi thêm perf); `datahub-merge-perf` pass (đồng bộ đầu 13 s, sau sửa 1 dòng 1,2 s); `pnpm test:e2e stage3b --project=desktop` 7/7 pass. Bước tiếp theo: Opus rà 3B, rồi 3C-1.
 
 ## Điều chỉnh Stage 3 so với Module 3 đã đọc (Dương chốt 19/11)
 
