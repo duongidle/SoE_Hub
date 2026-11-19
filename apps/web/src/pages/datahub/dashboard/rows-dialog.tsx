@@ -7,9 +7,23 @@ import { ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { getChartCsv, getChartRows } from "@/lib/dashboard/api";
 import type { RowsResult, ViewFilters } from "@/lib/dashboard/types";
+import { formatCurrency, formatDate, formatDateTime, formatNumber, formatPercent } from "@soe/shared";
 
 const PAGE = 50;
-const cell = (v: unknown): string => (v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
+/** One cell as the Datahub grid writes it (same shared formatters), by column type: 9.999.999.999.999, 12,5%, 2026-01-10 as a date. */
+const cell = (v: unknown, type: string): string => {
+  if (v === null || v === undefined || v === "") return "";
+  if (typeof v === "number") {
+    if (type === "currency") return formatCurrency(v);
+    if (type === "percent") return formatPercent(v);
+    if (type === "number" || type === "auto_number" || type === "rating" || type === "row_id") return formatNumber(v);
+  }
+  if (typeof v === "string") {
+    if (type === "date") return formatDate(v);
+    if (type === "datetime" || type === "created_time" || type === "modified_time") return formatDateTime(v);
+  }
+  return typeof v === "object" ? JSON.stringify(v) : String(v);
+};
 
 /** Triggers a download of text made in the browser (the CSV came from the server as text). */
 export function downloadText(name: string, text: string, type: string) {
@@ -35,7 +49,7 @@ export function RowsDialog({ chartId, title, series, group, filters, onClose }: 
     mutationFn: () => getChartCsv(chartId, series, group, filters),
     onSuccess: (r) => {
       downloadText(r.filename, r.csv, "text/csv;charset=utf-8");
-      notify.ok(`Đã xuất ${r.rows} dòng. ${r.note}${r.truncated ? " File dừng ở 5.000 dòng đầu." : ""}`);
+      notify.ok(`Đã xuất ${formatNumber(r.rows)} dòng. ${r.note}${r.truncated ? " File dừng ở 5.000 dòng đầu." : ""}`);
     },
   });
   const d = first.data;
@@ -65,7 +79,7 @@ export function RowsDialog({ chartId, title, series, group, filters, onClose }: 
                   {items.map((r) => (
                     <tr key={r.id} className="border-b border-border/60 last:border-0">
                       <td className="whitespace-nowrap px-2 py-1.5 tabular-nums text-muted-foreground">{r.row_no}</td>
-                      {d.columns.map((c) => <td key={c.key} className="px-2 py-1.5 [overflow-wrap:anywhere]">{cell(r.data[c.key])}</td>)}
+                      {d.columns.map((c) => <td key={c.key} className="px-2 py-1.5 [overflow-wrap:anywhere]">{cell(r.data[c.key], c.type)}</td>)}
                     </tr>
                   ))}
                 </tbody>
@@ -73,7 +87,7 @@ export function RowsDialog({ chartId, title, series, group, filters, onClose }: 
             </div>
           )}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">Đang hiện {items.length}/{d.total_visible} dòng.</span>
+            <span className="text-xs text-muted-foreground">Đang hiện {formatNumber(items.length)}/{formatNumber(d.total_visible)} dòng.</span>
             <div className="flex gap-2">
               {items.length < d.total_visible && <Button variant="secondary" loading={more.isPending} onClick={() => more.mutate()}>Tải thêm</Button>}
               <Button variant="secondary" loading={csv.isPending} onClick={() => csv.mutate()} data-testid="rows-csv"><Download size={16} aria-hidden /> Xuất CSV</Button>

@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { AppError, jsonParam } from "@soe/shared";
+import { AppError, formatNumber, jsonParam } from "@soe/shared";
 import { newId } from "@soe/db";
 import {
   ChartDefSchema,
@@ -110,7 +110,7 @@ async function rowsOf(ctx: Ctx, chartId: string, seriesIndex: number, group: (st
   };
 }
 
-const note = (vis: number, own: number) => `Bạn thấy ${vis}/${own} dòng tạo nên con số này.`;
+export const rowsNote = (vis: number, own: number) => `Bạn thấy ${formatNumber(vis)}/${formatNumber(own)} dòng tạo nên con số này.`;
 
 const csvCell = (v: unknown): string => {
   if (v === null || v === undefined) return "";
@@ -207,7 +207,7 @@ export const chartOperations = [
     handler: async (ctx, i) => {
       const r = await rowsOf(ctx, i.chart_id, i.series, i.group ?? [], i.filters, i.limit, i.offset);
       ctx.audit({ type: "dashboard", id: r.dash.row.id as string, details: { datahub_id: r.dash.datahubId, chart_id: i.chart_id, viewed_rows: r.items.length, visible: r.total_visible, of: r.total_owner } });
-      return { columns: r.columns, items: r.items, total_visible: r.total_visible, total_owner: r.total_owner, note: note(r.total_visible, r.total_owner) };
+      return { columns: r.columns, items: r.items, total_visible: r.total_visible, total_owner: r.total_owner, note: rowsNote(r.total_visible, r.total_owner) };
     },
   }),
 
@@ -239,7 +239,7 @@ export const chartOperations = [
       }
       ctx.audit({ type: "dashboard", id: r.dash.row.id as string, details: { datahub_id: r.dash.datahubId, chart_id: i.chart_id, exported_rows: r.ids.length, visible: r.total_visible, of: r.total_owner } });
       const stamp = new Date().toISOString().slice(0, 10);
-      return { filename: `du-lieu-bieu-do-${stamp}.csv`, csv: `${BOM}${lines.join("\r\n")}\r\n`, rows: r.ids.length, total_visible: r.total_visible, total_owner: r.total_owner, truncated: r.total_visible > r.ids.length, note: note(r.total_visible, r.total_owner) };
+      return { filename: `du-lieu-bieu-do-${stamp}.csv`, csv: `${BOM}${lines.join("\r\n")}\r\n`, rows: r.ids.length, total_visible: r.total_visible, total_owner: r.total_owner, truncated: r.total_visible > r.ids.length, note: rowsNote(r.total_visible, r.total_owner) };
     },
   }),
 
