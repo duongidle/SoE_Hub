@@ -42,7 +42,14 @@ Cập nhật: 19/11/2026
 
 ## Bước tiếp theo
 
-Opus rà lại 2C-3 (đã sửa 3 việc: quyền ghi mã file ở `rows.ts` `checkFiles`, bộ chọn `openTool` của stage2c2, liên kết sang datahub khác của cùng chủ) bằng diff từ `d055c87` (commit `e7bfcbf`, `1f8abd6`, `65e1410` và commit ghi tài liệu) và kết quả kiểm thử bên dưới. **2C-3 chạm phần dùng chung** (`components/ui/popover.tsx`, `components/ui/form.tsx` `Field`, registry/OpenAPI, phân quyền file) nên Opus tự chạy lại test. Sau đó **2C-4**: Tìm dòng trùng (mục 7a), chia sẻ, thùng rác, cài đặt giới hạn Admin. Chạy nhanh: `pnpm exec vitest run apps/web`; giao diện: e2e của đúng spec bước đó, `--project=desktop`.
+**Làm tiếp 2C-4 (Sonnet).** Đã commit: (1) server Tìm dòng trùng xong và test pass (`apps/api/src/modules/datahub/duplicates.ts`: `datahub.row.duplicates`, `datahub.row.duplicates.resolve`; `apps/api/test/datahub-duplicates.test.ts` 6 test pass; OpenAPI + Bruno đã sinh); (2) `apps/web/src/lib/datahub/duplicates.ts` + `apps/web/test/duplicates.test.ts` (5 test pass) + `findDuplicates`/`resolveDuplicates` trong `lib/datahub/api.ts`; (3) `apps/web/src/pages/datahub/duplicates-dialog.tsx` viết xong nhưng **chưa gắn, chưa typecheck/lint, chưa chạy**.
+Việc còn lại, theo thứ tự:
+1. Gắn `DuplicatesDialog` vào `table-view.tsx` (slot `extra` của `ViewTools`, nút "Tìm dòng trùng" cạnh "Cột của bảng", chỉ khi `table.access` là `owner` hoặc `edit_data`); chạy `pnpm -r typecheck` và `pnpm exec eslint .`, sửa lỗi dialog (nút "Tải thêm nhóm" đang tính offset lộn xộn: nên dùng offset = số nhóm đã tải, bỏ `removedIds`).
+2. Giao diện Chia sẻ (server `datahub.share.list/set/remove` đã có): nút "Chia sẻ" ở header `detail.tsx` cho chủ; hộp thoại chọn người bằng `lookupPeople` (danh sách tự sinh, không gõ email), chọn cả datahub hoặc từng bảng, quyền Xem/Sửa, đổi quyền, thu hồi.
+3. Giao diện Thùng rác (server `datahub.trash.list` + các lệnh `*.restore` đã có): trang `/datahub/thung-rac` (datahub, bảng) và hộp thoại trong bảng (cột, dòng; `datahub.trash.list` với `table_id`), nút Khôi phục (tên trùng thì hỏi tên mới), hiện hạn xoá hẳn `purge_at`; thêm route ở `router.tsx` và liên kết từ `list.tsx`.
+4. Trang Admin giới hạn theo người (`datahub.limit.user.list/set`, route mới `/quan-tri/datahub-gioi-han` ở `router.tsx`, đặt trong `pages/admin.tsx`); giới hạn chung và hạn thùng rác đã có sẵn ở trang Cài đặt hệ thống. `form.table_max_columns` chưa ghi vì Module 7 chưa code.
+5. e2e `apps/web/e2e/stage2c4.spec.ts` (desktop): chia sẻ Xem và Sửa rồi kiểm quyền thực tế; tìm trùng và xử lý (từng nhóm, mọi nhóm); xoá rồi khôi phục từ thùng rác; Admin đổi giới hạn và giới hạn có tác dụng. Chạy `pnpm test:e2e stage2c4 --project=desktop`, rồi `stage2c1 stage2c2 stage2c3` vì đụng `table-view.tsx`.
+6. Ghi mục "Stage 2C-4" cuối `design/module2-quyet-dinh-khi-code.md` (quyết định: khoá so chuẩn hoá bằng `soe_unaccent`, dòng khoá trống hết không tính trùng, `all` giới hạn 1000 nhóm mỗi lần và bỏ qua nhóm trên 2000 dòng, không gộp cột Đính kèm), cập nhật lệnh/kết quả test vào progress.md, commit. Không push.
 
 ### Việc cho kiểm thử cuối Stage 2 (dời từ 2C-2)
 
