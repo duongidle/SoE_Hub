@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 import { API, Session, type ProjectName } from "./helpers";
 import { GridDriver } from "./grid";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
@@ -63,7 +63,7 @@ async function shot(s: Session, label: string): Promise<void> {
 const numOf = (t: string): number => Number(t.replace(/[^\d,-]/g, "").replace(",", "."));
 const rpc = <T>(who: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", url: string, body?: unknown) => api[who]!.call<T>(method, url, body);
 
-async function sessionOf(browser: import("@playwright/test").Browser, who: string, expected: { status: number; url: RegExp }[] = []): Promise<Session> {
+async function sessionOf(browser: Browser, who: string, expected: { status: number; url: RegExp }[] = []): Promise<Session> {
   if (sessions[who]) return sessions[who]!;
   const s = await Session.open(browser, p, who);
   for (const e of expected) s.allow(e.status, e.url);
@@ -267,15 +267,20 @@ function parseCsv(text: string): string[][] {
   let row: string[] = [];
   let cell = "";
   let q = false;
-  const t = text.replace(/^﻿/, "");
+  const t = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
   for (let i = 0; i < t.length; i++) {
     const c = t[i]!;
     if (q) {
-      if (c === '"' && t[i + 1] === '"') (cell += '"'), i++;
-      else if (c === '"') q = false;
+      if (c === '"' && t[i + 1] === '"') {
+        cell += '"';
+        i++;
+      } else if (c === '"') q = false;
       else cell += c;
     } else if (c === '"') q = true;
-    else if (c === ",") (row.push(cell), (cell = ""));
+    else if (c === ",") {
+      row.push(cell);
+      cell = "";
+    }
     else if (c === "\n" || c === "\r") {
       if (c === "\r" && t[i + 1] === "\n") i++;
       row.push(cell);
@@ -284,7 +289,10 @@ function parseCsv(text: string): string[][] {
       cell = "";
     } else cell += c;
   }
-  if (cell !== "" || row.length) (row.push(cell), out.push(row));
+  if (cell !== "" || row.length) {
+    row.push(cell);
+    out.push(row);
+  }
   return out;
 }
 
@@ -361,8 +369,8 @@ test("cột công thức trên số lớn, số âm, chia cho 0, ô trống: ser
         if (v === undefined || v === null) expect(shown, `ô (${c},${r})`).toBe("");
         else if (typeof v === "string") expect(shown, `ô (${c},${r})`).toBe(v);
         // A whole number is shown exactly; a fraction is shown to 15 significant digits (the display drops float noise).
-        else if (Number.isInteger(v)) expect(numOf(shown), `ô (${c},${r}) hiện "${shown}", server ${v}`).toBe(v);
-        else expect(Math.abs(numOf(shown) - v) / Math.max(1, Math.abs(v)), `ô (${c},${r}) hiện "${shown}", server ${v}`).toBeLessThan(1e-14);
+        else if (Number.isInteger(v)) expect(numOf(shown), `ô (${c},${r}) hiện "${shown}", server ${v}`).toBe(Number(v));
+        else expect(Math.abs(numOf(shown) - Number(v)) / Math.max(1, Math.abs(Number(v))), `ô (${c},${r}) hiện "${shown}", server ${v}`).toBeLessThan(1e-14);
       }
   };
   await check(bad, [{ key: fk["Gấp đôi"]!, c: 4 }, { key: fk.Chia!, c: 5 }, { key: fk["Cộng"]!, c: 6 }], 5);
