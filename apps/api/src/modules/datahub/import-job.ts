@@ -666,7 +666,7 @@ export function importOperations(cfg: Config, storage: StorageDriver) {
         const total = prep.sheets.reduce((n, s) => n + s.scan.rows, 0);
         const [upd] = await ctx.db
           .update(dhJobs)
-          .set({ status: "pending", params: { ...(job.params as object), mapping: i.mapping }, progressTotal: total, progressDone: 0, datahubId: "id" in i.mapping.datahub ? i.mapping.datahub.id : null, updatedAt: new Date() })
+          .set({ status: "pending", report: null, params: { ...(job.params as object), mapping: i.mapping }, progressTotal: total, progressDone: 0, datahubId: "id" in i.mapping.datahub ? i.mapping.datahub.id : null, updatedAt: new Date() })
           .where(and(eq(dhJobs.id, job.id), eq(dhJobs.status, "draft")))
           .returning();
         if (!upd) throw new AppError("conflict", "Việc nhập này đã bắt đầu.");

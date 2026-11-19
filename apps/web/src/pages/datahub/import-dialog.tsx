@@ -31,22 +31,6 @@ const TYPE_LABELS: Record<string, string> = {
 };
 const IMPORTABLE = Object.keys(TYPE_LABELS);
 const WRITE_LABELS = { add: "Thêm dòng mới", upsert: "Cập nhật theo cột khoá (chưa có thì thêm)", replace: "Thay toàn bộ (dòng cũ vào thùng rác 7 ngày)" } as const;
-const REASON_HELP: Record<string, string> = {
-  differs: "Công thức khác nhau giữa các dòng",
-  mixed: "Cột có cả ô công thức và ô giá trị",
-  missing_table: "Tham chiếu bảng không tồn tại",
-  missing_data: "Tham chiếu dữ liệu không tồn tại",
-  fixed_cell: "Tham chiếu ô cố định",
-  row_offset: "Tham chiếu dòng khác",
-  other_sheet_cell: "Tham chiếu ô của sheet khác",
-  range_2d: "Vùng nhiều cột",
-  range_partial: "Vùng chỉ lấy một phần của cột",
-  unsupported_function: "Hàm không hỗ trợ",
-  source_error: "Công thức lỗi trong file gốc",
-  syntax: "Công thức không đọc được",
-  named_range: "Tên đã đặt không hỗ trợ",
-};
-
 interface ColPlan {
   index: number;
   letter: string;
@@ -90,7 +74,7 @@ const STEPS = ["Nguồn", "Chọn sheet", "Ghép cột", "Kiểm tra", "Nhập"]
  * Import wizard (design module2 section 8.1): source, sheets and header row, column mapping, report, background run with progress.
  * Every number and every reason shown comes from the server's answers (`datahub.import.*`).
  */
-export function ImportDialog({ target, onClose }: { target: ImportTarget; onClose: () => void }) {
+export function ImportDialog({ target, onClose, onImported }: { target: ImportTarget; onClose: () => void; onImported?: () => void }) {
   const qc = useQueryClient();
   const [step, setStep] = useState<Step>(1);
   const [tab, setTab] = useState<"file" | "link" | "text">("file");
@@ -171,8 +155,9 @@ export function ImportDialog({ target, onClose }: { target: ImportTarget; onClos
       void qc.invalidateQueries({ queryKey: dhKeys.list });
       if (target.datahub) void qc.invalidateQueries({ queryKey: dhKeys.datahub(target.datahub.id) });
       void qc.invalidateQueries({ queryKey: ["dh-table"] });
+      onImported?.();
     }
-  }, [run.data?.status, qc, target.datahub]);
+  }, [run.data?.status, qc, target.datahub, onImported]);
 
   const picked = plans.filter((p) => p.include);
   const mappingProblem = (): string | null => {
@@ -422,7 +407,7 @@ function SheetMapping({ p, patch, target, isOwner }: { p: SheetPlan; patch: (x: 
     <div className="flex flex-col gap-3" data-testid="import-mapping">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Nhập vào">
-          <Select value={p.tableMode} onChange={(e) => patch({ tableMode: e.target.value as "new" | "existing", ...(e.target.value === "new" ? { tableId: "", cols: colsOf(p.info).map((c, k) => ({ ...c, include: p.cols[k]?.include ?? true })) } : {}) })} aria-label="Nhập vào bảng mới hay bảng có sẵn">
+          <Select value={p.tableMode} onChange={(e) => patch({ tableMode: e.target.value as "new" | "existing", ...(e.target.value === "new" ? { tableId: "", cols: colsOf(p.info).map((c, k) => ({ ...c, include: p.cols[k]?.include ?? true })) } : {}) })} aria-label="Kiểu bảng đích">
             {isOwner && <option value="new">Bảng mới</option>}
             {(dhTables.length > 0 || p.tableMode === "existing") && <option value="existing">Bảng có sẵn</option>}
           </Select>
@@ -537,7 +522,7 @@ function FormulaReport({ columns }: { columns: ImportColumnReport[] }) {
           <li key={c.name} className="[overflow-wrap:anywhere]">
             <span className="font-medium">{c.name}</span>{" "}
             {c.formula!.status === "formula" ? <Badge tone="ok">Thành cột công thức</Badge> : <Badge tone="warn">Nhập giá trị</Badge>}
-            {c.formula!.reason && <div className="text-xs text-muted-foreground">{REASON_HELP[c.formula!.code ?? ""] ? `${REASON_HELP[c.formula!.code ?? ""]}. ` : ""}{c.formula!.reason}</div>}
+            {c.formula!.reason && <div className="text-xs text-muted-foreground">{c.formula!.reason}</div>}
             {c.formula!.warnings.map((w) => <div key={w} className="text-xs text-warn" data-testid="import-warning">Lưu ý: {w}</div>)}
           </li>
         ))}

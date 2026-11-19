@@ -41,14 +41,14 @@ Cập nhật: 19/11/2026
   - [x] 2 Export CSV/XLSX/JSON (theo bảng/view/datahub, nền) + test + phân quyền (`export-job.ts`, `apps/api/test/datahub-export.test.ts` 9 pass)
   - [x] 3 Import: đọc xlsx/csv/dán/link Google Sheet (`import-read.ts` đọc xlsx riêng), `datahub.import.analyze|sheet|preview|start` (`import-job.ts`, `import-plan.ts`), chạy nền; `datahub-import.test.ts` 16 pass
   - [x] 4 Import công thức (`excel-formula.ts`; lý do từng cột; cảnh báo `LEFT(ngày,2)`); golden trên file mẫu `datahub-import-golden.test.ts` (Index: 34 cột công thức, 7 giữ giá trị kèm lý do)
-  - [ ] 5 Giao diện: hộp thoại Import (các bước), nút Export
-  - [ ] 6 e2e `stage2d.spec.ts`, Bruno, OpenAPI
+  - [x] 5 Giao diện: hộp thoại Import 5 bước (`import-dialog.tsx`), hộp thoại Export (`export-dialog.tsx`), nút ở danh sách datahub/trang datahub/bảng
+  - [x] 6 e2e `stage2d.spec.ts` 5/5 pass x3 (desktop), Bruno, OpenAPI
   - [ ] 7 Load test 100.000 dòng, ghi "Stage 2D" vào quyết định khi code
 - 2E: Sonnet kiểm thử **chức năng** cả Stage 2 ("Định nghĩa xong" điểm 2–5; không rà chuẩn giao diện, để Stage 12) theo việc Opus chia, sửa lỗi tìm thấy; Opus đọc kết quả và quyết định đạt.
 
 ## Bước tiếp theo
 
-**2D đang làm: bước 5 (giao diện)**: hộp thoại Import (`apps/web/src/pages/datahub/`, nút ở danh sách datahub / trang datahub / bảng) gọi `datahub.import.analyze|sheet|preview|start` + `datahub.job.get`; nút Export ở bảng (`datahub.export.create`, `datahub.job.download_url`). Rồi bước 6 e2e `stage2d.spec.ts`, bước 7 load test. Rồi 2E.
+**2D đang làm: bước 7**: load test 100.000 dòng (import + export) bằng `apps/api/test/datahub-import-export-perf.test.ts` (tạo file này), ghi số đo và mục "Stage 2D" vào `design/module2-quyet-dinh-khi-code.md`; chạy lại `pnpm exec vitest run apps/api/test/datahub-*` phần đụng tới. Rồi 2E.
 
 2C-4 xong và đã rà (xem git log). Chưa làm: xoá hẳn ngay, gợi ý người theo team (`Lệch hoặc bổ sung` mục 2C-4); `form.table_max_columns` chờ Module 7.
 

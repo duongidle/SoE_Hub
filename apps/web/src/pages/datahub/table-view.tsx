@@ -121,6 +121,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   const [dupOpen, setDupOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  // Rows added by the import (made by the worker) are not part of what the open grid knows: after an import it reads the table again.
+  const [reloadKey, setReloadKey] = useState(0);
   const [trashOpen, setTrashOpen] = useState(false);
   const [colUI, setColUI] = useState<{ kind: "manage" } | { kind: "add" } | { kind: "edit"; col: Column } | null>(null);
   const deleteCol = useColumnDelete(table);
@@ -179,7 +181,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
     auto.change(patch);
   };
 
-  const sig = `${table.id}:${columnsSignature(table)}:${querySignature(query)}`;
+  const sig = `${table.id}:${columnsSignature(table)}:${querySignature(query)}:${reloadKey}`;
   const saveText = auto.status === "saving" ? "Đang lưu view…" : auto.status === "saved" ? "Đã lưu view" : "";
 
   return (
@@ -207,7 +209,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
       {trashOpen && <TableTrashDialog tableId={table.id} onClose={() => setTrashOpen(false)} onRestored={() => { void qc.invalidateQueries({ queryKey: dhKeys.table(table.id) }); }} />}
       {dupOpen && <DuplicatesDialog table={table} onClose={() => setDupOpen(false)} />}
       {exportOpen && <ExportDialog table={table} query={query} visible={colLayout.columns} filtered={!!(query.filter || query.search || query.timeFilter || colLayout.columns.length < table.columns.length)} onClose={() => setExportOpen(false)} />}
-      {importOpen && <TableImport table={table} onClose={() => setImportOpen(false)} />}
+      {importOpen && <TableImport table={table} onClose={() => setImportOpen(false)} onImported={() => setReloadKey((k) => k + 1)} />}
       {colUI?.kind === "manage" && <ColumnManager table={table} level={table.access} onClose={() => setColUI(null)} onAdd={() => setColUI({ kind: "add" })} onEdit={(c) => setColUI({ kind: "edit", col: c })} onDelete={(c) => { setColUI(null); void deleteCol(c); }} />}
       {colUI?.kind === "add" && <ColumnEditor table={table} onClose={() => setColUI(null)} />}
       {colUI?.kind === "edit" && <ColumnEditor key={colUI.col.id} table={table} column={colUI.col} onClose={() => setColUI(null)} />}
@@ -490,8 +492,8 @@ function BulkValue({ col, text, setText, picked, setPicked, session }: { col: Co
 }
 
 /** The import wizard opened from a table: the datahub's tables are the targets, the open table is the first sheet's default. */
-function TableImport({ table, onClose }: { table: TableDetail; onClose: () => void }) {
+function TableImport({ table, onClose, onImported }: { table: TableDetail; onClose: () => void; onImported: () => void }) {
   const dh = useQuery({ queryKey: dhKeys.datahub(table.datahub_id), queryFn: () => getDatahub(table.datahub_id) });
   if (!dh.data) return null;
-  return <ImportDialog target={{ datahub: { id: dh.data.id, name: dh.data.name, access: dh.data.access, tables: dh.data.tables.map((t) => ({ id: t.id, name: t.name })) }, table: { id: table.id, name: table.name } }} onClose={onClose} />;
+  return <ImportDialog target={{ datahub: { id: dh.data.id, name: dh.data.name, access: dh.data.access, tables: dh.data.tables.map((t) => ({ id: t.id, name: t.name })) }, table: { id: table.id, name: table.name } }} onClose={onClose} onImported={onImported} />;
 }
