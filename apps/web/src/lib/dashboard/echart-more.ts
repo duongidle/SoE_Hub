@@ -128,7 +128,7 @@ export function histogramOption(v: HistogramView, format: FormatName | null, lab
       },
     },
     xAxis: { type: "category", data: v.bins.map(name), axisLabel: { color: t.muted, hideOverlap: true }, axisLine: { lineStyle: { color: t.line } }, axisTick: { show: false } },
-    yAxis: { type: "value", minInterval: 1, splitLine: { lineStyle: { color: t.line } }, axisLabel: { color: t.muted }, axisLine: { show: false } },
+    yAxis: { type: "value", minInterval: 1, splitLine: { lineStyle: { color: t.line } }, axisLabel: { color: t.muted, formatter: (x: number) => formatValue(x, "number") }, axisLine: { show: false } },
     series: [{ type: "bar", barCategoryGap: "6%", itemStyle: { color: PALETTE[0] }, data: v.bins.map((b) => b.count), label: { show: labels, position: "top", color: t.text, fontSize: 11 } }],
   };
 }
@@ -310,7 +310,7 @@ export function gaugeOption(args: { value: number; min: number; max: number; per
         pointer: { show: false },
         axisTick: { show: false },
         splitLine: { show: false },
-        axisLabel: { color: t.muted, distance: 22, fontSize: 11, formatter: (x: number) => (args.percent ? `${x}%` : formatValue(x, "compact")) },
+        axisLabel: { color: t.muted, distance: 22, fontSize: 11, formatter: (x: number) => (args.percent ? `${formatValue(x, "number")}%` : formatValue(x, "compact")) },
         anchor: { show: false },
         detail: { valueAnimation: false, fontSize: 24, fontWeight: 600, offsetCenter: [0, "20%"], color: t.text, formatter: (x: number) => text(x) },
         data: [{ value: args.value }],

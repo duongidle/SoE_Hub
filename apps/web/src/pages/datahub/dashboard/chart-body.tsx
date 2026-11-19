@@ -17,6 +17,14 @@ import { DataTable, PivotTable } from "./data-views";
 const EChart = lazy(() => import("./echart"));
 
 /** What a chart shows while it has no numbers: it never draws an empty frame, and says why. */
+/** Axis end of a percent gauge: the next round step above the value (1.000 -> 1.000, 2.000.000.000.040 -> 3.000.000.000.000), so the ticks are round numbers. */
+function gaugeMax(value: number): number {
+  if (value <= 100) return 100;
+  if (value < 1000) return Math.ceil(value / 10) * 10;
+  const step = 10 ** Math.floor(Math.log10(value));
+  return Math.ceil(value / step) * step;
+}
+
 export function ChartMessage({ tone = "muted", title, hint }: { tone?: "muted" | "bad"; title: string; hint?: string }) {
   return (
     <div role={tone === "bad" ? "alert" : "status"} className="flex h-full flex-col items-center justify-center gap-1 px-3 text-center">
@@ -132,10 +140,10 @@ function Loaded({ chart, data, onPick, exportRef, onOpenRows }: { chart: ChartDe
       let max = 100;
       if (hasTarget) {
         value = (row.achieved ?? 0) * 100; // the share reached is the server's; ×100 only to read it as a percent
-        max = value > 100 ? Math.ceil(value / 10) * 10 : 100;
+        max = gaugeMax(value);
       } else if (format === "percent") {
         value = Number(row.value) * 100;
-        max = value > 100 ? Math.ceil(value / 10) * 10 : 100;
+        max = gaugeMax(value);
       } else if (o.gauge_max !== undefined) {
         value = Number(row.value);
         min = o.gauge_min ?? 0;

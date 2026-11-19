@@ -89,7 +89,7 @@ export function cartesianOption({ chart, data, format, compare, picks }: Cartesi
     ...(percent ? { max: 100 } : {}),
     position: right ? "right" : "left",
     splitLine: { show: !right, lineStyle: { color: t.line } },
-    axisLabel: { color: t.muted, formatter: (v: number) => (percent ? `${v}%` : formatValue(v, axisFormat(format))) },
+    axisLabel: { color: t.muted, formatter: (v: number) => (percent ? `${formatValue(v, "number")}%` : formatValue(v, axisFormat(format))) },
     axisLine: { show: false },
     ...(right ? { alignTicks: true } : {}),
   });

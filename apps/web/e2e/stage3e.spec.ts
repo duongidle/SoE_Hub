@@ -293,6 +293,14 @@ test("chủ: dashboard đủ 22 loại biểu đồ vẽ được; số khớp s
   expect(wfUi).toHaveLength(wf.steps.length);
   const last = wf.steps[wf.steps.length - 1]!;
   expect(last.end).toBe(2 * HUGE + 1750); // start (HUGE+1600) - (-75 of the Lost rows) + (HUGE+75 of the Open rows)
+  // gauge with a huge value: the axis labels and the centre text have thousands dots, no float noise, and the axis ends on a round step
+  const gaugeTexts = await cardOf(pg, "Đồng hồ ").locator("[data-chart-ready]").first().evaluate((el) => {
+    const o = (el as unknown as { __echart: { getOption: () => { series: { max: number; axisLabel: { formatter: (x: number) => string }; detail: { formatter: (x: number) => string } }[] } } }).__echart.getOption().series[0]!;
+    return { max: o.max, ticks: [0, 1, 2, 3, 4, 5].map((i) => o.axisLabel.formatter((o.max / 5) * i)), centre: o.detail.formatter(200_000_000_000_040) };
+  });
+  expect(gaugeTexts.max).toBe(3e11); // reached share 200.000.000.032 % -> next round step
+  for (const t of [...gaugeTexts.ticks, gaugeTexts.centre]) expect(t, t).toMatch(/^(0|\d{1,3}(\.\d{3})*)%$/);
+  expect(gaugeTexts.centre).toBe("200.000.000.000.040%");
   await owner.shot("3e-dashboard-all-types");
 });
 
