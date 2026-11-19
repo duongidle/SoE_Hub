@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Share2, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SHARE_PERMISSION_LABELS } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { createTable, deleteTable, dhKeys, getDatahub, restoreTable, updateTable
 import type { DatahubBrief, TableBrief } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
 import { nameError } from "./list";
+import { ImportDialog } from "./import-dialog";
 import { ShareDialog } from "./share-dialog";
 import { TableView } from "./table-view";
 
@@ -49,6 +50,7 @@ export function DatahubPage() {
 
 function DatahubBody({ dh, tableId, current }: { dh: DatahubBrief; tableId?: string; current?: TableBrief }) {
   const [sharing, setSharing] = useState(false);
+  const [importing, setImporting] = useState(false);
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -56,9 +58,14 @@ function DatahubBody({ dh, tableId, current }: { dh: DatahubBrief; tableId?: str
           <ArrowLeft size={16} aria-hidden /> Datahub
         </Link>
         <h1 className="min-w-0 text-xl font-semibold [overflow-wrap:anywhere] sm:text-2xl">{dh.name}</h1>
-        {dh.access === "owner" && (
-          <Button variant="secondary" onClick={() => setSharing(true)} className="ml-auto"><Share2 size={16} aria-hidden /> Chia sẻ</Button>
-        )}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {dh.access !== "view" && (
+            <Button variant="secondary" onClick={() => setImporting(true)}><Upload size={16} aria-hidden /> Nhập dữ liệu</Button>
+          )}
+          {dh.access === "owner" && (
+            <Button variant="secondary" onClick={() => setSharing(true)}><Share2 size={16} aria-hidden /> Chia sẻ</Button>
+          )}
+        </div>
         {dh.access !== "owner" && (
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
             Chủ: <span className="[overflow-wrap:anywhere]">{dh.owner_name ?? "—"}</span>
@@ -67,6 +74,7 @@ function DatahubBody({ dh, tableId, current }: { dh: DatahubBrief; tableId?: str
         )}
       </div>
       {sharing && <ShareDialog dh={dh} onClose={() => setSharing(false)} />}
+      {importing && <ImportDialog target={{ datahub: { id: dh.id, name: dh.name, access: dh.access, tables: dh.tables.map((t) => ({ id: t.id, name: t.name })) } }} onClose={() => setImporting(false)} />}
       <TableTabs dh={dh} currentId={tableId} />
       {dh.tables.length === 0 ? (
         <EmptyState title="Datahub chưa có bảng nào" hint={dh.access === "owner" ? "Tạo bảng đầu tiên để thêm dữ liệu." : "Chủ datahub chưa chia sẻ bảng nào cho bạn."} />

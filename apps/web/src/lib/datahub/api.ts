@@ -145,8 +145,8 @@ export function storageAddress(url: string): string {
 }
 
 /** Uploads one file with the storage flow of Stage 0 (init, PUT to the signed address, complete) and returns its record. */
-export async function uploadFile(file: File): Promise<FileBrief> {
-  const init = await api<{ file: FileBrief; upload: { url: string; method: "PUT"; headers: Record<string, string> } }>("POST", "/files", { filename: file.name, content_type: file.type || "application/octet-stream", size_bytes: file.size });
+export async function uploadFile(file: File, contentType?: string): Promise<FileBrief> {
+  const init = await api<{ file: FileBrief; upload: { url: string; method: "PUT"; headers: Record<string, string> } }>("POST", "/files", { filename: file.name, content_type: contentType ?? (file.type || "application/octet-stream"), size_bytes: file.size });
   // The signed address is the credential: no session cookie (the API refuses a cookie-bearing write that has no CSRF header).
   const put = await fetch(storageAddress(init.upload.url), { method: "PUT", headers: init.upload.headers, body: file, credentials: "omit" });
   if (!put.ok) throw new Error("Không tải được file lên. Thử lại sau ít phút.");
@@ -211,3 +211,114 @@ export interface UserLimit {
 }
 export const listUserLimits = () => api<UserLimit[]>("GET", "/admin/datahub/limits");
 export const setUserLimit = (userId: string, body: { max_datahubs?: number | null; max_tables?: number | null; max_columns?: number | null }) => api("PUT", `/admin/datahub/limits/${userId}`, body);
+
+// ---- import and export (design module2 sections 8, 9): background jobs the screen follows ---------------------------
+export interface JobDto {
+  id: string;
+  kind: "import" | "export";
+  status: "draft" | "pending" | "running" | "done" | "failed" | "cancelled";
+  phase: string | null;
+  progress: { done: number; total: number };
+  datahub_id: string | null;
+  table_id: string | null;
+  report: unknown;
+  error: string | null;
+  source_name: string | null;
+  result: { name: string; type: string; size_bytes: number } | null;
+}
+export const jobFinished = (j: Pick<JobDto, "status">) => j.status === "done" || j.status === "failed" || j.status === "cancelled";
+export const getJob = (id: string) => api<JobDto>("GET", `/datahub/jobs/${id}`);
+export const cancelJob = (id: string) => api<JobDto>("POST", `/datahub/jobs/${id}/cancel`, {});
+export const jobDownload = (id: string) => api<{ url: string; expires_at: string; filename: string }>("GET", `/datahub/jobs/${id}/download-url`);
+
+export interface ExportBody {
+  table_id?: string;
+  datahub_id?: string;
+  format: "csv" | "xlsx" | "json";
+  filter?: unknown;
+  sort?: string;
+  search?: string;
+  time_filter?: unknown;
+  columns?: string[];
+}
+export const createExport = (body: ExportBody) => api<JobDto>("POST", "/datahub/exports", body);
+
+export interface ImportColumnGuess {
+  index: number;
+  letter: string;
+  header: string;
+  name: string;
+  type: string;
+  config: Record<string, unknown>;
+  non_empty: number;
+  formula_count: number;
+  sample: string[];
+}
+export interface ImportSheetInfo {
+  name: string;
+  hidden: boolean;
+  header_row: number;
+  row_count: number;
+  col_count: number;
+  has_formulas: boolean;
+  columns: ImportColumnGuess[];
+  preview: { row: number; cells: string[] }[];
+}
+export interface ImportMappingBody {
+  datahub: { id: string } | { name: string };
+  import_formulas: boolean;
+  sheets: {
+    sheet: string;
+    header_row: number;
+    table: { mode: "new"; name: string } | { mode: "existing"; table_id: string };
+    columns: { index: number; target?: string; name?: string; type?: string }[];
+    write: "add" | "upsert" | "replace";
+    key?: string;
+    on_error: "skip_row" | "blank_cell";
+  }[];
+}
+export interface ImportColumnReport {
+  name: string;
+  type: string;
+  source: "new" | "existing" | "formula";
+  formula: { status: "formula" | "value"; reason: string | null; code: string | null; warnings: string[] } | null;
+}
+export interface ImportIssue {
+  row: number;
+  column: string | null;
+  message: string;
+}
+export interface ImportPreview {
+  ok: boolean;
+  blocking: string[];
+  sheets: { sheet: string; table: string; new_table: boolean; rows_total: number; rows_checked: number; sampled: boolean; valid: number; invalid: number; errors: ImportIssue[]; columns: ImportColumnReport[] }[];
+}
+export interface ImportSheetReport {
+  sheet: string;
+  table_id: string | null;
+  table_name: string;
+  new_table: boolean;
+  rows_total: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  deleted: number;
+  error_count: number;
+  errors: ImportIssue[];
+  columns: ImportColumnReport[];
+}
+export const analyzeImport = (src: { file_id?: string; url?: string; text?: string; filename?: string }) => api<{ job: JobDto; sheets: ImportSheetInfo[] }>("POST", "/datahub/imports", src);
+export const importSheet = (jobId: string, sheet: string, headerRow: number) => api<ImportSheetInfo>("POST", `/datahub/imports/${jobId}/sheet`, { sheet, header_row: headerRow });
+export const previewImport = (jobId: string, mapping: ImportMappingBody) => api<ImportPreview>("POST", `/datahub/imports/${jobId}/preview`, { mapping });
+export const startImport = (jobId: string, mapping: ImportMappingBody) => api<JobDto>("POST", `/datahub/imports/${jobId}/start`, { mapping });
+
+/** Starts the browser's download of an address from the storage (also the local development one). */
+export function saveFromUrl(url: string, filename: string): void {
+  const a = document.createElement("a");
+  a.href = storageAddress(url);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}

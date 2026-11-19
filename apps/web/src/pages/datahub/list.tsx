@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { DhNameSchema, formatCount, formatRelative, SHARE_PERMISSION_LABELS } from "@soe/shared";
-import { Database, MoreHorizontal, Pencil, Plus, Trash2, Trash } from "lucide-react";
+import { Database, MoreHorizontal, Pencil, Plus, Trash2, Trash, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Tabs, Textarea } from "@/components/ui/form";
@@ -11,6 +11,7 @@ import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { createDatahub, deleteDatahub, dhKeys, getLimits, listDatahubs, restoreDatahub, updateDatahub } from "@/lib/datahub/api";
 import type { DatahubBrief } from "@/lib/datahub/types";
+import { ImportDialog } from "./import-dialog";
 import { can, useMe } from "@/lib/session";
 
 type Tab = "mine" | "shared";
@@ -24,7 +25,7 @@ export function nameError(v: string): string | null {
 export function DatahubListPage() {
   const me = useMe().data;
   const [tab, setTab] = useState<Tab>("mine");
-  const [dialog, setDialog] = useState<{ kind: "create" } | { kind: "rename"; dh: DatahubBrief } | { kind: "delete"; dh: DatahubBrief } | null>(null);
+  const [dialog, setDialog] = useState<{ kind: "create" } | { kind: "import" } | { kind: "rename"; dh: DatahubBrief } | { kind: "delete"; dh: DatahubBrief } | null>(null);
   const q = useQuery({ queryKey: dhKeys.list, queryFn: () => listDatahubs("all") });
   const limits = useQuery({ queryKey: dhKeys.limits, queryFn: getLimits });
 
@@ -40,6 +41,7 @@ export function DatahubListPage() {
         actions={
           <>
             <Link to="/datahub/thung-rac" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted sm:min-h-9"><Trash size={16} aria-hidden /> Thùng rác</Link>
+            {canCreate && <Button variant="secondary" onClick={() => setDialog({ kind: "import" })} disabled={full} title={full ? "Bạn đã dùng hết số datahub được tạo." : undefined}><Upload size={16} aria-hidden /> Nhập dữ liệu</Button>}
             {canCreate && (
             <Button onClick={() => setDialog({ kind: "create" })} disabled={full} title={full ? "Bạn đã dùng hết số datahub được tạo." : undefined}>
               <Plus size={16} aria-hidden /> Tạo datahub
@@ -86,6 +88,7 @@ export function DatahubListPage() {
         </ul>
       )}
 
+      {dialog?.kind === "import" && <ImportDialog target={{}} onClose={() => setDialog(null)} />}
       {dialog?.kind === "create" && <NameDialog title="Tạo datahub" submit="Tạo datahub" onClose={() => setDialog(null)} />}
       {dialog?.kind === "rename" && <NameDialog title="Đổi tên datahub" submit="Lưu" dh={dialog.dh} onClose={() => setDialog(null)} />}
       {dialog?.kind === "delete" && <DeleteDialog dh={dialog.dh} onClose={() => setDialog(null)} />}

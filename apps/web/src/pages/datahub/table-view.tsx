@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { formatCount } from "@soe/shared";
-import { Columns3, Copy, Maximize2, Trash, Pencil, Plus, Redo2, Trash2, Undo2 } from "lucide-react";
+import { Columns3, Copy, Download, Maximize2, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, errorMessage, Field, Input, Modal, Select } from "@/components/ui/form";
@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { Tip } from "@/components/ui/tooltip";
-import { createView, dhKeys, getTable, listViews, rememberView, updateView } from "@/lib/datahub/api";
+import { createView, dhKeys, getDatahub, getTable, listViews, rememberView, updateView } from "@/lib/datahub/api";
 import { nameKey, optionsOf, parseCellText, readOnlyReason, type Parsed } from "@/lib/datahub/cells";
 import { TableSession } from "@/lib/datahub/session";
 import type { Column, Level, TableDetail } from "@/lib/datahub/types";
@@ -21,6 +21,8 @@ import { PersonPicker, RatingPicker } from "./pickers";
 import { ColumnEditor } from "./column-editor";
 import { ColumnManager, useColumnDelete } from "./column-manager";
 import { DuplicatesDialog } from "./duplicates-dialog";
+import { ExportDialog } from "./export-dialog";
+import { ImportDialog } from "./import-dialog";
 import { RowPanel } from "./row-panel";
 import { TableTrashDialog } from "./trash";
 import { ViewTabs } from "./view-tabs";
@@ -117,6 +119,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
 
   const config = auto.config;
   const [dupOpen, setDupOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [colUI, setColUI] = useState<{ kind: "manage" } | { kind: "add" } | { kind: "edit"; col: Column } | null>(null);
   const deleteCol = useColumnDelete(table);
@@ -192,6 +196,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
         extra={
           <>
             <Button variant="secondary" onClick={() => setColUI({ kind: "manage" })}><Columns3 size={16} aria-hidden /> Cột của bảng</Button>
+            <Button variant="secondary" onClick={() => setExportOpen(true)}><Download size={16} aria-hidden /> Xuất</Button>
+            {(table.access === "owner" || table.access === "edit_data") && <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload size={16} aria-hidden /> Nhập</Button>}
             {(table.access === "owner" || table.access === "edit_data") && <Button variant="secondary" onClick={() => setDupOpen(true)}><Copy size={16} aria-hidden /> Tìm dòng trùng</Button>}
             {(table.access === "owner" || table.access === "edit_data") && <Button variant="secondary" onClick={() => setTrashOpen(true)}><Trash size={16} aria-hidden /> Thùng rác</Button>}
             {table.access === "owner" && <Button variant="secondary" onClick={() => setColUI({ kind: "add" })} disabled={table.columns.length >= table.max_columns}><Plus size={16} aria-hidden /> Thêm cột</Button>}
@@ -200,6 +206,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
       />
       {trashOpen && <TableTrashDialog tableId={table.id} onClose={() => setTrashOpen(false)} onRestored={() => { void qc.invalidateQueries({ queryKey: dhKeys.table(table.id) }); }} />}
       {dupOpen && <DuplicatesDialog table={table} onClose={() => setDupOpen(false)} />}
+      {exportOpen && <ExportDialog table={table} query={query} visible={colLayout.columns} filtered={!!(query.filter || query.search || query.timeFilter || colLayout.columns.length < table.columns.length)} onClose={() => setExportOpen(false)} />}
+      {importOpen && <TableImport table={table} onClose={() => setImportOpen(false)} />}
       {colUI?.kind === "manage" && <ColumnManager table={table} level={table.access} onClose={() => setColUI(null)} onAdd={() => setColUI({ kind: "add" })} onEdit={(c) => setColUI({ kind: "edit", col: c })} onDelete={(c) => { setColUI(null); void deleteCol(c); }} />}
       {colUI?.kind === "add" && <ColumnEditor table={table} onClose={() => setColUI(null)} />}
       {colUI?.kind === "edit" && <ColumnEditor key={colUI.col.id} table={table} column={colUI.col} onClose={() => setColUI(null)} />}
@@ -479,4 +487,11 @@ function BulkValue({ col, text, setText, picked, setPicked, session }: { col: Co
         </Field>
       );
   }
+}
+
+/** The import wizard opened from a table: the datahub's tables are the targets, the open table is the first sheet's default. */
+function TableImport({ table, onClose }: { table: TableDetail; onClose: () => void }) {
+  const dh = useQuery({ queryKey: dhKeys.datahub(table.datahub_id), queryFn: () => getDatahub(table.datahub_id) });
+  if (!dh.data) return null;
+  return <ImportDialog target={{ datahub: { id: dh.data.id, name: dh.data.name, access: dh.data.access, tables: dh.data.tables.map((t) => ({ id: t.id, name: t.name })) }, table: { id: table.id, name: table.name } }} onClose={onClose} />;
 }
