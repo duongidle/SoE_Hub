@@ -20,7 +20,7 @@ import { rethrowNameConflict } from "../datahub/errors";
 import { Id, Ts } from "../datahub/shared";
 import { readSetting } from "../system/settings-catalog";
 import { resolveSource, isUuid, type Ctx } from "./context";
-import { GUEST_DATA_TYPE, chartRowsOf, computeCtx, dashFields, savedMetricDefs, viewChart, viewDash, viewerChart, type ViewedDash } from "./dashboard-access";
+import { GUEST_DATA_TYPE, checkViewerFilters, chartRowsOf, computeCtx, dashFields, savedMetricDefs, viewChart, viewDash, viewerChart, type ViewedDash } from "./dashboard-access";
 import {
   DashFull,
   MT_SETTINGS,
@@ -70,6 +70,7 @@ async function rowsOf(ctx: Ctx, chartId: string, seriesIndex: number, group: (st
   const { chart: raw, dash } = await viewChart(ctx, chartId);
   const chart = parseChart(raw);
   const cctx = computeCtx(ctx, dash);
+  await checkViewerFilters(cctx, dash, filters);
   const rs = (await resolveSeries(cctx, dash.datahubId, chart))[seriesIndex];
   if (!rs) throw new AppError("validation_error", `Biểu đồ không có chuỗi số liệu thứ ${seriesIndex + 1}.`, { reason: "bad_series" });
   if (rs.def.formula !== undefined) throw new AppError("validation_error", "Chỉ số phái sinh (công thức của các chỉ số khác) không có dòng riêng: xem các dòng của từng chỉ số thành phần.", { reason: "no_rows_for_derived" });
@@ -174,6 +175,7 @@ export const chartOperations = [
       if (!!i.chart_id === !!i.chart) throw new AppError("validation_error", "Truyền đúng một trong `chart_id` hoặc `chart` (kèm `datahub_id`).", { reason: "chart_required" });
       if (i.chart_id) {
         const { chart, dash } = await viewChart(ctx, i.chart_id);
+        await checkViewerFilters(computeCtx(ctx, dash), dash, i.filters);
         return await runChart(computeCtx(ctx, dash), { chart: parseChart(chart), chartId: i.chart_id, datahubId: dash.datahubId, filters: i.filters, reader: dash.role === "owner" ? undefined : ctx });
       }
       if (!i.datahub_id) throw new AppError("validation_error", "Xem trước biểu đồ chưa lưu cần `datahub_id`.", { reason: "datahub_required" });
@@ -315,7 +317,8 @@ export const chartOperations = [
     output: z.object({ saved: z.boolean() }),
     http: { method: "PUT", path: "/dashboards/:dashboard_id/my-filters" },
     handler: async (ctx, i) => {
-      await viewDash(ctx, i.dashboard_id);
+      const v = await viewDash(ctx, i.dashboard_id);
+      await checkViewerFilters(computeCtx(ctx, v), v, i.filters);
       await ctx.db.execute(sql`INSERT INTO mt_dashboard_prefs (dashboard_id, user_id, config) VALUES (${i.dashboard_id}::uuid, ${ctx.actor.userId}::uuid, ${JSON.stringify(i.filters)}::jsonb)
         ON CONFLICT (dashboard_id, user_id) DO UPDATE SET config = EXCLUDED.config, updated_at = now()`);
       return { saved: true };

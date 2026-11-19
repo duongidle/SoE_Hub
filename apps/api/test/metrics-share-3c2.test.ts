@@ -284,3 +284,54 @@ describe("the numbers are the owner's", () => {
     expect(total(await roleOf("userA2")("metrics.chart.data", { chart_id: kpi.id }))).toBe(100);
   });
 });
+
+describe("a viewer cannot use filters to probe the source table", () => {
+  const num = { conditions: [{ field: "Số tiền", op: "eq", value: 10 }] };
+  const reason = async (p: Promise<unknown>) => {
+    const e = await fails(p);
+    expect(e.code).toBe("forbidden");
+    return e.details.reason;
+  };
+  const cases = (c: ReturnType<typeof as>) => async () => {
+    const dash = await c("metrics.dashboard.view", { dashboard_id: dashId });
+    const id = dash.charts[0].id as string;
+    // a numeric column, a column that is not on the dashboard, a hidden/unknown column
+    expect(await reason(c("metrics.chart.data", { chart_id: id, filters: num }))).toBe("filter_field_not_allowed");
+    expect(await reason(c("metrics.chart.data", { chart_id: id, filters: { conditions: [{ field: "Bí mật", op: "eq", value: 1 }] } }))).toBe("filter_field_not_allowed");
+    // text: exact value is the dashboard's own offer, "contains" would probe character by character
+    expect(await reason(c("metrics.chart.data", { chart_id: id, filters: { conditions: [{ field: "Mã", op: "contains", value: "K" }] } }))).toBe("filter_field_not_allowed");
+    // cross filters: a column no chart groups by, a chart of another dashboard
+    expect(await reason(c("metrics.chart.data", { chart_id: id, filters: { cross: [{ field: "Số tiền", kind: "number", value: 10 }] } }))).toBe("filter_field_not_allowed");
+    expect(await reason(c("metrics.chart.data", { chart_id: id, filters: { cross: [{ chart_id: "01900000-0000-7000-8000-000000000001", field: "Loại", kind: "enum", value: "POD" }] } }))).toBe("filter_field_not_allowed");
+    // the same checks guard the rows, the CSV and the saved copy
+    expect(await reason(c("metrics.chart.rows", { chart_id: id, filters: num }))).toBe("filter_field_not_allowed");
+    expect(await reason(c("metrics.chart.csv", { chart_id: id, filters: num }))).toBe("filter_field_not_allowed");
+    expect(await reason(c("metrics.dashboard.filters.save", { dashboard_id: dashId, filters: num }))).toBe("filter_field_not_allowed");
+    // what the dashboard offers still works: an option of Loại, an exact Mã, a click on the Loại axis, any date range
+    const ok = await c("metrics.chart.data", { chart_id: id, filters: { conditions: [{ field: "Loại", op: "eq", value: "POD" }, { field: "Mã", op: "eq", value: "K2" }], cross: [{ chart_id: id, field: "Loại", kind: "enum", value: "POD" }], range: "this_year" } });
+    expect(ok.series[0].rows.length).toBeGreaterThanOrEqual(0);
+  };
+
+  it("a person it was shared with", async () => {
+    await owner("metrics.dashboard.share.set", { dashboard_id: dashId, grantee_id: org.userA2.id });
+    await cases(roleOf("userA2"))();
+  });
+
+  it("a Guest with a grant, on a dashboard opened to Guests", async () => {
+    const mgr = roleOf("mgrA");
+    const grant = await mgr("guest.grant.create", { guest_user_id: org.guestData.id, data_type: "dashboard", channels: ["web"] });
+    const cur = await owner("metrics.dashboard.get", { dashboard_id: dashId });
+    await owner("metrics.dashboard.update", { dashboard_id: dashId, version: cur.version, guest_visible: true });
+    await cases(roleOf("guestData"))();
+    const again = await owner("metrics.dashboard.get", { dashboard_id: dashId });
+    await owner("metrics.dashboard.update", { dashboard_id: dashId, version: again.version, guest_visible: false });
+    await mgr("guest.grant.revoke", { id: grant.id, version: grant.version });
+  });
+
+  it("the owner filters freely, on any column and with contains", async () => {
+    const id = chartId;
+    const r = await owner("metrics.chart.data", { chart_id: id, filters: { conditions: [{ field: "Số tiền", op: "eq", value: 10 }] } });
+    expect(r.notes).toEqual([]);
+    expect((await owner("metrics.chart.data", { chart_id: id, filters: { conditions: [{ field: "Mã", op: "contains", value: "K" }] } })).series[0].rows.length).toBeGreaterThan(0);
+  });
+});

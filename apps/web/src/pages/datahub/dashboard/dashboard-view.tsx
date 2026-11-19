@@ -309,6 +309,7 @@ export function DashboardView({ dh, dashboardId, mode = "owner" }: { dh?: Datahu
           custom={custom}
           onReset={() => reset.mutate()}
           onSaveDefault={owner ? () => saveDefault.mutate() : undefined}
+          exactText={!owner}
           picks={pickList}
           onClearPick={(id) => setPicks((p) => { const { [id]: _g, ...rest } = p; void _g; return rest; })}
           onClearPicks={() => setPicks({})}

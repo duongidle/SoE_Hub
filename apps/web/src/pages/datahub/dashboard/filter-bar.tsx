@@ -12,7 +12,7 @@ const show = (v: DashCondition["value"]) => (Array.isArray(v) ? v.join(", ") : v
  * charts. A change is saved as the viewer's own copy by the caller; "Về mặc định" drops that copy. The owner may also make the current
  * filters the default for everyone.
  */
-export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefault, picks, onClearPick, onClearPicks }: {
+export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefault, exactText, picks, onClearPick, onClearPicks }: {
   fields: FilterField[];
   value: DashFilters;
   onChange: (v: DashFilters) => void;
@@ -21,6 +21,8 @@ export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefa
   onReset: () => void;
   /** Owner only. */
   onSaveDefault?: () => void;
+  /** Viewer who is not the owner: a text column is filtered by exact value (the server refuses "chứa"). */
+  exactText?: boolean;
   picks: { chartId: string; title: string; pick: PickInfo }[];
   onClearPick: (chartId: string) => void;
   onClearPicks: () => void;
@@ -82,8 +84,8 @@ export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefa
               </Select>
             )}
             {f?.kind === "text" && (
-              <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) add({ field: f.name, op: "contains", value: text.trim() }); }}>
-                <Input value={text} onChange={(e) => setText(e.target.value)} aria-label={`Từ cần tìm trong ${f.name}`} placeholder="Chứa chữ…" className="min-w-40" data-testid="filter-value" />
+              <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) add({ field: f.name, op: exactText ? "eq" : "contains", value: text.trim() }); }}>
+                <Input value={text} onChange={(e) => setText(e.target.value)} aria-label={`Từ cần tìm trong ${f.name}`} placeholder={exactText ? "Đúng giá trị…" : "Chứa chữ…"} className="min-w-40" data-testid="filter-value" />
                 <Button type="submit" variant="secondary" disabled={!text.trim()}><Plus size={16} aria-hidden /> Thêm</Button>
               </form>
             )}

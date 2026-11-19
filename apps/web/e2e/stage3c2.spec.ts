@@ -13,7 +13,9 @@ test.describe.configure({ mode: "serial" });
 
 let p: ProjectName;
 const PASSWORD = () => `Kiem-thu-3c2-${p}-8842`;
-const email = (who: string) => `${p}.e2${who}@base.vn`;
+// Every run makes its own people (the database may already hold the ones of an earlier run).
+const RUN = Date.now().toString(36);
+const email = (who: string) => `${p}.e2${who}${RUN}@base.vn`;
 const ROOT = path.join(process.cwd(), "../..");
 
 // Mã, Loại, Trạng thái, Số tiền, Điểm, Ngày nhận, Ngày chốt
@@ -62,22 +64,22 @@ async function markPoint(card: Locator, coord: unknown[]) {
 test.beforeAll(async ({ browser }, info) => {
   p = info.project.name as ProjectName;
   test.skip(p === "phone", "3C-2 chỉ chạy ở desktop (điện thoại để kiểm thử cuối stage)");
-  const admin = await createAdmin(API, email("admin"), `Admin 3C2 ${p}`, PASSWORD(), ROOT);
+  const admin = await createAdmin(API, email("admin"), `Admin 3C2 ${p} ${RUN}`, PASSWORD(), ROOT);
   const ids = await seedPeople(
     API,
     admin,
     [
-      { email: email("mgr"), name: `Manager 3C2 ${p}`, roles: ["manager"] },
-      { email: email("owner"), name: `Chủ 3C2 ${p}`, roles: ["user"], manager: email("mgr") },
-      { email: email("viewer"), name: `Người xem 3C2 ${p}`, roles: ["user"], manager: email("mgr") },
-      { email: email("guest"), name: `Guest 3C2 ${p}`, roles: ["guest"], manager: email("mgr"), guestPreset: "data" },
+      { email: email("mgr"), name: `Manager 3C2 ${p} ${RUN}`, roles: ["manager"] },
+      { email: email("owner"), name: `Chủ 3C2 ${p} ${RUN}`, roles: ["user"], manager: email("mgr") },
+      { email: email("viewer"), name: `Người xem 3C2 ${p} ${RUN}`, roles: ["user"], manager: email("mgr") },
+      { email: email("guest"), name: `Guest 3C2 ${p} ${RUN}`, roles: ["guest"], manager: email("mgr"), guestPreset: "data" },
     ],
     PASSWORD(),
   );
   const mgrApi = await new ApiClient(API).login(email("mgr"), PASSWORD());
   ownerApi = await new ApiClient(API).login(email("owner"), PASSWORD());
   viewerApi = await new ApiClient(API).login(email("viewer"), PASSWORD());
-  hubId = (await ownerApi.call<{ id: string }>("POST", "/datahubs", { name: `Doanh thu 3C2 ${p}` })).id;
+  hubId = (await ownerApi.call<{ id: string }>("POST", "/datahubs", { name: `Doanh thu 3C2 ${p} ${RUN}` })).id;
   dealsName = `Deals ${p}`;
   dealsId = (await ownerApi.call<{ id: string }>("POST", `/datahubs/${hubId}/tables`, { name: dealsName })).id;
   const col = (name: string, type: string, config?: unknown) => ownerApi.call("POST", `/tables/${dealsId}/columns`, { name, type, ...(config ? { config } : {}) });
@@ -326,17 +328,17 @@ test("chia sẻ dashboard: người nhận thấy số mà không có quyền b�
   await pg.getByRole("button", { name: /Tuỳ chọn dashboard Chia sẻ thử/ }).click();
   await pg.getByRole("menuitem", { name: "Chia sẻ…" }).click();
   const dlg = pg.getByRole("dialog");
-  await dlg.getByLabel("Tìm người *").fill(`Người xem 3C2 ${p}`);
-  await dlg.getByRole("option", { name: new RegExp(`Người xem 3C2 ${p}`) }).click();
+  await dlg.getByLabel("Tìm người *").fill(`Người xem 3C2 ${p} ${RUN}`);
+  await dlg.getByRole("option", { name: new RegExp(`Người xem 3C2 ${p} ${RUN}`) }).click();
   await dlg.getByTestId("dshare-add").click();
-  await expect(dlg.getByTestId("dshare-row")).toContainText(`Người xem 3C2 ${p}`);
+  await expect(dlg.getByTestId("dshare-row")).toContainText(`Người xem 3C2 ${p} ${RUN}`);
   await dlg.getByRole("button", { name: "Đóng", exact: true }).last().click();
 
   const vp = viewer.page;
   await vp.goto("/");
   await vp.getByRole("link", { name: "Dashboard chia sẻ" }).first().click();
   await vp.getByTestId("shared-dashboard").filter({ hasText: "Chia sẻ thử" }).click();
-  await expect(vp.getByTestId("dash-owner")).toContainText(`Của Chủ 3C2 ${p}`);
+  await expect(vp.getByTestId("dash-owner")).toContainText(`Của Chủ 3C2 ${p} ${RUN}`);
   await expect(cardOf(vp, "Tổng riêng của chủ").getByTestId("kpi-value")).toHaveText("2.150");
   // nothing to edit
   await expect(vp.getByTestId("add-chart")).toHaveCount(0);

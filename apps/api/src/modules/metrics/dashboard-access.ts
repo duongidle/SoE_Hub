@@ -127,3 +127,49 @@ export function viewerChart(chart: ChartDef): ChartDef {
     ...(chart.layout ? { layout: chart.layout } : {}),
   };
 }
+
+const norm = (s: string) => s.normalize("NFC").trim().toLowerCase();
+const notAllowed = (message: string, details: Record<string, unknown>): never => {
+  throw new AppError("forbidden", message, { reason: "filter_field_not_allowed", ...details });
+};
+
+/**
+ * Someone who only looks at a dashboard computes numbers with the OWNER's rights, so a free filter would let them probe any column of the
+ * source table ("Doanh thu = 12345"). For a non-owner the filters are limited to what the dashboard itself offers: conditions on the columns of
+ * `dashFields` (text columns only by exact value, never "contains"), and cross filters on the group axes of the charts of this dashboard.
+ * A filter outside that is refused, not silently dropped. The date range is free. The owner is not limited.
+ */
+export async function checkViewerFilters(
+  cctx: Ctx,
+  v: Pick<ViewedDash, "role" | "datahubId" | "row">,
+  f: { conditions?: { field: string; op: string }[]; cross?: { field: string; chart_id?: string }[] } | undefined,
+): Promise<void> {
+  if (v.role === "owner" || !f || (!f.conditions?.length && !f.cross?.length)) return;
+  const rows = await chartRowsOf(cctx, v.row.id as string);
+  const charts = rows.map((r) => r.config);
+  if (f.conditions?.length) {
+    const kinds = new Map((await dashFields(cctx, v.datahubId, charts)).map((x) => [norm(x.name), x.kind]));
+    for (const c of f.conditions) {
+      const kind = kinds.get(norm(c.field));
+      if (!kind) notAllowed(`Bộ lọc theo cột "${c.field}" không dùng được trên dashboard này.`, { field: c.field });
+      if (c.op === "contains") notAllowed(`Cột "${c.field}" chỉ lọc theo giá trị chính xác (chọn một giá trị), không lọc theo "chứa".`, { field: c.field, op: c.op });
+    }
+  }
+  if (f.cross?.length) {
+    const saved = await savedMetricDefs(cctx, v.datahubId, charts);
+    const axes = new Set<string>();
+    for (const c of charts) {
+      for (const s of c.series) {
+        const def = s.metric ?? (s.metric_id ? saved.get(s.metric_id)?.def : undefined);
+        for (const g of [...(s.group_by ?? []), ...(def?.group_by ?? [])]) axes.add(norm(typeof g === "string" ? g : g.field));
+        const t = { ...def?.time, ...s.time };
+        if (t.field && t.bucket) axes.add(norm(t.field));
+      }
+    }
+    const ids = new Set(rows.map((r) => r.id));
+    for (const c of f.cross) {
+      if (c.chart_id && !ids.has(c.chart_id)) notAllowed("Lọc chéo từ một biểu đồ không thuộc dashboard này.", { chart_id: c.chart_id });
+      if (!axes.has(norm(c.field))) notAllowed(`Lọc chéo theo cột "${c.field}" không dùng được: chỉ lọc theo cột mà một biểu đồ của dashboard nhóm theo.`, { field: c.field });
+    }
+  }
+}
