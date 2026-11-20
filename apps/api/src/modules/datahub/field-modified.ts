@@ -62,12 +62,12 @@ export function touchTrackers(list: Tracker[], data: Record<string, Stored>, cha
 export async function backfillTracker(db: Executor, acc: TableAccess, key: string, watch: string[]): Promise<number> {
   assertColumnKey(key);
   const fields = `{${watch.map((k) => assertColumnKey(k)).join(",")}}`;
-  await db.execute(sql`UPDATE dh_rows r SET data = r.data - ${key}::text WHERE ${acc.scope("r")} AND r.data ? ${key}::text`);
+  await db.execute(sql`UPDATE dh_rows r SET data = r.data - ${key}::text WHERE ${acc.rows("r")} AND r.data ? ${key}::text`);
   const res = await db.execute(sql`UPDATE dh_rows r SET data = r.data || jsonb_build_object(${key}::text, to_char(h.at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
     FROM (SELECT row_id, max(at) AS at FROM row_history
           WHERE table_id = ${acc.tableId} AND op IN ('create', 'update', 'restore')
             AND EXISTS (SELECT 1 FROM jsonb_array_elements(changes) c WHERE c->>'field' = ANY(${fields}::text[]))
           GROUP BY row_id) h
-    WHERE ${acc.scope("r")} AND r.id = h.row_id`);
+    WHERE ${acc.rows("r")} AND r.id = h.row_id`);
   return res.rowCount ?? 0;
 }

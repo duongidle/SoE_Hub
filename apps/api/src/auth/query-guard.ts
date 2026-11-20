@@ -12,8 +12,16 @@ import type pg from "pg";
  */
 const owned = new Set<string>(["files", "notifications"]);
 
-export function registerOwnedTable(name: string): void {
+/**
+ * Tables whose rows depend on WHO reads them (the split lock of a datahub table). The plain scope marker (access to the table, from `scope()`) is
+ * not enough: the query must carry the "scope:rows" marker (`TableAccess.rows()`) or the "scope:system" marker (worker, reconcile, trash purge...).
+ * Using `scope()` by mistake on `dh_rows` would skip the split lock, so the guard fails every such query in dev and in the whole test suite.
+ */
+const strict = new Set<string>();
+
+export function registerOwnedTable(name: string, opts?: { rows?: boolean }): void {
   owned.add(name);
+  if (opts?.rows) strict.add(name);
 }
 
 export function ownedTables(): string[] {
@@ -29,8 +37,12 @@ export class UnscopedQueryError extends Error {
 
 /** Throws when `text` reads or changes an owned table without a scope marker. */
 export function checkScopedQuery(text: string): void {
-  if (text.includes("/*scope")) return;
+  if (text.includes("/*scope:system*/")) return;
+  const anyScope = text.includes("/*scope");
+  const rowsScope = text.includes("/*scope:rows*/");
   for (const t of owned) {
+    const needRows = strict.has(t);
+    if (needRows ? rowsScope : anyScope) continue;
     const re = new RegExp(`\\b(from|join|update)\\s+(only\\s+)?("?public"?\\.)?"?${t}"?(\\s|$|,|\\))`, "i");
     if (re.test(text)) throw new UnscopedQueryError(t, text);
   }

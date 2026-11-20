@@ -27,7 +27,7 @@ export function overlayRel(tableId: string, userId: string, scopedKeys: string[]
   return sql`(SELECT r.id, r.table_id, r.row_no, r.version, r.search, r.created_at, r.created_by, r.updated_at, r.updated_by, r.deleted_at, r.deleted_by,
       ${merged} AS data
     FROM dh_rows r ${joins[0]} ${joins[1]}
-    WHERE /*scope*/ r.table_id = ${tableId}::uuid ${keep ? sql`AND ${keep}` : sql``})`;
+    WHERE /*scope:rows*/ r.table_id = ${tableId}::uuid ${keep ? sql`AND ${keep}` : sql``})`;
 }
 
 /** The people who read a table without owning it: every grantee of its datahub (the whole datahub, or this table). */

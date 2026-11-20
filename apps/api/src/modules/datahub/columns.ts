@@ -172,8 +172,8 @@ export async function createColumn(ctx: Ctx, acc: TableAccess, i: ColumnInput, e
   if (i.type === "auto_number") {
     const start = (config.start as number | undefined) ?? 1;
     await ctx.db.execute(sql`UPDATE dh_rows r SET data = r.data || jsonb_build_object(${key}::text, ${start - 1}::int + n.rn)
-      FROM (SELECT id, row_number() OVER (ORDER BY row_no) AS rn FROM dh_rows WHERE ${acc.scope()}) n WHERE ${acc.scope("r")} AND r.id = n.id`);
-    const c = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE ${acc.scope()}`);
+      FROM (SELECT id, row_number() OVER (ORDER BY row_no) AS rn FROM dh_rows WHERE ${acc.rows()}) n WHERE ${acc.rows("r")} AND r.id = n.id`);
+    const c = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE ${acc.rows()}`);
     await ctx.db.execute(sql`UPDATE dh_columns SET config = jsonb_set(config, '{seq}', to_jsonb(${start - 1 + (c.rows[0] as { n: number }).n}::int)) WHERE ${acc.scope()} AND id = ${id}::uuid`);
   }
   // The tracking column of a table that already has rows: filled from the row history.
@@ -365,7 +365,7 @@ async function targetConfig(db: Executor, access: TableAccess, col: DhColumn, ty
   const cfg = normalizeConfig(type, raw ?? columnTypeDef(type).defaultConfig());
   if ((type === "single_select" || type === "multi_select") && (cfg.options as SelectOption[]).length === 0 && col.type !== "single_select" && col.type !== "multi_select") {
     const key = col.key;
-    const res = await db.execute(sql`SELECT DISTINCT ${sql.raw(`data->>'${key}'`)} AS v FROM dh_rows WHERE ${access.scope()} AND deleted_at IS NULL AND data ? ${key} ORDER BY 1 LIMIT 201`);
+    const res = await db.execute(sql`SELECT DISTINCT ${sql.raw(`data->>'${key}'`)} AS v FROM dh_rows WHERE ${access.rows()} AND deleted_at IS NULL AND data ? ${key} ORDER BY 1 LIMIT 201`);
     const vals = (res.rows as { v: string | null }[]).map((r) => r.v).filter((v): v is string => !!v && v.trim() !== "" && v.length <= 100);
     if (vals.length > 0 && vals.length <= 200) cfg.options = normalizeOptions(vals.map((name) => ({ name, id: newOptionId() })));
   }
@@ -378,13 +378,13 @@ const SCAN_BATCH = 2000;
 async function convertColumn(ctx: Ctx, access: TableAccess, schema: TableSchema, col: DhColumn, toType: string, toConfig: Record<string, unknown>, apply: boolean): Promise<ConversionReport> {
   const to = { key: col.key, name: col.name, config: toConfig, type: toType as DhColumn["type"] };
   const report: ConversionReport = { total_rows: 0, with_value: 0, unchanged: 0, converted: 0, cannot_convert: 0, samples: [] };
-  const totalRes = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE ${access.scope()} AND deleted_at IS NULL`);
+  const totalRes = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE ${access.rows()} AND deleted_at IS NULL`);
   report.total_rows = (totalRes.rows[0] as { n: number }).n;
   const newCols = schema.alive.map((c) => (c.id === col.id ? { ...c, type: toType as DhColumn["type"], config: toConfig } : c));
   const actorRef = toActorRef(ctx.actor);
   let last = "00000000-0000-0000-0000-000000000000";
   for (;;) {
-    const res = await ctx.db.execute(sql`SELECT id, row_no, version, data FROM dh_rows WHERE ${access.scope()} AND deleted_at IS NULL AND id > ${last}::uuid AND data ? ${col.key} ORDER BY id LIMIT ${SCAN_BATCH}`);
+    const res = await ctx.db.execute(sql`SELECT id, row_no, version, data FROM dh_rows WHERE ${access.rows()} AND deleted_at IS NULL AND id > ${last}::uuid AND data ? ${col.key} ORDER BY id LIMIT ${SCAN_BATCH}`);
     const rows = res.rows as Raw[];
     if (rows.length === 0) break;
     last = rows[rows.length - 1]!.id as string;
@@ -416,7 +416,7 @@ async function convertColumn(ctx: Ctx, access: TableAccess, schema: TableSchema,
     if (apply && updates.length) {
       await ctx.db.execute(sql`UPDATE dh_rows r SET data = v.data, search = v.search, version = r.version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid
         FROM jsonb_to_recordset(${JSON.stringify(updates)}::jsonb) AS v(id uuid, data jsonb, search text)
-        WHERE ${access.scope("r")} AND r.id = v.id`);
+        WHERE ${access.rows("r")} AND r.id = v.id`);
       await ctx.db.insert(rowHistory).values(history.map((h) => ({ tableId: access.tableId, rowId: h.rowId, version: h.version, op: "update", changes: h.changes, actor: actorRef })));
     }
   }

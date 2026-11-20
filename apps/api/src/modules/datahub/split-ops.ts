@@ -152,7 +152,7 @@ export async function taggedRows(db: Executor, datahubId: string, tableId: strin
   const tables: { table_id: string; table_name: string; rows: number }[] = [];
   for (const [id, e] of byTable) {
     const any = sql.join(e.keys.map((k) => sql`data->>${sql.raw(`'${assertColumnKey(k)}'`)} = ${userId}`), sql` OR `);
-    const n = await db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE /*scope*/ table_id = ${id}::uuid AND deleted_at IS NULL AND (${any})`);
+    const n = await db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE /*scope:rows*/ table_id = ${id}::uuid AND deleted_at IS NULL AND (${any})`);
     const rows = (n.rows[0] as { n: number }).n;
     if (rows > 0) tables.push({ table_id: id, table_name: e.name, rows });
   }

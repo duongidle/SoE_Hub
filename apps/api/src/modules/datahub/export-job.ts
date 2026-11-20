@@ -242,7 +242,7 @@ async function loadLookups(db: Db, cols: Col[], rows: Raw[], ownerId: string, ta
     if (!lt) continue;
     const cond = lt.own ? sql`d.owner_id = ${ownerId}::uuid` : readableRows(lt.acc, "r");
     const res = await db.execute(sql`SELECT r.id, ${label} AS label FROM dh_rows r JOIN dh_tables t ON t.id = r.table_id JOIN dh_datahubs d ON d.id = t.datahub_id
-      WHERE /*scope*/ r.table_id = ${target}::uuid AND ${cond} AND r.id = ANY(${uuidArray([...ids])}::uuid[])`);
+      WHERE /*scope:rows*/ r.table_id = ${target}::uuid AND ${cond} AND r.id = ANY(${uuidArray([...ids])}::uuid[])`);
     for (const r of res.rows as { id: string; label: string }[]) lk.links.set(r.id, r.label);
   }
   if (need.files.size) {

@@ -117,7 +117,7 @@ export class TableAccess {
    * Writes use it too, so a row that is not theirs cannot be reached with its id. `scope()` alone stays for columns, views and other table data.
    */
   rows(alias?: string): SQL {
-    const base = this.scope(alias);
+    const base = this.scope(alias, "rows");
     if (!this.reader) return base;
     return sql`${base} AND ${keyMatch(this.table.split.keys, this.reader.ids, alias)}`;
   }
@@ -150,9 +150,9 @@ export class TableAccess {
   }
 
   /** `table_id = <this table>` with the scope marker. Use it in every query on rows, columns, views of this table. */
-  scope(alias?: string): SQL {
+  scope(alias?: string, marker: "rows" | "table" = "table"): SQL {
     const col = alias ? sql.raw(`${alias}.table_id`) : sql.raw("table_id");
-    return sql`/*scope*/ ${col} = ${this.table.id}::uuid`;
+    return marker === "rows" ? sql`/*scope:rows*/ ${col} = ${this.table.id}::uuid` : sql`/*scope*/ ${col} = ${this.table.id}::uuid`;
   }
 
   require(need: Level): void {

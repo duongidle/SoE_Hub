@@ -21,7 +21,8 @@ import "./import-job";
 // Datahub rows are private data: the Admin's audit log records the action and the field names, never the values
 // (design module1 section 10). Every table that holds datahub data must go through the scoped query helpers.
 registerPrivateAuditTarget("datahub_row");
-for (const t of ["dh_datahubs", "dh_tables", "dh_columns", "dh_rows", "dh_views", "dh_view_overrides", "dh_table_state", "dh_shares", "dh_formula_deps", "dh_personal_rows", "dh_person_cells", "dh_templates", "dh_merges", "dh_merge_rows"]) registerOwnedTable(t);
+for (const t of ["dh_datahubs", "dh_tables", "dh_columns", "dh_views", "dh_view_overrides", "dh_table_state", "dh_shares", "dh_formula_deps", "dh_personal_rows", "dh_person_cells", "dh_templates", "dh_merges", "dh_merge_rows"]) registerOwnedTable(t);
+registerOwnedTable("dh_rows", { rows: true });
 registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.maxColumns, DH_SETTINGS.recalcParallel, DH_SETTINGS.consistentWaitMs, DH_SETTINGS.fiscalStartMonth, DH_SETTINGS.templatesPerScope);
 
 export { datahubEvents };

@@ -23,7 +23,7 @@ Cập nhật: 20/11/2026
 
 ## Đang làm: Stage 4 (Module 4, Quản lý Deal), Sonnet code, Opus rà
 
-**Kế hoạch (20/11):** 4.2 server bảng mặc định (đang làm: [ ] 1 siết chốt chặn `dh_rows`, [ ] 2 kiểu Người dùng có thuộc tính + gửi xuống, [ ] 3 bộ mặc định theo cây, [ ] 4 công thức sang bảng template khác chủ, [ ] 5 việc để lại từ 4.1, [ ] 6 OpenAPI/Bruno/quyết định); 4.3 giao diện (trang Template, menu Quản lý Deal, màn Deals); 4.4 thanh toán và com; 4.5 chốt kỳ/BANT/forecast/snapshot; 4.6 chỉ số + dashboard Deals; 4.7 API ngoài, nhập lịch sử, Guest; 4.8 kiểm thử cuối.
+**Kế hoạch (20/11):** 4.2 server bảng mặc định (đang làm: [x] 1 siết chốt chặn `dh_rows` (xong: guard buộc `/*scope:rows*/` hoặc `/*scope:system*/` cho `dh_rows`; vitest apps packages 1073 pass 9 skip + 2 test mới), [ ] 2 kiểu Người dùng có thuộc tính + gửi xuống, [ ] 3 bộ mặc định theo cây, [ ] 4 công thức sang bảng template khác chủ, [ ] 5 việc để lại từ 4.1, [ ] 6 OpenAPI/Bruno/quyết định); 4.3 giao diện (trang Template, menu Quản lý Deal, màn Deals); 4.4 thanh toán và com; 4.5 chốt kỳ/BANT/forecast/snapshot; 4.6 chỉ số + dashboard Deals; 4.7 API ngoài, nhập lịch sử, Guest; 4.8 kiểm thử cuối.
 
 **Việc đầu tiên của 4.2 (Opus quyết 20/11):** siết chốt chặn truy vấn (`apps/api/src/auth/query-guard.ts`): `TableAccess.rows()` gắn dấu riêng (ví dụ `/*scope:rows*/`), mọi truy vấn đọc/ghi `dh_rows` phải mang dấu đó hoặc `/*scope:system*/`; dấu `/*scope*/` của `scope()` (chỉ quyền vào bảng) không còn đủ. Mục đích: dùng nhầm `scope()` thay `rows()` (bỏ qua khoá phân chia) sẽ làm cả bộ test fail.
 

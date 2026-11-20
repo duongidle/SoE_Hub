@@ -111,7 +111,7 @@ async function checkRefs(ctx: Ctx, db: Executor, actorId: string, ownerId: strin
       continue;
     }
     const res = await db.execute(sql`SELECT r.id FROM dh_rows r JOIN dh_tables t ON t.id = r.table_id JOIN dh_datahubs d ON d.id = t.datahub_id
-      WHERE /*scope*/ r.table_id = ${target}::uuid AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND d.deleted_at IS NULL AND d.owner_id = ${ownerId}::uuid
+      WHERE /*scope:rows*/ r.table_id = ${target}::uuid AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND d.deleted_at IS NULL AND d.owner_id = ${ownerId}::uuid
         AND r.id = ANY(${uuidArray([...rowIds])}::uuid[])`);
     (res.rows as { id: string }[]).forEach((r) => okRows.add(r.id));
   }

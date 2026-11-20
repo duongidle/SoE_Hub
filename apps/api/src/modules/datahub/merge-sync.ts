@@ -366,10 +366,10 @@ async function applyPlan(tx: Executor, ownerId: string, tableId: string, config:
     // No version, no "Ngày sửa": a copy made by the system is not an edit (same rule as computed values).
     await tx.execute(sql`UPDATE dh_rows r SET data = v.data, search = v.search, deleted_at = NULL, deleted_by = NULL
       FROM jsonb_to_recordset(${JSON.stringify(updates.slice(i, i + WRITE_CHUNK))}::jsonb) AS v(id uuid, data jsonb, search text, restore boolean)
-      WHERE /*scope*/ r.table_id = ${tableId}::uuid AND r.id = v.id`);
+      WHERE /*scope:system*/ r.table_id = ${tableId}::uuid AND r.id = v.id`);
   }
   for (let i = 0; i < deleted.length; i += WRITE_CHUNK) {
-    await tx.execute(sql`UPDATE dh_rows SET deleted_at = now(), deleted_by = ${ownerId}::uuid WHERE /*scope*/ table_id = ${tableId}::uuid AND id = ANY(${uuidArray(deleted.slice(i, i + WRITE_CHUNK))}::uuid[])`);
+    await tx.execute(sql`UPDATE dh_rows SET deleted_at = now(), deleted_by = ${ownerId}::uuid WHERE /*scope:system*/ table_id = ${tableId}::uuid AND id = ANY(${uuidArray(deleted.slice(i, i + WRITE_CHUNK))}::uuid[])`);
   }
   for (let i = 0; i < mappings.length; i += WRITE_CHUNK) {
     await tx.execute(sql`INSERT INTO dh_merge_rows (table_id, ident, row_id, source_table_id, source_row_id)

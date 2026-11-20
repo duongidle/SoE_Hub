@@ -59,7 +59,7 @@ async function tablesOf(db: Executor, userId: string, datahubIds: string[]): Pro
       const rd = (reader ??= await loadReader(db, userId));
       const keys = (r.key_columns as string[]) ?? [];
       const cond = keys.length ? sql.join(keys.map((k) => sql`((data->>${sql.raw(`'${assertColumnKey(k)}'`)})::uuid = ANY(${`{${rd.ids.join(",")}}`}::uuid[]))`), sql` OR `) : sql`false`;
-      rowCount = ((await db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE /*scope*/ table_id = ${r.id as string}::uuid AND deleted_at IS NULL AND (${cond})`)).rows[0] as { n: number }).n;
+      rowCount = ((await db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE /*scope:rows*/ table_id = ${r.id as string}::uuid AND deleted_at IS NULL AND (${cond})`)).rows[0] as { n: number }).n;
     }
     list.push({ id: r.id as string, name: r.name as string, position: r.position as number, row_count: rowCount, access: r.level as "owner" | "edit_data" | "view", kind: r.kind === "merged" ? "merged" : "normal", members_bulk_create: r.members_bulk_create !== false });
     out.set(r.datahub_id as string, list);
