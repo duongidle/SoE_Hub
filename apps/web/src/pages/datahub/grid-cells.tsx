@@ -13,7 +13,7 @@ import { RelationPicker, type Linked } from "./relation-picker";
 export type SoeData =
   | { t: "select"; ids: string[]; options: SelectOption[]; multi: boolean; readonly: boolean }
   | { t: "rating"; value: number | null; max: number; readonly: boolean }
-  | { t: "person"; id: string | null; name: string; readonly: boolean }
+  | { t: "person"; id: string | null; name: string; readonly: boolean; tableId: string }
   | { t: "relation"; ids: string[]; names: string[]; multiple: boolean; readonly: boolean; tableId: string; column: string; learn: (id: string, label: string) => void }
   | { t: "files"; ids: string[]; max: number; readonly: boolean; tableId: string };
 export type SoeCell = CustomCell<SoeData>;
@@ -82,7 +82,7 @@ const PersonEditor: ProvideEditorComponent<SoeCell> = ({ value, onFinishedEditin
   const d = value.data as Extract<SoeData, { t: "person" }>;
   return (
     <Overlay target={target}>
-      <PersonPicker value={d.id} valueName={d.name} onCancel={() => onFinishedEditing(undefined)} onDone={(p) => onFinishedEditing({ ...value, data: { ...d, id: p?.id ?? null, name: p?.full_name ?? "" }, copyData: p?.full_name ?? "" }, [0, 0])} />
+      <PersonPicker tableId={d.tableId} value={d.id} valueName={d.name} onCancel={() => onFinishedEditing(undefined)} onDone={(p) => onFinishedEditing({ ...value, data: { ...d, id: p?.id ?? null, name: p?.full_name ?? "" }, copyData: p?.full_name ?? "" }, [0, 0])} />
     </Overlay>
   );
 };

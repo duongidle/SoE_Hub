@@ -72,7 +72,8 @@ export function SelectPicker({ options, value, multi, onChange, onDone, onCancel
 }
 
 /** Search people by name or email and pick one. */
-export function PersonPicker({ value, valueName, onDone, onCancel, autoFocus = true }: { value: string | null; valueName?: string; onDone: (p: Person | null) => void; onCancel?: () => void; autoFocus?: boolean }) {
+/** With `tableId` only the owner and members of that table are suggested (a Người dùng cell takes members only). */
+export function PersonPicker({ value, valueName, onDone, onCancel, autoFocus = true, tableId }: { value: string | null; valueName?: string; onDone: (p: Person | null) => void; onCancel?: () => void; autoFocus?: boolean; tableId?: string }) {
   const [q, setQ] = useState("");
   const [found, setList] = useState<Person[]>([]);
   const [busy, setBusy] = useState(false);
@@ -82,7 +83,7 @@ export function PersonPicker({ value, valueName, onDone, onCancel, autoFocus = t
     if (q.trim().length < 1) return;
     const t = setTimeout(() => {
       setBusy(true);
-      lookupPeople({ q: q.trim() })
+      lookupPeople({ q: q.trim(), tableId })
         .then((r) => {
           setList(r);
           setActive(0);
@@ -91,7 +92,7 @@ export function PersonPicker({ value, valueName, onDone, onCancel, autoFocus = t
         .finally(() => setBusy(false));
     }, 200);
     return () => clearTimeout(t);
-  }, [q]);
+  }, [q, tableId]);
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") setActive((a) => Math.min(list.length - 1, a + 1));
     else if (e.key === "ArrowUp") setActive((a) => Math.max(0, a - 1));
@@ -106,7 +107,7 @@ export function PersonPicker({ value, valueName, onDone, onCancel, autoFocus = t
       {value && <p className="mb-2 px-1 text-muted-foreground [overflow-wrap:anywhere]">Đang chọn: <span className="text-foreground">{valueName ?? "…"}</span></p>}
       <Input aria-label="Tìm người" placeholder="Gõ tên hoặc email" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} />
       <div role="listbox" aria-label="Người" className="contain-scroll mt-2 flex max-h-56 flex-col gap-0.5 overflow-y-auto">
-        {q.trim() && !busy && list.length === 0 && <p className="px-2 py-3 text-muted-foreground">Không tìm thấy ai.</p>}
+        {q.trim() && !busy && list.length === 0 && <p className="px-2 py-3 text-muted-foreground">{tableId ? "Không có thành viên nào khớp. Chủ bảng cần chia sẻ bảng cho người này trước." : "Không tìm thấy ai."}</p>}
         {list.map((p, i) => (
           <button key={p.id} type="button" role="option" aria-selected={p.id === value} onClick={() => onDone(p)} onMouseMove={() => setActive(i)} className={cn("flex min-h-11 flex-col items-start justify-center rounded px-2 py-1 text-left sm:min-h-9", i === active && "bg-muted")}>
             <span className="[overflow-wrap:anywhere]">{p.full_name}</span>

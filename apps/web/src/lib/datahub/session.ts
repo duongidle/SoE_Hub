@@ -184,7 +184,7 @@ export class TableSession {
         const i = d.issues[0]!;
         return d.issues.length === 1 ? i.message : `${i.message} (và ${d.issues.length - 1} lỗi khác)`;
       }
-      if (e.code === "forbidden") return "Bạn chỉ có quyền xem bảng này.";
+      if (e.code === "forbidden") return d?.reason ? e.message : "Bạn chỉ có quyền xem bảng này.";
       return e.message;
     }
     return e instanceof Error ? e.message : String(e);

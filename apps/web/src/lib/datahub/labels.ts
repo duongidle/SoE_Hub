@@ -7,6 +7,8 @@ import { lookupPeople, relationLabels } from "./api";
 export class LabelCache {
   readonly people = new Map<string, string>();
   readonly linked = new Map<string, string>();
+  /** People found by id who are neither the owner nor a member of the table. */
+  readonly noAccess = new Set<string>();
   private wantedPeople = new Set<string>();
   private wantedLinked = new Map<string, Set<string>>();
   private requested = new Set<string>();
@@ -59,9 +61,12 @@ export class LabelCache {
     for (let i = 0; i < people.length; i += 200) {
       const ids = people.slice(i, i + 200);
       jobs.push(
-        lookupPeople({ ids })
+        lookupPeople({ ids, tableId: this.tableId })
           .then((list) => {
-            list.forEach((p) => this.people.set(p.id, p.full_name));
+            list.forEach((p) => {
+              this.people.set(p.id, p.full_name);
+              if (p.member === false) this.noAccess.add(p.id);
+            });
             // An id that is not a person any more shows a dash instead of "…" forever.
             ids.filter((x) => !this.people.has(x)).forEach((x) => this.people.set(x, "—"));
           })

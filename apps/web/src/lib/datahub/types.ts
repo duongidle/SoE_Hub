@@ -10,6 +10,8 @@ export interface TableBrief {
   access: Level;
   /** `merged` = merged table: read-only, rows copied by the worker from source tables (design module3 section 4). */
   kind?: "normal" | "merged";
+  /** Members who are not the owner may import or paste new rows (the owner always may). Missing = yes. */
+  members_bulk_create?: boolean;
 }
 
 export interface DatahubBrief {
@@ -39,6 +41,8 @@ export interface Column {
   config: Record<string, unknown> & { options?: SelectOption[]; result_type?: string; precision?: number; max?: number; multiple?: boolean; target_table_id?: string };
   position: number;
   required: boolean;
+  /** Members with the Sửa permission may type into this column (the owner always may). Missing = yes. */
+  allow_edit?: boolean;
   unique: boolean;
   default_value: unknown;
   description: string | null;
@@ -61,6 +65,8 @@ export interface TableDetail {
   owner_id: string;
   columns: Column[];
   max_columns: number;
+  key_split?: { enabled: boolean; key_columns: { key: string; name: string }[]; primary: string | null };
+  members_bulk_create?: boolean;
 }
 
 export interface Row {
@@ -102,6 +108,8 @@ export interface Person {
   id: string;
   full_name: string;
   email: string | null;
+  /** Only when the lookup names a table: false = not the owner or a member of it ("không còn quyền"). */
+  member?: boolean;
 }
 
 /** Result of `datahub.row.batch`. */

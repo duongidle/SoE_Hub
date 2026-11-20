@@ -70,6 +70,8 @@ export interface ColumnDraft {
   name: string;
   description: string;
   required: boolean;
+  /** Members with the Sửa permission may type into this column (design module2 section 10). */
+  allowEdit: boolean;
   unique: boolean;
   /** Text as typed; parsed with the column's own rules when sent. */
   defaultText: string;
@@ -98,6 +100,7 @@ export function emptyDraft(type = "text"): ColumnDraft {
     name: "",
     description: "",
     required: false,
+    allowEdit: true,
     unique: false,
     defaultText: "",
     options: [],
@@ -129,6 +132,7 @@ export function draftFromColumn(col: Column): ColumnDraft {
     name: col.name,
     description: col.description ?? "",
     required: col.required,
+    allowEdit: col.allow_edit !== false,
     unique: col.unique,
     options: (col.config.options ?? []).map((o) => ({ id: o.id, name: o.name, color: o.color ?? "gray" })),
     maxLength: str(c.max_length),
@@ -209,6 +213,7 @@ export interface CreateBody {
   type: string;
   config: Record<string, unknown>;
   required?: boolean;
+  allow_edit?: boolean;
   unique?: boolean;
   default_value?: unknown;
   description?: string | null;
@@ -222,6 +227,7 @@ export function buildBody(d: ColumnDraft, defaultValue: unknown): CreateBody {
     type: d.type,
     config: buildConfig(d),
     required: d.required,
+    allow_edit: d.allowEdit,
     unique: d.unique,
     default_value: defaultValue ?? null,
     description: d.description.trim() || null,
@@ -230,7 +236,8 @@ export function buildBody(d: ColumnDraft, defaultValue: unknown): CreateBody {
 }
 
 /** Types that take a default value, a requirement and a unique mark. */
-export function hasProperty(type: string, what: "default" | "required" | "unique", info?: TypeInfo): boolean {
+export function hasProperty(type: string, what: "default" | "required" | "unique" | "allow_edit", info?: TypeInfo): boolean {
+  if (what === "allow_edit") return !COMPUTED.has(type) && type !== "auto_number" && !["row_id", "created_time", "created_by", "modified_time", "modified_by"].includes(type);
   if (COMPUTED.has(type) || type === "auto_number" || ["row_id", "created_time", "created_by", "modified_time", "modified_by"].includes(type)) return false;
   if (what === "unique") return info?.can_be_unique ?? false;
   if (what === "default") return !["relation", "attachment", "multi_select", "rating", "user"].includes(type);

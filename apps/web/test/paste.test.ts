@@ -118,3 +118,24 @@ describe("planPaste", () => {
     expect(plan.errors[0]!.message).toContain("chưa được tải");
   });
 });
+
+describe("columns the owner does not let members edit (allow_edit = false)", () => {
+  const locked = col("Giá", "number", { allow_edit: false });
+  it("is read-only for a member who may edit data, not for the owner", () => {
+    expect(readOnlyReason(locked, "edit_data")).toMatch(/không cho sửa/);
+    expect(readOnlyReason(locked, "owner")).toBeNull();
+    expect(readOnlyReason(col("Giá", "number"), "edit_data")).toBeNull();
+  });
+  it("skips the column when pasting as a member", () => {
+    const rows: Row[] = [{ id: "r1", data: { k_Giá: 1 } }];
+    const plan = planPaste({ columns: [locked], rowAt: (i) => rows[i], rowCount: 1, startRow: 0, startCol: 0, matrix: [["5"]], level: "edit_data" });
+    expect(plan.changes).toEqual([]);
+    expect(plan.skipped).toBe(1);
+  });
+  it("shows a person who left the table as not having access", () => {
+    const user = col("Người", "user");
+    const row: Row = { id: "r", data: { k_Người: "u1" } };
+    expect(displayText(user, row, { ...ctx, noAccess: new Set(["u1"]) })).toBe("Đặng Thị Ngọc Hân (không còn quyền)");
+    expect(displayText(user, row, ctx)).toBe("Đặng Thị Ngọc Hân");
+  });
+});

@@ -23,6 +23,7 @@ const TableBrief = z.object({
   access: LevelOut,
   /** `merged` = merged table (read-only, filled by the worker). */
   kind: z.enum(["normal", "merged"]),
+  members_bulk_create: z.boolean().describe("Thành viên không phải chủ có được nhập file / dán sinh dòng mới ở bảng này không."),
 });
 
 export const DatahubOut = z.object({
@@ -45,7 +46,7 @@ async function tablesOf(db: Executor, userId: string, datahubIds: string[]): Pro
   const out = new Map<string, z.infer<typeof TableBrief>[]>();
   if (datahubIds.length === 0) return out;
   const res = await db.execute(sql`SELECT * FROM (
-      SELECT t.id, t.datahub_id, t.name, t.position, t.row_count, t.kind, t.key_split, t.key_columns, ${LEVEL_SQL(userId)} AS level, t.created_at
+      SELECT t.id, t.datahub_id, t.name, t.position, t.row_count, t.kind, t.key_split, t.key_columns, t.members_bulk_create, ${LEVEL_SQL(userId)} AS level, t.created_at
       FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
       WHERE /*scope*/ t.datahub_id = ANY(${`{${datahubIds.join(",")}}`}::uuid[]) AND t.deleted_at IS NULL AND d.deleted_at IS NULL
     ) x WHERE level IS NOT NULL ORDER BY position, created_at`);
@@ -60,7 +61,7 @@ async function tablesOf(db: Executor, userId: string, datahubIds: string[]): Pro
       const cond = keys.length ? sql.join(keys.map((k) => sql`((data->>${sql.raw(`'${assertColumnKey(k)}'`)})::uuid = ANY(${`{${rd.ids.join(",")}}`}::uuid[]))`), sql` OR `) : sql`false`;
       rowCount = ((await db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE /*scope*/ table_id = ${r.id as string}::uuid AND deleted_at IS NULL AND (${cond})`)).rows[0] as { n: number }).n;
     }
-    list.push({ id: r.id as string, name: r.name as string, position: r.position as number, row_count: rowCount, access: r.level as "owner" | "edit_data" | "view", kind: r.kind === "merged" ? "merged" : "normal" });
+    list.push({ id: r.id as string, name: r.name as string, position: r.position as number, row_count: rowCount, access: r.level as "owner" | "edit_data" | "view", kind: r.kind === "merged" ? "merged" : "normal", members_bulk_create: r.members_bulk_create !== false });
     out.set(r.datahub_id as string, list);
   }
   return out;

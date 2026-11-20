@@ -5,7 +5,11 @@ import type { Column, Level, Row, SelectOption } from "./types";
 export interface CellCtx {
   people: ReadonlyMap<string, string>;
   linked: ReadonlyMap<string, string>;
+  /** People named in a Người dùng column who are not members of the table any more (shown with "không còn quyền"). */
+  noAccess?: ReadonlySet<string>;
 }
+
+export const NO_ACCESS = "không còn quyền";
 
 export const COMPUTED_TYPES = new Set(["formula", "lookup", "rollup"]);
 export const SYSTEM_TYPES = new Set(["row_id", "created_time", "created_by", "modified_time", "modified_by"]);
@@ -20,6 +24,7 @@ export function readOnlyReason(col: Column, level: Level): string | null {
   if (COMPUTED_TYPES.has(col.type)) return "Cột này do công thức tính, không sửa trực tiếp.";
   if (col.type === "auto_number") return "Số tự tăng do hệ thống điền.";
   if (SYSTEM_TYPES.has(col.type)) return "Cột hệ thống, không sửa được.";
+  if (col.allow_edit === false && level !== "owner") return "Chủ bảng không cho sửa cột này.";
   if (col.type === "relation" && level !== "owner") return "Chỉ chủ datahub được sửa cột liên kết.";
   if (col.type === "relation") return "Chọn dòng liên kết trong ô, không gõ hay dán được.";
   if (col.type === "attachment") return "Tải file lên trong ô, không gõ hay dán được.";
@@ -101,6 +106,7 @@ function one(type: string, col: Column, v: unknown, ctx: CellCtx): string {
     case "row_id":
       return `#${v as number}`;
     case "user":
+      return typeof v === "string" ? `${ctx.people.get(v) ?? "…"}${ctx.noAccess?.has(v) ? ` (${NO_ACCESS})` : ""}` : EMPTY;
     case "created_by":
     case "modified_by":
       return typeof v === "string" ? (ctx.people.get(v) ?? "…") : EMPTY;

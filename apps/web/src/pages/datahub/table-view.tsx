@@ -187,10 +187,12 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   const merged = table.kind === "merged";
   // A merged table is read-only for everyone: its rows are copied by the worker (design module3 section 4.3).
   const canEditData = !merged && (table.access === "owner" || table.access === "edit_data");
+  // The owner may switch "Thành viên được thêm dòng hàng loạt" off: members then cannot import or paste new rows.
+  const canBulk = table.access === "owner" || table.members_bulk_create !== false;
   const actions = [
     { key: "cols", label: "Cột của bảng", icon: <Columns3 size={16} aria-hidden />, run: () => setColUI({ kind: "manage" }), disabled: false, show: true },
     { key: "export", label: "Xuất", icon: <Download size={16} aria-hidden />, run: () => setExportOpen(true), disabled: false, show: true },
-    { key: "import", label: "Nhập", icon: <Upload size={16} aria-hidden />, run: () => setImportOpen(true), disabled: false, show: canEditData },
+    { key: "import", label: "Nhập", icon: <Upload size={16} aria-hidden />, run: () => setImportOpen(true), disabled: false, show: canEditData && canBulk },
     { key: "dup", label: "Tìm dòng trùng", icon: <Copy size={16} aria-hidden />, run: () => setDupOpen(true), disabled: false, show: canEditData },
     { key: "trash", label: "Thùng rác", icon: <Trash size={16} aria-hidden />, run: () => setTrashOpen(true), disabled: false, show: canEditData },
     { key: "add", label: "Thêm cột", icon: <Plus size={16} aria-hidden />, run: () => setColUI({ kind: "add" }), disabled: table.columns.length >= table.max_columns, show: table.access === "owner" },
@@ -509,7 +511,7 @@ function BulkValue({ col, text, setText, picked, setPicked, session }: { col: Co
     case "rating":
       return <RatingPicker value={typeof picked === "number" ? picked : null} max={col.config.max ?? 5} onPick={(n) => setPicked(n)} />;
     case "user":
-      return <PersonPicker value={typeof picked === "string" ? picked : null} valueName={typeof picked === "string" ? session.labels.people.get(picked) : undefined} autoFocus={false} onDone={(p) => { if (p) session.labels.learnPerson(p.id, p.full_name); setPicked(p?.id ?? null); }} />;
+      return <PersonPicker tableId={session.table.id} value={typeof picked === "string" ? picked : null} valueName={typeof picked === "string" ? session.labels.people.get(picked) : undefined} autoFocus={false} onDone={(p) => { if (p) session.labels.learnPerson(p.id, p.full_name); setPicked(p?.id ?? null); }} />;
     default:
       return (
         <Field label="Giá trị" hint={col.type === "date" ? "Dạng dd/mm/yyyy." : col.type === "datetime" ? "Dạng dd/mm/yyyy hh:mm." : col.type === "percent" ? "Ví dụ 12,5%." : "Để trống để xoá giá trị."}>

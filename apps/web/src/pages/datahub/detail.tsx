@@ -54,6 +54,8 @@ export function DatahubPage() {
 function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; tableId?: string; current?: TableBrief; dashboard: { id?: string } | null }) {
   const [sharing, setSharing] = useState(false);
   const [importing, setImporting] = useState(false);
+  // What a person may import into: the owner any normal table; a member only tables they edit and where the owner allows adding rows in bulk.
+  const importTables = dh.tables.filter((t) => t.kind !== "merged" && (dh.access === "owner" || (t.access === "edit_data" && t.members_bulk_create !== false)));
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -62,7 +64,7 @@ function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; ta
         </Link>
         <h1 className="min-w-0 text-xl font-semibold [overflow-wrap:anywhere] sm:text-2xl">{dh.name}</h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {dh.access !== "view" && (
+          {importTables.length > 0 && (
             <Button variant="secondary" onClick={() => setImporting(true)}><Upload size={16} aria-hidden /> Nhập dữ liệu</Button>
           )}
           {dh.access === "owner" && (
@@ -77,7 +79,7 @@ function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; ta
         )}
       </div>
       {sharing && <ShareDialog dh={dh} onClose={() => setSharing(false)} />}
-      {importing && <ImportDialog target={{ datahub: { id: dh.id, name: dh.name, access: dh.access, tables: dh.tables.filter((t) => t.kind !== "merged").map((t) => ({ id: t.id, name: t.name })) } }} onClose={() => setImporting(false)} />}
+      {importing && <ImportDialog target={{ datahub: { id: dh.id, name: dh.name, access: dh.access, tables: importTables.map((t) => ({ id: t.id, name: t.name })) } }} onClose={() => setImporting(false)} />}
       <TableTabs dh={dh} currentId={dashboard ? undefined : tableId} dashboardOn={!!dashboard} />
       {dashboard ? (
         dh.access === "owner" ? <DashboardArea dh={dh} dashboardId={dashboard.id} /> : <NoAccessState title="Không mở được dashboard" hint="Chỉ chủ datahub dựng và sửa dashboard. Dashboard được chia sẻ cho bạn nằm ở mục Dashboard chia sẻ." />

@@ -82,7 +82,8 @@ export const batchRows = (tableId: string, ops: unknown[]) => api<BatchResult>("
 export const restoreRowsBatch = (tableId: string, rowIds: string[]) => api<{ rows: Row[]; seq: number }>("POST", `/tables/${tableId}/rows/restore-batch`, { row_ids: rowIds });
 export const getHistory = (tableId: string, rowId: string, cursor?: string | null) => api<{ items: HistoryItem[]; next_cursor: string | null }>("GET", `/tables/${tableId}/rows/${rowId}/history${qs({ limit: 30, cursor })}`);
 
-export const lookupPeople = (opts: { ids?: string[]; q?: string }) => api<Person[]>("GET", `/datahub/people${qs({ ids: opts.ids?.join(","), q: opts.q })}`);
+/** With `tableId`, `q` suggests only the owner and members of that table, and `ids` also say who is still a member. */
+export const lookupPeople = (opts: { ids?: string[]; q?: string; tableId?: string }) => api<Person[]>("GET", `/datahub/people${qs({ ids: opts.ids?.join(","), q: opts.q, table_id: opts.tableId })}`);
 export const relationLabels = (tableId: string, column: string, ids: string[]) => api<{ id: string; row_no: number; label: string }[]>("GET", `/tables/${tableId}/relation-labels${qs({ column, ids: ids.join(",") })}`);
 
 export type { Column };
@@ -93,6 +94,7 @@ export interface ColumnBody {
   type?: string;
   config?: Record<string, unknown>;
   required?: boolean;
+  allow_edit?: boolean;
   unique?: boolean;
   default_value?: unknown;
   description?: string | null;
@@ -189,7 +191,17 @@ export interface Share {
 }
 export const listShares = (datahubId: string) => api<Share[]>("GET", `/datahubs/${datahubId}/shares`);
 export const setShare = (datahubId: string, body: { grantee_id: string; table_id: string | null; permission: "view" | "edit_data" }) => api<Share>("PUT", `/datahubs/${datahubId}/shares`, body);
-export const removeShare = (datahubId: string, shareId: string) => api("DELETE", `/datahubs/${datahubId}/shares/${shareId}`);
+export const removeShare = (datahubId: string, shareId: string) => api<{ id: string; removed: true; tagged_rows: number }>("DELETE", `/datahubs/${datahubId}/shares/${shareId}`);
+/** How many rows name this person in a Người dùng cell, asked before the share is removed. */
+export const sharedTagged = (datahubId: string, shareId: string) =>
+  api<{ user_id: string; rows: number; tables: { table_id: string; table_name: string; rows: number }[] }>("GET", `/datahubs/${datahubId}/shares/${shareId}/tagged`);
+export interface ShareOptionsBody {
+  key_split?: boolean;
+  key_columns?: string[];
+  key_primary?: string | null;
+  members_bulk_create?: boolean;
+}
+export const setShareOptions = (tableId: string, body: ShareOptionsBody) => api<TableDetail>("PUT", `/tables/${tableId}/share-options`, body);
 
 export interface TrashList {
   retention_days: number;

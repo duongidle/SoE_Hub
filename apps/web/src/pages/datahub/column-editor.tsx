@@ -98,7 +98,7 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
       }
       const body = buildBody(draft, def.value);
       const sameConfig = JSON.stringify(buildConfig(original)) === JSON.stringify(body.config);
-      const patch: Record<string, unknown> = { name: body.name, description: body.description, required: body.required, unique: body.unique, default_value: body.default_value, display: body.display, version: column.version };
+      const patch: Record<string, unknown> = { name: body.name, description: body.description, required: body.required, allow_edit: body.allow_edit, unique: body.unique, default_value: body.default_value, display: body.display, version: column.version };
       if (!sameConfig) patch.config = body.config;
       if (!dirty) return onClose();
       await updateColumn(table.id, column.key, patch);
@@ -119,7 +119,7 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
       await changeColumnType(table.id, column.key, draft.type, buildConfig(draft), confirm.report.cannot_convert > 0);
       // A type change resets the format and the default; the rest of the form is written on top of it.
       const body = buildBody(draft, def.ok ? def.value : null);
-      await updateColumn(table.id, column.key, { name: body.name, description: body.description, required: body.required, unique: body.unique, default_value: body.default_value, display: body.display });
+      await updateColumn(table.id, column.key, { name: body.name, description: body.description, required: body.required, allow_edit: body.allow_edit, unique: body.unique, default_value: body.default_value, display: body.display });
       setConfirm(null);
       await done("Đã đổi kiểu cột");
     } catch (e) {
@@ -151,7 +151,7 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
             {typesQ.isLoading ? (
               <Skeleton className="h-9" />
             ) : (
-              <Select value={draft.type} disabled={typeLocked} onChange={(e) => setDraft((d) => ({ ...emptyDraft(e.target.value), name: d.name, description: d.description, required: d.required }))}>
+              <Select value={draft.type} disabled={typeLocked} onChange={(e) => setDraft((d) => ({ ...emptyDraft(e.target.value), name: d.name, description: d.description, required: d.required, allowEdit: d.allowEdit }))}>
                 {typeLocked
                   ? <option value={draft.type}>{typeLabel(draft.type)}</option>
                   : editing
@@ -189,13 +189,19 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
             <Textarea rows={2} value={draft.description} maxLength={1000} onChange={(e) => set({ description: e.target.value })} />
           </Field>
 
-          {(hasProperty(draft.type, "required") || hasProperty(draft.type, "unique", info) || hasProperty(draft.type, "default")) && (
+          {(hasProperty(draft.type, "allow_edit") || hasProperty(draft.type, "required") || hasProperty(draft.type, "unique", info) || hasProperty(draft.type, "default")) && (
             <fieldset className="flex flex-col gap-2 rounded-md border border-border p-3">
               <legend className="px-1 text-sm font-medium">Thuộc tính</legend>
               {hasProperty(draft.type, "required") && (
                 <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-9">
                   <input type="checkbox" className="h-5 w-5" checked={draft.required} onChange={(e) => set({ required: e.target.checked })} />
                   Bắt buộc có giá trị
+                </label>
+              )}
+              {hasProperty(draft.type, "allow_edit") && (
+                <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-9">
+                  <input type="checkbox" className="h-5 w-5" checked={draft.allowEdit} onChange={(e) => set({ allowEdit: e.target.checked })} />
+                  <span>Cho phép sửa <span className="text-muted-foreground">(người được chia sẻ có quyền Sửa được gõ vào cột này; chủ bảng luôn sửa được)</span></span>
                 </label>
               )}
               {hasProperty(draft.type, "unique", info) && (

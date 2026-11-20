@@ -3,7 +3,7 @@ import "@glideapps/glide-data-grid/dist/index.css";
 import { formatCount, formatNumber } from "@soe/shared";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { notify } from "@/components/ui/toast";
-import { cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
+import { NO_ACCESS, cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
 import { planPaste } from "@/lib/datahub/paste";
 import type { CellEdit, TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
@@ -145,7 +145,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   const [selection, setSelection] = useState<GridSelection>({ columns: CompactSelection.empty(), rows: CompactSelection.empty() });
   const [tip, setTip] = useState<Tip | null>(null);
 
-  const ctx: CellCtx = useMemo(() => ({ people: labels.people, linked: labels.linked }), [labels]);
+  const ctx: CellCtx = useMemo(() => ({ people: labels.people, linked: labels.linked, noAccess: labels.noAccess }), [labels]);
   // Names of people already known, for pasting a name into a user column.
   const peopleByName = useCallback(() => new Map([...labels.people].filter(([, n]) => n !== "—" && n !== "…").map(([id, n]) => [nameKey(n), id] as const)), [labels]);
 
@@ -224,7 +224,8 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
           const id = typeof v === "string" ? v : null;
           if (id) labels.wantPerson(id);
           const name = id ? (labels.people.get(id) ?? "…") : "";
-          const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: !ro, copyData: name, data: { t: "person", id, name, readonly: ro }, themeOverride: tint };
+          const shown = id && labels.noAccess.has(id) ? `${name} (${NO_ACCESS})` : name;
+          const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: !ro, copyData: name, data: { t: "person", id, name: shown, readonly: ro, tableId: session.table.id }, themeOverride: tint };
           return cell;
         }
         case "created_by":
@@ -342,6 +343,10 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
         }
       }
       const plan = planPaste({ columns, rowAt: rowAtLine, rowCount: session.lineCount, startRow: target[1], startCol: target[0], matrix, level, peopleByName: peopleByName() });
+      if (plan.newRows > 1 && level !== "owner" && session.table.members_bulk_create === false) {
+        notify.error("Chủ bảng không cho thành viên thêm nhiều dòng một lúc. Dán vào các dòng đang có, hoặc thêm từng dòng.");
+        return false;
+      }
       if (plan.errors.length) {
         const e = plan.errors[0]!;
         notify.error(`Dòng ${e.row}, cột "${e.column}": ${e.message}${plan.errors.length > 1 ? ` (và ${plan.errors.length - 1} ô khác lỗi). Chưa ghi gì.` : " Chưa ghi gì."}`);
