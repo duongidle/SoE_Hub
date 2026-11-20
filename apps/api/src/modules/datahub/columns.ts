@@ -20,6 +20,7 @@ import { markPending } from "./recalc";
 import { columnFromDb, rowFromDb, TableSchema } from "./table-schema";
 import { CellError, type DhColumn, type SelectOption, type Stored } from "./types";
 import { hasAttrs } from "./user-values";
+import { systemCtx, type Emit } from "./template-sync";
 import type { Autofill } from "./types";
 
 type Raw = Record<string, unknown>;
@@ -271,9 +272,11 @@ export async function updateColumn(ctx: Ctx, acc: TableAccess, col: DhColumn, i:
   if (i.update_formulas && (col.type === "single_select" || col.type === "multi_select") && i.config !== undefined) {
     const renames = optionRenames((col.config.options as SelectOption[] | undefined) ?? [], (config.options as SelectOption[] | undefined) ?? []);
     for (const f of await findAffectedFormulas(ctx, acc.datahub.ownerId, col, acc.tableId, renames)) {
-      const facc = await loadTableAccess(ctx, f.tableId, "owner");
+      // A formula of another person (they read this template table): rewritten on their behalf, as the system, like a recalculation.
+      const fctx = f.ownerId === acc.datahub.ownerId ? ctx : systemCtx(ctx.db, ctx.emit as Emit, f.ownerId);
+      const facc = await loadTableAccess(fctx, f.tableId, "owner");
       const fcol = (await TableSchema.load(ctx.db, facc)).tryResolve(f.column.key);
-      if (fcol) await updateColumn(ctx, facc, fcol, { config: { formula: f.afterDisplay } });
+      if (fcol) await updateColumn(fctx, facc, fcol, { config: { formula: f.afterDisplay } });
     }
   }
   if (unique && !col.isUnique) await ensureUnique(ctx, acc, { key: col.key, name });

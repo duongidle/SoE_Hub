@@ -42,6 +42,8 @@ interface Dependent {
   hasRange: boolean;
   /** Reader-scoped (design module2 section 10): the worker computes it, for the owner and for each member, even without a `range` dependency. */
   scoped: boolean;
+  /** It reads a table of ANOTHER owner (a template table the column's owner reads, module4 19 work 5, 9): its values depend on what that owner sees, so it recomputes whole. */
+  foreign: boolean;
 }
 
 interface ColInfo {
@@ -52,19 +54,25 @@ interface ColInfo {
 /** Every computed column that reads the table, plus the worker-computed columns that live in it (they need new rows). */
 async function loadDependents(db: Executor, tableId: string): Promise<Dependent[]> {
   const res = await db.execute(sql`SELECT c.id, c.table_id, c.key, c.type, c.config, c.reader_scoped, f.src_key, f.kind,
-      EXISTS (SELECT 1 FROM dh_formula_deps r WHERE r.column_id = c.id AND r.kind = 'range') AS has_range
+      EXISTS (SELECT 1 FROM dh_formula_deps r WHERE r.column_id = c.id AND r.kind = 'range') AS has_range,
+      (SELECT d2.owner_id FROM dh_tables t2 JOIN dh_datahubs d2 ON d2.id = t2.datahub_id WHERE /*scope:system*/ t2.id = c.table_id) IS DISTINCT FROM
+      (SELECT d3.owner_id FROM dh_tables t3 JOIN dh_datahubs d3 ON d3.id = t3.datahub_id WHERE /*scope:system*/ t3.id = f.src_table_id) AS foreign_src
     FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id
     WHERE /*scope:system*/ f.src_table_id = ${tableId}::uuid AND c.deleted_at IS NULL`);
   const out = new Map<string, Dependent>();
   const get = (r: Raw): Dependent => {
     let d = out.get(r.id as string);
     if (!d) {
-      d = { id: r.id as string, tableId: r.table_id as string, key: r.key as string, type: r.type as string, config: (r.config as Record<string, unknown>) ?? {}, cellKeys: new Set(), rangeKeys: new Set(), hasRange: r.has_range as boolean, scoped: !!r.reader_scoped };
+      d = { id: r.id as string, tableId: r.table_id as string, key: r.key as string, type: r.type as string, config: (r.config as Record<string, unknown>) ?? {}, cellKeys: new Set(), rangeKeys: new Set(), hasRange: r.has_range as boolean, scoped: !!r.reader_scoped, foreign: false };
       out.set(d.id, d);
     }
     return d;
   };
-  for (const r of res.rows as Raw[]) (r.kind === "cell" ? get(r).cellKeys : get(r).rangeKeys).add(r.src_key as string);
+  for (const r of res.rows as Raw[]) {
+    const d = get(r);
+    (r.kind === "cell" ? d.cellKeys : d.rangeKeys).add(r.src_key as string);
+    if (r.foreign_src) d.foreign = true;
+  }
   const own = await db.execute(sql`SELECT c.id, c.table_id, c.key, c.type, c.config, c.reader_scoped,
       EXISTS (SELECT 1 FROM dh_formula_deps r WHERE r.column_id = c.id AND r.kind = 'range') AS has_range
     FROM dh_columns c WHERE /*scope:system*/ c.table_id = ${tableId}::uuid AND c.deleted_at IS NULL AND c.type IN ('lookup', 'rollup', 'formula')`);
@@ -189,6 +197,12 @@ export async function recordChanges(db: Executor, tableId: string, changes: RowC
   for (const d of deps) {
     if (d.type === "formula" && !d.hasRange && !d.scoped && !opts.includeApiFormulas) continue;
     const push = (e: Omit<QueueEntry, "columnId" | "seq">) => entries.push({ columnId: d.id, seq, ...e });
+    if (d.foreign && d.tableId !== tableId) {
+      // The values of a column that reads another owner's table follow what its owner sees: any change that may reach what it reads recomputes the whole column.
+      const reads = new Set<string>([...d.cellKeys, ...d.rangeKeys, ...(d.type === "formula" ? [] : [d.config.target_key as string]), ...lockKeys]);
+      if (overflow || changes.some((c) => c.kind !== "update" || intersects(changedKeys(c), reads))) push({ mode: "full" });
+      continue;
+    }
     if (overflow) {
       push({ mode: "full" });
       continue;

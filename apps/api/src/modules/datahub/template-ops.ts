@@ -444,6 +444,7 @@ export const templateOperations = [
       display: z.record(z.string(), z.unknown()).optional(),
       position: z.number().int().min(0).max(1000).optional(),
       version: z.number().int().min(1).optional(),
+      update_formulas: z.boolean().optional().describe("Khi đổi tên lựa chọn: viết lại cả công thức của mọi người đang so chữ với tên cũ (xem `datahub.column.option_impact`)."),
     }),
     output: z.object({ column: ColumnOut, usage: UsageOut }),
     http: { method: "PATCH", path: "/datahub/templates/:template_id/columns/:column" },

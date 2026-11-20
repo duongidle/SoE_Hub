@@ -59,7 +59,9 @@ export async function refreshReaderScoped(db: Executor, ownerId: string): Promis
   const rows = cols.rows as { id: string; table_id: string; key: string; reader_scoped: boolean }[];
   if (rows.length === 0) return { became: [], stopped: [] };
   const ids = rows.map((r) => r.id);
+  // Only tables of this owner count: a column that reads a template table of ANOTHER owner is computed as this owner reads it, not per member (module4 19 work 5, 9).
   const deps = await db.execute(sql`SELECT f.column_id, f.src_table_id, f.src_key, f.kind, t.key_split FROM dh_formula_deps f JOIN dh_tables t ON t.id = f.src_table_id
+    JOIN dh_datahubs sd ON sd.id = t.datahub_id AND sd.owner_id = ${ownerId}::uuid
     WHERE /*scope:system*/ f.column_id = ANY(${`{${ids.join(",")}}`}::uuid[])`);
   const byCol = new Map<string, { table: string; key: string; kind: string; split: boolean }[]>();
   for (const d of deps.rows as Raw[]) {

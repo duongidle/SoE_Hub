@@ -205,7 +205,7 @@ describe("transfer: the source's entry in the list becomes the target's; closed 
     const a = await mk("t1", [person(org.userA2.id, { vai_tro: "Leading", ty_le_dt: 1 })]);
     const b = await mk("t2", [person(org.userA2.id, { vai_tro: "Associate" }), person(org.leaderA.id, { vai_tro: "Advisor" })]);
     await t.c.db.db.transaction(async (tx) => {
-      await splitLockTransferHandler.execute(tx as never, org.userA2.id, org.leaderA.id, {}, { userId: org.admin.id, via: "api", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: null });
+      await splitLockTransferHandler.execute(tx as never, org.userA2.id, org.leaderA.id, { personal_columns: "keep" }, { userId: org.admin.id, via: "api", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: null });
     });
     await drainOutbox(t);
     const ids = async (row: string) => ((await cellOf(mgrA, row, "Người tham gia")) as { id: string }[]).map((e) => e.id);

@@ -213,10 +213,15 @@ export interface Reader {
  */
 export function sourceView(ix: OwnerIndex, tableId: string, reader: Reader | null): { from: SQL; cond: SQL } {
   const t = ix.tableById.get(tableId);
+  // A template table of someone else is read as the OWNER of the column reads it (their rows, their own person cells), whoever the pass is for.
+  if (t?.foreign) reader = ix.ownerReader;
+  // The owner reads every row of their own table, with their OWN values of the person-stored columns laid over (what the grid shows them).
+  if (!reader && t?.columns.some((c) => c.storage === "person") && ix.ownerId) return { from: overlayRel(tableId, ix.ownerId, [], null, true), cond: sql`true` };
   if (!reader || !t) return { from: sql`dh_rows`, cond: sql`true` };
   const scoped = t.columns.filter((c) => c.readerScoped).map((c) => c.key);
+  const withPerson = t.columns.some((c) => c.storage === "person");
   const keep = t.split.enabled ? keyMatch(t.split.keys, reader.ids, "r") : null;
-  return { from: scoped.length ? overlayRel(tableId, reader.userId, scoped, keep) : sql`dh_rows`, cond: t.split.enabled ? keyMatch(t.split.keys, reader.ids) : sql`true` };
+  return { from: scoped.length || withPerson ? overlayRel(tableId, reader.userId, scoped, keep, withPerson) : sql`dh_rows`, cond: t.split.enabled ? keyMatch(t.split.keys, reader.ids) : sql`true` };
 }
 
 // ---- grouped plans -------------------------------------------------------------------------------------

@@ -9,7 +9,7 @@ import { OwnerIndex } from "./computed";
 import { Id } from "./shared";
 import { TableSchema } from "./table-schema";
 import { normalizeOptions } from "./column-types";
-import type { DhColumn, SelectOption } from "./types";
+import { OPTION_MEANINGS, type DhColumn, type SelectOption } from "./types";
 
 /**
  * Renaming an option of a select column (design module2 section 6, module4 19d). A formula that compares the column with the old name as text
@@ -97,33 +97,47 @@ export interface AffectedFormula {
   /** Display text of the rewritten formula (what the column editor shows). */
   afterDisplay: string;
   count: number;
+  /** Owner of the table that holds the formula: a template column renamed by a Manager reaches formulas of every person who reads it (module4 19 work 5, 9). */
+  ownerId: string;
 }
 
 type Ctx = Pick<HandlerCtx, "db" | "actor">;
 
-/** Formulas (of the owner's tables) that depend on the column and compare it with an old option name. */
+/** Formulas that depend on the column and compare it with an old option name: those of the owner's tables, and, for a template table, those of everyone who reads it. */
 export async function findAffectedFormulas(ctx: Ctx, ownerId: string, col: DhColumn, tableId: string, renames: OptionRename[]): Promise<AffectedFormula[]> {
   if (renames.length === 0) return [];
-  const deps = await ctx.db.execute(sql`SELECT DISTINCT c.id AS id FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id
+  const deps = await ctx.db.execute(sql`SELECT DISTINCT c.id AS id, d.owner_id FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id
+    JOIN dh_tables t ON t.id = c.table_id JOIN dh_datahubs d ON d.id = t.datahub_id
     WHERE /*scope*/ f.src_table_id = ${tableId}::uuid AND f.src_key = ${col.key} AND c.deleted_at IS NULL AND c.type = 'formula'`);
-  const ids = (deps.rows as { id: string }[]).map((r) => r.id);
-  if (ids.length === 0) return [];
-  const ix = await OwnerIndex.load(ctx.db, ownerId);
+  const byOwner = new Map<string, string[]>();
+  for (const r of deps.rows as { id: string; owner_id: string }[]) byOwner.set(r.owner_id, [...(byOwner.get(r.owner_id) ?? []), r.id]);
+  if (byOwner.size === 0) return [];
   const out: AffectedFormula[] = [];
-  for (const t of ix.tableById.values()) {
-    for (const c of t.columns) {
-      if (!ids.includes(c.id) || c.type !== "formula" || typeof c.config.expr !== "string") continue;
-      const hits = findHits(c.config.expr, { tableId, key: col.key }, t.id, renames);
-      if (hits.length === 0) continue;
-      const nameOf = (tb: string | null, k: string) => ix.namesOf(t.id, tb, k);
-      const after = rewriteStored(c.config.expr, hits);
-      out.push({ column: c as unknown as DhColumn, tableId: t.id, tableName: t.name, before: toDisplayFormula(c.config.expr, nameOf), after: toDisplayFormula(after, nameOf), afterDisplay: toDisplayFormula(after, nameOf), count: hits.length });
+  for (const [owner, ids] of byOwner) {
+    // Another owner's formulas only count when this is a template table (the owner of those formulas reads it); anything else cannot reach it.
+    if (owner !== ownerId && !(await isTemplateTable(ctx, tableId))) continue;
+    const ix = await OwnerIndex.load(ctx.db, owner);
+    for (const t of ix.tableById.values()) {
+      if (t.foreign) continue; // formulas of another owner are found under that owner
+      for (const c of t.columns) {
+        if (!ids.includes(c.id) || c.type !== "formula" || typeof c.config.expr !== "string") continue;
+        const hits = findHits(c.config.expr, { tableId, key: col.key }, t.id, renames);
+        if (hits.length === 0) continue;
+        const nameOf = (tb: string | null, k: string) => ix.namesOf(t.id, tb, k);
+        const after = rewriteStored(c.config.expr, hits);
+        out.push({ column: c as unknown as DhColumn, tableId: t.id, tableName: t.name, before: toDisplayFormula(c.config.expr, nameOf), after: toDisplayFormula(after, nameOf), afterDisplay: toDisplayFormula(after, nameOf), count: hits.length, ownerId: owner });
+      }
     }
   }
   return out;
 }
 
-const OptionIn = z.object({ id: z.string().max(100).optional(), name: z.string().min(1).max(100), color: z.string().max(20).optional() });
+async function isTemplateTable(ctx: Ctx, tableId: string): Promise<boolean> {
+  const res = await ctx.db.execute(sql`SELECT 1 FROM dh_tables WHERE /*scope*/ id = ${tableId}::uuid AND template_id IS NOT NULL`);
+  return res.rows.length > 0;
+}
+
+const OptionIn = z.object({ id: z.string().max(100).optional(), name: z.string().min(1).max(100), color: z.string().max(20).optional(), meaning: z.enum(OPTION_MEANINGS).optional() });
 
 export const optionRenameOperations = [
   defineQuery({

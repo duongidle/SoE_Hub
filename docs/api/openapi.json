@@ -30636,6 +30636,17 @@
                   "color": {
                     "type": "string",
                     "maxLength": 20
+                  },
+                  "meaning": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "won",
+                      "lost",
+                      "disqualified",
+                      "converted",
+                      "cancelled"
+                    ]
                   }
                 },
                 "required": [
@@ -33301,6 +33312,10 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 9007199254740991
+                  },
+                  "update_formulas": {
+                    "description": "Khi đổi tên lựa chọn: viết lại cả công thức của mọi người đang so chữ với tên cũ (xem `datahub.column.option_impact`).",
+                    "type": "boolean"
                   }
                 }
               }

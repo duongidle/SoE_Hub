@@ -5,6 +5,7 @@ import { AppError } from "@soe/shared";
 import type { Executor } from "@soe/db";
 import { formulaTypeOf, isComputedType, RESULT_TYPES, resultTypeFor, resultTypeOf, type ResultType } from "./cell-values";
 import { normName, type TableSchema } from "./table-schema";
+import { idsOf } from "./reader-scope";
 import type { DhColumn } from "./types";
 
 /** Max rows of a table a formula may scan in memory (conditions the grouped SQL cannot answer), design module2 section 6.6. */
@@ -25,6 +26,8 @@ export interface IxColumn {
   tableId: string;
   /** Computed column whose value depends on who reads it (design module2 section 10). */
   readerScoped: boolean;
+  /** `person`: one value per person, kept in `dh_person_cells` (design module4 3.4); the reader's own value is laid over `data` when the table is read. */
+  storage: "shared" | "person";
 }
 export interface IxTable {
   id: string;
@@ -34,6 +37,12 @@ export interface IxTable {
   columns: IxColumn[];
   /** Split lock of the table: a member who is not the owner reads only the rows that name them (or someone they manage) in a key column. */
   split: { enabled: boolean; keys: string[] };
+  /**
+   * A template table of SOMEONE ELSE that the owner reads (design module4 19 work 5, 9): a formula, lookup or rollup of the owner's table may read it, as
+   * the owner reads it (their rows under the split lock, their own person cells), never as its owner does. Only basic-layer columns and the owner's own
+   * custom columns are visible here.
+   */
+  foreign?: boolean;
 }
 export interface IxDatahub {
   id: string;
@@ -47,18 +56,23 @@ export class OwnerIndex {
   readonly tableById = new Map<string, IxTable>();
   /** Tables of someone else that a Relation column may point to (template tables the owner reads; module4 1.1). Not visible to formulas. */
   readonly linkable = new Set<string>();
+  /** The owner as a reader of the foreign tables (themselves and the people they manage now). Null when no foreign table is in the index. */
+  ownerReader: { userId: string; ids: string[] } | null = null;
+  /** Whose index this is. */
+  ownerId = "";
   private readonly dhOfTable = new Map<string, IxDatahub>();
 
   static async load(db: Executor, ownerId: string): Promise<OwnerIndex> {
     const res = await db.execute(sql`
       SELECT d.id AS dh_id, d.name AS dh_name, t.id AS t_id, t.name AS t_name, t.row_count,
-             c.id AS c_id, c.key, c.name AS c_name, c.type, c.config, c.reader_scoped, t.key_split, t.key_columns
+             c.id AS c_id, c.key, c.name AS c_name, c.type, c.config, c.reader_scoped, c.storage, t.key_split, t.key_columns, d.system_key
       FROM dh_datahubs d
       JOIN dh_tables t ON t.datahub_id = d.id AND t.deleted_at IS NULL
       LEFT JOIN dh_columns c ON c.table_id = t.id AND c.deleted_at IS NULL
       WHERE /*scope*/ d.owner_id = ${ownerId}::uuid AND d.deleted_at IS NULL
       ORDER BY d.created_at, t.position, t.created_at, c.position, c.created_at`);
     const ix = new OwnerIndex();
+    ix.ownerId = ownerId;
     const dh = new Map<string, IxDatahub>();
     for (const r of res.rows as Raw[]) {
       let d = dh.get(r.dh_id as string);
@@ -74,9 +88,37 @@ export class OwnerIndex {
         ix.dhOfTable.set(t.id, d);
         d.tables.push(t);
       }
-      if (r.c_id) t.columns.push({ id: r.c_id as string, key: r.key as string, name: r.c_name as string, type: r.type as string, config: (r.config as Record<string, unknown>) ?? {}, tableId: t.id, readerScoped: !!r.reader_scoped });
+      if (r.c_id) t.columns.push({ id: r.c_id as string, key: r.key as string, name: r.c_name as string, type: r.type as string, config: (r.config as Record<string, unknown>) ?? {}, tableId: t.id, readerScoped: !!r.reader_scoped, storage: r.storage === "person" ? "person" : "shared" });
     }
+    await ix.loadForeign(db, ownerId, dh);
     return ix;
+  }
+
+  /** The shared template tables the owner reads (a member of the template): put in the owner's own "Quản lý Deal" datahub so `[Deals].[Cột]` resolves like a table of theirs. */
+  private async loadForeign(db: Executor, ownerId: string, dh: Map<string, IxDatahub>): Promise<void> {
+    const res = await db.execute(sql`
+      SELECT t.id AS t_id, t.name AS t_name, t.row_count, t.key_split, t.key_columns, c.id AS c_id, c.key, c.name AS c_name, c.type, c.config, c.reader_scoped, c.storage
+      FROM dh_tables t
+      JOIN dh_datahubs d ON d.id = t.datahub_id AND d.deleted_at IS NULL
+      JOIN dh_columns c ON c.table_id = t.id AND c.deleted_at IS NULL AND (c.layer = 'basic' OR (c.layer = 'custom' AND c.layer_ref = ${ownerId}::uuid))
+      WHERE /*scope*/ t.template_id IS NOT NULL AND t.deleted_at IS NULL AND d.owner_id <> ${ownerId}::uuid
+        AND EXISTS (SELECT 1 FROM dh_shares s WHERE s.datahub_id = d.id AND s.grantee_id = ${ownerId}::uuid AND (s.table_id IS NULL OR s.table_id = t.id))
+      ORDER BY t.created_at, c.position, c.created_at`);
+    if (res.rows.length === 0) return;
+    const home = [...dh.values()].find((d) => d.name === "Quản lý Deal") ?? this.datahubs.find((d) => d.tables.some((t) => t.name));
+    if (!home) return;
+    for (const r of res.rows as Raw[]) {
+      let t = this.tableById.get(r.t_id as string);
+      if (!t) {
+        t = { id: r.t_id as string, name: r.t_name as string, datahubId: home.id, rowCount: r.row_count as number, columns: [], split: { enabled: !!r.key_split, keys: (r.key_columns as string[] | null) ?? [] }, foreign: true };
+        this.tableById.set(t.id, t);
+        this.dhOfTable.set(t.id, home);
+        // An own table with the same name wins (it is found first).
+        home.tables.push(t);
+      }
+      t.columns.push({ id: r.c_id as string, key: r.key as string, name: r.c_name as string, type: r.type as string, config: (r.config as Record<string, unknown>) ?? {}, tableId: t.id, readerScoped: !!r.reader_scoped, storage: r.storage === "person" ? "person" : "shared" });
+    }
+    this.ownerReader = { userId: ownerId, ids: await idsOf(db, ownerId) };
   }
 
   datahubOf(tableId: string): IxDatahub | undefined {
