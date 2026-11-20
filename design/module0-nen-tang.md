@@ -16,17 +16,17 @@ Module này là nền móng cho mọi module khác. Nó định nghĩa những g
 |---|---|
 | Người dùng thường xuyên | 15–20 |
 | Người dùng thỉnh thoảng | Vài trăm (sale, bộ phận Data, guest) |
-| Bảng Deals | > 10.000 dòng hiện tại, thiết kế cho 100.000+ |
+| Bảng Deals | > 10.000 dòng hiện tại, thiết kế cho 20.000 (Dương chốt 20/11/2026: hạ từ 100.000 xuống 20.000 deal; Lookup/Rollup theo người đọc giữ nguyên) |
 | Datahub khác | Không giới hạn số dòng, thiết kế cho 100.000 dòng/bảng |
 
-Mục tiêu (đo ở p95, trên VPS 2 vCPU/4GB, dữ liệu 100.000 deal):
+Mục tiêu (đo ở p95, trên VPS 2 vCPU/4GB, dữ liệu 20.000 deal; Datahub khác 100.000 dòng/bảng, đã đạt ở Stage 2–3):
 
 - Lọc/sắp xếp/tìm kiếm một bảng: < 300 ms phía server.
 - Mở trang bảng lần đầu: < 1,5 s đến khi thấy dữ liệu.
 - Cuộn bảng: mượt 60 fps, không giật khi cuộn nhanh.
 - Một biểu đồ dashboard: < 1 s.
 
-Trước khi phát hành, chạy load test với 100.000 deal giả lập. Không đạt mục tiêu thì chưa phát hành.
+Trước khi phát hành, chạy load test với 20.000 deal giả lập. Không đạt mục tiêu thì chưa phát hành.
 
 ## 2. Tech stack
 
@@ -336,7 +336,7 @@ Không thêm code Automation nào cho đến khi module đó được thiết k�
 - **Unit test** cho engine công thức, metric, phân quyền.
 - **Golden test:** dựng lại sheet Index và Cumulative Index từ file deal mẫu, so từng số với kết quả Excel. Lệch là fail.
 - **Ma trận phân quyền:** test tự động cho từng vai trò × từng thao tác × từng kênh (web/API/MCP).
-- **Load test** 100.000 deal trước khi phát hành (mục 1).
+- **Load test** 20.000 deal trước khi phát hành (mục 1).
 
 ## 22. Để các module sau quyết định
 

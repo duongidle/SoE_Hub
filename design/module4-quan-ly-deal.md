@@ -670,7 +670,7 @@ Sau đó: doanh thu theo loại deal theo tháng; phễu Nhận → Gặp khách
 - Ma trận quyền: vai trò × cột × kênh; template; cột theo team của Leader; Guest không thấy cột tuỳ chỉnh và com; chốt kỳ; chuyển vai trò khi kỳ đã chốt bị chặn; bảo vệ datahub/bảng/cột mặc định.
 - **Golden test:** sheet Deals của file mẫu không có dòng dữ liệu nên Index trong file toàn số 0. Thay bằng: import `Raw PODPS` vào Deals, so Index của SoE Hub với một script tham chiếu đọc thẳng `examples/` trên máy, dùng đúng logic COUNTIFS/SUMIFS của sheet Index (có và không có sửa lỗi mục 4.6). Không commit dữ liệu; máy không có file thì bỏ qua.
 - Test com dùng bảng tỉ lệ tự dựng, không dùng số của chính sách thật.
-- Load test 100.000 deal: Deals, Index, dashboard mặc định.
+- Load test 20.000 deal (Dương chốt 20/11/2026, hạ từ 100.000): Deals, Index, dashboard mặc định; 20 người, phạm vi khác nhau (khoá phân chia), mọi biểu đồ xong trong 3 s.
 
 ## 18. Thay đổi so với quy định đã chốt
 

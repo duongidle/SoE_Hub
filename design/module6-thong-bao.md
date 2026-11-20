@@ -233,7 +233,7 @@ Nhắc hạn **chỉ tạo thông báo**, không sửa dữ liệu, không gọi
 - Không gửi trùng: chạy job nhắc hạn hai lần, worker dừng giữa chừng rồi chạy bù.
 - Quyền: người nhận mất quyền xem thì không nhận; nội dung gửi Leader không chứa com của thành viên; Admin không thấy giá trị ô datahub.
 - Web Push với trình duyệt thật trên máy dev (Chrome); iPhone cần domain thật, ghi vào `progress.md` để thử trên VPS.
-- Tải: quy tắc nhắc hạn trên 100.000 deal chạy dưới 1 giây mỗi quy tắc.
+- Tải: quy tắc nhắc hạn trên 20.000 deal chạy dưới 1 giây mỗi quy tắc.
 
 ## 11. Thay đổi so với quy định đã chốt
 
