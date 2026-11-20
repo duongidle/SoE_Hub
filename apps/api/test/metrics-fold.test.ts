@@ -4,7 +4,7 @@ import { as, drainOutbox, makeTable, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
 import { invalidateMetricCache, resetMetricCache } from "../src/modules/metrics";
-import { resetFolds } from "../src/modules/metrics/folds";
+import { gc, resetFolds, setFoldLogger } from "../src/modules/metrics/folds";
 
 /**
  * Stage 4.1b-load: a key join onto a big table that every reader sees in full is folded once into a shared table (`mfold`), and every reader whose
@@ -77,5 +77,37 @@ describe("shared fold of a joined table", () => {
     resetFolds();
     expect(await q(a1, "TT.Tiền")).toBe(57);
     expect(await folds()).toBeGreaterThanOrEqual(1);
+  });
+
+  it("the fold is a normal (logged) table: crash recovery cannot empty it behind the api's back", async () => {
+    const r = await t.c.db.db.execute(sql`SELECT c.relpersistence AS p FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'mfold' AND c.relkind = 'r'`);
+    expect(r.rows.length).toBeGreaterThan(0);
+    for (const row of r.rows as { p: string }[]) expect(row.p).toBe("p");
+  });
+});
+
+describe("clean-up of old folds", () => {
+  const ymd = (ms: number) => new Date(Date.now() - ms).toISOString().slice(0, 10).replaceAll("-", "");
+  const exists = async (name: string) => ((await t.c.db.db.execute(sql`SELECT to_regclass(${`mfold.${name}`}) AS t`)).rows[0] as { t: string | null }).t !== null;
+
+  it("keeps today's and yesterday's tables, drops older ones, and says so in the log when it cannot drop", async () => {
+    const mk = (name: string) => t.c.db.db.execute(sql.raw(`CREATE TABLE mfold.${name} (k text)`));
+    const old = `f_${"a".repeat(20)}_${ymd(3 * 86_400_000)}`;
+    const yesterday = `f_${"b".repeat(20)}_${ymd(86_400_000)}`;
+    const today = `f_${"c".repeat(20)}_${ymd(0)}`;
+    for (const n of [old, yesterday, today]) await mk(n);
+    const warnings: unknown[][] = [];
+    setFoldLogger({ warn: ((...a: unknown[]) => void warnings.push(a)) as never });
+    await gc(t.c.db.db);
+    expect(await exists(old)).toBe(false);
+    expect(await exists(yesterday)).toBe(true);
+    expect(await exists(today)).toBe(true);
+    expect(warnings).toEqual([]);
+    // a drop that fails is logged with the table name, and the clean-up goes on
+    const failing = { execute: async (q: unknown) => { const text = JSON.stringify(q); if (text.includes("DROP TABLE")) throw new Error("boom"); return t.c.db.db.execute(q as never); } } as never;
+    await mk(`f_${"d".repeat(20)}_${ymd(5 * 86_400_000)}`);
+    await gc(failing);
+    expect(JSON.stringify(warnings)).toContain(`f_${"d".repeat(20)}`);
+    for (const n of [yesterday, today, `f_${"d".repeat(20)}_${ymd(5 * 86_400_000)}`]) await t.c.db.db.execute(sql.raw(`DROP TABLE IF EXISTS mfold.${n}`));
   });
 });

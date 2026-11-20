@@ -7,6 +7,7 @@ import { OperationExecutor } from "./core/executor";
 import type { EventRegistry } from "./core/events";
 import type { Registry } from "./core/registry";
 import { createLogger } from "./logger";
+import { setFoldLogger } from "./modules/metrics/folds";
 import { buildRegistry } from "./modules";
 import { createStorage, type StorageDriver } from "./storage";
 
@@ -25,6 +26,7 @@ export interface Container {
 export function createContainer(overrides: Partial<Config> = {}, role = "api"): Container {
   const config = { ...loadConfig(), ...overrides };
   const logger = createLogger(config, role);
+  setFoldLogger(logger);
   const db = createDb(config.DATABASE_URL, { max: config.DB_POOL_MAX, applicationName: `soe-${role}` });
   if (config.queryGuard) installQueryGuard(db.pool);
   const storage = createStorage(config);
