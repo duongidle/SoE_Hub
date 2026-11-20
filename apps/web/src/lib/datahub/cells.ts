@@ -12,10 +12,12 @@ export interface CellCtx {
 export const NO_ACCESS = "không còn quyền";
 
 export const COMPUTED_TYPES = new Set(["formula", "lookup", "rollup"]);
-export const SYSTEM_TYPES = new Set(["row_id", "created_time", "created_by", "modified_time", "modified_by"]);
+export const SYSTEM_TYPES = new Set(["row_id", "created_time", "created_by", "modified_time", "modified_by", "field_modified"]);
 
 /** The plain type a column behaves as: a computed column behaves as its result type. */
 export function typeOf(col: Pick<Column, "type" | "config">): string {
+  // "Ngày sửa của cột" holds a moment and behaves as a date-time (nobody types into it).
+  if (col.type === "field_modified") return "datetime";
   return COMPUTED_TYPES.has(col.type) ? (col.config.result_type ?? "text") : col.type;
 }
 

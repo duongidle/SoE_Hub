@@ -20,6 +20,8 @@ export const resultTypeOf = (col: ColLike): ResultType => (col.config.result_typ
 
 /** The plain column type whose behaviour (filter, sort, index) a column follows: a computed column acts as its result type. */
 export function effectiveType(col: ColLike): string {
+  // "Ngày sửa của cột": a moment kept in `data`, read and filtered like a date-time.
+  if (col.type === "field_modified") return "datetime";
   return isComputedType(col.type) ? resultTypeOf(col) : col.type;
 }
 

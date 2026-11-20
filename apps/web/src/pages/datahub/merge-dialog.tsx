@@ -12,7 +12,7 @@ import { MergeDiagnosticsView } from "./merge-status";
 import { nameError } from "./list";
 
 /** Types a merged column cannot be fed from (no copyable value). Everything else is offered; the server checks that the types fit together. */
-const NOT_MERGEABLE = new Set(["attachment", "relation", "auto_number", "row_id", "created_time", "created_by", "modified_time", "modified_by"]);
+const NOT_MERGEABLE = new Set(["attachment", "relation", "auto_number", "row_id", "created_time", "created_by", "modified_time", "modified_by", "field_modified"]);
 
 interface ManualColumn {
   name: string;

@@ -21,7 +21,7 @@ export const COLUMN_TYPES = [
   "text", "long_text", "number", "currency", "percent", "date", "datetime", "checkbox", "rating",
   "single_select", "multi_select", "user", "email", "phone", "url", "attachment",
   "auto_number",
-  "row_id", "created_time", "created_by", "modified_time", "modified_by",
+  "row_id", "created_time", "created_by", "modified_time", "modified_by", "field_modified",
   "formula", "relation", "lookup", "rollup",
 ] as const;
 export type ColumnType = (typeof COLUMN_TYPES)[number];

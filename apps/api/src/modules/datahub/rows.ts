@@ -13,6 +13,7 @@ import { buildSearchText, columnTypeDef } from "./column-types";
 import { bulkCreateOff, columnNotEditable, pgError, rowNotEditable, rowOutsideScope } from "./errors";
 import { nextChangeSeq } from "./change-queue";
 import { recordChanges, type RowChange } from "./partial";
+import { touchTrackers, trackers } from "./field-modified";
 import { RowFormulas } from "./row-formulas";
 import { rowFromDb, toApiRow, type ApiRow, type TableSchema } from "./table-schema";
 import { CellError, type DhColumn, type Stored } from "./types";
@@ -316,6 +317,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   const userUses: { row: number; column: string; id: string }[] = [];
   const lockedColumns = new Set<string>();
   const changedColumns = new Set<string>();
+  const trackerList = trackers(schema.alive);
   const computedKeys = new Set(schema.all.filter((c) => isComputedType(c.type)).map((c) => c.key));
   const history: { rowId: string; version: number; op: "create" | "update" | "delete"; changes: FieldChange[] }[] = [];
   const insertRows: { id: string; row_no: number; data: Record<string, Stored>; search: string }[] = [];
@@ -395,6 +397,8 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
       continue;
     }
     // Same-row formulas: computed here, in the transaction that saves the row. They never enter the history.
+    // "Ngày sửa của cột": a watched column changed by a person, the API or a form (a recalculation never comes through here).
+    for (const k of touchTrackers(trackerList, next, changes.map((c) => c.field), now)) changedColumns.add(k);
     formulas?.compute(next, { id: row.id, rowNo: row.rowNo, createdAt: row.createdAt, updatedAt: now, createdBy: row.createdBy, updatedBy: actorId }, now).forEach((k) => changedColumns.add(k));
     newData.set(p.id, next);
     updateRows.push({ id: p.id, data: next, search: buildSearchText(next, schema.aliveAll) });
@@ -461,6 +465,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
       // History records what people entered; the formulas computed below never enter it.
       history.push({ rowId: p.id, version: 1, op: "create", changes: Object.entries(data).map(([field, v]) => ({ field, old: null, new: v })) });
       for (const k of Object.keys(data)) changedColumns.add(k);
+      for (const k of touchTrackers(trackerList, data, Object.keys(data), now)) changedColumns.add(k);
       formulas?.compute(data, { id: p.id, rowNo: firstNo + n, createdAt: now, updatedAt: now, createdBy: actorId, updatedBy: actorId }, now).forEach((k) => changedColumns.add(k));
       newData.set(p.id, data);
       insertRows.push({ id: p.id, row_no: firstNo + n, data, search: buildSearchText(data, schema.aliveAll) });

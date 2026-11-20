@@ -322,6 +322,7 @@ function targetResultType(c: IxColumn): ResultType {
     case "date":
       return "date";
     case "datetime":
+    case "field_modified":
     case "created_time":
     case "modified_time":
       return "datetime";

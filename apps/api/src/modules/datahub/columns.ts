@@ -13,6 +13,8 @@ import { emitStructure, Id, STRUCTURE_EVENT } from "./shared";
 import { columnOut, ColumnOut, indexFor } from "./structure";
 import { isComputedType } from "./cell-values";
 import { resolveLinkTarget } from "./link-targets";
+import { backfillTracker, resolveWatch } from "./field-modified";
+import { findAffectedFormulas, optionRenames } from "./option-rename";
 import { OwnerIndex, prepareComputed, type DepRow, type PreparedComputed } from "./computed";
 import { markPending } from "./recalc";
 import { columnFromDb, rowFromDb, TableSchema } from "./table-schema";
@@ -153,6 +155,8 @@ export async function createColumn(ctx: Ctx, acc: TableAccess, i: ColumnInput, e
     prepared = await prepareComputed(ctx.db, ix, await TableSchema.load(ctx.db, acc), { id, key, tableId: acc.tableId, datahubId: acc.datahub.id, type: i.type as "formula" }, i.config ?? {});
   }
   const config = prepared ? prepared.config : normalizeConfig(i.type, i.config);
+  // "Ngày sửa của cột": the watched columns, by name or key, become keys.
+  if (i.type === "field_modified") config.watch = resolveWatch(await TableSchema.load(ctx.db, acc), config.watch as string[], key);
   const display = normalizeDisplay(i.display);
   if (i.unique && !def.uniqueable) throw new AppError("validation_error", `Cột kiểu "${def.label}" không đặt được "duy nhất".`);
   const dflt = parseDefault(i.type, config, i.name, key, i.default_value);
@@ -172,6 +176,8 @@ export async function createColumn(ctx: Ctx, acc: TableAccess, i: ColumnInput, e
     const c = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE ${acc.scope()}`);
     await ctx.db.execute(sql`UPDATE dh_columns SET config = jsonb_set(config, '{seq}', to_jsonb(${start - 1 + (c.rows[0] as { n: number }).n}::int)) WHERE ${acc.scope()} AND id = ${id}::uuid`);
   }
+  // The tracking column of a table that already has rows: filled from the row history.
+  if (i.type === "field_modified") await backfillTracker(ctx.db, acc, key, config.watch as string[]);
   if (i.unique) await ensureUnique(ctx, acc, { key, name: i.name });
   // Reverse lookup of links ("which rows link to row X") uses this index; there is no link table (design module2 section 6.7).
   if (i.type === "relation") await ctx.db.execute(sql`SELECT soe_dh_ensure_index(${acc.tableId}::uuid, ${key}, 'rel')`);
@@ -216,7 +222,7 @@ async function loadColumnForTypeChange(ctx: Ctx, tableId: string, ref: string): 
   return { acc, schema, col };
 }
 
-type UpdateInput = { name?: string; config?: Record<string, unknown>; required?: boolean; allow_edit?: boolean; unique?: boolean; default_value?: unknown; description?: string | null; display?: Record<string, unknown>; position?: number; version?: number };
+type UpdateInput = { update_formulas?: boolean; name?: string; config?: Record<string, unknown>; required?: boolean; allow_edit?: boolean; unique?: boolean; default_value?: unknown; description?: string | null; display?: Record<string, unknown>; position?: number; version?: number };
 
 /** Changes a column (same rules for the column command and the template command; authorisation is the caller's). */
 /** A Relation may point to a template table the owner reads (design module4 1.1): let `prepareComputed` accept it. */
@@ -239,6 +245,8 @@ export async function updateColumn(ctx: Ctx, acc: TableAccess, col: DhColumn, i:
     prepared = await prepareComputed(ctx.db, ix, await TableSchema.load(ctx.db, acc), { id: col.id, key: col.key, tableId: acc.tableId, datahubId: acc.datahub.id, type: col.type as "formula", current: col }, { ...i.config });
   }
   const config = prepared ? prepared.config : i.config !== undefined ? normalizeConfig(col.type, { ...i.config }) : col.config;
+  const watchChanged = col.type === "field_modified" && i.config !== undefined;
+  if (watchChanged) config.watch = resolveWatch(await TableSchema.load(ctx.db, acc), config.watch as string[], col.key);
   // Keep the internal counter of an auto-number column.
   if (col.type === "auto_number" && i.config !== undefined && col.config.seq !== undefined) config.seq = col.config.seq;
   const display = i.display !== undefined ? normalizeDisplay(i.display) : col.display;
@@ -253,6 +261,16 @@ export async function updateColumn(ctx: Ctx, acc: TableAccess, col: DhColumn, i:
       position = ${i.position ?? col.position}::int, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
   } catch (e) {
     rethrowNameConflict(e);
+  }
+  if (watchChanged) await backfillTracker(ctx.db, acc, col.key, config.watch as string[]);
+  // Renamed options: formulas that compare this column with the old name as text are rewritten with the new one when the caller asks (never silently).
+  if (i.update_formulas && (col.type === "single_select" || col.type === "multi_select") && i.config !== undefined) {
+    const renames = optionRenames((col.config.options as SelectOption[] | undefined) ?? [], (config.options as SelectOption[] | undefined) ?? []);
+    for (const f of await findAffectedFormulas(ctx, acc.datahub.ownerId, col, acc.tableId, renames)) {
+      const facc = await loadTableAccess(ctx, f.tableId, "owner");
+      const fcol = (await TableSchema.load(ctx.db, facc)).tryResolve(f.column.key);
+      if (fcol) await updateColumn(ctx, facc, fcol, { config: { formula: f.afterDisplay } });
+    }
   }
   if (unique && !col.isUnique) await ensureUnique(ctx, acc, { key: col.key, name });
   if (!unique && col.isUnique) await ctx.db.execute(sql`SELECT soe_dh_drop_indexes(${acc.tableId}::uuid, ${col.key}, ARRAY['uniq'])`);
@@ -482,6 +500,7 @@ export const columnOperations = [
       display: z.record(z.string(), z.unknown()).optional(),
       position: z.number().int().min(0).max(1000).optional(),
       version: z.number().int().min(1).optional(),
+      update_formulas: z.boolean().optional().describe("Khi đổi tên lựa chọn: viết lại cả các công thức đang so chữ với tên cũ (xem `datahub.column.option_impact`). Mặc định không."),
     }),
     output: ColumnOut,
     http: { method: "PATCH", path: "/tables/:table_id/columns/:column" },

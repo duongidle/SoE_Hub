@@ -115,6 +115,7 @@ function toCell(col: Col, v: unknown, lk: Lookups): Cell {
       return m ? { kind: "date", v: new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))), fmt: "dd/mm/yyyy" } : { kind: "text", v: String(v) };
     }
     case "datetime":
+    case "field_modified":
     case "created_time":
     case "modified_time": {
       if (Number.isNaN(Date.parse(String(v)))) return { kind: "text", v: String(v) };

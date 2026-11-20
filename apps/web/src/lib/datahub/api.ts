@@ -95,6 +95,8 @@ export interface ColumnBody {
   config?: Record<string, unknown>;
   required?: boolean;
   allow_edit?: boolean;
+  /** Renamed options: also rewrite the formulas that compare the column with the old name as text. */
+  update_formulas?: boolean;
   unique?: boolean;
   default_value?: unknown;
   description?: string | null;
@@ -104,6 +106,13 @@ export interface ColumnBody {
 export const columnTypes = () => api<TypeInfo[]>("GET", "/datahub/column-types");
 export const createColumn = (tableId: string, body: ColumnBody) => api<Column>("POST", `/tables/${tableId}/columns`, body);
 export const updateColumn = (tableId: string, column: string, body: ColumnBody) => api<Column>("PATCH", `/tables/${tableId}/columns/${encodeURIComponent(column)}`, body);
+export interface OptionImpact {
+  renames: { from: string; to: string }[];
+  formulas: { table_id: string; table_name: string; column_id: string; column_name: string; before: string; after: string; occurrences: number }[];
+}
+/** Which formulas compare this select column with an option name that the new option list renames. */
+export const optionImpact = (tableId: string, column: string, options: { id?: string; name: string; color?: string }[]) =>
+  api<OptionImpact>("GET", `/tables/${tableId}/columns/${encodeURIComponent(column)}/option-impact${qs({ options: options as unknown as object })}`);
 export const deleteColumn = (tableId: string, column: string) => api<{ id: string; deleted: true }>("DELETE", `/tables/${tableId}/columns/${encodeURIComponent(column)}`);
 export const restoreColumn = (tableId: string, column: string, name?: string) => api<Column>("POST", `/tables/${tableId}/columns/${encodeURIComponent(column)}/restore`, name ? { name } : {});
 export const previewTypeChange = (tableId: string, column: string, type: string, config?: Record<string, unknown>) =>

@@ -88,6 +88,8 @@ export interface ColumnDraft {
   targetTableId: string;
   relation: string;
   targetColumn: string;
+  /** "Ngày sửa của cột": keys of the 1-5 watched columns. */
+  watch: string[];
   fn: string;
   formula: string;
   /** "" = let the system work it out from the formula. */
@@ -116,6 +118,7 @@ export function emptyDraft(type = "text"): ColumnDraft {
     targetTableId: "",
     relation: "",
     targetColumn: "",
+    watch: [],
     fn: "sum",
     formula: "",
     resultType: "",
@@ -147,6 +150,7 @@ export function draftFromColumn(col: Column): ColumnDraft {
     targetTableId: str(c.target_table_id),
     relation: str(c.relation),
     targetColumn: str(c.target_column),
+    watch: Array.isArray(c.watch) ? (c.watch as unknown[]).map(String) : [],
     fn: str(c.fn || "sum"),
     formula: str(c.formula),
     resultType: str(c.result_type),
@@ -185,6 +189,8 @@ export function buildConfig(d: ColumnDraft): Record<string, unknown> {
       return { start: int(d.start) ?? 1 };
     case "relation":
       return { target_table_id: d.targetTableId, multiple: d.multiple };
+    case "field_modified":
+      return { watch: d.watch };
     case "lookup":
       return { relation: d.relation, target_column: d.targetColumn };
     case "rollup":
@@ -237,8 +243,8 @@ export function buildBody(d: ColumnDraft, defaultValue: unknown): CreateBody {
 
 /** Types that take a default value, a requirement and a unique mark. */
 export function hasProperty(type: string, what: "default" | "required" | "unique" | "allow_edit", info?: TypeInfo): boolean {
-  if (what === "allow_edit") return !COMPUTED.has(type) && type !== "auto_number" && !["row_id", "created_time", "created_by", "modified_time", "modified_by"].includes(type);
-  if (COMPUTED.has(type) || type === "auto_number" || ["row_id", "created_time", "created_by", "modified_time", "modified_by"].includes(type)) return false;
+  if (what === "allow_edit") return !COMPUTED.has(type) && type !== "auto_number" && !["row_id", "created_time", "created_by", "modified_time", "modified_by", "field_modified"].includes(type);
+  if (COMPUTED.has(type) || type === "auto_number" || ["row_id", "created_time", "created_by", "modified_time", "modified_by", "field_modified"].includes(type)) return false;
   if (what === "unique") return info?.can_be_unique ?? false;
   if (what === "default") return !["relation", "attachment", "multi_select", "rating", "user"].includes(type);
   return true;
@@ -254,7 +260,7 @@ export function validateName(name: string, columns: Pick<Column, "id" | "name">[
   return null;
 }
 
-export type DraftErrors = Partial<Record<"name" | "options" | "maxLength" | "precision" | "decimals" | "ratingMax" | "maxFiles" | "start" | "targetTableId" | "relation" | "targetColumn" | "formula" | "unit", string>>;
+export type DraftErrors = Partial<Record<"name" | "options" | "maxLength" | "precision" | "decimals" | "ratingMax" | "maxFiles" | "start" | "targetTableId" | "relation" | "targetColumn" | "formula" | "unit" | "watch", string>>;
 
 export function validateDraft(d: ColumnDraft, columns: Pick<Column, "id" | "name">[], selfId?: string): DraftErrors {
   const e: DraftErrors = {};
@@ -287,12 +293,13 @@ export function validateDraft(d: ColumnDraft, columns: Pick<Column, "id" | "name
   if (d.type === "relation" && !d.targetTableId) e.targetTableId = "Chọn bảng để liên kết tới.";
   if ((d.type === "lookup" || d.type === "rollup") && !d.relation) e.relation = "Chọn cột Liên kết của bảng này.";
   if ((d.type === "lookup" || d.type === "rollup") && d.relation && !d.targetColumn) e.targetColumn = "Chọn cột của bảng được liên kết.";
+  if (d.type === "field_modified" && (d.watch.length < 1 || d.watch.length > 5)) e.watch = "Chọn từ 1 đến 5 cột để theo dõi.";
   if (d.type === "formula" && d.formula.trim().replace(/^=/, "").trim() === "") e.formula = "Nhập công thức, bắt đầu bằng dấu =.";
   return e;
 }
 
 /** Where the first error sits, in form order (focus goes there). */
-export const FIELD_ORDER: (keyof DraftErrors)[] = ["name", "targetTableId", "relation", "targetColumn", "formula", "options", "maxLength", "precision", "ratingMax", "maxFiles", "start", "decimals", "unit"];
+export const FIELD_ORDER: (keyof DraftErrors)[] = ["name", "targetTableId", "relation", "targetColumn", "watch", "formula", "options", "maxLength", "precision", "ratingMax", "maxFiles", "start", "decimals", "unit"];
 export function firstError(e: DraftErrors): keyof DraftErrors | null {
   return FIELD_ORDER.find((k) => e[k]) ?? null;
 }

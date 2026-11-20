@@ -175,7 +175,7 @@ async function existingColumnsOf(ctx: Ctx, tableId: string, need: "view" | "edit
   const acc = await loadTableAccess(ctx, tableId, need);
   const schema = await TableSchema.load(ctx.db, acc);
   return {
-    cols: schema.alive.map((c) => ({ key: c.key, name: c.name, type: c.type, config: c.config, writable: !["auto_number", "formula", "lookup", "rollup", "relation", "row_id", "created_time", "created_by", "modified_time", "modified_by", "user", "attachment"].includes(c.type) })),
+    cols: schema.alive.map((c) => ({ key: c.key, name: c.name, type: c.type, config: c.config, writable: !["auto_number", "formula", "lookup", "rollup", "relation", "row_id", "created_time", "created_by", "modified_time", "modified_by", "field_modified", "user", "attachment"].includes(c.type) })),
     level: acc.level,
     name: acc.table.name,
     datahubId: acc.datahub.id,

@@ -5,9 +5,9 @@ import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, Select, Textarea
 import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/toast";
 import { Tip } from "@/components/ui/tooltip";
-import { changeColumnType, columnTypes, createColumn, dhKeys, previewTypeChange, updateColumn } from "@/lib/datahub/api";
+import { changeColumnType, columnTypes, createColumn, dhKeys, optionImpact, previewTypeChange, updateColumn, type OptionImpact } from "@/lib/datahub/api";
 import { COMPUTED, ROLLUP_FUNCTIONS, TEXT_LIKE, buildBody, buildConfig, columnError, convertibleTypes, describeConversion, draftFromColumn, emptyDraft, firstError, groupedTypes, hasNumberFormat, hasProperty, moveOption, nextColor, sampleLine, validateDraft, type ColumnDraft, type ConversionReport, type DraftErrors, type TypeInfo } from "@/lib/datahub/column-config";
-import { parseCellText } from "@/lib/datahub/cells";
+import { parseCellText, SYSTEM_TYPES } from "@/lib/datahub/cells";
 import type { Column, TableDetail } from "@/lib/datahub/types";
 import { OPTION_COLORS, optionVar } from "@/lib/theme";
 import { FormulaEditor } from "./formula-editor";
@@ -44,6 +44,9 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
   const [formError, setFormError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<{ report: ConversionReport } | null>(null);
+  // Renamed options that formulas compare with as text: the person sees them before saving (design module4 19d).
+  const [impact, setImpact] = useState<{ data: OptionImpact; patch: Record<string, unknown> } | null>(null);
+  const [updateFormulas, setUpdateFormulas] = useState(true);
   const form = useRef<HTMLFormElement>(null);
   const info = types.find((t) => t.type === draft.type);
   const set = (patch: Partial<ColumnDraft>) => setDraft((d) => ({ ...d, ...patch }));
@@ -101,9 +104,34 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
       const patch: Record<string, unknown> = { name: body.name, description: body.description, required: body.required, allow_edit: body.allow_edit, unique: body.unique, default_value: body.default_value, display: body.display, version: column.version };
       if (!sameConfig) patch.config = body.config;
       if (!dirty) return onClose();
+      const isSelect = column.type === "single_select" || column.type === "multi_select";
+      const renamed = isSelect && !sameConfig && draft.options.some((o) => o.id && original.options.some((x) => x.id === o.id && x.name.trim() !== o.name.trim()));
+      if (renamed) {
+        const data = await optionImpact(table.id, column.key, draft.options.map((o) => ({ ...(o.id ? { id: o.id } : {}), name: o.name.trim(), color: o.color })));
+        if (data.formulas.length > 0) {
+          setImpact({ data, patch });
+          return;
+        }
+      }
       await updateColumn(table.id, column.key, patch);
       await done("Đã lưu cột");
     } catch (e) {
+      failWith(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** After the person has read which formulas compare the renamed option with its old name. */
+  const applyWithFormulas = async () => {
+    if (!column || !impact) return;
+    setBusy(true);
+    try {
+      await updateColumn(table.id, column.key, { ...impact.patch, ...(updateFormulas ? { update_formulas: true } : {}) });
+      setImpact(null);
+      await done(updateFormulas ? "Đã lưu cột và cập nhật công thức" : "Đã lưu cột");
+    } catch (e) {
+      setImpact(null);
       failWith(e);
     } finally {
       setBusy(false);
@@ -247,6 +275,33 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
         </form>
       </Modal>
 
+      {impact && (
+        <Modal title="Công thức đang so chữ với tên cũ" open onClose={() => setImpact(null)}>
+          <div className="flex flex-col gap-3 text-sm" data-testid="option-impact">
+            <p>
+              Bạn đổi tên {impact.data.renames.map((r) => `"${r.from}" thành "${r.to}"`).join(", ")}. {impact.data.formulas.length === 1 ? "Công thức sau" : `${impact.data.formulas.length} công thức sau`} so sánh cột này với tên cũ.
+              Nếu không cập nhật, công thức không báo lỗi mà cho kết quả sai.
+            </p>
+            <ul className="flex max-h-60 flex-col gap-2 overflow-y-auto">
+              {impact.data.formulas.map((f) => (
+                <li key={f.column_id} className="rounded-md border border-border p-2">
+                  <div className="font-medium [overflow-wrap:anywhere]">{f.table_name} › {f.column_name}</div>
+                  <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">Hiện tại: <code>{f.before}</code></div>
+                  <div className="text-xs [overflow-wrap:anywhere]">Sau khi cập nhật: <code>{f.after}</code></div>
+                </li>
+              ))}
+            </ul>
+            <label className="flex min-h-11 items-center gap-2 sm:min-h-9">
+              <input type="checkbox" className="h-5 w-5" checked={updateFormulas} onChange={(e) => setUpdateFormulas(e.target.checked)} data-testid="option-impact-update" />
+              Cập nhật cả các công thức này
+            </label>
+            <div className="flex flex-wrap justify-between gap-2">
+              <Button variant="secondary" onClick={() => setImpact(null)}>Quay lại</Button>
+              <Button loading={busy} onClick={() => void applyWithFormulas()} data-testid="option-impact-save">Lưu cột</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
       {confirm && column && (
         <TypeChangeDialog column={column} to={typeLabel(draft.type)} from={typeLabel(column.type)} report={confirm.report} busy={busy} onConfirm={() => void applyTypeChange()} onClose={() => setConfirm(null)} />
       )}
@@ -303,6 +358,24 @@ function TypeFields({ draft, set, shown, fieldProps, table, column, others }: { 
   if (t === "single_select" || t === "multi_select") return <OptionsEditor draft={draft} set={set} error={shown("options")} />;
   if (t === "relation") return <RelationFields draft={draft} set={set} shown={shown} fieldProps={fieldProps} table={table} locked={!!column} />;
   if (t === "lookup" || t === "rollup") return <LookupFields draft={draft} set={set} shown={shown} table={table} others={others} />;
+  if (t === "field_modified") {
+    // Columns people type into; computed and system-made values change without anyone editing, so they cannot be watched.
+    const watchable = others.filter((c) => !COMPUTED.has(c.type) && !SYSTEM_TYPES.has(c.type) && c.type !== "auto_number");
+    const toggle = (key: string) => set({ watch: draft.watch.includes(key) ? draft.watch.filter((k) => k !== key) : draft.watch.length >= 5 ? draft.watch : [...draft.watch, key] });
+    return (
+      <fieldset className="flex flex-col gap-1" data-field="watch">
+        <legend className="mb-1 text-sm font-medium">Cột theo dõi <span className="text-bad" aria-hidden>*</span></legend>
+        <p className="text-xs text-muted-foreground">Cột này ghi lại lần gần nhất người, API hoặc form đổi giá trị một trong các cột được chọn (1–5 cột). Công thức tính lại không tính là đổi.</p>
+        {watchable.map((c) => (
+          <label key={c.id} className="flex min-h-11 items-center gap-2 text-sm sm:min-h-9">
+            <input type="checkbox" className="h-5 w-5" checked={draft.watch.includes(c.key)} onChange={() => toggle(c.key)} />
+            <span className="[overflow-wrap:anywhere]">{c.name}</span>
+          </label>
+        ))}
+        {shown("watch") && <p role="alert" className="text-sm text-bad">{shown("watch")}</p>}
+      </fieldset>
+    );
+  }
   if (t === "formula") {
     return (
       <div data-field="formula" className="flex flex-col gap-1">

@@ -407,6 +407,23 @@ const defs: ColumnTypeDef[] = [
   },
 ];
 
+/**
+ * "Ngày sửa của cột…" (design module2 section 4): the moment a person, the API, a form or a command last changed one of 1-5 watched columns of the row.
+ * Kept in `data` as an ISO instant like a date-time column; nobody types into it. The row writer sets it (`field-modified.ts`); a formula recalculation
+ * does not, and neither does a value written by the system (same rule as the logs).
+ */
+export const MAX_WATCH = 5;
+defs.push({
+  type: "field_modified", label: "Ngày sửa của cột", group: "system", available: true, writable: false,
+  fieldType: "datetime", expr: (k) => sql`soe_ts(${j(k)})`, sortable: true, indexKind: "ts", uniqueable: false,
+  configSchema: z.strictObject({ watch: z.array(z.string().min(1).max(100)).min(1, "Chọn ít nhất một cột theo dõi.").max(MAX_WATCH, `Theo dõi tối đa ${MAX_WATCH} cột.`) }),
+  defaultConfig: () => ({ watch: [] }),
+  parse() {
+    throw new CellError("Cột này do hệ thống điền khi cột được theo dõi đổi giá trị, không sửa được.");
+  },
+  toPlain: plain,
+});
+
 function systemType(type: "row_id" | "created_time" | "created_by" | "modified_time" | "modified_by", label: string, fieldType: FieldType, expr: string): ColumnTypeDef {
   return {
     type, label, group: "system", available: true, writable: false, virtual: true,
