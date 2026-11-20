@@ -1,11 +1,11 @@
 # Tiến độ
 
-Cập nhật: 20/11/2026
+Cập nhật: 21/11/2026
 
 ## Trạng thái
 
 - **Thiết kế:** Module 0–5 và 7 đã chốt. Module 6 là bản nháp vòng 1, chờ Dương phản biện. Module 8–11 chưa làm.
-- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2 (server bảng mặc định) code xong, chờ Opus rà; tiếp theo 4.3 (giao diện).
+- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2 xong (21/11, Opus rà đạt); đang làm 4.3 (giao diện).
 - **Git:** đã push `main` + `dev` tới 154655d (hết bước con 4.1, Dương yêu cầu 20/11).
 - **Mốc test** (e5d04fa, 20-21/11): `pnpm exec vitest run apps packages` 1110 pass, 9 skip (golden + load); `pnpm test:e2e --project=desktop` 100/100. Không chạy hai lệnh vitest song song (chung DB).
 
@@ -23,9 +23,9 @@ Cập nhật: 20/11/2026
 
 ## Đang làm: Stage 4 (Module 4, Quản lý Deal), Sonnet code, Opus rà
 
-**Kế hoạch (20/11):** 4.2 server bảng mặc định **xong, chờ Opus rà** (a2543ed chốt chặn `dh_rows`; 16bb103 kiểu Người dùng có thuộc tính + gửi xuống; 5d6e5db công thức sang bảng template khác chủ; e5d04fa bộ mặc định theo cây + Index tháng + việc để lại từ 4.1; chi tiết `design/module4-quyet-dinh-khi-code.md` mục 4.2); 4.3 giao diện (trang Template, menu Quản lý Deal, màn Deals); 4.4 thanh toán và com; 4.5 chốt kỳ/BANT/forecast/snapshot; 4.6 chỉ số + dashboard Deals; 4.7 API ngoài, nhập lịch sử, Guest; 4.8 kiểm thử cuối.
+**Kế hoạch (20/11):** 4.2 server bảng mặc định **xong, Opus rà đạt 21/11** (a2543ed chốt chặn `dh_rows`; 16bb103 kiểu Người dùng có thuộc tính + gửi xuống; 5d6e5db công thức sang bảng template khác chủ; e5d04fa bộ mặc định theo cây + Index tháng + việc để lại từ 4.1; chi tiết `design/module4-quyet-dinh-khi-code.md` mục 4.2); 4.3 giao diện (trang Template, menu Quản lý Deal, màn Deals); 4.4 thanh toán và com; 4.5 chốt kỳ/BANT/forecast/snapshot; 4.6 chỉ số + dashboard Deals; 4.7 API ngoài, nhập lịch sử, Guest; 4.8 kiểm thử cuối.
 
-**Bước tiếp (4.3):** web đọc `can_edit` theo dòng (`datahub.row.list/get`) để khoá ô; `datahub.prefs.set` cho "Cho phép leader sửa"; trang Template dùng `datahub.template.*` (cột có `autofill`, `meaning` của lựa chọn Status); menu Quản lý Deal (`datahub.datahub.list` đã loại datahub `deal`). Còn nợ của 4.2 (ghi ở quyết định 4.2): guard Status (Won/Huỷ), Probation KPI sau commit, điền lại gửi xuống khi đổi cây, công thức theo người cho cột `person`, tháng Index đầu tiên.
+**Đang làm (4.3, Sonnet, 21/11):** menu Quản lý Deal, trang Template (Module 4 mục 3.8), màn Deals, bước kiểm thử e2e riêng ở cuối. Ghi chú gốc: web đọc `can_edit` theo dòng (`datahub.row.list/get`) để khoá ô; `datahub.prefs.set` cho "Cho phép leader sửa"; trang Template dùng `datahub.template.*` (cột có `autofill`, `meaning` của lựa chọn Status); menu Quản lý Deal (`datahub.datahub.list` đã loại datahub `deal`). Còn nợ của 4.2, **làm ở 4.4** (ghi ở quyết định 4.2): guard Status (Won/Huỷ), Probation KPI sau commit, điền lại gửi xuống khi đổi cây, công thức theo người cho cột `person`, tháng Index đầu tiên.
 
 Mục tiêu Deals hạ xuống **20.000 deal** (Dương chốt 20/11): load test Stage 4 dùng 20.000 deal, 20 người phạm vi khác nhau, mọi biểu đồ ≤ 3 s; Datahub thường giữ 100.000 dòng.
 
