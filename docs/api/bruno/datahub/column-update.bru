@@ -21,16 +21,19 @@ body:json {
     "name": "name",
     "config": {},
     "required": false,
+    "allow_edit": true,
     "unique": false,
     "default_value": null,
     "description": "description",
     "display": {},
     "position": 0,
-    "version": 1
+    "version": 1,
+    "update_formulas": false
   }
 }
 
 docs {
   Sửa cột: tên, mô tả, bắt buộc, duy nhất, mặc định, cấu hình (lựa chọn), định dạng hiển thị, vị trí. Không đổi kiểu ở đây.
+  `update_formulas: true` (khi đổi tên lựa chọn): viết lại cả các công thức đang so chữ với tên cũ (xem `datahub.column.option_impact`).
   Quyền: `datahub:datahub:use`.
 }

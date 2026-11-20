@@ -13308,6 +13308,10 @@
                                   "normal",
                                   "merged"
                                 ]
+                              },
+                              "members_bulk_create": {
+                                "type": "boolean",
+                                "description": "Thành viên không phải chủ có được nhập file / dán sinh dòng mới ở bảng này không."
                               }
                             },
                             "required": [
@@ -13316,7 +13320,8 @@
                               "position",
                               "row_count",
                               "access",
-                              "kind"
+                              "kind",
+                              "members_bulk_create"
                             ],
                             "additionalProperties": false
                           }
@@ -13555,6 +13560,10 @@
                                     "normal",
                                     "merged"
                                   ]
+                                },
+                                "members_bulk_create": {
+                                  "type": "boolean",
+                                  "description": "Thành viên không phải chủ có được nhập file / dán sinh dòng mới ở bảng này không."
                                 }
                               },
                               "required": [
@@ -13563,7 +13572,8 @@
                                 "position",
                                 "row_count",
                                 "access",
-                                "kind"
+                                "kind",
+                                "members_bulk_create"
                               ],
                               "additionalProperties": false
                             }
@@ -13778,6 +13788,10 @@
                                   "normal",
                                   "merged"
                                 ]
+                              },
+                              "members_bulk_create": {
+                                "type": "boolean",
+                                "description": "Thành viên không phải chủ có được nhập file / dán sinh dòng mới ở bảng này không."
                               }
                             },
                             "required": [
@@ -13786,7 +13800,8 @@
                               "position",
                               "row_count",
                               "access",
-                              "kind"
+                              "kind",
+                              "members_bulk_create"
                             ],
                             "additionalProperties": false
                           }
@@ -14052,6 +14067,10 @@
                                   "normal",
                                   "merged"
                                 ]
+                              },
+                              "members_bulk_create": {
+                                "type": "boolean",
+                                "description": "Thành viên không phải chủ có được nhập file / dán sinh dòng mới ở bảng này không."
                               }
                             },
                             "required": [
@@ -14060,7 +14079,8 @@
                               "position",
                               "row_count",
                               "access",
-                              "kind"
+                              "kind",
+                              "members_bulk_create"
                             ],
                             "additionalProperties": false
                           }
@@ -16304,6 +16324,7 @@
                       "created_by",
                       "modified_time",
                       "modified_by",
+                      "field_modified",
                       "formula",
                       "relation",
                       "lookup",
@@ -16789,6 +16810,10 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 9007199254740991
+                  },
+                  "update_formulas": {
+                    "description": "Khi đổi tên lựa chọn: viết lại cả các công thức đang so chữ với tên cũ (xem `datahub.column.option_impact`). Mặc định không.",
+                    "type": "boolean"
                   }
                 }
               }
@@ -17756,6 +17781,7 @@
                       "created_by",
                       "modified_time",
                       "modified_by",
+                      "field_modified",
                       "formula",
                       "relation",
                       "lookup",
@@ -18039,6 +18065,7 @@
                       "created_by",
                       "modified_time",
                       "modified_by",
+                      "field_modified",
                       "formula",
                       "relation",
                       "lookup",
@@ -30395,6 +30422,231 @@
         ]
       }
     },
+    "/api/v1/tables/{table_id}/columns/{column}/option-impact": {
+      "get": {
+        "operationId": "datahub.column.option_impact",
+        "summary": "Đổi tên lựa chọn của cột chọn thì công thức nào so chữ với tên cũ? Xem trước, chưa ghi gì (chỉ chủ).",
+        "description": "Gửi danh sách lựa chọn mới của cột (mỗi lựa chọn có `id` để biết cái nào được đổi tên). Trả các lựa chọn bị đổi tên và các công thức so sánh cột với tên cũ dạng chữ (`[Status]=\"Won\"`, `COUNTIFS([Status],\"Won\")`, `SWITCH`, `XLOOKUP`). Công thức không lỗi mà ra sai im lặng nếu không cập nhật; `datahub.column.update` với `update_formulas: true` viết lại chúng bằng tên mới.",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.column.option_impact",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "parameters": [
+          {
+            "name": "table_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "column",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "options",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "maxItems": 200,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "color": {
+                    "type": "string",
+                    "maxLength": 20
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "renames": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "from": {
+                                "type": "string"
+                              },
+                              "to": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "from",
+                              "to"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "formulas": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "table_id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "table_name": {
+                                "type": "string"
+                              },
+                              "column_id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "column_name": {
+                                "type": "string"
+                              },
+                              "before": {
+                                "type": "string"
+                              },
+                              "after": {
+                                "type": "string"
+                              },
+                              "occurrences": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "table_id",
+                              "table_name",
+                              "column_id",
+                              "column_name",
+                              "before",
+                              "after",
+                              "occurrences"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "renames",
+                        "formulas"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
     "/api/v1/datahub/templates": {
       "post": {
         "operationId": "datahub.template.create",
@@ -32275,6 +32527,7 @@
                       "created_by",
                       "modified_time",
                       "modified_by",
+                      "field_modified",
                       "formula",
                       "relation",
                       "lookup",
@@ -33664,6 +33917,7 @@
                       "created_by",
                       "modified_time",
                       "modified_by",
+                      "field_modified",
                       "formula",
                       "relation",
                       "lookup",
@@ -37157,6 +37411,52 @@
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 100
+                    }
+                  },
+                  "groups_only": {
+                    "description": "Xuất dạng tổng hợp: mỗi dòng là một nhóm của view (cột nhóm, Số dòng, các cột tổng), không xuất từng dòng. Cần `table_id` và `group`.",
+                    "type": "boolean"
+                  },
+                  "group": {
+                    "minItems": 1,
+                    "maxItems": 3,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
+                        "dir": {
+                          "type": "string",
+                          "enum": [
+                            "asc",
+                            "desc"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "field"
+                      ]
+                    }
+                  },
+                  "aggs": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": [
+                        "count",
+                        "sum",
+                        "avg",
+                        "min",
+                        "max"
+                      ]
                     }
                   }
                 }

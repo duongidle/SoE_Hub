@@ -1,0 +1,32 @@
+meta {
+  name: datahub.export.create (tổng hợp theo nhóm)
+  type: http
+  seq: 121
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/exports
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "table_id": "{{table_id}}",
+    "format": "xlsx",
+    "groups_only": true,
+    "group": [{ "field": "Giai đoạn", "dir": "asc" }],
+    "aggs": { "Doanh thu": "sum" }
+  }
+}
+
+docs {
+  Xuất dạng tổng hợp: mỗi dòng của file là một nhóm của view (cột nhóm, Số dòng, các cột tổng), đúng số của `datahub.row.groups`, áp phạm vi người xuất (khoá phân chia gồm cả). Cần `table_id` và `group`.
+  Quyền: `datahub:datahub:use`.
+}

@@ -1,0 +1,21 @@
+meta {
+  name: datahub.column.option_impact
+  type: http
+  seq: 120
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/columns/{{column}}/option-impact?options=[{"id":"o_abc","name":"Tên mới"}]
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Đổi tên lựa chọn của cột chọn thì công thức nào so chữ với tên cũ (`[Status]="Won"`, `COUNTIFS`, `SWITCH`, `XLOOKUP`)? Xem trước, chưa ghi gì. Chỉ chủ.
+  `options`: danh sách lựa chọn mới (JSON), mỗi lựa chọn có `id` để biết cái nào được đổi tên. Muốn viết lại các công thức đó: `datahub.column.update` với `update_formulas: true`.
+  Quyền: `datahub:datahub:use`.
+}

@@ -73,6 +73,32 @@ Việc 1–9 và 11a của Module 4 mục 19a. Code ở `apps/api/src/modules/da
 - **Liên kết sang bảng template** (`link-targets.ts`): cột Liên kết của bảng riêng trỏ được tới bảng template mà chủ bảng đọc được. Ghi ô, nhãn (`relation.labels`), tìm (`relation.search`), xuất đều dùng quyền đọc dòng của **chủ bảng liên kết** (kể cả khoá phân chia): dòng không thấy thì không liên kết được và không hiện nhãn. Bảng template của người khác không phải template hoặc không đọc được thì bị từ chối. **Chưa làm:** Lookup/Rollup/công thức từ bảng riêng sang bảng template của người khác (cần tính lại theo người đọc cho cột của chính bảng riêng; Module 4 mục 19 việc 5, 9). Đang để cho bước sau của Stage 4 (khi dựng Deals thật); xem "Câu hỏi còn mở" trong `progress.md`.
 - Test: `apps/api/test/datahub-template.test.ts` (26 test: ai tạo, bảo vệ, cột Tuỳ chỉnh, template team, bảng riêng + đổi cây, trùng tên, vai trò cột, lớp team và quyền Leader, liên kết sang bảng template).
 
+## 4.1d Giao diện + việc nhỏ
+
+Việc 17–19, 19a–19d (Module 4 mục 19a). Gần như toàn bộ là web; server thêm 4 chỗ nhỏ (`members_bulk_create` ở `TableBrief`, `groups_only` ở xuất, kiểu `field_modified`, `option_impact` + `update_formulas`).
+
+**Chia sẻ, khoá phân chia, cho phép sửa (17, 18, 19)**
+- Hộp thoại Chia sẻ (cấp datahub) thêm mục "Phân quyền theo dòng của bảng": chọn bảng, bật khoá, cột khoá (chỉ liệt kê cột Người dùng, tối đa 5), cột khoá chính (khi chọn từ 2 cột), "Thành viên được thêm dòng hàng loạt". Một nút lưu gọi `datahub.table.share_options.set`. Nút Thu hồi gọi `datahub.share.tagged` trước; có dòng đang tag thì hiện `ConfirmDialog` kèm số dòng, không có thì thu hồi luôn.
+- "Cho phép sửa" là ô tick trong ngăn sửa cột (mọi kiểu người nhập được). `readOnlyReason` (`cells.ts`) là nơi duy nhất quyết ô chỉ đọc nên lưới, dán, điền xuống, xoá nội dung, panel dòng, sửa hàng loạt đều theo. Server vẫn là nơi chặn thật (`column_not_editable`); `session.explain` trả câu của server khi lỗi `forbidden` có `reason` (trước đây luôn hiện "chỉ có quyền xem").
+- Ô Người dùng: `PersonPicker` nhận `tableId` nên chỉ gợi ý chủ + thành viên; `LabelCache` hỏi `people.lookup` kèm `table_id`, người có `member=false` vào tập `noAccess` và hiện "(không còn quyền)" ở lưới (chữ vẽ) và panel dòng. Chữ Copy trong lưới giữ tên thường để dán lại được.
+- Thêm hàng loạt: `TableBrief.members_bulk_create` (server). Tắt thì ẩn nút Nhập ở bảng và ẩn "Nhập dữ liệu" ở trang datahub khi không còn bảng nào nhập được (chủ luôn nhập được; thành viên chỉ vào bảng họ sửa được và còn bật tuỳ chọn). Dán sinh hơn một dòng mới thì báo lỗi trước khi gửi (server vẫn chặn bằng `bulk_create_off`).
+- Không làm: kiểm "dòng này tôi có sửa được không" (Leader chỉ đọc deal của team) ở web. Server trả `row_not_editable` kèm câu rõ; ô vẫn hiện sửa được rồi báo lỗi khi ghi. Cần `canEdit` theo dòng trong `Row` nếu muốn ẩn con trỏ sửa (làm khi dựng Deals, nơi luật này dùng nhiều).
+
+**Thu gọn nhóm (19a)**
+- Hai khoá mới trong `config` view: `groups_collapsed` (chế độ "Thu gọn tất cả": nhóm mới đóng) và `groups_toggled` (nhóm, khoá JSON của đường dẫn, có trạng thái ngược chế độ). Đóng nhóm = `collapsed XOR toggled`. "Thu gọn tất cả"/"Mở tất cả" đặt chế độ và xoá danh sách ngoại lệ. Lưu qua `ViewAutosave` như mọi thay đổi view nên người được chia sẻ tự có bản riêng. Bỏ nhóm thì xoá cả hai khoá. Hai nút nằm ở thanh công cụ dòng, chỉ hiện khi đang nhóm. Nhóm không còn tồn tại thì khoá ngoại lệ thừa, vô hại.
+
+**Xuất tổng hợp (19b)**
+- `export.create` nhận `groups_only`, `group`, `aggs` (cùng dạng `row.groups`). `buildGroupExport` gọi **`listGroups`** (hàm của `rows-groups.ts`) với quyền của người xuất, không có truy vấn riêng. Cột file: mỗi cấp nhóm một cột (giá trị nhóm nằm ở cột cấp của nó, các cột cấp khác trống), "Số dòng", rồi mỗi cột tổng một cột ("<cột> (Tổng)"). CSV/JSON/XLSX dùng chung. Quá 1.000 nhóm ở một cấp thì ghi chú ở sheet "Thông tin xuất". Test: `datahub-export-groups.test.ts` (từng dòng file = dòng nhóm của `row.groups`; thành viên bị khoá và leader ra đúng tổng của họ).
+
+**Kiểu cột "Ngày sửa của cột" (19c)**
+- Kiểu `field_modified`, `config.watch` = 1–5 mã cột (nhận tên hoặc mã, lưu mã nên đổi tên cột không vỡ). Chỉ theo dõi được cột người nhập (không công thức/lookup/rollup, không cột hệ thống, không số tự tăng). Giá trị ISO nằm trong `data`, đọc/lọc/sắp xếp như Ngày giờ (`effectiveType` trả `datetime`). Ghi ở `applyRowOps` (`touchTrackers`) cho cả tạo (có giá trị ở cột theo dõi) và sửa (ô đổi giá trị thật); công thức tính lại không đi qua đó nên không tính; giá trị này không vào lịch sử dòng. Tạo hoặc đổi cột theo dõi: `backfillTracker` điền lại từ `row_history` (lần gần nhất create/update đổi cột theo dõi; dòng chưa từng đổi để trống), không đổi `version`. Khôi phục dòng từ thùng rác không tính là sửa. Cột theo dõi bị xoá: bị bỏ qua, nếu hết cột thì giá trị đứng yên (chưa chặn xoá).
+
+**Đổi tên lựa chọn (19d)**
+- `option-rename.ts`: so lựa chọn cũ/mới theo `id`; tìm trong công thức đã lưu (dạng khoá `{c_x}`) bằng parser của engine: so sánh `=`/`<>` hai phía, tiêu chí đứng sau vùng của `COUNTIF(S)`, `SUMIF(S)`, `AVERAGEIF(S)`, `MAXIFS`, `MINIFS` (kể cả tiền tố `<>`), `SWITCH` (các giá trị), `XLOOKUP`/`MATCH`/`XMATCH` (giá trị tra). Nối chữ, hàm khác, cột khác không tính. Viết lại cắt theo vị trí literal, nhân đôi dấu `"`. `datahub.column.option_impact` (GET, chỉ chủ) liệt kê; `column.update` nhận `update_formulas: true` thì sửa luôn các công thức đó (qua `updateColumn` của chính chúng nên kiểm tra và tính lại như thường). Hộp thoại ở ngăn sửa cột: mặc định tick "Cập nhật cả các công thức này". Ngoài phạm vi: công thức trong view/lọc/chỉ số lưu tên lựa chọn (lọc view lưu id nên không vỡ; chỉ số trỏ lựa chọn theo tên chưa kiểm).
+- Test: `datahub-option-rename.test.ts` (hàm thuần, lệnh, cả bảng khác; số sau khi viết lại không đổi).
+
+**E2E:** `apps/web/e2e/stage4-1d.spec.ts` (7 luồng, desktop). Lệnh: `pnpm test:e2e stage4-1d --project=desktop`.
+
 ## Việc còn lại / ghi chú cho 4.1c–d
 - Lịch sử dòng (`rowHistory`): với người bị khoá, kiểm dòng nằm trong `rows()` trước khi đọc `row_history` (chủ và bảng không khoá giữ nguyên, kể cả dòng đã xoá hẳn).
 - Web: hộp thoại chia sẻ, ngăn sửa cột, ô Người dùng gọi `datahub.people.lookup` với `table_id`, "không còn quyền" (4.1d).
