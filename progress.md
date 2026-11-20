@@ -33,6 +33,8 @@ Việc phải làm trong bước dựng Deals (để lại từ 4.1):
 - Chuyển giao: deal đã đóng giữ người cũ (đăng ký điều kiện ở `transfer.ts`, 4.1a).
 - "Cho phép leader sửa deal của tôi": màn Deals gọi `datahub.prefs.set` (server đã có).
 
+Mục tiêu Deals hạ xuống **20.000 deal** (Dương chốt 20/11): load test Stage 4 dùng 20.000 deal, 20 người phạm vi khác nhau, mọi biểu đồ ≤ 3 s; Datahub thường giữ 100.000 dòng.
+
 Các bước sau (Opus chia chi tiết khi tới): thanh toán và com theo đợt (mục 7, 12); chốt kỳ, snapshot, forecast, BANT; chỉ số + dashboard Deals trỏ cột theo vai trò, API ngoài, `data_grants.options` (mục 19 việc 14–16); kiểm thử cuối Stage 4.
 
 ## Ghi nhận để sau
