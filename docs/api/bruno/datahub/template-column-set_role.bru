@@ -1,0 +1,27 @@
+meta {
+  name: datahub.template.column.set_role
+  type: http
+  seq: 91
+}
+
+put {
+  url: {{baseUrl}}/api/v1/datahub/templates/{{template_id}}/columns/{{column}}/role
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "role": "doanh thu"
+  }
+}
+
+docs {
+  Gắn hoặc chuyển vai trò cột sang cột đúng kiểu. Quyền: `datahub:template:write`.
+}

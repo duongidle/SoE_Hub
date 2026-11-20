@@ -1,0 +1,28 @@
+meta {
+  name: datahub.template.column.update
+  type: http
+  seq: 87
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/datahub/templates/{{template_id}}/columns/{{column}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Khách hàng",
+    "allow_edit": true
+  }
+}
+
+docs {
+  Sửa cột template, trả kèm nơi đang dùng. Quyền: `datahub:template:write`.
+}

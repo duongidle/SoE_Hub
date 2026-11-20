@@ -1,0 +1,30 @@
+meta {
+  name: datahub.template.create
+  type: http
+  seq: 80
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/templates
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Deals",
+    "kind": "shared",
+    "scope": "tree",
+    "member_permission": "view"
+  }
+}
+
+docs {
+  Tạo bảng template cho cả cây (Manager) hoặc team (Leader). Quyền: `datahub:template:write`.
+}

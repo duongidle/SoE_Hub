@@ -1,0 +1,25 @@
+meta {
+  name: datahub.template.archive
+  type: http
+  seq: 84
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/templates/{{template_id}}/archive
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+docs {
+  Bỏ template (lưu trữ, khôi phục được). Quyền: `datahub:template:write`.
+}

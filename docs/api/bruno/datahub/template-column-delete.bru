@@ -1,0 +1,20 @@
+meta {
+  name: datahub.template.column.delete
+  type: http
+  seq: 89
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/datahub/templates/{{template_id}}/columns/{{column}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Bỏ cột template (lưu trữ); cột đang giữ vai trò phải chuyển vai trò trước. Quyền: `datahub:template:write`.
+}

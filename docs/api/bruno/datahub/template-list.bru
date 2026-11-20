@@ -1,0 +1,19 @@
+meta {
+  name: datahub.template.list
+  type: http
+  seq: 81
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/templates
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Các bảng template trong phạm vi của bạn. Quyền: `datahub:datahub:use`.
+}

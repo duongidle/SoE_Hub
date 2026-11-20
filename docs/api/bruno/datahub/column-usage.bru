@@ -1,0 +1,19 @@
+meta {
+  name: datahub.column.usage
+  type: http
+  seq: 92
+}
+
+get {
+  url: {{baseUrl}}/api/v1/tables/{{table_id}}/columns/{{column}}/usage
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Cột đang được dùng ở đâu (vai trò, công thức, view, chỉ số, dashboard). Quyền: `datahub:datahub:use`.
+}

@@ -1,0 +1,25 @@
+meta {
+  name: datahub.template.column.restore
+  type: http
+  seq: 90
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/templates/{{template_id}}/columns/{{column}}/restore
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+docs {
+  Khôi phục cột template. Quyền: `datahub:template:write`.
+}

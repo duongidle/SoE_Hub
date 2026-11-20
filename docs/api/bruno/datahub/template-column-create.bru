@@ -1,0 +1,31 @@
+meta {
+  name: datahub.template.column.create
+  type: http
+  seq: 86
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/templates/{{template_id}}/columns
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Khách hàng",
+    "type": "text",
+    "layer": "basic",
+    "storage": "shared",
+    "allow_edit": true
+  }
+}
+
+docs {
+  Thêm cột vào template, có thể kèm `role`. Quyền: `datahub:template:write`.
+}

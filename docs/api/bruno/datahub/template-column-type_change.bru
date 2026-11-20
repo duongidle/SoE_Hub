@@ -1,0 +1,28 @@
+meta {
+  name: datahub.template.column.type_change
+  type: http
+  seq: 88
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/templates/{{template_id}}/columns/{{column}}/type
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "type": "long_text",
+    "accept_data_loss": false
+  }
+}
+
+docs {
+  Đổi kiểu cột template (cột giữ vai trò chỉ đổi sang kiểu hợp). Quyền: `datahub:template:write`.
+}

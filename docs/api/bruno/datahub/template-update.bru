@@ -1,0 +1,29 @@
+meta {
+  name: datahub.template.update
+  type: http
+  seq: 83
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/datahub/templates/{{template_id}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Deals",
+    "member_permission": "edit_data",
+    "leader_can_add_columns": false
+  }
+}
+
+docs {
+  Đổi tên, quyền thành viên, tuỳ chọn Leader thêm cột team. Quyền: `datahub:template:write`.
+}

@@ -1,0 +1,25 @@
+meta {
+  name: datahub.template.restore
+  type: http
+  seq: 85
+}
+
+post {
+  url: {{baseUrl}}/api/v1/datahub/templates/{{template_id}}/restore
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+docs {
+  Khôi phục template đã lưu trữ. Quyền: `datahub:template:write`.
+}
