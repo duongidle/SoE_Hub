@@ -88,6 +88,20 @@ export const datahubEvents: EventDef[] = [
     audience: async (p: { table_id: string }, db) => ({ users: await tableAudience(db, p.table_id) }),
   },
   {
+    name: "datahub.template.conflict",
+    version: 1,
+    description: "Bảng hoặc cột của bạn trùng tên với bảng/cột template nên được đổi thành `<tên> (riêng)`. Chỉ để tạo thông báo cho người đó; không chứa giá trị.",
+    schema: z.object({
+      recipient_id: z.uuid(),
+      template_name: z.string(),
+      object: z.enum(["table", "column", "datahub"]),
+      old_name: z.string(),
+      new_name: z.string(),
+      table_name: z.string().optional(),
+    }),
+    audience: (p: { recipient_id: string }) => ({ users: [p.recipient_id] }),
+  },
+  {
     name: "datahub.share.changed",
     version: 1,
     description: "Chia sẻ datahub hoặc bảng được thêm, đổi quyền hoặc gỡ.",

@@ -1,6 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
 import type { FieldSpec } from "@soe/db";
-import { AppError } from "@soe/shared";
 import { columnTypeDef } from "./column-types";
 import { effectiveType, errKey, isComputedType } from "./cell-values";
 import { assertColumnKey, type DhColumn, type Stored } from "./types";
@@ -19,8 +18,9 @@ export interface LoadedRow {
 
 /** How a cell is written. The row writer groups cell writes by source. */
 export type CellWrite =
-  | { source: "jsonb"; key: string; value: Stored };
-// TODO(Stage 4, Module 4): add `{ source: "personal"; key: string; userId: string; value: Stored }`.
+  | { source: "jsonb"; key: string; value: Stored }
+  /** One person's own value (the actor's): goes to `dh_person_cells`, never to `dh_rows.data`. */
+  | { source: "personal"; key: string; value: Stored };
 
 /**
  * Where a column's values live (design module2 section 3, "Hai nguồn cột"; the third source "cột thật của bảng hệ thống" was dropped 19/11/2026,
@@ -84,27 +84,26 @@ export class JsonbSource implements ColumnSource {
   }
 }
 
-const notYet = (what: string) => (): never => {
-  throw new AppError("internal_error", `Nguồn cột "${what}" chưa được cài đặt (làm ở Stage 4).`);
-};
-
 /**
- * TODO(Stage 4): giá trị riêng theo từng người (cột cá nhân). Đọc/ghi bảng giá trị theo (dòng, người);
- * lọc và sắp xếp join theo người đang xem; Guest không bao giờ đọc được nguồn này.
+ * A value per person (design module2 section 3, module4 3.4): custom columns and "mỗi người một giá trị" template columns. The values live in
+ * `dh_person_cells` and `TableAccess.rel()` lays the reader's own over `data`, so filter, sort, read and the metric engine see them exactly like a
+ * JSONB cell and only the WRITE differs: it goes to the person's own row of values, never to `dh_rows`. Nobody reads another person's value.
  */
 export class PersonalSource implements ColumnSource {
   readonly kind = "personal" as const;
-  fieldSpec = notYet("personal");
-  readExpr = notYet("personal");
-  cellExpr = notYet("personal");
-  readCell = notYet("personal");
-  planWrite = notYet("personal");
+  private readonly inner = new JsonbSource();
+  fieldSpec = (col: DhColumn) => this.inner.fieldSpec(col);
+  readExpr = (col: DhColumn) => this.inner.readExpr(col);
+  cellExpr = (col: DhColumn, data: string, as: "text" | "json") => this.inner.cellExpr(col, data, as);
+  readCell = (row: LoadedRow, col: DhColumn) => this.inner.readCell(row, col);
+  planWrite(col: DhColumn, value: Stored): CellWrite {
+    return { source: "personal", key: col.key, value };
+  }
 }
 
 const sources = { jsonb: new JsonbSource(), personal: new PersonalSource() };
 
-/** The source of a column. Stage 4.1c records personal columns with `config.__source`; today all are JSONB. */
+/** The source of a column: `dh_columns.storage` (`person` = the personal source, everything else JSONB). */
 export function sourceOf(col: DhColumn): ColumnSource {
-  const k = (col.config?.__source as keyof typeof sources | undefined) ?? "jsonb";
-  return sources[k] ?? sources.jsonb;
+  return col.storage === "person" ? sources.personal : sources.jsonb;
 }

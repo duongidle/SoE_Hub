@@ -114,6 +114,8 @@ export interface TrashTable {
   name: string;
   /** If true, rows are never hard-deleted (for example deals: only marked as cancelled). */
   neverHardDelete?: boolean;
+  /** SQL condition (trusted text, never user input) of rows that are never purged even from the trash, for example archived template columns (module4 3.1). */
+  keepWhere?: string;
   /** Runs before rows older than `cutoff` are removed, for example to delete files in object storage. */
   beforePurge?: (ex: Executor, cutoff: Date) => Promise<void>;
 }
@@ -150,7 +152,7 @@ export async function purgeTrash(ex: Executor, retentionDays: number, now = new 
     if (t.beforePurge) await t.beforePurge(ex, cutoff);
     const res = await ex.execute(
       // `/*scope:system*/`: a deliberate system-wide delete (see the query guard in apps/api/src/auth/query-guard.ts).
-      sql`DELETE FROM ${sql.identifier(t.name)} WHERE /*scope:system*/ deleted_at IS NOT NULL AND deleted_at < ${cutoff}`,
+      sql`DELETE FROM ${sql.identifier(t.name)} WHERE /*scope:system*/ deleted_at IS NOT NULL AND deleted_at < ${cutoff}${t.keepWhere ? sql` AND NOT (${sql.raw(t.keepWhere)})` : sql``}`,
     );
     results.push({ table: t.name, purged: res.rowCount ?? 0 });
   }

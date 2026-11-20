@@ -153,6 +153,15 @@ async function checkMembers(db: Executor, access: TableAccess, uses: { row: numb
   for (const u of uses) if (!ok.has(u.id)) issues.push({ row: u.row, column: u.column, message: `Người ở cột "${u.column}" chưa là thành viên của bảng. Chia sẻ bảng cho người đó trước.` });
 }
 
+/** Every op changes cells of person-stored columns only (and none creates or deletes a row): a person's own values, which need no right to edit the table. */
+function onlyOwnCells(schema: TableSchema, ops: RowOp[]): boolean {
+  return ops.length > 0 && ops.every((o) => {
+    if (o.op !== "update") return false;
+    const keys = Object.keys(o.data);
+    return keys.length > 0 && keys.every((k) => schema.tryResolve(k)?.storage === "person");
+  });
+}
+
 function throwIssues(issues: { row: number; column: string; message: string }[]): void {
   if (issues.length) throw new AppError("validation_error", issues.length === 1 ? issues[0]!.message : `Dữ liệu có ${issues.length} lỗi.`, { issues });
 }
@@ -194,7 +203,8 @@ interface Plan {
  * changed since the client read it); history records input data only; the audit entry never holds values.
  */
 export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSchema, ops: RowOp[], opts: { labels?: boolean } = {}): Promise<OpResult[]> {
-  access.require("edit_data");
+  // A person writes THEIR OWN values (custom columns, one-value-per-person columns) with no more than the right to see the table (module4 3.6).
+  access.require(onlyOwnCells(schema, ops) ? "view" : "edit_data");
   assertWritable(access);
   if (ops.length === 0) throw new AppError("validation_error", "Cần ít nhất một thao tác.");
   if (ops.length > DH_BATCH_MAX) throw new AppError("validation_error", `Một lần gửi tối đa ${DH_BATCH_MAX} thao tác.`);
@@ -283,8 +293,17 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     for (const id of targetIds) if (!loaded.has(id)) throw new AppError("not_found", "Không tìm thấy dòng (có thể đã bị xoá).", { row_id: id });
   }
 
+  // The actor's own values of the person-stored columns (module4 3.4): where an update compares with what they had, and what is written back.
+  const ownBefore = new Map<string, Record<string, Stored>>();
+  if (access.hasPersonCells && targetIds.length) {
+    const res = await db.execute(sql`SELECT row_id, data FROM dh_person_cells WHERE /*scope*/ table_id = ${access.tableId}::uuid AND user_id = ${actorId}::uuid AND row_id = ANY(${uuidArray(targetIds)}::uuid[])`);
+    for (const r of res.rows as { row_id: string; data: Record<string, Stored> }[]) ownBefore.set(r.row_id, r.data);
+  }
+  const ownWrites = new Map<string, Record<string, Stored>>();
+
   // Under the split lock a reader may see a row they cannot edit (a Leader's view of a team member's deal): editing and deleting need the right to edit THAT row.
-  if (access.restricted) for (const p of plans) if (p.kind !== "create" && !access.canEditRow(loaded.get(p.id)!.data)) rowNotEditable(p.id);
+  const ownOnly = onlyOwnCells(schema, ops);
+  if (access.restricted && !ownOnly) for (const p of plans) if (p.kind !== "create" && !access.canEditRow(loaded.get(p.id)!.data)) rowNotEditable(p.id);
   await checkFiles(db, actorId, plans, loaded, schema, issues);
   const userUses: { row: number; column: string; id: string }[] = [];
   const lockedColumns = new Set<string>();
@@ -310,10 +329,13 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
       continue;
     }
     const isUpsert = ops[p.indexes[0]!]!.op === "upsert";
+    // Cells of person-stored columns are the actor's own: no conflict with anyone, never in the row's version, history or events.
+    const sharedCells = new Map([...p.cells].filter(([k]) => schema.resolve(k).storage !== "person"));
+    const ownCells = new Map([...p.cells].filter(([k]) => schema.resolve(k).storage === "person"));
     if (!isUpsert) {
       if (p.base) {
         // Cell-level merge (design section 7): a cell conflicts only when it changed since the client read it.
-        for (const [k, v] of p.cells) {
+        for (const [k, v] of sharedCells) {
           const col = schema.resolve(k);
           let base: Stored = null;
           if (k in p.base || col.name in p.base) {
@@ -329,14 +351,14 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
         }
       } else if (p.version === undefined) {
         throw new AppError("validation_error", "Sửa dòng cần gửi `base` (giá trị các ô bạn đã đọc) hoặc `version`.", { row_id: p.id });
-      } else if (p.version !== row.version) {
+      } else if (p.version !== row.version && sharedCells.size > 0) {
         versionConflicts.push({ row_id: p.id, current_version: row.version, sent_version: p.version });
       }
     }
-    const writes = [...p.cells].map(([k, v]) => sourceOf(schema.resolve(k)).planWrite(schema.resolve(k), v));
+    const writes = [...sharedCells].map(([k, v]) => sourceOf(schema.resolve(k)).planWrite(schema.resolve(k), v));
     const next = applyWrites(row.data, writes);
     const changes: FieldChange[] = [];
-    for (const [k, v] of p.cells) {
+    for (const [k, v] of sharedCells) {
       const was = row.data[k] ?? null;
       if (!same(was, v)) {
         const col = schema.resolve(k);
@@ -347,14 +369,27 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
         changedColumns.add(k);
       }
     }
+    // The actor's own cells: changed ones go to `dh_person_cells` (a column the actor made is theirs to write whatever `allow_edit` says).
+    const ownBeforeRow = ownBefore.get(p.id) ?? {};
+    let ownChanged = false;
+    for (const [k, v] of ownCells) {
+      const was = ownBeforeRow[k] ?? null;
+      if (same(was, v)) continue;
+      const col = schema.resolve(k);
+      if (v === null && col.required) issues.push({ row: p.indexes[0]!, column: col.name, message: `Cột "${col.name}" là bắt buộc, không để trống được.` });
+      if (access.level !== "owner" && !col.allowEdit && col.layer !== "custom") lockedColumns.add(col.name);
+      if (col.type === "user" && typeof v === "string") userUses.push({ row: p.indexes[0]!, column: col.name, id: v });
+      ownWrites.set(p.id, { ...(ownWrites.get(p.id) ?? {}), [k]: v });
+      ownChanged = true;
+    }
     if (changes.length === 0) {
-      outcome.set(p, "unchanged");
+      outcome.set(p, ownChanged ? "updated" : "unchanged");
       continue;
     }
     // Same-row formulas: computed here, in the transaction that saves the row. They never enter the history.
     formulas?.compute(next, { id: row.id, rowNo: row.rowNo, createdAt: row.createdAt, updatedAt: now, createdBy: row.createdBy, updatedBy: actorId }, now).forEach((k) => changedColumns.add(k));
     newData.set(p.id, next);
-    updateRows.push({ id: p.id, data: next, search: buildSearchText(next, schema.alive) });
+    updateRows.push({ id: p.id, data: next, search: buildSearchText(next, schema.aliveAll) });
     history.push({ rowId: p.id, version: row.version + 1, op: "update", changes });
     outcome.set(p, "updated");
   }
@@ -373,7 +408,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   if (creates.length > 1 && !access.bulkCreateAllowed()) bulkCreateOff();
   if (creates.length && access.level !== "owner") {
     const locked = new Set<string>();
-    for (const p of creates) for (const k of p.cells.keys()) if (!schema.resolve(k).allowEdit) locked.add(schema.resolve(k).name);
+    for (const p of creates) for (const k of p.cells.keys()) if (!schema.resolve(k).allowEdit && schema.resolve(k).layer !== "custom") locked.add(schema.resolve(k).name);
     if (locked.size) columnNotEditable([...locked]);
   }
   if (creates.length) {
@@ -390,30 +425,37 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     const firstNo = (res.rows[0] as { first_no: number }).first_no;
     creates.forEach((p, n) => {
       const data: Record<string, Stored> = {};
+      // The creator's own cells (person-stored columns) are kept apart: they never enter the row (module4 3.4).
+      const own: Record<string, Stored> = {};
       for (const c of schema.alive) {
         const def = columnTypeDef(c.type);
         if (!def.writable) continue;
-        if (!p.cells.has(c.key) && c.defaultValue !== null && c.defaultValue !== undefined) data[c.key] = c.defaultValue as Stored;
+        if (!p.cells.has(c.key) && c.defaultValue !== null && c.defaultValue !== undefined) (c.storage === "person" ? own : data)[c.key] = c.defaultValue as Stored;
       }
       for (const [k, v] of p.cells) {
-        if (v === null) delete data[k];
-        else data[k] = v;
+        const target = schema.resolve(k).storage === "person" ? own : data;
+        if (v === null) delete target[k];
+        else target[k] = v;
       }
+      if (Object.keys(own).length) ownWrites.set(p.id, own);
       // A member's new row carries their name in the main key column, so they see it (design module2 section 10).
       const primary = access.reader ? access.table.split.primary : null;
       if (primary && data[primary] === undefined) data[primary] = actorId;
       if (access.reader && !access.seesRow(data)) rowOutsideScope();
-      for (const c of schema.alive) if (c.type === "user" && typeof data[c.key] === "string") userUses.push({ row: p.indexes[0]!, column: c.name, id: data[c.key] as string });
+      for (const c of schema.alive) {
+        const v = c.storage === "person" ? own[c.key] : data[c.key];
+        if (c.type === "user" && typeof v === "string") userUses.push({ row: p.indexes[0]!, column: c.name, id: v });
+      }
       for (const c of autoCols) data[c.key] = autoStart.get(c.key)! + n;
       for (const c of requiredCols) {
-        if (data[c.key] === undefined) issues.push({ row: p.indexes[0]!, column: c.name, message: `Cột "${c.name}" là bắt buộc.` });
+        if ((c.storage === "person" ? own[c.key] : data[c.key]) === undefined) issues.push({ row: p.indexes[0]!, column: c.name, message: `Cột "${c.name}" là bắt buộc.` });
       }
       // History records what people entered; the formulas computed below never enter it.
       history.push({ rowId: p.id, version: 1, op: "create", changes: Object.entries(data).map(([field, v]) => ({ field, old: null, new: v })) });
       for (const k of Object.keys(data)) changedColumns.add(k);
       formulas?.compute(data, { id: p.id, rowNo: firstNo + n, createdAt: now, updatedAt: now, createdBy: actorId, updatedBy: actorId }, now).forEach((k) => changedColumns.add(k));
       newData.set(p.id, data);
-      insertRows.push({ id: p.id, row_no: firstNo + n, data, search: buildSearchText(data, schema.alive) });
+      insertRows.push({ id: p.id, row_no: firstNo + n, data, search: buildSearchText(data, schema.aliveAll) });
       outcome.set(p, "created");
     });
     throwIssues(issues);
@@ -440,6 +482,18 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     }
   } catch (e) {
     duplicateError(e, schema);
+  }
+  // The actor's own cells (module4 3.4): merged into their row of values; an empty cell removes its key. No history, no version, no event: nobody else can see them.
+  if (ownWrites.size) {
+    const entries = [...ownWrites].map(([row_id, data]) => ({ row_id, set: Object.fromEntries(Object.entries(data).filter(([, v]) => v !== null)), unset: Object.entries(data).filter(([, v]) => v === null).map(([k]) => k) }));
+    const json = JSON.stringify(entries);
+    await db.execute(sql`INSERT INTO dh_person_cells (row_id, user_id, table_id, data)
+      SELECT v.row_id, ${actorId}::uuid, ${access.tableId}::uuid, v.set FROM jsonb_to_recordset(${json}::jsonb) AS v(row_id uuid, set jsonb, unset jsonb)
+      ON CONFLICT (row_id, user_id) DO UPDATE SET data = dh_person_cells.data || EXCLUDED.data`);
+    if (entries.some((e) => e.unset.length)) {
+      await db.execute(sql`UPDATE dh_person_cells c SET data = c.data - ARRAY(SELECT jsonb_array_elements_text(v.unset))
+        FROM jsonb_to_recordset(${json}::jsonb) AS v(row_id uuid, set jsonb, unset jsonb) WHERE /*scope*/ c.table_id = ${access.tableId}::uuid AND c.user_id = ${actorId}::uuid AND c.row_id = v.row_id AND jsonb_array_length(v.unset) > 0`);
+    }
   }
   if (deleteIds.length) {
     const res = await db.execute(sql`UPDATE dh_rows SET deleted_at = now(), deleted_by = ${actorId}::uuid, version = version + 1, updated_at = now(), updated_by = ${actorId}::uuid
@@ -482,10 +536,20 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   await emit("datahub.row.updated", updated);
   await emit("datahub.row.deleted", deleted);
 
+  // What the actor gets back is their row as they see it: their own values of the person-stored columns on top of the row.
+  const ownNow = new Map<string, Record<string, Stored>>();
+  if (access.hasPersonCells) {
+    const want = [...new Set(plans.filter((p) => outcome.get(p) !== "deleted").map((p) => p.id))];
+    if (want.length) {
+      const res = await db.execute(sql`SELECT row_id, data FROM dh_person_cells WHERE /*scope*/ table_id = ${access.tableId}::uuid AND user_id = ${actorId}::uuid AND row_id = ANY(${uuidArray(want)}::uuid[])`);
+      for (const r of res.rows as { row_id: string; data: Record<string, Stored> }[]) ownNow.set(r.row_id, r.data);
+    }
+  }
   return ops.map((o, i) => {
     const p = planOf[i]!;
     const oc = outcome.get(p)!;
-    const row = out.get(p.id) ?? loaded.get(p.id) ?? null;
+    const base = out.get(p.id) ?? loaded.get(p.id) ?? null;
+    const row = base && ownNow.has(p.id) ? { ...base, data: { ...base.data, ...ownNow.get(p.id) } } : base;
     return { op: o.op, outcome: oc, id: p.id, row: oc === "deleted" || !row ? null : toApiRow(row, schema, opts.labels), seq };
   });
 }

@@ -20,11 +20,52 @@ export const dhDatahubs = pgTable(
     name: text("name").notNull(),
     nameNorm: text("name_norm").generatedAlwaysAs(norm("name")),
     description: text("description"),
+    /** `deal` = the protected datahub "Quản lý Deal" of a person (module4 1.1, Stage 4.1c): not renamed, not deleted, not counted in the limit. Null = ordinary. */
+    systemKey: text("system_key"),
   },
   (t) => [
+    uniqueIndex("dh_datahubs_system_uq").on(t.ownerId, t.systemKey).where(sql`${t.systemKey} IS NOT NULL AND ${t.deletedAt} IS NULL`),
     uniqueIndex("dh_datahubs_owner_name_uq").on(t.ownerId, t.nameNorm).where(sql`${t.deletedAt} IS NULL`),
     index("dh_datahubs_owner_idx").on(t.ownerId),
     check("dh_datahubs_name_chk", sql`char_length(btrim(${t.name})) BETWEEN 1 AND 100 AND ${t.name} !~ '[\\[\\]]'`),
+  ],
+);
+
+/**
+ * A template table (design module4 3.5, Stage 4.1c): a table a Manager (whole tree) or a Leader (one team) defines once and the system keeps in the
+ * datahub "Quản lý Deal" of everyone in scope. `shared` = ONE physical table (rows in `dh_rows`, the creator owns it, the people in scope are
+ * members through automatic shares; split lock decides who sees which row). `personal` = one physical copy per person, same structure, private data
+ * (Index). `master_table_id` is the table that holds the definition: the shared table itself, or the creator's own copy for a personal template.
+ */
+export const dhTemplates = pgTable(
+  "dh_templates",
+  {
+    ...standardColumns(),
+    kind: text("kind").notNull(),
+    scope: text("scope").notNull(),
+    /** The tree (a Manager). For a team template also the Manager of that team's Leader at creation. */
+    managerId: uuid("manager_id")
+      .notNull()
+      .references(() => users.id),
+    /** Team template: the Leader. The template belongs to the TEAM: a new Leader inherits it (design module4 3.5). */
+    leaderId: uuid("leader_id").references(() => users.id),
+    name: text("name").notNull(),
+    nameNorm: text("name_norm").generatedAlwaysAs(norm("name")),
+    masterTableId: uuid("master_table_id"),
+    /** Permission the members get on a shared template table: `view` | `edit_data`. */
+    memberPermission: text("member_permission").notNull().default("view"),
+    /** "Leader được thêm cột team" (design module4 3.8). */
+    leaderCanAddColumns: boolean("leader_can_add_columns").notNull().default(false),
+    /** Which set of column roles the table uses (module4 3.7): `deals` ... Null = no roles. */
+    roleSet: text("role_set"),
+  },
+  (t) => [
+    uniqueIndex("dh_templates_name_uq").on(t.managerId, t.nameNorm).where(sql`${t.deletedAt} IS NULL`),
+    index("dh_templates_leader_idx").on(t.leaderId),
+    check("dh_templates_kind_chk", sql`${t.kind} IN ('shared', 'personal')`),
+    check("dh_templates_scope_chk", sql`(${t.scope} = 'tree' AND ${t.leaderId} IS NULL) OR (${t.scope} = 'team' AND ${t.leaderId} IS NOT NULL)`),
+    check("dh_templates_perm_chk", sql`${t.memberPermission} IN ('view', 'edit_data')`),
+    check("dh_templates_name_chk", sql`char_length(btrim(${t.name})) BETWEEN 1 AND 100 AND ${t.name} !~ '[\\[\\]]'`),
   ],
 );
 
@@ -60,8 +101,19 @@ export const dhTables = pgTable(
     keyPrimary: text("key_primary"),
     /** May members who are not the owner create more than one row in one go (import, paste, batch)? Default on; template tables turn it off (module4 3.5). */
     membersBulkCreate: boolean("members_bulk_create").notNull().default(true),
+    /** Protected (template) table: no rename, no delete from the table commands; only the template commands change it (design module4 1.3, Stage 4.1c). */
+    protected: boolean("protected").notNull().default(false),
+    /** The template this table was made from (the shared table, or one person's copy of a personal template). */
+    templateId: uuid("template_id").references(() => dhTemplates.id),
+    /** Personal template: the person this copy belongs to. */
+    templateUserId: uuid("template_user_id").references(() => users.id),
+    /** Hidden and kept (the person left the template's scope): soft-deleted too, but never purged and restored only by the template sync. */
+    archived: boolean("archived").notNull().default(false),
+    /** Same as `dh_templates.role_set` (column roles of this table). */
+    roleSet: text("role_set"),
   },
   (t) => [
+    index("dh_tables_template_idx").on(t.templateId),
     check("dh_tables_key_cols_chk", sql`cardinality(${t.keyColumns}) <= 5`),
     check("dh_tables_kind_chk", sql`${t.kind} IN ('normal', 'merged')`),
     uniqueIndex("dh_tables_name_uq").on(t.datahubId, t.nameNorm).where(sql`${t.deletedAt} IS NULL`),
@@ -89,6 +141,21 @@ export const dhColumns = pgTable(
     allowEdit: boolean("allow_edit").notNull().default(true),
     /** Computed column whose value depends on who reads it (it reads a split-lock table, or another such column): design module2 section 10. Kept by `reader-scope.ts`. */
     readerScoped: boolean("reader_scoped").notNull().default(false),
+    /**
+     * Template layer (design module4 3.1, Stage 4.1c): null = an ordinary table's column; `basic` | `role` | `team` | `custom`. `layer_ref`: for `team` the Leader
+     * whose team sees the column, for `custom` the person who made it (nobody else sees it). `layer_roles`: for `role` the roles that see it.
+     */
+    layer: text("layer"),
+    layerRef: uuid("layer_ref").references(() => users.id),
+    layerRoles: text("layer_roles").array(),
+    /** `shared` = one value per row in `dh_rows.data`; `person` = one value per person, kept in `dh_person_cells` (design module4 3.4). */
+    storage: text("storage").notNull().default("shared"),
+    /** Column role (design module4 3.7): unique per table. */
+    role: text("role"),
+    /** A copy of a personal template: the column of the master table this one follows (same name, type, formula by names). */
+    templateColumnId: uuid("template_column_id"),
+    /** Protected (template) column: no rename, delete, type change or edit from the column commands. */
+    protected: boolean("protected").notNull().default(false),
     isUnique: boolean("is_unique").notNull().default(false),
     defaultValue: jsonb("default_value"),
     description: text("description"),
@@ -113,7 +180,11 @@ export const dhColumns = pgTable(
   },
   (t) => [
     uniqueIndex("dh_columns_key_uq").on(t.tableId, t.key),
-    uniqueIndex("dh_columns_name_uq").on(t.tableId, t.nameNorm).where(sql`${t.deletedAt} IS NULL`),
+    uniqueIndex("dh_columns_name_uq").on(t.tableId, t.nameNorm).where(sql`${t.deletedAt} IS NULL AND ${t.layer} IS DISTINCT FROM 'custom'`),
+    uniqueIndex("dh_columns_custom_name_uq").on(t.tableId, t.layerRef, t.nameNorm).where(sql`${t.deletedAt} IS NULL AND ${t.layer} = 'custom'`),
+    uniqueIndex("dh_columns_role_uq").on(t.tableId, t.role).where(sql`${t.deletedAt} IS NULL AND ${t.role} IS NOT NULL`),
+    check("dh_columns_layer_chk", sql`${t.layer} IS NULL OR ${t.layer} IN ('basic', 'role', 'team', 'custom')`),
+    check("dh_columns_storage_chk", sql`${t.storage} IN ('shared', 'person')`),
     index("dh_columns_table_idx").on(t.tableId),
     check("dh_columns_name_chk", sql`char_length(btrim(${t.name})) BETWEEN 1 AND 100 AND ${t.name} !~ '[\\[\\]]'`),
     check("dh_columns_key_chk", sql`${t.key} ~ '^[a-z][a-z0-9_]{0,40}$'`),
@@ -234,6 +305,8 @@ export const dhShares = pgTable(
     /** `view` | `edit_data` */
     permission: text("permission").notNull(),
     createdBy: uuid("created_by").references(() => users.id),
+    /** Made by the template sync (module4 3.5, Stage 4.1c): follows the organization tree, removed when the person leaves the scope. */
+    auto: boolean("auto").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
@@ -278,6 +351,28 @@ export const dhPersonalRows = pgTable(
     data: jsonb("data").notNull().default(sql`'{}'::jsonb`),
   },
   (t) => [primaryKey({ columns: [t.rowId, t.userId] }), index("dh_personal_rows_user_idx").on(t.tableId, t.userId)],
+);
+
+/**
+ * The values of the person-stored columns (`dh_columns.storage = 'person'`: custom columns, "mỗi người một giá trị" template columns), one set per
+ * person per row. Same shape as `dh_rows.data` but only holds those columns' keys. Never in `dh_rows.data`, so no row read, history, export or event of
+ * someone else can carry them; read through `TableAccess.rel()`, which lays the reader's own values over `data`. Kept when a person leaves a table.
+ */
+export const dhPersonCells = pgTable(
+  "dh_person_cells",
+  {
+    rowId: uuid("row_id")
+      .notNull()
+      .references(() => dhRows.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    tableId: uuid("table_id")
+      .notNull()
+      .references(() => dhTables.id, { onDelete: "cascade" }),
+    data: jsonb("data").notNull().default(sql`'{}'::jsonb`),
+  },
+  (t) => [primaryKey({ columns: [t.rowId, t.userId] }), index("dh_person_cells_user_idx").on(t.tableId, t.userId)],
 );
 
 /** Per-user overrides of the Datahub limits (design section 11). Null = use the system default. */

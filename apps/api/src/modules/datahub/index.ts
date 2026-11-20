@@ -12,6 +12,7 @@ import { mergeOperations } from "./merge-ops";
 import { rowOperations } from "./row-ops";
 import { splitOperations } from "./split-ops";
 import { structureOperations } from "./structure";
+import { templateOperations } from "./template-ops";
 import "./transfer";
 import "./export-job";
 import "./import-job";
@@ -19,11 +20,11 @@ import "./import-job";
 // Datahub rows are private data: the Admin's audit log records the action and the field names, never the values
 // (design module1 section 10). Every table that holds datahub data must go through the scoped query helpers.
 registerPrivateAuditTarget("datahub_row");
-for (const t of ["dh_datahubs", "dh_tables", "dh_columns", "dh_rows", "dh_views", "dh_view_overrides", "dh_table_state", "dh_shares", "dh_formula_deps", "dh_personal_rows", "dh_merges", "dh_merge_rows"]) registerOwnedTable(t);
-registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.maxColumns, DH_SETTINGS.recalcParallel, DH_SETTINGS.consistentWaitMs, DH_SETTINGS.fiscalStartMonth);
+for (const t of ["dh_datahubs", "dh_tables", "dh_columns", "dh_rows", "dh_views", "dh_view_overrides", "dh_table_state", "dh_shares", "dh_formula_deps", "dh_personal_rows", "dh_person_cells", "dh_templates", "dh_merges", "dh_merge_rows"]) registerOwnedTable(t);
+registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.maxColumns, DH_SETTINGS.recalcParallel, DH_SETTINGS.consistentWaitMs, DH_SETTINGS.fiscalStartMonth, DH_SETTINGS.templatesPerScope);
 
 export { datahubEvents };
-export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...duplicateOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations, ...lookupOperations, ...mergeOperations, ...splitOperations];
+export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...duplicateOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations, ...lookupOperations, ...mergeOperations, ...splitOperations, ...templateOperations];
 export { exportOperations } from "./export-job";
 export { importOperations } from "./import-job";
 export { jobOperations, processJobs, resetRunningJobs, startJobLoop, purgeJobFiles } from "./jobs";
@@ -68,4 +69,6 @@ export const datahubJobs: JobDef[] = [
     },
   },
 ];
+export { templateSubscriber } from "./template-ops";
+export { syncTemplate, syncAllTemplates } from "./template-sync";
 export { mergeSubscriber, processPendingMerges, startMergeLoop, requestRescope } from "./merge-sync";

@@ -11,7 +11,7 @@ import type { ListOutput } from "../../core/types";
 import { CODE_TTL_HOURS } from "../auth/codes";
 
 /** Notification types created in Stage 1. Module 6 adds more. */
-export const NOTIFICATION_TYPES = { authCode: "auth.code", datahubReconcile: "datahub.reconcile" } as const;
+export const NOTIFICATION_TYPES = { authCode: "auth.code", datahubReconcile: "datahub.reconcile", datahubTemplateConflict: "datahub.template.conflict" } as const;
 
 const CODE_MASK = "••••••";
 
@@ -57,7 +57,23 @@ const reconcileMismatch: Notifier = (ev) => {
   }));
 };
 
-export const notifiers: Record<string, Notifier> = { "auth.code.requested": codeRequested, "datahub.reconcile.mismatch": reconcileMismatch };
+/** A template table or column took the name of the person's own: theirs was renamed `<tên> (riêng)` (design module4 3.1, 3.5). Names only. */
+const templateConflict: Notifier = (ev) => {
+  const p = ev.payload as { recipient_id: string; template_name: string; object: "table" | "column" | "datahub"; old_name: string; new_name: string; table_name?: string };
+  const what = p.object === "table" ? "Bảng" : p.object === "column" ? "Cột" : "Datahub";
+  const where = p.object === "column" && p.table_name ? ` trong bảng "${p.table_name}"` : "";
+  return [
+    {
+      userId: p.recipient_id,
+      type: NOTIFICATION_TYPES.datahubTemplateConflict,
+      title: `${what} của bạn được đổi tên`,
+      body: `${what} "${p.old_name}"${where} trùng tên với template "${p.template_name}" nên được đổi thành "${p.new_name}". Dữ liệu và công thức giữ nguyên.`,
+      data: { object: p.object, old_name: p.old_name, new_name: p.new_name, template_name: p.template_name },
+    },
+  ];
+};
+
+export const notifiers: Record<string, Notifier> = { "auth.code.requested": codeRequested, "datahub.reconcile.mismatch": reconcileMismatch, "datahub.template.conflict": templateConflict };
 
 /**
  * Outbox subscriber: creates one notification per recipient (idempotent by `source_event_id`), then queues a

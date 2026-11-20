@@ -198,7 +198,7 @@ export const rowOperations = [
     output: WriteRowOut,
     http: { method: "PATCH", path: "/tables/:table_id/rows/:row_id" },
     handler: async (ctx, i) => {
-      const acc = await loadTableAccess(ctx, i.table_id, "edit_data");
+      const acc = await loadTableAccess(ctx, i.table_id, "view");
       const schema = await TableSchema.load(ctx.db, acc);
       const [r] = await applyRowOps(ctx, acc, schema, [{ op: "update", id: i.row_id, data: i.data, base: i.base, version: i.version }], { labels: i.labels });
       return { ...r!.row!, seq: r!.seq };
@@ -250,7 +250,7 @@ export const rowOperations = [
     output: z.object({ results: z.array(OpResultOut), seq: SeqOut }),
     http: { method: "POST", path: "/tables/:table_id/rows/batch" },
     handler: async (ctx, i) => {
-      const acc = await loadTableAccess(ctx, i.table_id, "edit_data");
+      const acc = await loadTableAccess(ctx, i.table_id, "view");
       const schema = await TableSchema.load(ctx.db, acc);
       const results = await applyRowOps(ctx, acc, schema, i.ops as RowOp[], { labels: i.labels });
       return { results, seq: results[0]!.seq };

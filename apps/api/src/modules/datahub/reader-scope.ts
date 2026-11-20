@@ -15,15 +15,18 @@ import { loadReader } from "./access";
 type Raw = Record<string, unknown>;
 
 /**
- * `FROM` fragment for the rows of a table as ONE member reads them: `dh_rows` with the member's own values of the reader-scoped columns laid
- * over `data` (the owner's values of those columns are dropped first). `keep` = extra condition on alias `r` (the split lock of the table, kept
+ * `FROM` fragment for the rows of a table as ONE person reads them: `dh_rows` with the person's own values of the reader-scoped columns laid
+ * over `data` (the owner's values of those columns are dropped first), then their own values of the person-stored columns (`dh_person_cells`, `withPerson`). `keep` = extra condition on alias `r` (the split lock of the table, kept
  * inside so the key indexes still apply). Used as `FROM ${overlayRel(...)} <alias>`.
  */
-export function overlayRel(tableId: string, userId: string, scopedKeys: string[], keep: SQL | null = null): SQL {
+export function overlayRel(tableId: string, userId: string, scopedKeys: string[], keep: SQL | null = null, withPerson = false): SQL {
   const strip = sql.raw(`ARRAY[${scopedKeys.flatMap((k) => [`'${assertColumnKey(k)}'`, `'!${assertColumnKey(k)}'`]).join(",")}]::text[]`);
+  const base = scopedKeys.length ? sql`(r.data - ${strip})` : sql`r.data`;
+  const joins = [scopedKeys.length ? sql`LEFT JOIN dh_personal_rows p ON p.row_id = r.id AND p.user_id = ${userId}::uuid` : sql``, withPerson ? sql`LEFT JOIN dh_person_cells pc ON pc.row_id = r.id AND pc.user_id = ${userId}::uuid` : sql``];
+  const merged = sql`${base}${scopedKeys.length ? sql` || coalesce(p.data, '{}'::jsonb)` : sql``}${withPerson ? sql` || coalesce(pc.data, '{}'::jsonb)` : sql``}`;
   return sql`(SELECT r.id, r.table_id, r.row_no, r.version, r.search, r.created_at, r.created_by, r.updated_at, r.updated_by, r.deleted_at, r.deleted_by,
-      (r.data - ${strip}) || coalesce(p.data, '{}'::jsonb) AS data
-    FROM dh_rows r LEFT JOIN dh_personal_rows p ON p.row_id = r.id AND p.user_id = ${userId}::uuid
+      ${merged} AS data
+    FROM dh_rows r ${joins[0]} ${joins[1]}
     WHERE /*scope*/ r.table_id = ${tableId}::uuid ${keep ? sql`AND ${keep}` : sql``})`;
 }
 

@@ -430,9 +430,9 @@ export const trashOperations = [
       const me = ctx.actor.userId;
       const days = await getTrashRetentionDays(ctx.db);
       const purge = (d: Date | string) => new Date(new Date(d).getTime() + days * 86400_000);
-      const dhs = await ctx.db.execute(sql`SELECT id, name, deleted_at FROM dh_datahubs WHERE /*scope*/ owner_id = ${me}::uuid AND deleted_at IS NOT NULL ORDER BY deleted_at DESC`);
+      const dhs = await ctx.db.execute(sql`SELECT id, name, deleted_at FROM dh_datahubs WHERE /*scope*/ owner_id = ${me}::uuid AND deleted_at IS NOT NULL AND system_key IS NULL ORDER BY deleted_at DESC`);
       const tbs = await ctx.db.execute(sql`SELECT t.id, t.datahub_id, d.name AS datahub_name, t.name, t.deleted_at FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
-        WHERE /*scope*/ d.owner_id = ${me}::uuid AND d.deleted_at IS NULL AND t.deleted_at IS NOT NULL ORDER BY t.deleted_at DESC`);
+        WHERE /*scope*/ d.owner_id = ${me}::uuid AND d.deleted_at IS NULL AND t.deleted_at IS NOT NULL AND NOT t.archived ORDER BY t.deleted_at DESC`);
       let columns: Raw[] = [];
       let rows: Raw[] = [];
       if (i.table_id) {

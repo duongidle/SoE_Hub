@@ -21,6 +21,12 @@ export function columnFromDb(r: Raw): DhColumn {
     required: !!r.required,
     allowEdit: r.allow_edit === undefined ? true : !!r.allow_edit,
     readerScoped: !!r.reader_scoped,
+    layer: (r.layer as DhColumn["layer"] | undefined) ?? null,
+    layerRef: (r.layer_ref as string | null | undefined) ?? null,
+    layerRoles: (r.layer_roles as string[] | null | undefined) ?? null,
+    storage: r.storage === "person" ? "person" : "shared",
+    role: (r.role as string | null | undefined) ?? null,
+    protected: !!r.protected,
     isUnique: !!r.is_unique,
     defaultValue: r.default_value ?? null,
     description: (r.description as string | null) ?? null,
@@ -64,7 +70,12 @@ export const normName = (s: string) => s.normalize("NFC").trim().toLowerCase();
 
 /** The columns of a table at one moment, with name/key resolution and the FieldMap built from the column sources. */
 export class TableSchema {
+  /** The live columns THIS person sees (template layers hide some: design module4 3.1). */
   readonly alive: DhColumn[];
+  /** Every live column of the table, hidden ones included: what a write must keep whole (search text, same-row formulas), never what a person is shown. */
+  readonly aliveAll: DhColumn[];
+  /** Keys of the columns in `dh_rows.data` that this person does not see; their values are left out of every row shown. */
+  readonly hiddenKeys: Set<string>;
   private readonly byKey = new Map<string, DhColumn>();
   private readonly byName = new Map<string, DhColumn>();
 
@@ -72,15 +83,19 @@ export class TableSchema {
     readonly tableId: string,
     /** Live columns, then (when asked) trashed ones, by position. */
     readonly all: DhColumn[],
+    hidden: DhColumn[] = [],
   ) {
     this.alive = all.filter((c) => !c.deletedAt);
+    this.aliveAll = [...this.alive, ...hidden.filter((c) => !c.deletedAt && c.storage === "shared")];
+    this.hiddenKeys = new Set(hidden.filter((c) => c.storage === "shared").map((c) => c.key));
     for (const c of all) this.byKey.set(c.key, c);
     for (const c of this.alive) this.byName.set(normName(c.name), c);
   }
 
   static async load(db: Executor, access: TableAccess): Promise<TableSchema> {
     const res = await db.execute(sql`SELECT * FROM dh_columns WHERE ${access.scope()} ORDER BY position, created_at, id`);
-    return new TableSchema(access.tableId, (res.rows as Raw[]).map(columnFromDb));
+    const cols = (res.rows as Raw[]).map(columnFromDb);
+    return new TableSchema(access.tableId, cols.filter((c) => access.canSeeColumn(c)), cols.filter((c) => !access.canSeeColumn(c)));
   }
 
   /** A column by key (also trashed ones) or by name (live ones only). Null when none matches. */
@@ -225,6 +240,8 @@ export interface ApiRow {
 /** Row in API shape. `labels=true` turns select option ids into names. */
 export function toApiRow(row: LoadedRow, schema: TableSchema, labels = false): ApiRow {
   let data: Record<string, unknown> = exposeErrors(row.data);
+  // A template column this person does not see (another team's, another role's) keeps its values out of their rows (module4 3.1).
+  if (schema.hiddenKeys.size) data = Object.fromEntries(Object.entries(data).filter(([k]) => !schema.hiddenKeys.has(k.startsWith("!") ? k.slice(1) : k)));
   if (labels) {
     const plain = data;
     data = {};

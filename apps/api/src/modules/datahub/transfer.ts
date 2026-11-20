@@ -18,11 +18,11 @@ export const datahubTransferHandler: TransferHandler = {
   key: "datahubs",
   label: "Datahub",
   async preview(ex, from) {
-    const res = await ex.execute(sql`SELECT id, name, deleted_at FROM dh_datahubs WHERE /*scope:system*/ owner_id = ${from}::uuid ORDER BY created_at`);
+    const res = await ex.execute(sql`SELECT id, name, deleted_at FROM dh_datahubs WHERE /*scope:system*/ owner_id = ${from}::uuid AND system_key IS NULL ORDER BY created_at`);
     return (res.rows as Raw[]).map((r) => ({ type: "datahub", id: r.id as string, label: `${r.name as string}${r.deleted_at ? " (trong thùng rác)" : ""}`, action: "move" as const }));
   },
   async execute(ex, from, to, _opts, actor) {
-    const res = await ex.execute(sql`SELECT id, name, deleted_at FROM dh_datahubs WHERE /*scope:system*/ owner_id = ${from}::uuid ORDER BY created_at FOR UPDATE`);
+    const res = await ex.execute(sql`SELECT id, name, deleted_at FROM dh_datahubs WHERE /*scope:system*/ owner_id = ${from}::uuid AND system_key IS NULL ORDER BY created_at FOR UPDATE`);
     const items = [];
     for (const r of res.rows as Raw[]) {
       let name = r.name as string;

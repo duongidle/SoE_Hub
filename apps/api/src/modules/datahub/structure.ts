@@ -97,6 +97,9 @@ const TableOut = z.object({
   /** Split lock (design module2 section 10). `key_columns` keeps its list while the lock is off. Row count is what YOU see when the lock is on and you are not the owner. */
   key_split: z.object({ enabled: z.boolean(), key_columns: z.array(z.object({ key: z.string(), name: z.string() })), primary: z.string().nullable() }),
   members_bulk_create: z.boolean().describe("Thành viên không phải chủ có được thêm nhiều dòng một lúc (nhập file, dán, API hàng loạt) không."),
+  protected: z.boolean().describe("Bảng template: không đổi tên, không xoá từ lệnh bảng thường; chỉ thêm được cột riêng."),
+  template_id: Id.nullable(),
+  role_set: z.string().nullable().describe("Bộ vai trò cột của bảng (Module 4 mục 3.7), null = không dùng vai trò."),
 });
 
 export const ColumnOut = z.object({
@@ -108,6 +111,13 @@ export const ColumnOut = z.object({
   position: z.number().int(),
   required: z.boolean(),
   allow_edit: z.boolean().describe("Thành viên có quyền Sửa có được sửa ô của cột này không."),
+  /** Template layer (module4 3.1): null = a column of an ordinary table. `custom` = yours alone: nobody else sees it. */
+  layer: z.enum(["basic", "role", "team", "custom"]).nullable(),
+  layer_ref: Id.nullable().describe("Lớp `team`: Leader của team thấy cột. Lớp `custom`: người tạo cột."),
+  layer_roles: z.array(z.string()).nullable().describe("Lớp `role`: các vai trò thấy cột."),
+  storage: z.enum(["shared", "person"]).describe("`shared`: một giá trị mỗi dòng. `person`: mỗi người một giá trị."),
+  role: z.string().nullable().describe("Vai trò cột (Module 4 mục 3.7) nếu cột đang giữ vai trò."),
+  protected: z.boolean().describe("Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."),
   unique: z.boolean(),
   default_value: z.unknown(),
   description: z.string().nullable(),
@@ -130,12 +140,21 @@ export function columnOut(c: ReturnType<typeof columnFromDb>, ix: OwnerIndex | n
   if (def.type === "auto_number") delete config.seq;
   if (isComputedType(c.type) || c.type === "relation") config = displayConfig({ type: c.type, config, tableId: c.tableId }, ix);
   const calc = isComputedType(c.type) ? { status: c.calcStatus as "ready" | "pending" | "running", done: c.calcDone, total: c.calcTotal, at: c.calcAt, seq: c.calcSeq } : null;
-  return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, allow_edit: c.allowEdit, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, version: c.version, calc };
+  return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, allow_edit: c.allowEdit, layer: c.layer, layer_ref: c.layerRef, layer_roles: c.layerRoles, storage: c.storage, role: c.role, protected: c.protected, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, version: c.version, calc };
 }
 
 /** Index of the owner's tables, loaded only when a column needs names of other objects. */
 export async function indexFor(db: Executor, ownerId: string, cols: { type: string }[]): Promise<OwnerIndex | null> {
   return cols.some((c) => isComputedType(c.type) || c.type === "relation") ? OwnerIndex.load(db, ownerId) : null;
+}
+
+/** Datahub "Quản lý Deal" (and its protected tables) is not renamed or deleted from the ordinary commands (design module4 1.3). */
+function protectedDatahub(what: string): AppError {
+  return new AppError("forbidden", `Datahub "Quản lý Deal" là datahub của hệ thống, không ${what} được.`, { reason: "template_protected" });
+}
+
+function protectedTable(name: string, what: string): AppError {
+  return new AppError("forbidden", `Bảng "${name}" là bảng template, không ${what} ở đây. Chỉ người sửa template làm được, ở trang Template.`, { reason: "template_protected" });
 }
 
 export const structureOperations = [
@@ -152,7 +171,7 @@ export const structureOperations = [
     handler: async (ctx, i) => {
       const me = ctx.actor.userId;
       const limits = await getLimits(ctx.db, me);
-      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_datahubs WHERE /*scope*/ owner_id = ${me}::uuid AND deleted_at IS NULL`);
+      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_datahubs WHERE /*scope*/ owner_id = ${me}::uuid AND deleted_at IS NULL AND system_key IS NULL`);
       if ((cnt.rows[0] as { n: number }).n >= limits.datahubs) quotaExceeded("datahub", limits.datahubs);
       const id = newId();
       try {
@@ -218,6 +237,7 @@ export const structureOperations = [
     http: { method: "PATCH", path: "/datahubs/:datahub_id" },
     handler: async (ctx, i) => {
       const acc = await loadDatahubAccess(ctx, i.datahub_id, "owner");
+      if (acc.systemKey && i.name !== undefined && i.name !== acc.name) throw protectedDatahub("đổi tên");
       if (i.version !== undefined && i.version !== acc.version) throw new AppError("conflict", undefined, { current_version: acc.version, sent_version: i.version });
       try {
         await ctx.db.execute(sql`UPDATE dh_datahubs SET name = coalesce(${i.name ?? null}, name), description = ${i.description === undefined ? sql`description` : sql`${i.description}`},
@@ -244,6 +264,7 @@ export const structureOperations = [
     http: { method: "DELETE", path: "/datahubs/:datahub_id" },
     handler: async (ctx, i) => {
       const acc = await loadDatahubAccess(ctx, i.datahub_id, "owner");
+      if (acc.systemKey) throw protectedDatahub("xoá");
       await ctx.db.execute(sql`UPDATE dh_datahubs SET deleted_at = now(), deleted_by = ${ctx.actor.userId}::uuid, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE /*scope*/ id = ${acc.id}::uuid`);
       ctx.audit({ type: "datahub", id: acc.id, details: { name: acc.name } });
       await emitStructure(ctx, acc.id, null, "datahub_deleted");
@@ -289,9 +310,15 @@ export const structureOperations = [
     handler: async (ctx, i) => {
       const dh = await loadDatahubAccess(ctx, i.datahub_id, "owner");
       const limits = await getLimits(ctx.db, ctx.actor.userId);
-      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n, coalesce(max(position), -1) + 1 AS next FROM dh_tables WHERE /*scope*/ datahub_id = ${dh.id}::uuid AND deleted_at IS NULL`);
+      const cnt = await ctx.db.execute(sql`SELECT count(*) FILTER (WHERE template_id IS NULL)::int AS n, coalesce(max(position), -1) + 1 AS next FROM dh_tables WHERE /*scope*/ datahub_id = ${dh.id}::uuid AND deleted_at IS NULL`);
       const { n, next } = cnt.rows[0] as { n: number; next: number };
       if (n >= limits.tables) quotaExceeded("bảng trong một datahub", limits.tables);
+      // In the datahub "Quản lý Deal" a template table of the same name (yours or shared with you) already holds the name (module4 3.5).
+      if (dh.systemKey) {
+        const clash = await ctx.db.execute(sql`SELECT 1 FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
+          WHERE /*scope*/ t.template_id IS NOT NULL AND t.deleted_at IS NULL AND t.name_norm = lower(btrim(${i.name})) AND (t.datahub_id = ${dh.id}::uuid OR EXISTS (SELECT 1 FROM dh_shares s WHERE s.grantee_id = ${ctx.actor.userId}::uuid AND s.datahub_id = t.datahub_id AND (s.table_id IS NULL OR s.table_id = t.id)))`);
+        if (clash.rows.length) throw new AppError("conflict", "Đã có một bảng template tên này. Hãy đặt tên khác.", { reason: "duplicate_name" });
+      }
       const id = newId();
       try {
         await ctx.db.execute(sql`INSERT INTO dh_tables (id, datahub_id, name, description, position, created_by, updated_by) VALUES (${id}::uuid, ${dh.id}::uuid, ${i.name}, ${i.description ?? null}, ${next}::int, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
@@ -320,7 +347,7 @@ export const structureOperations = [
       const cols = await ctx.db.execute(sql`SELECT * FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NULL ORDER BY position, created_at, id`);
       const limits = await getLimits(ctx.db, acc.datahub.ownerId);
       return { ...(await tableOut(ctx.db, acc)), datahub_name: acc.datahub.name, owner_id: acc.datahub.ownerId, columns: await (async () => {
-        const list = (cols.rows as Raw[]).map(columnFromDb);
+        const list = (cols.rows as Raw[]).map(columnFromDb).filter((c) => acc.canSeeColumn(c));
         // Only the owner sees names of other tables inside formulas; people the table is shared with see values only.
         const ix = acc.level === "owner" ? await indexFor(ctx.db, acc.datahub.ownerId, list) : null;
         return list.map((c) => columnOut(c, ix));
@@ -339,6 +366,7 @@ export const structureOperations = [
     http: { method: "PATCH", path: "/tables/:table_id" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      if (acc.table.protected && i.name !== undefined && i.name !== acc.table.name) throw protectedTable(acc.table.name, "đổi tên");
       if (i.version !== undefined && i.version !== acc.table.version) throw new AppError("conflict", undefined, { current_version: acc.table.version, sent_version: i.version });
       try {
         await ctx.db.execute(sql`UPDATE dh_tables SET name = coalesce(${i.name ?? null}, name), description = ${i.description === undefined ? sql`description` : sql`${i.description}`}, position = coalesce(${i.position ?? null}::int, position),
@@ -363,6 +391,7 @@ export const structureOperations = [
     http: { method: "DELETE", path: "/tables/:table_id" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "owner");
+      if (acc.table.protected) throw protectedTable(acc.table.name, "xoá");
       await ctx.db.execute(sql`UPDATE dh_tables SET deleted_at = now(), deleted_by = ${ctx.actor.userId}::uuid, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE /*scope*/ id = ${acc.tableId}::uuid`);
       ctx.audit({ type: "datahub_table", id: acc.tableId, details: { name: acc.table.name } });
       await emitStructure(ctx, acc.datahub.id, acc.tableId, "table_deleted");
@@ -381,8 +410,9 @@ export const structureOperations = [
     http: { method: "POST", path: "/tables/:table_id/restore" },
     handler: async (ctx, i) => {
       const acc = await loadTableAccess(ctx, i.table_id, "owner", { state: "trashed" });
+      if (acc.table.protected) throw protectedTable(acc.table.name, "khôi phục");
       const limits = await getLimits(ctx.db, ctx.actor.userId);
-      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_tables WHERE /*scope*/ datahub_id = ${acc.datahub.id}::uuid AND deleted_at IS NULL`);
+      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_tables WHERE /*scope*/ datahub_id = ${acc.datahub.id}::uuid AND deleted_at IS NULL AND template_id IS NULL`);
       if ((cnt.rows[0] as { n: number }).n >= limits.tables) quotaExceeded("bảng trong một datahub", limits.tables);
       try {
         await ctx.db.execute(sql`UPDATE dh_tables SET deleted_at = NULL, deleted_by = NULL, name = coalesce(${i.name ?? null}, name), version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE /*scope*/ id = ${acc.tableId}::uuid`);
@@ -417,6 +447,9 @@ export async function tableOut(db: Executor, acc: Awaited<ReturnType<typeof load
     kind: r.kind === "merged" ? "merged" : "normal",
     key_split: { enabled: split.enabled, key_columns: split.keys.map((k) => ({ key: k, name: nameOf.get(k) ?? k })), primary: split.primary },
     members_bulk_create: acc.table.membersBulkCreate,
+    protected: acc.table.protected,
+    template_id: acc.table.templateId,
+    role_set: acc.table.roleSet,
   };
 }
 

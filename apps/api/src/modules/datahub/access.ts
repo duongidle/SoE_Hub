@@ -3,7 +3,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { AppError } from "@soe/shared";
 import type { Executor } from "@soe/db";
 import type { HandlerCtx } from "../../core/types";
-import { assertColumnKey } from "./types";
+import { assertColumnKey, type DhColumn } from "./types";
 import { overlayRel } from "./reader-scope";
 
 /**
@@ -32,6 +32,16 @@ export interface TableInfo {
   split: { enabled: boolean; keys: string[]; primary: string | null };
   /** May members who are not the owner create more than one row at a time (import, paste, batch)? */
   membersBulkCreate: boolean;
+  /** Template table (design module4 3.5, Stage 4.1c): protected from the table commands. `templateId` set = a template table (shared, or one person's copy). */
+  protected: boolean;
+  templateId: string | null;
+  roleSet: string | null;
+}
+
+/** What decides which template columns a person sees: their roles and their Leader (design module4 3.1). Loaded only for template tables. */
+export interface Viewer {
+  roles: string[];
+  leaderId: string | null;
 }
 
 /**
@@ -68,7 +78,22 @@ export class TableAccess {
     readonly reader: ReaderScope | null = null,
     /** Keys of the reader-scoped computed columns of this table (design module2 section 10). Non-empty: a reader who is not the owner reads their own values of them. */
     readonly scopedKeys: string[] = [],
+    /** The table has columns with one value per person (`storage = 'person'`): every read lays the reader's own values over `data`, the owner's too. */
+    readonly hasPersonCells: boolean = false,
+    /** Set for a template table. Null = every column of the table is seen by everyone who sees the table. */
+    readonly viewer: Viewer | null = null,
   ) {}
+
+  /**
+   * Does this person see this column? An ordinary table: every column. A template table (module4 3.1): `basic` everyone; `role` those who hold one of
+   * the roles; `team` the Leader and the members of that team (and the table's owner); `custom` ONLY the person who made it, the owner included.
+   */
+  canSeeColumn(c: Pick<DhColumn, "layer" | "layerRef" | "layerRoles">): boolean {
+    if (c.layer === null || c.layer === "basic") return true;
+    if (c.layer === "custom") return c.layerRef === this.actorId;
+    if (c.layer === "role") return this.level === "owner" || (c.layerRoles ?? []).some((r) => this.viewer?.roles.includes(r));
+    return this.level === "owner" || c.layerRef === this.actorId || (!!c.layerRef && this.viewer?.leaderId === c.layerRef);
+  }
 
   /**
    * What to put after `FROM` for every read of this table's rows made for a person (use `FROM ${access.rel()} <alias>`). For the owner, and for a table
@@ -77,8 +102,8 @@ export class TableAccess {
    * the reader's rows, inside the subquery, so key indexes still apply.
    */
   rel(): SQL {
-    if (this.level === "owner" || this.scopedKeys.length === 0) return sql`dh_rows`;
-    return overlayRel(this.table.id, this.actorId, this.scopedKeys, this.reader ? keyMatch(this.table.split.keys, this.reader.ids, "r") : null);
+    if (!this.hasPersonCells && (this.level === "owner" || this.scopedKeys.length === 0)) return sql`dh_rows`;
+    return overlayRel(this.table.id, this.actorId, this.scopedKeys, this.reader ? keyMatch(this.table.split.keys, this.reader.ids, "r") : null, this.hasPersonCells);
   }
 
   /** The table is split-locked for this reader: their rows depend on who they are. */
@@ -143,12 +168,14 @@ export class TableAccess {
  * (add the reader and the columns of the lock), and every cache (metrics, later others) follows. Callers never build their own key.
  */
 export function scopeKey(a: TableAccess): string {
-  // A member's own values of the reader-scoped columns (design module2 section 10) make the answer personal, even without the split lock.
-  if (a.scopedKeys.length > 0 && a.level !== "owner" && !a.reader) return `${a.tableId}:${a.level}:u:${a.actorId}`;
+  // A member's own values of the reader-scoped columns (design module2 section 10), or anyone's values of the person-stored columns (module4 3.4),
+  // make the answer personal, even without the split lock.
+  const personal = a.hasPersonCells || (a.scopedKeys.length > 0 && a.level !== "owner");
+  if (personal && !a.reader) return `${a.tableId}:${a.level}:u:${a.actorId}`;
   if (!a.reader) return `${a.tableId}:${a.level}`;
   // Under the split lock the rows depend on the reader: the key is the key columns and the ids the reader sees, so two readers who see the same
   // rows share an answer, and a change in the tree (other people to manage) changes the key by itself.
-  const h = createHash("sha256").update(JSON.stringify([a.table.split.keys, [...a.reader.ids].sort(), a.scopedKeys.length ? a.actorId : null])).digest("hex").slice(0, 24);
+  const h = createHash("sha256").update(JSON.stringify([a.table.split.keys, [...a.reader.ids].sort(), personal ? a.actorId : null])).digest("hex").slice(0, 24);
   return `${a.tableId}:${a.level}:s:${h}`;
 }
 
@@ -181,8 +208,9 @@ export async function loadTableAccess(ctx: Ctx, tableId: string, need: Level = "
   const u = ctx.actor.userId;
   const res = await ctx.db.execute(sql`
     SELECT t.id, t.datahub_id, t.name, t.next_row_no, t.row_count, t.version, t.deleted_at AS t_deleted, t.kind,
-           t.key_split, t.key_columns, t.key_primary, t.members_bulk_create,
+           t.key_split, t.key_columns, t.key_primary, t.members_bulk_create, t.protected, t.template_id, t.role_set,
            (SELECT coalesce(array_agg(c.key), '{}') FROM dh_columns c WHERE /*scope*/ c.table_id = t.id AND c.reader_scoped AND c.deleted_at IS NULL) AS scoped_keys,
+           EXISTS (SELECT 1 FROM dh_columns c WHERE /*scope*/ c.table_id = t.id AND c.storage = 'person' AND c.deleted_at IS NULL) AS has_person,
            d.owner_id, d.name AS datahub_name, d.deleted_at AS d_deleted, ${LEVEL_SQL(u)} AS level
     FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
     WHERE /*scope*/ t.id = ${tableId}::uuid`);
@@ -194,16 +222,26 @@ export async function loadTableAccess(ctx: Ctx, tableId: string, need: Level = "
   if (!r || !level || !ok) throw new AppError("not_found", "Không tìm thấy bảng.");
   const split = { enabled: !!r.key_split, keys: (r.key_columns as string[] | null) ?? [], primary: (r.key_primary as string | null) ?? null };
   const reader = split.enabled && level !== "owner" ? await loadReader(ctx.db, u) : null;
+  const viewer = r.template_id ? await loadViewer(ctx.db, u) : null;
   const acc = new TableAccess(
-    { id: r.id as string, datahubId: r.datahub_id as string, name: r.name as string, nextRowNo: r.next_row_no as number, rowCount: r.row_count as number, version: r.version as number, deleted: !!r.t_deleted, kind: r.kind === "merged" ? "merged" : "normal", split, membersBulkCreate: !!r.members_bulk_create },
+    { id: r.id as string, datahubId: r.datahub_id as string, name: r.name as string, nextRowNo: r.next_row_no as number, rowCount: r.row_count as number, version: r.version as number, deleted: !!r.t_deleted, kind: r.kind === "merged" ? "merged" : "normal", split, membersBulkCreate: !!r.members_bulk_create, protected: !!r.protected, templateId: (r.template_id as string | null) ?? null, roleSet: (r.role_set as string | null) ?? null },
     { id: r.datahub_id as string, ownerId: r.owner_id as string, name: r.datahub_name as string, deleted: !!r.d_deleted },
     level,
     u,
     reader,
     level === "owner" ? [] : ((r.scoped_keys as string[] | null) ?? []),
+    !!r.has_person,
+    viewer,
   );
   acc.require(need);
   return acc;
+}
+
+/** Roles and Leader of a person (system read of the org chart): decides which template columns they see. */
+export async function loadViewer(db: Executor, userId: string): Promise<Viewer> {
+  const res = await db.execute(sql`SELECT u.roles, m.leader_id FROM users u LEFT JOIN org_memberships m ON m.user_id = u.id AND m.valid_to IS NULL WHERE u.id = ${userId}::uuid`);
+  const r = res.rows[0] as { roles: string[]; leader_id: string | null } | undefined;
+  return { roles: r?.roles ?? [], leaderId: r?.leader_id ?? null };
 }
 
 export interface DatahubAccess {
@@ -213,6 +251,8 @@ export interface DatahubAccess {
   description: string | null;
   version: number;
   deleted: boolean;
+  /** `deal` = the protected datahub "Quản lý Deal" (module4 1.1): no rename, no delete. */
+  systemKey: string | null;
   level: Level;
   /** For a person who was given only some tables: those table ids. Null = the whole datahub (or the owner). */
   tableIds: string[] | null;
@@ -224,7 +264,7 @@ export interface DatahubAccess {
 export async function loadDatahubAccess(ctx: Ctx, datahubId: string, need: Level = "view", opts: LoadOptions = {}): Promise<DatahubAccess> {
   const u = ctx.actor.userId;
   const res = await ctx.db.execute(sql`
-    SELECT d.id, d.owner_id, d.name, d.description, d.version, d.deleted_at, d.created_at, d.updated_at,
+    SELECT d.id, d.owner_id, d.name, d.description, d.version, d.deleted_at, d.created_at, d.updated_at, d.system_key,
       CASE
         WHEN d.owner_id = ${u}::uuid THEN 'owner'
         WHEN EXISTS (SELECT 1 FROM dh_shares s WHERE s.grantee_id = ${u}::uuid AND s.datahub_id = d.id AND s.table_id IS NULL AND s.permission = 'edit_data') THEN 'edit_data'
@@ -248,6 +288,7 @@ export async function loadDatahubAccess(ctx: Ctx, datahubId: string, need: Level
     description: (r.description as string | null) ?? null,
     version: r.version as number,
     deleted: !!r.deleted_at,
+    systemKey: (r.system_key as string | null) ?? null,
     level,
     tableIds: isOwner || r.whole ? null : (r.shared_tables as string[]),
     createdAt: r.created_at as Date,

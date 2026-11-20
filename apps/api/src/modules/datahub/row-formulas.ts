@@ -44,7 +44,7 @@ export class RowFormulas {
   /** Null when the table has no such formula. */
   static for(schema: TableSchema): RowFormulas | null {
     const compiled: Compiled[] = [];
-    for (const c of schema.alive) {
+    for (const c of schema.aliveAll) {
       if (c.type !== "formula" || typeof c.config.expr !== "string") continue;
       // A value that depends on who reads it cannot be computed here, from one row: the worker computes it for each reader.
       if (c.readerScoped) continue;
@@ -67,7 +67,7 @@ export class RowFormulas {
       ordered.push(f);
     };
     compiled.forEach((f) => visit(f, new Set()));
-    return new RowFormulas(ordered, new Map(schema.alive.map((c) => [c.key, c])));
+    return new RowFormulas(ordered, new Map(schema.aliveAll.map((c) => [c.key, c])));
   }
 
   /** Computes every formula for one row, writing values (and errors) into `data`. Returns the keys that changed. */

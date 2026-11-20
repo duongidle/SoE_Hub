@@ -48,6 +48,13 @@ export const DH_SETTINGS = {
     schema: z.number().int().min(1).max(12),
     default: 1,
   } satisfies SettingDef<number>,
+  templatesPerScope: {
+    key: "datahub.templates_per_scope",
+    label: "Bảng template tối đa mỗi cây và mỗi team",
+    description: "Số bảng template một Manager (cả cây) hoặc một Leader (một team) được tạo (Module 4 mục 3.5). Không tính vào giới hạn bảng của người nhận.",
+    schema: z.number().int().min(1).max(200),
+    default: 20,
+  } satisfies SettingDef<number>,
 } as const;
 
 export interface DhLimits {

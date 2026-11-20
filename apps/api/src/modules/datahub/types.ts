@@ -18,6 +18,18 @@ export interface DhColumn {
   allowEdit: boolean;
   /** The value depends on who reads it (design module2 section 10): the owner's value is in `dh_rows.data`, each member's in `dh_personal_rows`. */
   readerScoped: boolean;
+  /** Template layer (module4 3.1): null = ordinary column; `basic` | `role` | `team` | `custom`. */
+  layer: "basic" | "role" | "team" | "custom" | null;
+  /** `team`: the Leader whose team sees the column; `custom`: the person who made it (and the only one who sees it). */
+  layerRef: string | null;
+  /** `role` layer: the roles that see the column. */
+  layerRoles: string[] | null;
+  /** `shared` (value in `dh_rows.data`) or `person` (one value per person, `dh_person_cells`). */
+  storage: "shared" | "person";
+  /** Column role (module4 3.7), unique per table. */
+  role: string | null;
+  /** Template column: not renamed, deleted, retyped or edited from the column commands. */
+  protected: boolean;
   isUnique: boolean;
   defaultValue: unknown;
   description: string | null;
