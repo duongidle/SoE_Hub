@@ -106,7 +106,7 @@ export async function listRows(db: Executor, access: TableAccess, schema: TableS
     where.push(sql`soe_unaccent(lower(search)) LIKE soe_unaccent(lower(${`%${escapeLike(tok)}%`})) ESCAPE '\\'`);
   }
   const page = await listPage<Record<string, unknown>>(db, {
-    from: sql`dh_rows`,
+    from: sql`${access.rel()} dh_rows`,
     fields: schema.fieldMap(),
     baseWhere: sql.join(where, sql` AND `),
     filter,
@@ -140,7 +140,7 @@ export async function getRow(db: Executor, access: TableAccess, schema: TableSch
   const consistency = await awaitConsistency(db, access.tableId, o);
   const sel = schema.parseSelect(o.fields);
   const meta = sel ? ["id", ...sel.meta.filter((m) => m !== "id")] : DEFAULT_META;
-  const res = await db.execute(sql`SELECT ${sql.join(meta.map((m) => sql.raw(m)), sql`, `)}, ${dataSelect(schema, sel)} FROM dh_rows WHERE ${access.rows()} AND id = ${rowId}::uuid ${o.includeDeleted ? sql`` : sql`AND deleted_at IS NULL`}`);
+  const res = await db.execute(sql`SELECT ${sql.join(meta.map((m) => sql.raw(m)), sql`, `)}, ${dataSelect(schema, sel)} FROM ${access.rel()} dh_rows WHERE ${access.rows()} AND id = ${rowId}::uuid ${o.includeDeleted ? sql`` : sql`AND deleted_at IS NULL`}`);
   const r = res.rows[0] as Record<string, unknown> | undefined;
   if (!r) throw new AppError("not_found", "Không tìm thấy dòng.");
   const [row] = shape([r], schema, o.labels ?? false);

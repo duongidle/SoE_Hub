@@ -16,6 +16,8 @@ export interface DhColumn {
   required: boolean;
   /** A member (not the owner) with the Edit permission may write this column's cells (design module2 section 10). */
   allowEdit: boolean;
+  /** The value depends on who reads it (design module2 section 10): the owner's value is in `dh_rows.data`, each member's in `dh_personal_rows`. */
+  readerScoped: boolean;
   isUnique: boolean;
   defaultValue: unknown;
   description: string | null;

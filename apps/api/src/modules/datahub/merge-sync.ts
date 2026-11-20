@@ -55,7 +55,17 @@ export const PROBLEM_TEXT: Record<SourceProblem["reason"], string> = {
 /** Loads a source table as the owner of the merged table. Anything but "the owner owns it" is a problem, never a copy of someone else's rows. */
 export async function loadSource(db: Executor, ownerId: string, tableId: string): Promise<{ access: TableAccess } | { problem: SourceProblem }> {
   try {
-    const access = await loadTableAccess({ db, actor: ownerActor(ownerId) }, tableId, "owner");
+    const ctx = { db, actor: ownerActor(ownerId) };
+    let access: TableAccess;
+    try {
+      access = await loadTableAccess(ctx, tableId, "owner");
+    } catch (e) {
+      if (!(e instanceof AppError) || e.code !== "forbidden") throw e;
+      // Not the owner: allowed only when the source is a table with the split lock on (a shared deals table, design module3 section 4.1). The merged
+      // table then copies what its owner SEES of it (`readableRows` = the owner's rows), never the whole table.
+      access = await loadTableAccess(ctx, tableId, "view");
+      if (!access.table.split.enabled) throw e;
+    }
     if (access.table.kind === "merged") return { problem: { table_id: tableId, name: access.table.name, reason: "merged" } };
     return { access };
   } catch (e) {
@@ -83,7 +93,7 @@ export function mergeableColumns(schema: TableSchema): Map<string, PlanSourceCol
 async function* pagesOf(db: Executor, access: TableAccess): AsyncGenerator<PlanRow[]> {
   let last = "00000000-0000-0000-0000-000000000000";
   for (;;) {
-    const res = await db.execute(sql`SELECT r.id, r.row_no, r.updated_at, r.data FROM dh_rows r WHERE ${readableRows(access, "r")} AND r.id > ${last}::uuid ORDER BY r.id LIMIT ${PAGE}`);
+    const res = await db.execute(sql`SELECT r.id, r.row_no, r.updated_at, r.data FROM ${access.rel()} r WHERE ${readableRows(access, "r")} AND r.id > ${last}::uuid ORDER BY r.id LIMIT ${PAGE}`);
     const rows = res.rows as { id: string; row_no: number; updated_at: Date | string; data: Record<string, unknown> }[];
     if (rows.length === 0) return;
     yield rows.map((r) => ({ id: r.id, rowNo: r.row_no, updatedAt: new Date(r.updated_at).getTime(), data: r.data }));

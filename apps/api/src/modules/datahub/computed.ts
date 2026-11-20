@@ -23,6 +23,8 @@ export interface IxColumn {
   type: string;
   config: Record<string, unknown>;
   tableId: string;
+  /** Computed column whose value depends on who reads it (design module2 section 10). */
+  readerScoped: boolean;
 }
 export interface IxTable {
   id: string;
@@ -30,6 +32,8 @@ export interface IxTable {
   datahubId: string;
   rowCount: number;
   columns: IxColumn[];
+  /** Split lock of the table: a member who is not the owner reads only the rows that name them (or someone they manage) in a key column. */
+  split: { enabled: boolean; keys: string[] };
 }
 export interface IxDatahub {
   id: string;
@@ -46,7 +50,7 @@ export class OwnerIndex {
   static async load(db: Executor, ownerId: string): Promise<OwnerIndex> {
     const res = await db.execute(sql`
       SELECT d.id AS dh_id, d.name AS dh_name, t.id AS t_id, t.name AS t_name, t.row_count,
-             c.id AS c_id, c.key, c.name AS c_name, c.type, c.config
+             c.id AS c_id, c.key, c.name AS c_name, c.type, c.config, c.reader_scoped, t.key_split, t.key_columns
       FROM dh_datahubs d
       JOIN dh_tables t ON t.datahub_id = d.id AND t.deleted_at IS NULL
       LEFT JOIN dh_columns c ON c.table_id = t.id AND c.deleted_at IS NULL
@@ -63,12 +67,12 @@ export class OwnerIndex {
       }
       let t = ix.tableById.get(r.t_id as string);
       if (!t) {
-        t = { id: r.t_id as string, name: r.t_name as string, datahubId: d.id, rowCount: r.row_count as number, columns: [] };
+        t = { id: r.t_id as string, name: r.t_name as string, datahubId: d.id, rowCount: r.row_count as number, columns: [], split: { enabled: !!r.key_split, keys: (r.key_columns as string[] | null) ?? [] } };
         ix.tableById.set(t.id, t);
         ix.dhOfTable.set(t.id, d);
         d.tables.push(t);
       }
-      if (r.c_id) t.columns.push({ id: r.c_id as string, key: r.key as string, name: r.c_name as string, type: r.type as string, config: (r.config as Record<string, unknown>) ?? {}, tableId: t.id });
+      if (r.c_id) t.columns.push({ id: r.c_id as string, key: r.key as string, name: r.c_name as string, type: r.type as string, config: (r.config as Record<string, unknown>) ?? {}, tableId: t.id, readerScoped: !!r.reader_scoped });
     }
     return ix;
   }

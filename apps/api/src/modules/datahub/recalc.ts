@@ -28,6 +28,8 @@ import { groupableCalls, OwnerIndex, scanRangeNodes, SCAN_ROW_LIMIT } from "./co
 import { columnFromDb, rowFromDb } from "./table-schema";
 import { assertColumnKey, type DhColumn, type Stored } from "./types";
 import type { LoadedRow } from "./column-source";
+import { keyMatch } from "./access";
+import { dropPersonalValues, idsOf, membersOf, overlayRel, refreshReaderScoped } from "./reader-scope";
 
 type Raw = Record<string, unknown>;
 export const FORMULA_EVENT = "datahub.formula.recalculated";
@@ -86,8 +88,10 @@ async function tablesOfDatahub(db: Executor, datahubId: string): Promise<string[
  */
 export const formulaSubscriber: Subscriber = {
   name: "datahub.formula",
-  match: (e) => e === "datahub.structure.changed",
+  match: (e) => e === "datahub.structure.changed" || e === "datahub.share.changed" || e === "org.member.changed",
   async handle(ev, db) {
+    if (ev.event === "datahub.share.changed") return onShareChanged(db, ev.payload as { datahub_id: string; grantee_id: string });
+    if (ev.event === "org.member.changed") return markPending(db, await readerScopedColumns(db, null));
     const p = ev.payload as { table_id?: string; datahub_id?: string; change?: string };
     const marks = new Set<string>();
     const change = p.change ?? "";
@@ -96,9 +100,35 @@ export const formulaSubscriber: Subscriber = {
       (await readersOfTables(db, tableIds)).forEach((x) => marks.add(x));
       if (["column_restored", "table_restored", "datahub_restored", "owner_changed", "column_type_changed"].includes(change)) (await computedColumnsOf(db, tableIds)).forEach((x) => marks.add(x));
     }
+    // Columns that read a deleted/restored/retyped column or table may have changed what makes them reader-scoped.
+    if (p.datahub_id && ["column_deleted", "column_restored", "column_type_changed", "table_deleted", "table_restored", "datahub_restored"].includes(change)) {
+      const owner = await db.execute(sql`SELECT owner_id FROM dh_datahubs WHERE /*scope:system*/ id = ${p.datahub_id}::uuid`);
+      const ownerId = (owner.rows[0] as { owner_id: string } | undefined)?.owner_id;
+      if (ownerId) {
+        const f = await refreshReaderScoped(db, ownerId);
+        [...f.became, ...f.stopped].forEach((x) => marks.add(x));
+      }
+    }
     await markPending(db, [...marks]);
   },
 };
+
+/** Reader-scoped columns of a datahub (null = of every datahub). */
+export async function readerScopedColumns(db: Executor, datahubId: string | null): Promise<string[]> {
+  const res = await db.execute(sql`SELECT c.id FROM dh_columns c JOIN dh_tables t ON t.id = c.table_id
+    WHERE /*scope:system*/ c.reader_scoped AND c.deleted_at IS NULL AND t.deleted_at IS NULL ${datahubId ? sql`AND t.datahub_id = ${datahubId}::uuid` : sql``}`);
+  return ids(res.rows);
+}
+
+/**
+ * A share was added, changed or removed: a person who is no longer a member forgets their personal values; for everyone else the reader-scoped
+ * columns of the datahub recompute (a new member needs their values; the others lose nothing).
+ */
+async function onShareChanged(db: Executor, p: { datahub_id: string; grantee_id: string }): Promise<void> {
+  const still = await db.execute(sql`SELECT 1 FROM dh_shares WHERE /*scope:system*/ datahub_id = ${p.datahub_id}::uuid AND grantee_id = ${p.grantee_id}::uuid LIMIT 1`);
+  if (still.rows.length === 0) await dropPersonalValues(db, p.datahub_id, p.grantee_id);
+  else await markPending(db, await readerScopedColumns(db, p.datahub_id));
+}
 
 // ================================================================================================
 // volatile columns: TODAY() daily at 00:05, NOW() hourly (with catch-up)
@@ -166,6 +196,29 @@ async function refProblems(db: Executor, ix: OwnerIndex, tableIds: string[]): Pr
   return out;
 }
 
+// ---- one reader -----------------------------------------------------------------------------------------
+
+/**
+ * A member who is not the owner, for a reader-scoped column (design module2 section 10): their value is computed over the rows of the
+ * split-lock tables THEY see (themselves and the people they manage in the current tree) and stored apart from the owner's.
+ */
+export interface Reader {
+  userId: string;
+  ids: string[];
+}
+
+/**
+ * How a table is read for a computation: `from` goes after `FROM` (alias `dh_rows`), `cond` is ANDed to the WHERE. The owner (`reader` null)
+ * reads `dh_rows` as it is. A reader of a table with the split lock sees only their rows; the reader-scoped columns of that table hold THEIR values.
+ */
+export function sourceView(ix: OwnerIndex, tableId: string, reader: Reader | null): { from: SQL; cond: SQL } {
+  const t = ix.tableById.get(tableId);
+  if (!reader || !t) return { from: sql`dh_rows`, cond: sql`true` };
+  const scoped = t.columns.filter((c) => c.readerScoped).map((c) => c.key);
+  const keep = t.split.enabled ? keyMatch(t.split.keys, reader.ids, "r") : null;
+  return { from: scoped.length ? overlayRel(tableId, reader.userId, scoped, keep) : sql`dh_rows`, cond: t.split.enabled ? keyMatch(t.split.keys, reader.ids) : sql`true` };
+}
+
 // ---- grouped plans -------------------------------------------------------------------------------------
 
 interface Acc {
@@ -207,7 +260,8 @@ function sourceKeyExpr(col: { key: string; type: string; config: Record<string, 
  * position: the JSON key values the rows being recomputed look up), only the source rows that may belong to those groups
  * are read (design module2 section 6.7); a group is always complete, extra rows only fill groups nobody asks for.
  */
-async function buildPlan(db: Executor, ix: OwnerIndex, g: GroupableCall, restrict: string[][] | null = null): Promise<GroupPlan> {
+async function buildPlan(db: Executor, ix: OwnerIndex, g: GroupableCall, restrict: string[][] | null = null, reader: Reader | null = null): Promise<GroupPlan> {
+  const view = sourceView(ix, g.table, reader);
   const keyCols = g.keyColumns.map((k) => ix.column(g.table, k)!);
   const keyOf = (rawKeys: unknown[]): string | null => {
     const parts: string[] = [];
@@ -246,7 +300,7 @@ async function buildPlan(db: Executor, ix: OwnerIndex, g: GroupableCall, restric
       parts.push(sql`min(row_no) FILTER (WHERE ${sql.raw(`data ? '${errKey(k)}'`)})::float8 AS er`, sql`(array_agg(${sql.raw(`data->>'${errKey(k)}'`)} ORDER BY row_no) FILTER (WHERE ${sql.raw(`data ? '${errKey(k)}'`)}))[1] AS ec`);
     }
     const groupBy = keyCols.length ? sql`GROUP BY ${sql.join(keyCols.map((c) => sql.raw(`data->'${assertColumnKey(c.key)}'`)), sql`, `)}` : sql``;
-    const res = await db.execute(sql`SELECT ${sql.join(parts, sql`, `)} FROM dh_rows WHERE ${where} ${groupBy}`);
+    const res = await db.execute(sql`SELECT ${sql.join(parts, sql`, `)} FROM ${view.from} dh_rows WHERE ${where} AND ${view.cond} ${groupBy}`);
     for (const r of res.rows as Raw[]) {
       const key = keyOf(keyCols.map((_, i) => r[`k${i}`]));
       if (key === null) continue;
@@ -291,7 +345,7 @@ async function buildPlan(db: Executor, ix: OwnerIndex, g: GroupableCall, restric
   const notNull = sql.raw(k0.map((k) => `data->'${k}' IS NOT NULL`).join(" AND "));
   const res = await db.execute(sql`SELECT DISTINCT ON (${sql.join(k0.map((k) => sql.raw(`data->'${k}'`)), sql`, `)}) ${sql.join(keySelect, sql`, `)}, row_no::float8 AS row_no,
       ${sql.raw(`data->'${tk}'`)} AS v, ${sql.raw(`data->>'${errKey(tk)}'`)} AS e
-    FROM dh_rows WHERE ${where} AND ${notNull} ORDER BY ${sql.join(k0.map((k) => sql.raw(`data->'${k}'`)), sql`, `)}, row_no`);
+    FROM ${view.from} dh_rows WHERE ${where} AND ${view.cond} AND ${notNull} ORDER BY ${sql.join(k0.map((k) => sql.raw(`data->'${k}'`)), sql`, `)}, row_no`);
   for (const r of res.rows as Raw[]) {
     const key = keyOf(keyCols.map((_, i) => r[`k${i}`]));
     if (key === null) continue;
@@ -314,7 +368,8 @@ async function buildPlan(db: Executor, ix: OwnerIndex, g: GroupableCall, restric
 }
 
 /** Loads one whole column for in-memory scans (conditions SQL cannot answer). Too large: every read of it is an error. */
-async function loadScanColumn(db: Executor, ix: OwnerIndex, tableId: string, key: string): Promise<Value[] | FError> {
+async function loadScanColumn(db: Executor, ix: OwnerIndex, tableId: string, key: string, reader: Reader | null = null): Promise<Value[] | FError> {
+  const view = sourceView(ix, tableId, reader);
   const t = ix.tableById.get(tableId)!;
   const col = ix.column(tableId, key);
   if (!col) return new FError("#REF!", "Cột được tham chiếu đã bị xoá.");
@@ -322,8 +377,8 @@ async function loadScanColumn(db: Executor, ix: OwnerIndex, tableId: string, key
   const out: Value[] = [];
   let last = 0;
   for (;;) {
-    const res = await db.execute(sql`SELECT id, row_no, data, created_at, created_by, updated_at, updated_by FROM dh_rows
-      WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL AND row_no > ${last}::int ORDER BY row_no LIMIT ${BATCH}`);
+    const res = await db.execute(sql`SELECT id, row_no, data, created_at, created_by, updated_at, updated_by FROM ${view.from} dh_rows
+      WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL AND ${view.cond} AND row_no > ${last}::int ORDER BY row_no LIMIT ${BATCH}`);
     const rows = res.rows as Raw[];
     if (rows.length === 0) break;
     for (const r of rows) out.push(cellValue(col as unknown as DhColumn, rowFromDb(r)));
@@ -354,6 +409,8 @@ export interface RecalcResult {
   partial: boolean;
   /** Rows whose stored value changed, as source changes for the columns that read this one. Null = over `CHAIN_LIMIT`. */
   rows: RowChange[] | null;
+  /** The column is reader-scoped: `rows` only name the rows (their old and new values differ per reader). */
+  scoped?: boolean;
 }
 
 async function writePatches(db: Executor, tableId: string, key: string, patches: { id: string; patch: Record<string, unknown> }[]): Promise<void> {
@@ -365,13 +422,25 @@ async function writePatches(db: Executor, tableId: string, key: string, patches:
     WHERE /*scope:system*/ r.table_id = ${tableId}::uuid AND r.id = v.id`);
 }
 
+/** A reader's own values of a reader-scoped column (`dh_personal_rows`). Same rule as `writePatches`: only this column's keys are replaced; no history, no audit. */
+async function writePersonal(db: Executor, tableId: string, userId: string, key: string, patches: { id: string; patch: Record<string, unknown> }[]): Promise<void> {
+  if (patches.length === 0) return;
+  await db.execute(sql`INSERT INTO dh_personal_rows (row_id, user_id, table_id, data)
+    SELECT v.id, ${userId}::uuid, ${tableId}::uuid, v.patch FROM jsonb_to_recordset(${JSON.stringify(patches)}::jsonb) AS v(id uuid, patch jsonb)
+    ON CONFLICT (row_id, user_id) DO UPDATE SET data = (dh_personal_rows.data - ARRAY[${key}::text, ${errKey(key)}::text]) || EXCLUDED.data`);
+}
+
 /** Collects what a recomputation changed: the change feed (events of at most 500 rows) and the source changes for dependants. */
 class Changes {
   count = 0;
+  /** Ids of the rows whose stored value changed (for the chain of a reader-scoped column). */
+  readonly touched = new Set<string>();
   private rows: RowChange[] | null = [];
   constructor(
     private readonly job: Job,
     private readonly seq: number,
+    /** Set: this recomputation is for ONE member (their values go to `dh_personal_rows`, the event goes to them only). */
+    private readonly reader: Reader | null = null,
   ) {}
 
   /** Writes a batch of patches and, in the SAME transaction, its change events (design module2 section 6.7). */
@@ -380,18 +449,21 @@ class Changes {
     const col = this.job.col;
     const ek = errKey(col.key);
     await db.transaction(async (tx) => {
-      await writePatches(tx, this.job.tableId, col.key, batch.map((b) => ({ id: b.row.id, patch: b.patch })));
+      const patches = batch.map((b) => ({ id: b.row.id, patch: b.patch }));
+      if (this.reader) await writePersonal(tx, this.job.tableId, this.reader.userId, col.key, patches);
+      else await writePatches(tx, this.job.tableId, col.key, patches);
       // One statement for all the events of the batch (at most 500 cells each).
       const events: { id: string; payload: unknown }[] = [];
       for (let i = 0; i < batch.length; i += EVENT_ROWS) {
         const part = batch.slice(i, i + EVENT_ROWS);
         const changes = part.map((b) => ({ row_id: b.row.id, column: col.key, old: cellOf(b.row.data[col.key], (b.row.data as Raw)[ek]), new: cellOf(b.data[col.key], (b.data as Raw)[ek]) }));
-        events.push({ id: newId(), payload: { table_id: this.job.tableId, columns: [col.key], state: "changed", changes, changed_rows: part.length, seq: this.seq } });
+        events.push({ id: newId(), payload: { table_id: this.job.tableId, columns: [col.key], state: "changed", changes, changed_rows: part.length, seq: this.seq, ...(this.reader ? { reader: this.reader.userId } : {}) } });
       }
       await tx.execute(sql`INSERT INTO outbox (id, event, aggregate_type, aggregate_id, payload)
         SELECT v.id, ${FORMULA_EVENT}, 'datahub_table', ${this.job.tableId}, v.payload FROM jsonb_to_recordset(${JSON.stringify(events)}::jsonb) AS v(id uuid, payload jsonb)`);
     });
     this.count += batch.length;
+    for (const b of batch) this.touched.add(b.row.id);
     if (this.rows) {
       for (const b of batch) this.rows.push({ rowId: b.row.id, kind: "update", old: b.row.data, new: b.data });
       if (this.rows.length > CHAIN_LIMIT) this.rows = null;
@@ -414,7 +486,7 @@ export interface FormulaEnv {
  * the source rows of the groups those rows look up, instead of grouping the whole source table (design module2 section 6.7).
  * Without `rows` the plans cover the whole table (the full-column recomputation).
  */
-export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: string, ast: Node | null, now: Date, rows?: LoadedRow[]): Promise<FormulaEnv> {
+export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: string, ast: Node | null, now: Date, rows?: LoadedRow[], reader: Reader | null = null): Promise<FormulaEnv> {
   // Columns of this table as engine columns (the row loader needs the full DhColumn shape).
   const full = await db.execute(sql`SELECT * FROM dh_columns WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL`);
   const colsByKey = new Map((full.rows as Raw[]).map(columnFromDb).map((c) => [c.key, c]));
@@ -482,7 +554,7 @@ export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: str
       // The groups of this call are found (source side) and its rows are found by key (this side) with the equality-key index.
       for (const k of g.keyColumns) await requestEqkIndex(db, g.table, k, ix.tableById.get(g.table)?.rowCount ?? 0);
       for (const n of g.keyNodes) if (n.t === "key" && n.table === null) await requestEqkIndex(db, tableId, n.key, ix.tableById.get(tableId)?.rowCount ?? 0);
-      plans.set(g.nodeId, await buildPlan(db, ix, g, restrictFor(g)));
+      plans.set(g.nodeId, await buildPlan(db, ix, g, restrictFor(g), reader));
     }
   }
   // Columns read by scans (and by the fallback of grouped calls on small tables), loaded once.
@@ -500,7 +572,7 @@ export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: str
   }
   for (const w of wanted) {
     const [t, k] = [w.slice(0, 36), w.slice(37)];
-    scan.set(w, await loadScanColumn(db, ix, t, k));
+    scan.set(w, await loadScanColumn(db, ix, t, k, reader));
   }
 
   const ctx: EvalContext = {
@@ -530,10 +602,10 @@ interface Scope {
 const ROW_SELECT = sql.raw("id, row_no, version, data, created_at, created_by, updated_at, updated_by");
 
 /** The rows of a table to compute, in batches: all of them (paged by row number) or the given ids. */
-async function* rowBatches(db: Executor, tableId: string, scope: Scope): AsyncGenerator<LoadedRow[]> {
+async function* rowBatches(db: Executor, tableId: string, scope: Scope, view: { from: SQL; cond: SQL } = { from: sql`dh_rows`, cond: sql`true` }): AsyncGenerator<LoadedRow[]> {
   if (scope.ids) {
     for (let i = 0; i < scope.ids.length; i += BATCH) {
-      const res = await db.execute(sql`SELECT ${ROW_SELECT} FROM dh_rows WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL
+      const res = await db.execute(sql`SELECT ${ROW_SELECT} FROM ${view.from} dh_rows WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL AND ${view.cond}
         AND id = ANY(${`{${scope.ids.slice(i, i + BATCH).join(",")}}`}::uuid[]) ORDER BY row_no`);
       const rows = (res.rows as Raw[]).map(rowFromDb);
       if (rows.length) yield rows;
@@ -542,8 +614,8 @@ async function* rowBatches(db: Executor, tableId: string, scope: Scope): AsyncGe
   }
   let last = 0;
   for (;;) {
-    const res = await db.execute(sql`SELECT ${ROW_SELECT} FROM dh_rows
-      WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL AND row_no > ${last}::int ORDER BY row_no LIMIT ${BATCH}`);
+    const res = await db.execute(sql`SELECT ${ROW_SELECT} FROM ${view.from} dh_rows
+      WHERE /*scope:system*/ table_id = ${tableId}::uuid AND deleted_at IS NULL AND ${view.cond} AND row_no > ${last}::int ORDER BY row_no LIMIT ${BATCH}`);
     const rows = (res.rows as Raw[]).map(rowFromDb);
     if (rows.length === 0) return;
     yield rows;
@@ -554,18 +626,18 @@ async function* rowBatches(db: Executor, tableId: string, scope: Scope): AsyncGe
 
 const patchOf = (col: DhColumn, out: StoreOutcome): Record<string, unknown> => (out.kind === "value" ? { [col.key]: out.value } : out.kind === "error" ? { [errKey(col.key)]: out.code } : {});
 
-async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes): Promise<number> {
+async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes, reader: Reader | null = null): Promise<number> {
   const col = job.col;
   const ix = await OwnerIndex.load(db, job.ownerId);
   const parsed = typeof col.config.expr === "string" ? parseFormula(col.config.expr) : null;
   const resultType = resultTypeOf(col);
   const ast: Node | null = parsed && parsed.ok ? parsed.ast : null;
   // A full recomputation builds its plans once for the whole table; a partial one per batch, for just those rows.
-  const whole = scope.ids === null ? await buildFormulaEnv(db, ix, job.tableId, ast, now) : null;
+  const whole = scope.ids === null ? await buildFormulaEnv(db, ix, job.tableId, ast, now, undefined, reader) : null;
 
   let total = 0;
-  for await (const rows of rowBatches(db, job.tableId, scope)) {
-    const env = whole ?? (await buildFormulaEnv(db, ix, job.tableId, ast, now, rows));
+  for await (const rows of rowBatches(db, job.tableId, scope, sourceView(ix, job.tableId, reader))) {
+    const env = whole ?? (await buildFormulaEnv(db, ix, job.tableId, ast, now, rows, reader));
     const batch: { row: LoadedRow; data: Record<string, Stored>; patch: Record<string, unknown> }[] = [];
     for (const row of rows) {
       env.setRow(row);
@@ -607,7 +679,7 @@ function rollup(fn: string, values: Scalar[]): Scalar {
   }
 }
 
-async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes): Promise<number> {
+async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes, reader: Reader | null = null): Promise<number> {
   const col = job.col;
   const ix = await OwnerIndex.load(db, job.ownerId);
   const relKey = col.config.relation_key as string;
@@ -621,8 +693,9 @@ async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<
   const fullTarget = targetCol ? (await db.execute(sql`SELECT * FROM dh_columns WHERE /*scope:system*/ id = ${targetCol.id}::uuid`)).rows.map((r) => columnFromDb(r as Raw))[0] : undefined;
   const single = ix.column(job.tableId, relKey)?.config.multiple === false;
 
+  const targetView = sourceView(ix, targetTable, reader);
   let total = 0;
-  for await (const rows of rowBatches(db, job.tableId, scope)) {
+  for await (const rows of rowBatches(db, job.tableId, scope, sourceView(ix, job.tableId, reader))) {
     const linkIds = new Set<string>();
     for (const r of rows) {
       const l = r.data[relKey];
@@ -630,8 +703,8 @@ async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<
     }
     const targets = new Map<string, Scalar>();
     if (!fatal && linkIds.size && fullTarget) {
-      const tres = await db.execute(sql`SELECT id, data, created_at, created_by, updated_at, updated_by FROM dh_rows
-        WHERE /*scope:system*/ table_id = ${targetTable}::uuid AND deleted_at IS NULL AND id = ANY(${`{${[...linkIds].join(",")}}`}::uuid[])`);
+      const tres = await db.execute(sql`SELECT id, data, created_at, created_by, updated_at, updated_by FROM ${targetView.from} dh_rows
+        WHERE /*scope:system*/ table_id = ${targetTable}::uuid AND deleted_at IS NULL AND ${targetView.cond} AND id = ANY(${`{${[...linkIds].join(",")}}`}::uuid[])`);
       for (const t of tres.rows as Raw[]) targets.set(t.id as string, cellValue(fullTarget, rowFromDb(t)));
     }
     const batch: { row: LoadedRow; data: Record<string, Stored>; patch: Record<string, unknown> }[] = [];
@@ -751,8 +824,24 @@ export async function recalcColumn(db: Db, columnId: string, claimedAt: string, 
         await db.execute(sql`UPDATE dh_columns SET calc_done = ${done}::int WHERE /*scope:system*/ id = ${columnId}::uuid`);
       };
       const changes = new Changes(job, seq);
-      const total = job.col.type === "formula" ? await recalcFormula(db, job, now, progress, scope, changes) : await recalcLink(db, job, progress, scope, changes);
+      const run = (reader: Reader | null, c: Changes, p: (done: number) => Promise<void>) =>
+        job.col.type === "formula" ? recalcFormula(db, job, now, p, scope, c, reader) : recalcLink(db, job, p, scope, c, reader);
+      const total = await run(null, changes, progress);
       result = { changedRows: changes.count, total, partial: scope.ids !== null, rows: changes.changes };
+      if (job.col.readerScoped) {
+        // Each member who is not the owner gets their own value, over the rows they see. The owner's pass above is over every row.
+        const touched = new Set(changes.touched);
+        for (const userId of await membersOf(db, job.tableId)) {
+          const reader: Reader = { userId, ids: await idsOf(db, userId) };
+          const rc = new Changes(job, seq, reader);
+          await run(reader, rc, async () => {});
+          result.changedRows += rc.count;
+          rc.touched.forEach((x) => touched.add(x));
+        }
+        // What the columns that read this one need to know: which rows changed (the values differ per reader, so no old/new pair).
+        result.scoped = true;
+        result.rows = touched.size > CHAIN_LIMIT ? null : [...touched].map((rowId) => ({ rowId, kind: "update" as const, old: null, new: null, keys: [job.col.key] }));
+      }
     }
   } catch (e) {
     log?.error({ err: e, column: columnId }, "formula recalculation failed");
@@ -768,7 +857,7 @@ export async function recalcColumn(db: Db, columnId: string, claimedAt: string, 
     if (!job) return;
     // The chain: the columns that read this one get exactly the rows that changed (old and new values), in this same transaction.
     if (result.changedRows > 0) {
-      if (result.rows) await recordChanges(tx, job.tableId, result.rows, seq, { includeApiFormulas: true });
+      if (result.rows) await recordChanges(tx, job.tableId, result.rows, seq, { includeApiFormulas: true, scopedSource: result.scoped });
       else await requestDependentsFull(tx, job.tableId, [job.col.key], seq, { includeApiFormulas: true });
     }
     await enqueueOutbox(tx, {

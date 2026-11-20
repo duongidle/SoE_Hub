@@ -242,6 +242,9 @@ function joinParts(base: MTable, j: PlanJoin): { link?: MColumn; pairs: { left: 
   return { pairs };
 }
 
+/** `FROM` fragment of a table's rows as the reader sees them. */
+const relOf = (t: MTable): SQL => t.rel ?? sql`dh_rows`;
+
 const LINK_ELEMENTS = (ref: TableRef, col: MColumn): SQL => sql`jsonb_array_elements_text(CASE WHEN jsonb_typeof(${valueExpr(ref, col)}) = 'array' THEN ${valueExpr(ref, col)} ELSE '[]'::jsonb END)`;
 
 /** The `JOIN` of one joined table: its used columns folded to one jsonb `data` per base row, left join (a base row with no partner stays, its joined columns are empty). */
@@ -258,14 +261,14 @@ function joinSql(rs: Resolver, i: number): { join: SQL; fence?: SQL } {
   const obj = sql`jsonb_build_object(${fold})`;
   const alive = sql`${j.table.scope(r)} AND ${sql.raw(r)}.deleted_at IS NULL`;
   if (parts.link) {
-    return { join: sql`LEFT JOIN LATERAL (SELECT ${obj} AS data FROM ${LINK_ELEMENTS(rs.refs[0]!, parts.link)} AS l(id) JOIN dh_rows ${sql.raw(r)} ON ${sql.raw(r)}.id = l.id::uuid AND ${alive} HAVING count(*) > 0) ${sql.raw(ref.alias)} ON true` };
+    return { join: sql`LEFT JOIN LATERAL (SELECT ${obj} AS data FROM ${LINK_ELEMENTS(rs.refs[0]!, parts.link)} AS l(id) JOIN ${relOf(j.table)} ${sql.raw(r)} ON ${sql.raw(r)}.id = l.id::uuid AND ${alive} HAVING count(*) > 0) ${sql.raw(ref.alias)} ON true` };
   }
   const jkey = keyOf(parts.pairs.map((p) => valueExpr(rRef, p.right)));
   const bkey = keyOf(parts.pairs.map((p) => valueExpr(rs.refs[0]!, p.left)));
   // The key of the base row is computed ONCE per row inside the fenced subquery of `prepare` (column jkN); written in the ON clause
   // Postgres evaluates it again for every probe and every equality check (about 2x slower on 100,000 rows).
   const col = sql.raw(`jk${i + 1}`);
-  return { join: sql`LEFT JOIN (SELECT ${jkey} AS k, ${obj} AS data FROM dh_rows ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL GROUP BY 1) ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = b.${col}`, fence: sql`${bkey} AS ${col}` };
+  return { join: sql`LEFT JOIN (SELECT ${jkey} AS k, ${obj} AS data FROM ${relOf(j.table)} ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL GROUP BY 1) ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = b.${col}`, fence: sql`${bkey} AS ${col}` };
 }
 
 interface Prepared {
@@ -382,7 +385,7 @@ function prepare(p: PlanInput, mode: "main" | "cohort_sizes" | "outlier_bounds" 
   const joins = p.joins.map((_, i) => joinSql(rs, i));
   const fence = joins.flatMap((j) => (j.fence ? [j.fence] : []));
   // `OFFSET 0` keeps Postgres from flattening the subquery back into the join (then the key would be evaluated per probe again).
-  const base = fence.length ? sql`(SELECT b.*, ${sql.join(fence, sql`, `)} FROM dh_rows b WHERE ${p.base.scope("b")} AND b.deleted_at IS NULL OFFSET 0) b` : sql`dh_rows b`;
+  const base = fence.length ? sql`(SELECT b.*, ${sql.join(fence, sql`, `)} FROM ${relOf(p.base)} b WHERE ${p.base.scope("b")} AND b.deleted_at IS NULL OFFSET 0) b` : sql`${relOf(p.base)} b`;
   const from = sql`${base} ${sql.join(joins.map((j) => j.join), sql` `)}`;
   if (p.excludeFirst && mode === "main") {
     if (gSql.length !== 1) bad('"top" (nhóm "Khác") cần đúng một cột nhóm (hoặc đúng một trục thời gian).', { reason: "bad_top", groups: gSql.length });
@@ -613,15 +616,15 @@ function joinCtes(base: MTable, j: PlanJoin): { with: SQL; kind: "link" | "key" 
   if (parts.link) {
     return {
       kind: "link",
-      with: sql`bl AS (SELECT b.id, b.row_no, (SELECT count(*) FROM ${LINK_ELEMENTS(bRef, parts.link)} AS l(id) JOIN dh_rows r ON r.id = l.id::uuid AND ${j.table.scope("r")} AND r.deleted_at IS NULL)::int AS n FROM dh_rows b WHERE ${base.scope("b")} AND b.deleted_at IS NULL)`,
+      with: sql`bl AS (SELECT b.id, b.row_no, (SELECT count(*) FROM ${LINK_ELEMENTS(bRef, parts.link)} AS l(id) JOIN ${relOf(j.table)} r ON r.id = l.id::uuid AND ${j.table.scope("r")} AND r.deleted_at IS NULL)::int AS n FROM ${relOf(base)} b WHERE ${base.scope("b")} AND b.deleted_at IS NULL)`,
     };
   }
   const bk = keyOf(parts.pairs.map((p) => valueExpr(bRef, p.left)));
   const rk = keyOf(parts.pairs.map((p) => valueExpr(rRef, p.right)));
   return {
     kind: "key",
-    with: sql`bk AS (SELECT b.id, b.row_no, ${bk} AS k FROM dh_rows b WHERE ${base.scope("b")} AND b.deleted_at IS NULL),
-      jk AS (SELECT ${rk} AS k FROM dh_rows r WHERE ${j.table.scope("r")} AND r.deleted_at IS NULL),
+    with: sql`bk AS (SELECT b.id, b.row_no, ${bk} AS k FROM ${relOf(base)} b WHERE ${base.scope("b")} AND b.deleted_at IS NULL),
+      jk AS (SELECT ${rk} AS k FROM ${relOf(j.table)} r WHERE ${j.table.scope("r")} AND r.deleted_at IS NULL),
       jg AS (SELECT k, count(*)::int AS n FROM jk WHERE k IS NOT NULL GROUP BY k)`,
   };
 }

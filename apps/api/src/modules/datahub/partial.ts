@@ -20,6 +20,8 @@ export interface RowChange {
   old: Record<string, unknown> | null;
   /** All cells after the change (null for a delete). */
   new: Record<string, unknown> | null;
+  /** The keys that changed, when old and new cannot say it (a reader-scoped column: each reader has their own value). */
+  keys?: string[];
 }
 
 /** A burst bigger than this makes every dependant recompute its whole column (a list of 5,000 keys is not cheaper than a scan). */
@@ -38,6 +40,8 @@ interface Dependent {
   rangeKeys: Set<string>;
   /** Has any `range` dependency: the worker computes it. A formula without one is computed by the API in the writing transaction. */
   hasRange: boolean;
+  /** Reader-scoped (design module2 section 10): the worker computes it, for the owner and for each member, even without a `range` dependency. */
+  scoped: boolean;
 }
 
 interface ColInfo {
@@ -47,7 +51,7 @@ interface ColInfo {
 
 /** Every computed column that reads the table, plus the worker-computed columns that live in it (they need new rows). */
 async function loadDependents(db: Executor, tableId: string): Promise<Dependent[]> {
-  const res = await db.execute(sql`SELECT c.id, c.table_id, c.key, c.type, c.config, f.src_key, f.kind,
+  const res = await db.execute(sql`SELECT c.id, c.table_id, c.key, c.type, c.config, c.reader_scoped, f.src_key, f.kind,
       EXISTS (SELECT 1 FROM dh_formula_deps r WHERE r.column_id = c.id AND r.kind = 'range') AS has_range
     FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id
     WHERE /*scope:system*/ f.src_table_id = ${tableId}::uuid AND c.deleted_at IS NULL`);
@@ -55,17 +59,17 @@ async function loadDependents(db: Executor, tableId: string): Promise<Dependent[
   const get = (r: Raw): Dependent => {
     let d = out.get(r.id as string);
     if (!d) {
-      d = { id: r.id as string, tableId: r.table_id as string, key: r.key as string, type: r.type as string, config: (r.config as Record<string, unknown>) ?? {}, cellKeys: new Set(), rangeKeys: new Set(), hasRange: r.has_range as boolean };
+      d = { id: r.id as string, tableId: r.table_id as string, key: r.key as string, type: r.type as string, config: (r.config as Record<string, unknown>) ?? {}, cellKeys: new Set(), rangeKeys: new Set(), hasRange: r.has_range as boolean, scoped: !!r.reader_scoped };
       out.set(d.id, d);
     }
     return d;
   };
   for (const r of res.rows as Raw[]) (r.kind === "cell" ? get(r).cellKeys : get(r).rangeKeys).add(r.src_key as string);
-  const own = await db.execute(sql`SELECT c.id, c.table_id, c.key, c.type, c.config,
+  const own = await db.execute(sql`SELECT c.id, c.table_id, c.key, c.type, c.config, c.reader_scoped,
       EXISTS (SELECT 1 FROM dh_formula_deps r WHERE r.column_id = c.id AND r.kind = 'range') AS has_range
     FROM dh_columns c WHERE /*scope:system*/ c.table_id = ${tableId}::uuid AND c.deleted_at IS NULL AND c.type IN ('lookup', 'rollup', 'formula')`);
   for (const r of own.rows as Raw[]) {
-    if (r.type === "formula" && !r.has_range) continue;
+    if (r.type === "formula" && !r.has_range && !r.reader_scoped) continue;
     get(r);
   }
   return [...out.values()];
@@ -77,7 +81,8 @@ async function loadColumnInfo(db: Executor, tableIds: string[]): Promise<Map<str
 }
 
 /** Keys of the cells whose value (or error) differs between the old and the new data. An error marker `!k` counts as `k`. */
-export function changedKeys(c: Pick<RowChange, "old" | "new">): Set<string> {
+export function changedKeys(c: Pick<RowChange, "old" | "new" | "keys">): Set<string> {
+  if (c.keys) return new Set(c.keys);
   const o = c.old ?? {};
   const n = c.new ?? {};
   const out = new Set<string>();
@@ -159,6 +164,8 @@ export function callPlans(ast: Node, tableId: string, own: { tableId: string }, 
 export interface RecordOptions {
   /** The worker's chain (a computed column changed): formulas that read only their own row are recomputed too (the API already did for a user's write). */
   includeApiFormulas?: boolean;
+  /** The changes are of a reader-scoped column: group keys cannot be listed (values differ per reader), so a grouped read of it recomputes whole. */
+  scopedSource?: boolean;
 }
 
 /**
@@ -174,9 +181,13 @@ export async function recordChanges(db: Executor, tableId: string, changes: RowC
   const colOf = (t: string, k: string) => info.get(`${t}:${k}`);
   const diffs = overflow ? [] : changes.map((c) => ({ c, keys: c.kind === "update" ? changedKeys(c) : null }));
   const entries: QueueEntry[] = [];
+  // Under the split lock a row moving from one person to another changes what each member sees: the columns that read this table recompute for it.
+  const lock = await db.execute(sql`SELECT key_split, key_columns FROM dh_tables WHERE /*scope:system*/ id = ${tableId}::uuid`);
+  const lockRow = lock.rows[0] as { key_split: boolean; key_columns: string[] } | undefined;
+  const lockKeys = new Set<string>(lockRow?.key_split ? lockRow.key_columns : []);
 
   for (const d of deps) {
-    if (d.type === "formula" && !d.hasRange && !opts.includeApiFormulas) continue;
+    if (d.type === "formula" && !d.hasRange && !d.scoped && !opts.includeApiFormulas) continue;
     const push = (e: Omit<QueueEntry, "columnId" | "seq">) => entries.push({ columnId: d.id, seq, ...e });
     if (overflow) {
       push({ mode: "full" });
@@ -184,20 +195,25 @@ export async function recordChanges(db: Executor, tableId: string, changes: RowC
     }
     // Rows of the column's own table: a new or restored row needs its value; a changed cell it reads changes its value.
     if (d.tableId === tableId) {
-      const reads = d.type === "formula" ? d.cellKeys : new Set([d.config.relation_key as string]);
+      const reads = new Set(d.type === "formula" ? d.cellKeys : [d.config.relation_key as string]);
+      if (d.scoped) lockKeys.forEach((k) => reads.add(k));
       const ids = diffs.filter(({ c, keys }) => c.kind === "insert" || c.kind === "restore" || (c.kind === "update" && intersects(keys!, reads))).map(({ c }) => c.rowId);
       if (ids.length) push({ mode: "rows", rowIds: ids });
     }
     if (d.type === "lookup" || d.type === "rollup") {
       if (d.config.target_table_id === tableId) {
         const tk = d.config.target_key as string;
-        const ids = diffs.filter(({ c, keys }) => c.kind === "delete" || c.kind === "restore" || (c.kind === "update" && keys!.has(tk))).map(({ c }) => c.rowId);
+        const ids = diffs.filter(({ c, keys }) => c.kind === "delete" || c.kind === "restore" || (c.kind === "update" && (keys!.has(tk) || intersects(keys!, lockKeys)))).map(({ c }) => c.rowId);
         if (ids.length) push({ mode: "linked", rowIds: ids });
       }
       continue;
     }
     if (d.rangeKeys.size === 0) continue;
-    const relevant = diffs.filter(({ c, keys }) => c.kind !== "update" || intersects(keys!, d.rangeKeys));
+    if (opts.scopedSource) {
+      push({ mode: "full" });
+      continue;
+    }
+    const relevant = diffs.filter(({ c, keys }) => c.kind !== "update" || intersects(keys!, d.rangeKeys) || intersects(keys!, lockKeys));
     if (relevant.length === 0) continue;
     const ast = typeof d.config.expr === "string" ? parsedExpr(d.config.expr) : null;
     const plans = ast ? callPlans(ast, tableId, { tableId: d.tableId }, colOf) : null;
@@ -210,7 +226,7 @@ export async function recordChanges(db: Executor, tableId: string, changes: RowC
       const cols = cp.positions.filter((p) => p.depKey !== null);
       const tuples = new Map<string, unknown[]>();
       for (const { c, keys } of relevant) {
-        if (c.kind === "update" && !intersects(keys!, cp.watch)) continue;
+        if (c.kind === "update" && !intersects(keys!, cp.watch) && !intersects(keys!, lockKeys)) continue;
         for (const data of [c.old, c.new]) {
           if (!data) continue;
           // An error in a key cell is its own group in the formula engine; do not try to be clever.
@@ -234,7 +250,7 @@ export async function requestDependentsFull(db: Executor, tableId: string, keys:
   if (keys.length === 0) return [];
   const res = await db.execute(sql`SELECT DISTINCT c.id FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id
     WHERE /*scope:system*/ c.deleted_at IS NULL AND f.src_table_id = ${tableId}::uuid AND f.src_key = ANY(${`{${keys.join(",")}}`}::text[])
-    ${opts.includeApiFormulas ? sql`` : sql`AND (c.type <> 'formula' OR EXISTS (SELECT 1 FROM dh_formula_deps r WHERE r.column_id = c.id AND r.kind = 'range'))`}`);
+    ${opts.includeApiFormulas ? sql`` : sql`AND (c.type <> 'formula' OR c.reader_scoped OR EXISTS (SELECT 1 FROM dh_formula_deps r WHERE r.column_id = c.id AND r.kind = 'range'))`}`);
   const ids = (res.rows as { id: string }[]).map((r) => r.id);
   await enqueue(db, ids.map((columnId) => ({ columnId, seq, mode: "full" as const })));
   return ids;

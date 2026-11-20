@@ -1,3 +1,5 @@
+import { refreshReaderScoped } from "./reader-scope";
+import { markPending } from "./recalc";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError } from "@soe/shared";
@@ -74,6 +76,10 @@ export const splitOperations = [
         const asked = await ctx.db.execute(sql`SELECT 1 FROM dh_index_requests WHERE /*scope*/ table_id = ${acc.tableId}::uuid AND column_key = ${k} AND kind = 'uuid'`);
         if (asked.rows.length === 0) await ctx.db.execute(sql`SELECT soe_dh_drop_indexes(${acc.tableId}::uuid, ${assertColumnKey(k)}, ARRAY['uuid'])`);
       }
+      // Who sees which row changed for every member, so the columns that read this table recompute (reader-scoped or not any more).
+      const flips = await refreshReaderScoped(ctx.db, acc.datahub.ownerId);
+      const readers = await ctx.db.execute(sql`SELECT DISTINCT f.column_id AS id FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id WHERE /*scope*/ c.deleted_at IS NULL AND f.src_table_id = ${acc.tableId}::uuid`);
+      await markPending(ctx.db, [...new Set([...(readers.rows as { id: string }[]).map((r) => r.id), ...flips.became, ...flips.stopped])]);
       ctx.audit({ type: "datahub_table", id: acc.tableId, details: { key_split: enabled, key_columns: keys.length, members_bulk_create: i.members_bulk_create } });
       // Who sees which row changed for every member: caches, merged tables and open screens learn it from this one event.
       await emitStructure(ctx, acc.datahub.id, acc.tableId, "table_updated");

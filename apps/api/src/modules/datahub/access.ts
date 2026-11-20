@@ -4,6 +4,7 @@ import { AppError } from "@soe/shared";
 import type { Executor } from "@soe/db";
 import type { HandlerCtx } from "../../core/types";
 import { assertColumnKey } from "./types";
+import { overlayRel } from "./reader-scope";
 
 /**
  * Who may do what with a datahub (design module2 section 10, module1 section 4.2). Datahubs are private to their owner:
@@ -45,7 +46,7 @@ export interface ReaderScope {
 }
 
 /** Condition "a key column of this row holds one of `ids`", one comparison per key column (design module2 section 10: OR over the key columns). */
-function keyMatch(keys: string[], ids: string[], alias?: string): SQL {
+export function keyMatch(keys: string[], ids: string[], alias?: string): SQL {
   if (keys.length === 0 || ids.length === 0) return sql`false`;
   const arr = `{${ids.join(",")}}`;
   const data = alias ? `${alias}.data` : "data";
@@ -65,7 +66,20 @@ export class TableAccess {
     readonly actorId: string,
     /** Set only for a non-owner reader of a table whose split lock is on. Null = this reader sees every row. */
     readonly reader: ReaderScope | null = null,
+    /** Keys of the reader-scoped computed columns of this table (design module2 section 10). Non-empty: a reader who is not the owner reads their own values of them. */
+    readonly scopedKeys: string[] = [],
   ) {}
+
+  /**
+   * What to put after `FROM` for every read of this table's rows made for a person (use `FROM ${access.rel()} <alias>`). For the owner, and for a table
+   * without reader-scoped columns, it is `dh_rows`. Otherwise it is `dh_rows` with the reader's own values of the reader-scoped columns laid over
+   * `data` (the owner's values are removed, so nobody sees a total computed over rows they may not see); under the split lock it also keeps only
+   * the reader's rows, inside the subquery, so key indexes still apply.
+   */
+  rel(): SQL {
+    if (this.level === "owner" || this.scopedKeys.length === 0) return sql`dh_rows`;
+    return overlayRel(this.table.id, this.actorId, this.scopedKeys, this.reader ? keyMatch(this.table.split.keys, this.reader.ids, "r") : null);
+  }
 
   /** The table is split-locked for this reader: their rows depend on who they are. */
   get restricted(): boolean {
@@ -129,10 +143,12 @@ export class TableAccess {
  * (add the reader and the columns of the lock), and every cache (metrics, later others) follows. Callers never build their own key.
  */
 export function scopeKey(a: TableAccess): string {
+  // A member's own values of the reader-scoped columns (design module2 section 10) make the answer personal, even without the split lock.
+  if (a.scopedKeys.length > 0 && a.level !== "owner" && !a.reader) return `${a.tableId}:${a.level}:u:${a.actorId}`;
   if (!a.reader) return `${a.tableId}:${a.level}`;
   // Under the split lock the rows depend on the reader: the key is the key columns and the ids the reader sees, so two readers who see the same
   // rows share an answer, and a change in the tree (other people to manage) changes the key by itself.
-  const h = createHash("sha256").update(JSON.stringify([a.table.split.keys, [...a.reader.ids].sort()])).digest("hex").slice(0, 24);
+  const h = createHash("sha256").update(JSON.stringify([a.table.split.keys, [...a.reader.ids].sort(), a.scopedKeys.length ? a.actorId : null])).digest("hex").slice(0, 24);
   return `${a.tableId}:${a.level}:s:${h}`;
 }
 
@@ -166,6 +182,7 @@ export async function loadTableAccess(ctx: Ctx, tableId: string, need: Level = "
   const res = await ctx.db.execute(sql`
     SELECT t.id, t.datahub_id, t.name, t.next_row_no, t.row_count, t.version, t.deleted_at AS t_deleted, t.kind,
            t.key_split, t.key_columns, t.key_primary, t.members_bulk_create,
+           (SELECT coalesce(array_agg(c.key), '{}') FROM dh_columns c WHERE /*scope*/ c.table_id = t.id AND c.reader_scoped AND c.deleted_at IS NULL) AS scoped_keys,
            d.owner_id, d.name AS datahub_name, d.deleted_at AS d_deleted, ${LEVEL_SQL(u)} AS level
     FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
     WHERE /*scope*/ t.id = ${tableId}::uuid`);
@@ -183,6 +200,7 @@ export async function loadTableAccess(ctx: Ctx, tableId: string, need: Level = "
     level,
     u,
     reader,
+    level === "owner" ? [] : ((r.scoped_keys as string[] | null) ?? []),
   );
   acc.require(need);
   return acc;

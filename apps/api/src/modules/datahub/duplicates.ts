@@ -55,7 +55,7 @@ interface GroupRef {
 /** The groups in display order (largest first, then by the first row number), a page of them, plus the totals. */
 async function readGroups(ctx: { db: Executor }, access: TableAccess, schema: TableSchema, columns: string[], offset: number, limit: number, idCap = MAX_IDS_PER_GROUP) {
   const k = keySql(schema, columns);
-  const base = sql`SELECT id, row_no, ${k.key} AS dk FROM dh_rows WHERE ${access.rows()} AND deleted_at IS NULL AND ${k.keyed}`;
+  const base = sql`SELECT id, row_no, ${k.key} AS dk FROM ${access.rel()} dh_rows WHERE ${access.rows()} AND deleted_at IS NULL AND ${k.keyed}`;
   const totals = await ctx.db.execute(sql`WITH k AS (${base}), g AS (SELECT dk, count(*) AS n FROM k GROUP BY dk HAVING count(*) > 1) SELECT count(*)::int AS groups, coalesce(sum(n), 0)::int AS rows FROM g`);
   const t = totals.rows[0] as { groups: number; rows: number };
   const page = await ctx.db.execute(sql`

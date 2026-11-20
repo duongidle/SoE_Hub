@@ -20,18 +20,17 @@ export interface LoadedRow {
 /** How a cell is written. The row writer groups cell writes by source. */
 export type CellWrite =
   | { source: "jsonb"; key: string; value: Stored };
-// TODO(Stage 4, Module 4): add `{ source: "physical"; column: string; value: Stored }`.
 // TODO(Stage 4, Module 4): add `{ source: "personal"; key: string; userId: string; value: Stored }`.
 
 /**
- * Where a column's values live (design module2 section 3, "Ba nguồn cột"). The engine reads, writes, filters and
- * sorts every column through this interface, so a column that lives elsewhere behaves like the others:
+ * Where a column's values live (design module2 section 3, "Hai nguồn cột"; the third source "cột thật của bảng hệ thống" was dropped 19/11/2026,
+ * so Deals and every template table also live in `dh_rows`). The engine reads, writes, filters and sorts every column through this interface:
  *  - `jsonb`: inside `dh_rows.data` under the column key (default, implemented here).
- *  - `physical`: a real Postgres column of a system table such as Deals (Stage 4).
- *  - `personal`: a value per person, kept in its own table, visible to the owner and their leader (Stage 4).
+ *  - `personal`: a value per person (Stage 4.1c, template columns). Not to be confused with the per-reader values of reader-scoped computed
+ *    columns (`dh_personal_rows`, `reader-scope.ts`), which are laid over `data` by `TableAccess.rel()` so a column of this source still reads `data`.
  */
 export interface ColumnSource {
-  readonly kind: "jsonb" | "physical" | "personal";
+  readonly kind: "jsonb" | "personal";
   /** Typed SQL expression for filter and sort, or null when the column cannot be filtered. */
   fieldSpec(col: DhColumn): FieldSpec | null;
   /** SQL that reads the cell as `jsonb` (for the list/get output and `fields=` selection). */
@@ -90,19 +89,6 @@ const notYet = (what: string) => (): never => {
 };
 
 /**
- * TODO(Stage 4): cột thật của bảng hệ thống (Deals). `fieldSpec` trả biểu thức là cột Postgres (có index sẵn),
- * `readExpr` là `to_jsonb(cột)`, `planWrite` là `UPDATE ... SET cột = ?` trên bảng của Deals.
- */
-export class PhysicalSource implements ColumnSource {
-  readonly kind = "physical" as const;
-  fieldSpec = notYet("physical");
-  readExpr = notYet("physical");
-  cellExpr = notYet("physical");
-  readCell = notYet("physical");
-  planWrite = notYet("physical");
-}
-
-/**
  * TODO(Stage 4): giá trị riêng theo từng người (cột cá nhân). Đọc/ghi bảng giá trị theo (dòng, người);
  * lọc và sắp xếp join theo người đang xem; Guest không bao giờ đọc được nguồn này.
  */
@@ -115,9 +101,9 @@ export class PersonalSource implements ColumnSource {
   planWrite = notYet("personal");
 }
 
-const sources = { jsonb: new JsonbSource(), physical: new PhysicalSource(), personal: new PersonalSource() };
+const sources = { jsonb: new JsonbSource(), personal: new PersonalSource() };
 
-/** The source of a column. Stage 4 records physical/personal columns with `config.__source`; today all are JSONB. */
+/** The source of a column. Stage 4.1c records personal columns with `config.__source`; today all are JSONB. */
 export function sourceOf(col: DhColumn): ColumnSource {
   const k = (col.config?.__source as keyof typeof sources | undefined) ?? "jsonb";
   return sources[k] ?? sources.jsonb;

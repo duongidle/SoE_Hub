@@ -34,6 +34,11 @@ export interface MTable {
   columns: MColumn[];
   /** `table_id = <this table>` for rows aliased `alias`, with the scope marker (`TableAccess.scope`). */
   scope: (alias: string) => SQL;
+  /**
+   * What goes after `FROM` for the rows of this table as the reader sees them (`TableAccess.rel`). Default `dh_rows`. Differs when some computed
+   * column holds a different value for each reader (design module2 section 10): then it is `dh_rows` with the reader's own values laid over `data`.
+   */
+  rel?: SQL;
   /** Who-sees-which-rows key of this table for the reader (`scopeKey` in the Datahub's access.ts); the API sets it, the answer cache uses it. */
   scopeKey?: string;
 }

@@ -39,7 +39,16 @@ Việc 1–9 và 11a của Module 4 mục 19a. Code ở `apps/api/src/modules/da
 **Chuyển giao (`transfer.ts`)**
 - `datahub_split_membership`: ở mọi bảng bật khoá mà người nguồn là thành viên (hoặc datahub đổi chủ), người đích nhận cùng chia sẻ (quyền cao hơn thắng; chủ không cần) và mọi dòng mang tên người nguồn ở cột khoá chuyển sang người đích, có lịch sử dòng, hàng đợi tính lại và sự kiện. "Deal đã đóng giữ người cũ" (Module 1 mục 8) chưa làm được vì chưa có deal; Stage 4 đăng ký điều kiện giữ lại ở chỗ này.
 
-## Việc còn lại / ghi chú cho 4.1b–d
+## 4.1b Tính theo người đọc (server)
+
+- **Cờ `dh_columns.reader_scoped`** (migration 0014): cột công thức/Lookup/Rollup đọc dòng của bảng có khoá phân chia, hoặc đọc cột đã có cờ, thì mỗi người đọc một giá trị. `refreshReaderScoped` (reader-scope.ts) tính lại cờ cho cả một chủ mỗi khi phụ thuộc, khoá hoặc cột đổi; cột mất cờ thì xoá giá trị riêng.
+- **Nơi lưu**: giá trị của chủ vẫn ở `dh_rows.data` (tính trên mọi dòng); giá trị của thành viên khác ở `dh_personal_rows(row_id, user_id, data)`. Không có bản sao nào khác.
+- **Một nơi đọc**: `TableAccess.rel()` trả `dh_rows` (chủ, hoặc bảng không có cột cờ) hoặc `dh_rows` phủ giá trị riêng của người đọc lên `data` (bỏ giá trị chủ trước nên không bao giờ lộ tổng tính trên dòng ngoài phạm vi). Mọi chỗ đọc dòng (rows, nhóm, export, tìm trùng, metric, bảng gộp) dùng `FROM ${access.rel()}`; metric nhận qua `MTable.rel`. Khoá cache `scopeKey` thêm id người đọc khi bảng có cột cờ.
+- **Tính lại theo phần** (recalc.ts/partial.ts): với mỗi người đọc trong phạm vi bị ảnh hưởng (đổi dòng nguồn, đổi cột khoá, thêm/bỏ thành viên, `org.member.changed`) chỉ tính lại dòng liên quan; ghi vào `dh_personal_rows`, không lịch sử, không audit, không đổi `version`. Sự kiện `datahub.formula.recalculated` có `reader`: chỉ người đó nhận (SSE).
+- **Việc 11**: bỏ `PhysicalSource` và loại `physical` khỏi `column-source.ts`; còn `jsonb` và `personal` (4.1c).
+- **Bảng gộp** (quyết định Opus): nguồn thường giữ luật "chỉ chủ" (`source_not_owned`). Nguồn là bảng có khoá phân chia thì thành viên (view trở lên) dùng được: `loadSource` nạp theo người đó, `readableRows`/`rel()` chỉ cho dòng họ thấy; `requestRescope` đã đồng bộ lại khi dòng, chia sẻ, khoá hoặc cây đổi. Bật khoá sau khi đã gộp thì bảng gộp của người không còn là chủ vẫn đọc theo phạm vi mới ở lần đồng bộ kế.
+- Test: `apps/api/test/datahub-reader-scope.test.ts`.
+
+## Việc còn lại / ghi chú cho 4.1c–d
 - Lịch sử dòng (`rowHistory`): với người bị khoá, kiểm dòng nằm trong `rows()` trước khi đọc `row_history` (chủ và bảng không khoá giữ nguyên, kể cả dòng đã xoá hẳn).
-- `loadSource` (bảng gộp) vẫn đòi chủ bảng nguồn: một Leader/Manager dựng bảng gộp từ bảng chung của người khác (Deals) chưa được. Để 4.1b/Stage 4 quyết cùng "bảng riêng/ bảng chung".
 - Web: hộp thoại chia sẻ, ngăn sửa cột, ô Người dùng gọi `datahub.people.lookup` với `table_id`, "không còn quyền" (4.1d).

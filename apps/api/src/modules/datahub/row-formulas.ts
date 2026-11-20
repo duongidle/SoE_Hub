@@ -46,6 +46,8 @@ export class RowFormulas {
     const compiled: Compiled[] = [];
     for (const c of schema.alive) {
       if (c.type !== "formula" || typeof c.config.expr !== "string") continue;
+      // A value that depends on who reads it cannot be computed here, from one row: the worker computes it for each reader.
+      if (c.readerScoped) continue;
       const ast = parsedExpr(c.config.expr);
       if (ast && collectDeps(ast).ranges.length > 0) continue;
       compiled.push({ col: c, ast, cells: ast ? collectDeps(ast).cells : [] });

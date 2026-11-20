@@ -87,6 +87,8 @@ export const dhColumns = pgTable(
     required: boolean("required").notNull().default(false),
     /** May a member (not the owner) with the Edit permission write this column's cells? Default on; template tables start off (design module2 section 10). */
     allowEdit: boolean("allow_edit").notNull().default(true),
+    /** Computed column whose value depends on who reads it (it reads a split-lock table, or another such column): design module2 section 10. Kept by `reader-scope.ts`. */
+    readerScoped: boolean("reader_scoped").notNull().default(false),
     isUnique: boolean("is_unique").notNull().default(false),
     defaultValue: jsonb("default_value"),
     description: text("description"),
@@ -255,6 +257,28 @@ export const dhUserPrefs = pgTable("dh_user_prefs", {
   leaderCanEdit: boolean("leader_can_edit").notNull().default(false),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
 });
+
+/**
+ * The values of the reader-scoped computed columns of a row, one set per member who is not the owner (design module2 section 10:
+ * "mỗi thành viên một giá trị"). `data` has the same shape as `dh_rows.data` (value under the column key, error under `!key`) but only
+ * holds reader-scoped columns. The owner's values stay in `dh_rows.data`.
+ */
+export const dhPersonalRows = pgTable(
+  "dh_personal_rows",
+  {
+    rowId: uuid("row_id")
+      .notNull()
+      .references(() => dhRows.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    tableId: uuid("table_id")
+      .notNull()
+      .references(() => dhTables.id, { onDelete: "cascade" }),
+    data: jsonb("data").notNull().default(sql`'{}'::jsonb`),
+  },
+  (t) => [primaryKey({ columns: [t.rowId, t.userId] }), index("dh_personal_rows_user_idx").on(t.tableId, t.userId)],
+);
 
 /** Per-user overrides of the Datahub limits (design section 11). Null = use the system default. */
 export const dhUserLimits = pgTable("dh_user_limits", {

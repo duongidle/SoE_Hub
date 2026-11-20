@@ -1,3 +1,4 @@
+import { refreshReaderScoped } from "./reader-scope";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError, COLUMN_TYPES, DhNameSchema, toActorRef } from "@soe/shared";
@@ -69,7 +70,9 @@ async function saveComputed(ctx: Ctx, acc: TableAccess, columnId: string, p: Pre
   await ctx.db.execute(sql`DELETE FROM dh_formula_deps WHERE ${acc.scope()} AND column_id = ${columnId}::uuid`);
   await insertDeps(ctx, acc.tableId, columnId, p.deps);
   await ctx.db.execute(sql`UPDATE dh_columns SET calc_volatile = ${p.volatile} WHERE ${acc.scope()} AND id = ${columnId}::uuid`);
-  await markPending(ctx.db, [columnId]);
+  // The new dependencies may make this column (and the columns that read it) reader-scoped, or no longer so (design module2 section 10).
+  const flips = await refreshReaderScoped(ctx.db, acc.datahub.ownerId);
+  await markPending(ctx.db, [columnId, ...flips.became, ...flips.stopped]);
 }
 
 async function insertDeps(ctx: Ctx, tableId: string, columnId: string, deps: DepRow[]): Promise<void> {

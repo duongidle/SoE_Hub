@@ -60,10 +60,12 @@ export const datahubEvents: EventDef[] = [
       changes: z.array(z.object({ row_id: z.uuid(), column: z.string(), old: z.unknown(), new: z.unknown() })).max(500),
       /** Change sequence the column has incorporated up to (design module2 section 6.7). */
       seq: z.number().int().nullable().optional(),
+      /** The cells are one member's own values of a reader-scoped column (design module2 section 10): only that member hears of it. */
+      reader: z.uuid().optional(),
     }),
     // Cells of rows: only the people who see those rows. A column-level `pending` / `done` carries no row, so it goes to everyone who sees the table.
-    audience: async (p: { table_id: string; state: string; changes?: { row_id: string }[] }, db) => ({
-      users: p.state === "changed" && p.changes?.length ? await rowAudience(db, p.table_id, [...new Set(p.changes.map((c) => c.row_id))]) : await tableAudience(db, p.table_id),
+    audience: async (p: { table_id: string; state: string; changes?: { row_id: string }[]; reader?: string }, db) => ({
+      users: p.reader ? [p.reader] : p.state === "changed" && p.changes?.length ? await rowAudience(db, p.table_id, [...new Set(p.changes.map((c) => c.row_id))]) : await tableAudience(db, p.table_id),
     }),
   },
   {

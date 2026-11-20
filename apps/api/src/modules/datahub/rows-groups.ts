@@ -96,7 +96,7 @@ export async function listGroups(db: Executor, access: TableAccess, schema: Tabl
     const select = [...ks.map((k, i) => sql`to_jsonb(${k.expr}) AS ${sql.raw(`"k${i}"`)}`), sql`count(*)::int AS n`, ...aggSelect()];
     const groupBy = ks.flatMap((k) => (k.order === k.expr ? [k.expr] : [k.expr, k.order]));
     const orderBy = ks.map((k) => sql`${k.order} ${k.dir === "asc" ? sql`ASC` : sql`DESC`} NULLS LAST`);
-    const res = await db.execute(sql`SELECT ${sql.join(select, sql`, `)} FROM dh_rows ${whereSql} GROUP BY ${sql.join(groupBy, sql`, `)} ORDER BY ${sql.join(orderBy, sql`, `)} LIMIT ${limit}`);
+    const res = await db.execute(sql`SELECT ${sql.join(select, sql`, `)} FROM ${access.rel()} dh_rows ${whereSql} GROUP BY ${sql.join(groupBy, sql`, `)} ORDER BY ${sql.join(orderBy, sql`, `)} LIMIT ${limit}`);
     return res.rows as Record<string, unknown>[];
   };
   const pathOf = (r: Record<string, unknown>, depth: number) => Array.from({ length: depth }, (_, i) => (r[`k${i}`] ?? null) as string | number | boolean | null);
