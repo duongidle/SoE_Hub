@@ -1,6 +1,6 @@
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { notifications, orgMemberships } from "@soe/db";
+import { enqueueOutbox, orgMemberships } from "@soe/db";
 import { as, drainOutbox, fails, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
@@ -224,5 +224,169 @@ describe("custom columns (lớp Tuỳ chỉnh) of a shared template: only their 
     await userA2("datahub.column.delete", { table_id: tid, column: "Ghi chú (riêng)" });
     expect(await colNames(userA2, tid)).not.toContain("Ghi chú (riêng)");
     expect(await colNames(userA1, tid)).toContain("Ghi chú (riêng)");
+  });
+});
+
+const ownTables = async (userId: string) => (await t.c.db.db.execute(sql`SELECT t.id, t.name, t.template_id, t.archived, t.deleted_at FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id WHERE /*scope:system*/ d.owner_id = ${userId}::uuid`)).rows as { id: string; name: string; template_id: string | null; archived: boolean; deleted_at: Date | null }[];
+const orgChanged = (userId: string) => enqueueOutbox(t.c.db.db, { event: "org.member.changed", aggregateType: "user", aggregateId: userId, payload: { user_id: userId, change: "updated" } });
+
+describe("a team template (Leader): only that team; the tree follows org changes", () => {
+  let tpl: { id: string; master_table_id: string; scope?: string };
+  it("a Leader makes a team template: the owner is the Leader, members are the team plus the Manager who only views (no other team)", async () => {
+    tpl = await leaderA("datahub.template.create", { name: "Việc team A", kind: "shared", member_permission: "view" });
+    expect(tpl.scope).toBe("team");
+    const rows = await shareRows(tpl.master_table_id);
+    expect(rows.map((r) => r.grantee_id).sort()).toEqual([org.mgrA.id, org.userA1.id].sort());
+    expect(rows.find((r) => r.grantee_id === org.mgrA.id)!.permission).toBe("view");
+    expect((await userA2("datahub.template.list")).some((x: { name: string }) => x.name === "Việc team A")).toBe(false);
+    expect((await mgrA("datahub.template.list")).some((x: { name: string }) => x.name === "Việc team A")).toBe(true);
+    // A Manager does not edit a team template of a Leader? He may (his tree); the Leader of another team may not.
+    expect((await fails(leaderB("datahub.template.column.create", { template_id: tpl.id, name: "X", type: "text" }))).code).toBe("not_found");
+  });
+  it("the Leader adds columns of the basic layer to his own team template; a team template stays out of the tree template's names", async () => {
+    const c = await leaderA("datahub.template.column.create", { template_id: tpl.id, name: "Việc", type: "text" });
+    expect(c.layer).toBe("basic");
+    expect(await colNames(userA1, tpl.master_table_id)).toContain("Việc");
+  });
+  it("a person who changes team: the new team's template reaches them, the old one goes away", async () => {
+    await t.c.db.db.update(orgMemberships).set({ leaderId: org.leaderA.id }).where(eq(orgMemberships.userId, org.userA2.id));
+    await orgChanged(org.userA2.id);
+    await drainOutbox(t);
+    expect((await shareRows(tpl.master_table_id)).map((r) => r.grantee_id).sort()).toEqual([org.mgrA.id, org.userA1.id, org.userA2.id].sort());
+    await t.c.db.db.update(orgMemberships).set({ leaderId: null }).where(eq(orgMemberships.userId, org.userA2.id));
+    await orgChanged(org.userA2.id);
+    await drainOutbox(t);
+    expect((await shareRows(tpl.master_table_id)).map((r) => r.grantee_id).sort()).toEqual([org.mgrA.id, org.userA1.id].sort());
+  });
+});
+
+describe("a personal template: one table each, created, hidden and shown with the tree", () => {
+  let tpl: { id: string; master_table_id: string };
+  it("every member gets their own table with the same columns; the maker's table is the master", async () => {
+    tpl = await mgrA("datahub.template.create", { name: "Index riêng", kind: "personal" });
+    await mgrA("datahub.template.column.create", { template_id: tpl.id, name: "Chỉ tiêu", type: "number", allow_edit: true });
+    await drainOutbox(t);
+    for (const u of [org.userA1, org.userA2, org.leaderA]) {
+      const mine = (await ownTables(u.id)).filter((x) => x.template_id === tpl.id && !x.archived);
+      expect(mine.length, u.id).toBe(1);
+    }
+    expect((await ownTables(org.userB1.id)).some((x) => x.template_id === tpl.id)).toBe(false);
+  });
+  it("a member who leaves the tree has the table hidden (not deleted); coming back shows it again", async () => {
+    const before = (await ownTables(org.userA2.id)).find((x) => x.template_id === tpl.id)!;
+    await t.c.db.db.update(orgMemberships).set({ managerId: org.mgrB.id }).where(eq(orgMemberships.userId, org.userA2.id));
+    await orgChanged(org.userA2.id);
+    await drainOutbox(t);
+    const away = (await ownTables(org.userA2.id)).find((x) => x.id === before.id)!;
+    expect(away.archived).toBe(true);
+    await t.c.db.db.update(orgMemberships).set({ managerId: org.mgrA.id }).where(eq(orgMemberships.userId, org.userA2.id));
+    await orgChanged(org.userA2.id);
+    await drainOutbox(t);
+    const back = (await ownTables(org.userA2.id)).find((x) => x.id === before.id)!;
+    expect(back.archived).toBe(false);
+    expect(back.deleted_at).toBeNull();
+  });
+});
+
+describe("a table of your own with the name of a template gives way", () => {
+  it("is renamed `<name> (riêng)` and its maker is told", async () => {
+    // The clash is inside the person's datahub "Quản lý Deal" (a person may add tables there).
+    const tb = await userA1("datahub.table.create", { datahub_id: (await dealDatahub(org.userA1.id))!, name: "Bảng Chung Tên" });
+    await mgrA("datahub.template.create", { name: "bảng chung tên", kind: "shared" });
+    await drainOutbox(t);
+    const got = (await ownTables(org.userA1.id)).find((x) => x.id === tb.id)!;
+    expect(got.name).toBe("Bảng Chung Tên (riêng)");
+    expect((await notified(org.userA1.id)).some((n) => /Bảng Chung Tên/.test(n.body))).toBe(true);
+  });
+});
+
+describe("column roles (module4 3.7)", () => {
+  let tpl: { id: string; master_table_id: string };
+  it("a role needs a column of the right type; one role has one column; the old holder lets go", async () => {
+    tpl = await mgrA("datahub.template.create", { name: "Deals vai trò", kind: "shared", role_set: "deals" });
+    expect((await fails(mgrA("datahub.template.column.create", { template_id: tpl.id, name: "DT chữ", type: "text", role: "doanh_thu" }))).code).toBe("validation_error");
+    await mgrA("datahub.template.column.create", { template_id: tpl.id, name: "Doanh thu", type: "currency", role: "doanh_thu" });
+    await mgrA("datahub.template.column.create", { template_id: tpl.id, name: "Doanh thu 2", type: "currency" });
+    const moved = await mgrA("datahub.template.column.set_role", { template_id: tpl.id, column: "Doanh thu 2", role: "doanh_thu" });
+    expect(moved.column.role).toBe("doanh_thu");
+    expect(moved.previous.role).toBeNull();
+  });
+  it("renaming is fine, with the usage in the answer; changing the type or dropping a column that holds a role is refused", async () => {
+    const u = await mgrA("datahub.template.column.update", { template_id: tpl.id, column: "Doanh thu 2", name: "Doanh thu thực" });
+    expect(u.usage.role.key).toBe("doanh_thu");
+    expect(u.usage.role.used_by.length).toBeGreaterThan(0);
+    expect((await fails(mgrA("datahub.template.column.type_change", { template_id: tpl.id, column: "Doanh thu thực", type: "text", accept_data_loss: true }))).details.reason).toBe("role_type");
+    expect((await fails(mgrA("datahub.template.column.delete", { template_id: tpl.id, column: "Doanh thu thực" }))).code).toBe("conflict");
+    // The role moves first: then the old column is free to change.
+    await mgrA("datahub.template.column.set_role", { template_id: tpl.id, column: "Doanh thu", role: "doanh_thu" });
+    await mgrA("datahub.template.column.delete", { template_id: tpl.id, column: "Doanh thu thực" });
+  });
+  it("a role that is required cannot be set to nothing; only who edits the template sets roles", async () => {
+    expect((await fails(mgrA("datahub.template.column.set_role", { template_id: tpl.id, column: "Doanh thu", role: null }))).code).toBe("conflict");
+    expect((await fails(leaderA("datahub.template.column.set_role", { template_id: tpl.id, column: "Doanh thu", role: "doanh_thu" }))).code).toBe("forbidden");
+  });
+});
+
+describe("who edits the template: Leader gets the team layer only when allowed; a member only adds their own column", () => {
+  let tpl: { id: string; master_table_id: string };
+  it("Leader may add a team column only when the table allows it", async () => {
+    tpl = await mgrA("datahub.template.create", { name: "Có lớp team", kind: "shared" });
+    const err = await fails(leaderA("datahub.template.column.create", { template_id: tpl.id, name: "Cột team", type: "text", layer: "team", team_leader_id: org.leaderA.id }));
+    expect(err.code).toBe("forbidden");
+    await mgrA("datahub.template.update", { template_id: tpl.id, leader_can_add_columns: true });
+    const c = await leaderA("datahub.template.column.create", { template_id: tpl.id, name: "Cột team", type: "text", layer: "team", team_leader_id: org.leaderA.id });
+    expect(c.layer).toBe("team");
+    expect(await colNames(userA1, tpl.master_table_id)).toContain("Cột team");
+    expect(await colNames(userA2, tpl.master_table_id)).not.toContain("Cột team");
+    // Not a Leader's to change: a basic column, nor another team's layer.
+    expect((await fails(leaderA("datahub.template.column.create", { template_id: tpl.id, name: "Cơ bản", type: "text", layer: "basic" }))).code).toBe("forbidden");
+    expect((await fails(leaderA("datahub.template.update", { template_id: tpl.id, name: "Đổi" }))).code).toBe("forbidden");
+    expect((await fails(userA1("datahub.template.archive", { template_id: tpl.id }))).code).toBe("forbidden");
+  });
+  it("a member cannot drop a template column through the column commands; archive hides the table for everyone and restore brings it back", async () => {
+    expect((await fails(userA1("datahub.column.delete", { table_id: tpl.master_table_id, column: "Cột team" }))).code).toBeTruthy();
+    await mgrA("datahub.template.archive", { template_id: tpl.id });
+    expect((await userA1("datahub.template.list")).some((x: { id: string }) => x.id === tpl.id)).toBe(false);
+    await mgrA("datahub.template.restore", { template_id: tpl.id });
+    expect((await userA1("datahub.template.list")).some((x: { id: string }) => x.id === tpl.id)).toBe(true);
+  });
+});
+
+describe("a Relation column in your own table points to a template table you read", () => {
+  let tpl: { id: string; master_table_id: string };
+  let mine: { tableId: string };
+  const deal: string[] = [];
+  it("set up: a Deals-like template with a split lock; each member sees only their rows", async () => {
+    tpl = await mgrA("datahub.template.create", { name: "Deals liên kết", kind: "shared", member_permission: "view" });
+    await mgrA("datahub.template.column.create", { template_id: tpl.id, name: "Tên deal", type: "text" });
+    await mgrA("datahub.template.column.create", { template_id: tpl.id, name: "Người", type: "user" });
+    await mgrA("datahub.table.share_options.set", { table_id: tpl.master_table_id, key_split: true, key_columns: ["Người"] });
+    for (const [n, u] of [["D1", org.userA1.id], ["D2", org.userA2.id]] as const) deal.push((await mgrA("datahub.row.create", { table_id: tpl.master_table_id, data: { "Tên deal": n, Người: u } })).id);
+    await drainOutbox(t);
+    expect((await userA1("datahub.row.list", { table_id: tpl.master_table_id, limit: 10 })).items.length).toBe(1);
+  });
+  it("the owner links a deal they see; one they do not see is refused; labels and search only show their rows", async () => {
+    const dh = await userA1("datahub.datahub.create", { name: "Khách của tôi" });
+    const tb = await userA1("datahub.table.create", { datahub_id: dh.id, name: "Khách" });
+    mine = { tableId: tb.id };
+    await userA1("datahub.column.create", { table_id: tb.id, name: "Tên", type: "text" });
+    await userA1("datahub.column.create", { table_id: tb.id, name: "Deal", type: "relation", config: { target_table_id: tpl.master_table_id, multiple: true } });
+    const ok = await userA1("datahub.row.create", { table_id: tb.id, data: { Tên: "K1", Deal: [deal[0]] } });
+    expect(ok.id).toBeTruthy();
+    expect((await fails(userA1("datahub.row.create", { table_id: tb.id, data: { Tên: "K2", Deal: [deal[1]] } }))).code).toBe("validation_error");
+    const labels = await userA1("datahub.relation.labels", { table_id: tb.id, column: "Deal", ids: deal.join(",") });
+    expect(labels.map((l: { label: string }) => l.label)).toEqual(["D1"]);
+    const found = await userA1("datahub.relation.search", { table_id: tb.id, column: "Deal", limit: 10 });
+    expect(found.data.map((l: { label: string }) => l.label)).toEqual(["D1"]);
+  });
+  it("a table of a template you do not read, or of someone else's own table, is refused", async () => {
+    const other = await userB1("datahub.datahub.create", { name: "Của B" });
+    const ob = await userB1("datahub.table.create", { datahub_id: other.id, name: "B1" });
+    const dh = (await userA1("datahub.datahub.list", {})).data?.[0] ?? (await userA1("datahub.datahub.list", {}))[0];
+    const tb = await userA1("datahub.table.create", { datahub_id: dh.id, name: "Bảng thử" });
+    for (const target of [ob.id, (await mgrB("datahub.template.create", { name: "Của cây B", kind: "shared" })).master_table_id]) {
+      expect((await fails(userA1("datahub.column.create", { table_id: tb.id, name: "Liên kết xấu", type: "relation", config: { target_table_id: target } }))).code).toBe("validation_error");
+    }
+    void mine;
   });
 });

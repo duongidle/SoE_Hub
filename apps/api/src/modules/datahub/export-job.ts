@@ -10,7 +10,8 @@ import { AppError, TimeFilterSchema, filterParam, jsonParam, type FilterNode } f
 import { dhJobs, files, newId, type Db } from "@soe/db";
 import { systemScope } from "../../auth/access";
 import { defineCommand } from "../../core/registry";
-import { loadDatahubAccess, loadTableAccess } from "./access";
+import { loadDatahubAccess, loadTableAccess, readableRows } from "./access";
+import { resolveLinkTarget } from "./link-targets";
 import { assertJobRoom, callAs, cancelRequested, JobCancelled, jobActor, jobOut, JobOut, patchJob, registerJobRunner, type JobEnv, type JobRow } from "./jobs";
 import { listRows } from "./rows-read";
 import { Id } from "./shared";
@@ -194,8 +195,11 @@ async function loadLookups(db: Db, cols: Col[], rows: Raw[], ownerId: string, ta
       await db.execute(sql`SELECT key FROM dh_columns WHERE /*scope*/ table_id = ${target}::uuid AND deleted_at IS NULL AND type IN ('text', 'long_text', 'email', 'phone', 'url') ORDER BY position, created_at, id LIMIT 1`)
     ).rows[0] as { key: string } | undefined;
     const label = key ? sql`COALESCE(NULLIF(r.data->>${sql.raw(`'${assertColumnKey(key.key)}'`)}, ''), '#' || r.row_no::text)` : sql`'#' || r.row_no::text`;
+    const lt = await resolveLinkTarget({ db, actor: jobActor(ownerId) }, ownerId, target);
+    if (!lt) continue;
+    const cond = lt.own ? sql`d.owner_id = ${ownerId}::uuid` : readableRows(lt.acc, "r");
     const res = await db.execute(sql`SELECT r.id, ${label} AS label FROM dh_rows r JOIN dh_tables t ON t.id = r.table_id JOIN dh_datahubs d ON d.id = t.datahub_id
-      WHERE /*scope*/ r.table_id = ${target}::uuid AND d.owner_id = ${ownerId}::uuid AND r.id = ANY(${uuidArray([...ids])}::uuid[])`);
+      WHERE /*scope*/ r.table_id = ${target}::uuid AND ${cond} AND r.id = ANY(${uuidArray([...ids])}::uuid[])`);
     for (const r of res.rows as { id: string; label: string }[]) lk.links.set(r.id, r.label);
   }
   if (need.files.size) {

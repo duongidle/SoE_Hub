@@ -5,7 +5,8 @@ import type { HandlerCtx } from "../../core/types";
 import { ownedBy } from "../../auth/access";
 import { files } from "@soe/db";
 import { and, eq, isNull } from "drizzle-orm";
-import type { TableAccess } from "./access";
+import { readableRows, type TableAccess } from "./access";
+import { resolveLinkTarget } from "./link-targets";
 import { sourceOf, type CellWrite, type LoadedRow } from "./column-source";
 import { isComputedType } from "./cell-values";
 import { buildSearchText, columnTypeDef } from "./column-types";
@@ -74,7 +75,7 @@ function parseCells(schema: TableSchema, input: Record<string, unknown>, issues:
 }
 
 /** Users and linked rows named by a cell must exist. (Files are checked by `checkFiles`, once the rows being changed are known.) */
-async function checkRefs(db: Executor, actorId: string, ownerId: string, cells: Map<string, Stored>[], schema: TableSchema, issues: { row: number; column: string; message: string }[]): Promise<void> {
+async function checkRefs(ctx: Ctx, db: Executor, actorId: string, ownerId: string, cells: Map<string, Stored>[], schema: TableSchema, issues: { row: number; column: string; message: string }[]): Promise<void> {
   const users = new Set<string>();
   cells.forEach((m) => {
     for (const [k, v] of m) {
@@ -101,6 +102,13 @@ async function checkRefs(db: Executor, actorId: string, ownerId: string, cells: 
   });
   const okRows = new Set<string>();
   for (const [target, rowIds] of links) {
+    const lt = await resolveLinkTarget(ctx, ownerId, target);
+    if (lt && !lt.own) {
+      // A template table of someone else: only rows the linking owner sees (split lock included).
+      const seen = await db.execute(sql`SELECT r.id FROM dh_rows r WHERE ${readableRows(lt.acc, "r")} AND r.id = ANY(${uuidArray([...rowIds])}::uuid[])`);
+      (seen.rows as { id: string }[]).forEach((r) => okRows.add(r.id));
+      continue;
+    }
     const res = await db.execute(sql`SELECT r.id FROM dh_rows r JOIN dh_tables t ON t.id = r.table_id JOIN dh_datahubs d ON d.id = t.datahub_id
       WHERE /*scope*/ r.table_id = ${target}::uuid AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND d.deleted_at IS NULL AND d.owner_id = ${ownerId}::uuid
         AND r.id = ANY(${uuidArray([...rowIds])}::uuid[])`);
@@ -217,7 +225,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   // ---- 1. validate cells --------------------------------------------------------------------------
   const issues: { row: number; column: string; message: string }[] = [];
   const cellsOf = ops.map((o, i) => (o.op === "delete" ? new Map<string, Stored>() : parseCells(schema, o.data, issues, i, access)));
-  await checkRefs(db, actorId, access.datahub.ownerId, cellsOf, schema, issues);
+  await checkRefs(ctx, db, actorId, access.datahub.ownerId, cellsOf, schema, issues);
   const formulas = RowFormulas.for(schema);
   const now = new Date();
   throwIssues(issues);

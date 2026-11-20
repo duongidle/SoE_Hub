@@ -45,6 +45,8 @@ export interface IxDatahub {
 export class OwnerIndex {
   readonly datahubs: IxDatahub[] = [];
   readonly tableById = new Map<string, IxTable>();
+  /** Tables of someone else that a Relation column may point to (template tables the owner reads; module4 1.1). Not visible to formulas. */
+  readonly linkable = new Set<string>();
   private readonly dhOfTable = new Map<string, IxDatahub>();
 
   static async load(db: Executor, ownerId: string): Promise<OwnerIndex> {
@@ -350,7 +352,7 @@ export async function prepareComputed(db: Executor, ix: OwnerIndex, schema: Tabl
   if (spec.type === "relation") {
     const r = RelationConfig.safeParse(raw);
     if (!r.success) badConfig("Liên kết dòng", r.error);
-    if (!ix.tableById.has(r.data.target_table_id)) {
+    if (!ix.tableById.has(r.data.target_table_id) && !ix.linkable.has(r.data.target_table_id)) {
       throw new AppError("validation_error", "Bảng liên kết phải là bảng trong datahub do bạn sở hữu (bảng người khác chia sẻ không dùng được).", { code: "#PERM!" });
     }
     if (spec.current && spec.current.config.target_table_id !== r.data.target_table_id) throw new AppError("validation_error", "Không đổi được bảng đích của cột liên kết; tạo cột mới.");

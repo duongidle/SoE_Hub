@@ -2,7 +2,8 @@ import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError } from "@soe/shared";
 import { defineCommand, defineQuery } from "../../core/registry";
-import { loadTableAccess } from "./access";
+import { loadTableAccess, readableRows } from "./access";
+import { resolveLinkTarget } from "./link-targets";
 import { restoreRows } from "./rows";
 import { Id, ROW_EVENTS } from "./shared";
 import { TableSchema } from "./table-schema";
@@ -78,8 +79,12 @@ export const lookupOperations = [
       const cols = await ctx.db.execute(sql`SELECT key FROM dh_columns WHERE /*scope*/ table_id = ${target}::uuid AND deleted_at IS NULL AND type IN ('text', 'long_text', 'email', 'phone', 'url') ORDER BY position, created_at, id LIMIT 1`);
       const key = (cols.rows[0] as { key: string } | undefined)?.key;
       const label = key ? sql`COALESCE(NULLIF(r.data->>${sql.raw(`'${assertColumnKey(key)}'`)}, ''), '#' || r.row_no::text)` : sql`'#' || r.row_no::text`;
+      const lt = await resolveLinkTarget(ctx, acc.datahub.ownerId, target);
+      if (!lt) return [];
+      // A template table of someone else: labels only of rows its linking owner sees.
+      const cond = lt.own ? sql`d.owner_id = ${acc.datahub.ownerId}::uuid` : readableRows(lt.acc, "r");
       const res = await ctx.db.execute(sql`SELECT r.id, r.row_no, ${label} AS label FROM dh_rows r JOIN dh_tables t ON t.id = r.table_id JOIN dh_datahubs d ON d.id = t.datahub_id
-        WHERE /*scope*/ r.table_id = ${target}::uuid AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND d.deleted_at IS NULL AND d.owner_id = ${acc.datahub.ownerId}::uuid AND r.id = ANY(${uuidArray(ids)}::uuid[])`);
+        WHERE /*scope*/ r.table_id = ${target}::uuid AND r.deleted_at IS NULL AND t.deleted_at IS NULL AND d.deleted_at IS NULL AND ${cond} AND r.id = ANY(${uuidArray(ids)}::uuid[])`);
       return res.rows as { id: string; row_no: number; label: string }[];
     },
   }),
@@ -110,7 +115,9 @@ export const lookupOperations = [
       const cols = await ctx.db.execute(sql`SELECT key FROM dh_columns WHERE /*scope*/ table_id = ${target}::uuid AND deleted_at IS NULL AND type IN ('text', 'long_text', 'email', 'phone', 'url') ORDER BY position, created_at, id LIMIT 1`);
       const key = (cols.rows[0] as { key: string } | undefined)?.key;
       const label = key ? sql`COALESCE(NULLIF(r.data->>${sql.raw(`'${assertColumnKey(key)}'`)}, ''), '#' || r.row_no::text)` : sql`'#' || r.row_no::text`;
-      const where = [sql`/*scope*/ r.table_id = ${target}::uuid`, sql`r.deleted_at IS NULL`, sql`t.deleted_at IS NULL`, sql`d.deleted_at IS NULL`, sql`d.owner_id = ${acc.datahub.ownerId}::uuid`];
+      const lt = await resolveLinkTarget(ctx, acc.datahub.ownerId, target);
+      if (!lt) return { data: [], next_after: null };
+      const where = [sql`/*scope*/ r.table_id = ${target}::uuid`, sql`r.deleted_at IS NULL`, sql`t.deleted_at IS NULL`, sql`d.deleted_at IS NULL`, lt.own ? sql`d.owner_id = ${acc.datahub.ownerId}::uuid` : readableRows(lt.acc, "r")];
       if (i.after !== undefined) where.push(sql`r.row_no > ${i.after}::bigint`);
       const q = (i.q ?? "").trim();
       if (q) {

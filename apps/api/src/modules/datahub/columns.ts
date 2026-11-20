@@ -12,6 +12,7 @@ import { getLimits, quotaExceeded } from "./limits";
 import { emitStructure, Id, STRUCTURE_EVENT } from "./shared";
 import { columnOut, ColumnOut, indexFor } from "./structure";
 import { isComputedType } from "./cell-values";
+import { resolveLinkTarget } from "./link-targets";
 import { OwnerIndex, prepareComputed, type DepRow, type PreparedComputed } from "./computed";
 import { markPending } from "./recalc";
 import { columnFromDb, rowFromDb, TableSchema } from "./table-schema";
@@ -148,6 +149,7 @@ export async function createColumn(ctx: Ctx, acc: TableAccess, i: ColumnInput, e
   let prepared: PreparedComputed | null = null;
   if (linked) {
     const ix = await OwnerIndex.load(ctx.db, acc.datahub.ownerId);
+    await allowTemplateTarget(ctx, ix, acc.datahub.ownerId, i.type, i.config);
     prepared = await prepareComputed(ctx.db, ix, await TableSchema.load(ctx.db, acc), { id, key, tableId: acc.tableId, datahubId: acc.datahub.id, type: i.type as "formula" }, i.config ?? {});
   }
   const config = prepared ? prepared.config : normalizeConfig(i.type, i.config);
@@ -217,6 +219,13 @@ async function loadColumnForTypeChange(ctx: Ctx, tableId: string, ref: string): 
 type UpdateInput = { name?: string; config?: Record<string, unknown>; required?: boolean; allow_edit?: boolean; unique?: boolean; default_value?: unknown; description?: string | null; display?: Record<string, unknown>; position?: number; version?: number };
 
 /** Changes a column (same rules for the column command and the template command; authorisation is the caller's). */
+/** A Relation may point to a template table the owner reads (design module4 1.1): let `prepareComputed` accept it. */
+async function allowTemplateTarget(ctx: Ctx, ix: OwnerIndex, ownerId: string, type: string, config: Record<string, unknown> | undefined): Promise<void> {
+  const target = type === "relation" ? config?.target_table_id : undefined;
+  if (typeof target !== "string" || ix.tableById.has(target)) return;
+  if (/^[0-9a-f-]{36}$/i.test(target) && (await resolveLinkTarget(ctx, ownerId, target))) ix.linkable.add(target);
+}
+
 export async function updateColumn(ctx: Ctx, acc: TableAccess, col: DhColumn, i: UpdateInput): Promise<z.infer<typeof ColumnOut>> {
       if (i.version !== undefined && i.version !== col.version) throw new AppError("conflict", undefined, { current_version: col.version, sent_version: i.version });
   if (acc.table.kind === "merged" && !isComputedType(col.type) && (i.config !== undefined || i.required !== undefined || i.unique !== undefined || i.default_value !== undefined)) {
