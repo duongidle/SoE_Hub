@@ -132,9 +132,7 @@ async function buildDashboard(call: ReturnType<typeof as>, datahubId: string) {
   return out;
 }
 
-const uid = (g: string) => g;
 let custId = "";
-let dealsKeys: Record<string, string> = {};
 let rollKey = "";
 
 beforeAll(async () => {
@@ -166,7 +164,6 @@ beforeAll(async () => {
   const keyOf = async (table: string) => Object.fromEntries(((await owner("datahub.table.get", { table_id: table })).columns as { name: string; key: string; config: { options?: { id: string }[] } }[]).map((c) => [c.name, c]));
   const k = await keyOf(TBL);
   const p = await keyOf(PAY);
-  dealsKeys = Object.fromEntries(Object.entries(k).map(([n, c]) => [n, c.key]));
   const opt = (name: string) => k[name]!.config.options!.map((o) => o.id);
 
   // members: leaderA, mgrA and the rest new users, half under the leader, half straight under the manager, so scopes differ
@@ -302,6 +299,5 @@ describe.skipIf(!RUN)("Rollup and formula per reader over the locked table", () 
     t0 = performance.now();
     await drainOutbox(t, { maxRatio: 1 });
     log(`[load] change the tree (one person): recalculation ${Math.round(performance.now() - t0)} ms`);
-    void uid;
   }, 900_000);
 });
