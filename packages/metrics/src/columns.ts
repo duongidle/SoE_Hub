@@ -41,6 +41,12 @@ export interface MTable {
   rel?: SQL;
   /** The reader sees only part of the rows (split lock): a join onto another table folds only the keys of that part. */
   narrow?: boolean;
+  /**
+   * Set by the API when a join onto this table may use a SHARED fold (every reader sees all its rows and the same values, and it is big): gets the
+   * statement that folds the table per key and returns the name of the table that holds the result. The base table of a join narrowed by the split
+   * lock then joins that table instead of folding the whole joined table again for every reader.
+   */
+  fold?: (q: { sql: string; params: unknown[] }) => string;
   /** Who-sees-which-rows key of this table for the reader (`scopeKey` in the Datahub's access.ts); the API sets it, the answer cache uses it. */
   scopeKey?: string;
 }

@@ -131,6 +131,16 @@ describe("key join statement (3A-2 section 6: speed)", () => {
     expect(narrow.sql).toMatch(/IS NOT NULL AND .* IN \(SELECT .* FROM dh_rows b WHERE/);
     expect(text({ joins: [join], measure: { agg: "sum", field: "TT.Số tiền" } }).sql).not.toMatch(/ IN \(SELECT/);
   });
+  it("a narrowed base joins the shared fold of a big joined table instead of folding it again; the owner's wide base does not", () => {
+    const seen: string[] = [];
+    const folded: MTable = { ...other, fold: (f) => (seen.push(f.sql), "mfold.f_abc_20261120") };
+    const narrow = text({ base: { ...table, narrow: true }, joins: [{ ...join, table: folded }], measure: { agg: "sum", field: "TT.Số tiền" } });
+    expect(narrow.sql).toContain("LEFT JOIN mfold.f_abc_20261120 j1 ON j1.k = b.jk1");
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain("GROUP BY 1");
+    const wide = text({ joins: [{ ...join, table: folded }], measure: { agg: "sum", field: "TT.Số tiền" } });
+    expect(wide.sql).not.toContain("mfold.");
+  });
   it("a statement without a key join is unchanged (no fence)", () => {
     const q = text({ measure: { agg: "sum", field: "Tiền" } });
     expect(q.sql).not.toContain("OFFSET 0");

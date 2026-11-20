@@ -1,4 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { compileFilter, type FieldMap } from "@soe/db";
 import { AppError, dateRangeNode, type FilterNode } from "@soe/shared";
 import { findColumn, normRef, optionId, valueExpr, type MColumn, type MTable, type TableRef, type ValueKind } from "./columns";
@@ -270,6 +271,11 @@ function joinSql(rs: Resolver, i: number): { join: SQL; fence?: SQL } {
   const col = sql.raw(`jk${i + 1}`);
   // A base narrowed by the split lock reads a small part of the joined table: only the keys that part holds are folded (a hash semi-join), not the
   // whole joined table once for every reader.
+  if (rs.base.narrow && j.table.fold) {
+    const q = new PgDialect().sqlToQuery(sql`SELECT ${jkey} AS k, ${obj} AS data FROM ${relOf(j.table)} ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL GROUP BY 1`);
+    const name = j.table.fold({ sql: q.sql, params: q.params });
+    return { join: sql`LEFT JOIN ${sql.raw(name)} ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = b.${col}`, fence: sql`${bkey} AS ${col}` };
+  }
   const only = rs.base.narrow ? sql` AND ${jkey} IN (SELECT ${bkey} FROM ${relOf(rs.base)} b WHERE ${rs.base.scope("b")} AND b.deleted_at IS NULL)` : sql``;
   return { join: sql`LEFT JOIN (SELECT ${jkey} AS k, ${obj} AS data FROM ${relOf(j.table)} ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL${only} GROUP BY 1) ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = b.${col}`, fence: sql`${bkey} AS ${col}` };
 }

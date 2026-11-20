@@ -1,3 +1,4 @@
+import { ensureFolds } from "./folds";
 import { createHash } from "node:crypto";
 import { sql, type SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
@@ -202,13 +203,17 @@ export interface SqlResult {
  */
 export async function runSql(ctx: SqlCtx, query: SQL, tables: MTable[]): Promise<SqlResult> {
   const userId = ctx.actor.userId;
-  const run = () => limited(userId, () => timed(ctx.db, query));
+  const q = dialect.sqlToQuery(query);
+  const run = () =>
+    limited(userId, async () => {
+      await ensureFolds(ctx.db as never, q.sql);
+      return timed(ctx.db, query);
+    });
   if (!tables.every((t) => t.scopeKey)) {
     const t0 = performance.now();
     return { rows: await run(), ms: Math.round(performance.now() - t0) };
   }
   const ids = [...new Set(tables.map((t) => t.id))];
-  const q = dialect.sqlToQuery(query);
   const key = createHash("sha256").update(stringify([tables.map((t) => t.scopeKey).sort(), q.sql, q.params])).digest("hex");
   const hit = metricCache.get(key);
   if (hit) {
