@@ -26,6 +26,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 1. **Thiết kế từng module theo vòng:** Claude phân tích và đề xuất trong chat → Dương phản biện → chốt → Claude ghi `design/moduleX-<ten>.md`, kèm trạng thái `Đã chốt` và ngày ở đầu file.
 2. **Phản biện thật.** Ý tưởng hay giả định yếu thì nói thẳng, kèm lý do và phương án tốt hơn. Không đồng ý cho xong.
 3. Một quyết định mới được chốt trong chat thì ghi vào đúng file thiết kế của module đó, và vào mục "Quy định đã chốt" bên dưới nếu nó ảnh hưởng nhiều module.
+4. **Mặc định lấy từ file mẫu, không tự chế.** Template, cột, danh sách lựa chọn, lộ trình mẫu… mặc định của mọi module bắt đầu từ file mẫu trong `examples/` (ví dụ sheet Deals, Data Validation, Index của `Quản lý Deal SoE (Dương TVD).xlsx`), giữ nguyên tên và giá trị. Mỗi mặc định ghi rõ nguồn (file, sheet, cột). Cái gì hệ thống cần thêm thì để ở danh sách riêng "Thêm vì hệ thống cần", kèm lý do. Không có file mẫu thì hỏi Dương, không tự nghĩ ra. _Lý do:_ 18/11/2026 Dương gạt bản nháp Module 4 vì template Deals ghép từ nguồn khác và ý tưởng tự chế.
 
 ### Code
 
