@@ -9,7 +9,7 @@ import { notify } from "@/components/ui/toast";
 import { ErrorState } from "@/components/ui/states";
 import { Tip } from "@/components/ui/tooltip";
 import { fetchRowsByIds, getHistory } from "@/lib/datahub/api";
-import { cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, PICKER_TYPES, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
+import { NO_ACCESS, cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, PICKER_TYPES, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
 import type { TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
@@ -218,7 +218,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
     control = (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <span id={id} className="min-h-9 py-1.5 text-sm [overflow-wrap:anywhere]">{uid ? (ctx.people.get(uid) ?? "…") : "—"}</span>
+          <span id={id} className="min-h-9 py-1.5 text-sm [overflow-wrap:anywhere]">{uid ? `${ctx.people.get(uid) ?? "…"}${ctx.noAccess?.has(uid) ? ` (${NO_ACCESS})` : ""}` : "—"}</span>
           <Button variant="secondary" onClick={() => setPerson((v) => !v)}>{person ? "Đóng" : "Đổi người"}</Button>
         </div>
         {person && <PersonPicker tableId={session.table.id} value={uid} valueName={uid ? ctx.people.get(uid) : undefined} onCancel={() => setPerson(false)} onDone={(p) => { setPerson(false); if (p) session.labels.learnPerson(p.id, p.full_name); void save(p?.id ?? null); }} />}
