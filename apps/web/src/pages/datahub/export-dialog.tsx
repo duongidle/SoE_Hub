@@ -17,6 +17,9 @@ type Format = "xlsx" | "csv" | "json";
 export function ExportDialog({ table, query, visible, filtered, onClose }: { table: TableDetail; query: SessionQuery; visible: Column[]; filtered: boolean; onClose: () => void }) {
   const [scope, setScope] = useState<Scope>(filtered ? "view" : "table");
   const [format, setFormat] = useState<Format>("xlsx");
+  // A grouped view can leave as its group lines (with totals) or as every row.
+  const grouped = !!query.group?.length;
+  const [what, setWhat] = useState<"groups" | "rows">("groups");
   const [jobId, setJobId] = useState<string | null>(null);
   const job = useJob(jobId);
   const downloaded = useRef<string | null>(null);
@@ -31,6 +34,11 @@ export function ExportDialog({ table, query, visible, filtered, onClose }: { tab
         if (query.search) body.search = query.search;
         if (query.timeFilter) body.time_filter = query.timeFilter;
         body.columns = visible.map((c) => c.key);
+        if (grouped && what === "groups") {
+          body.groups_only = true;
+          body.group = query.group;
+          if (query.aggs) body.aggs = query.aggs;
+        }
       }
       return createExport(body);
     },
@@ -65,6 +73,14 @@ export function ExportDialog({ table, query, visible, filtered, onClose }: { tab
                 <option value="datahub">Cả datahub (mỗi bảng một sheet, chỉ XLSX)</option>
               </Select>
             </Field>
+            {scope === "view" && grouped && (
+              <Field label="Dòng xuất ra" hint={what === "groups" ? "Mỗi dòng là một nhóm: cột nhóm, Số dòng và các cột tổng của view." : "Từng dòng dữ liệu của bảng, sắp theo nhóm."}>
+                <Select value={what} onChange={(e) => setWhat(e.target.value as "groups" | "rows")} aria-label="Dòng xuất ra">
+                  <option value="groups">Dòng nhóm (tổng hợp)</option>
+                  <option value="rows">Mọi dòng</option>
+                </Select>
+              </Field>
+            )}
             <Field label="Định dạng">
               <Select value={format} onChange={(e) => setFormat(e.target.value as Format)} disabled={scope === "datahub"} aria-label="Định dạng file">
                 <option value="xlsx">Excel (.xlsx)</option>

@@ -14,6 +14,7 @@ import { loadDatahubAccess, loadTableAccess, readableRows } from "./access";
 import { resolveLinkTarget } from "./link-targets";
 import { assertJobRoom, callAs, cancelRequested, JobCancelled, jobActor, jobOut, JobOut, patchJob, registerJobRunner, type JobEnv, type JobRow } from "./jobs";
 import { listRows } from "./rows-read";
+import { GROUP_FNS, listGroups, MAX_GROUP_LEVELS, type GroupFn } from "./rows-groups";
 import { Id } from "./shared";
 import { TableSchema } from "./table-schema";
 import { assertColumnKey } from "./types";
@@ -40,6 +41,10 @@ export interface ExportParams {
   time_filter?: unknown;
   /** Columns to export, by name or key, in this order (the visible columns of a view). Empty = all columns. */
   columns?: string[];
+  /** Summary export (design module4 section 19b): one line per group of the view with its row count and totals, not the rows. */
+  groups_only?: boolean;
+  group?: { field: string; dir?: "asc" | "desc" }[];
+  aggs?: Record<string, GroupFn>;
 }
 
 interface Col {
@@ -154,6 +159,43 @@ function jsonValue(c: Cell): unknown {
     default:
       return c.v;
   }
+}
+
+// ------------------------------------------------------------------------------------------------
+// summary export (groups only)
+// ------------------------------------------------------------------------------------------------
+
+const AGG_LABEL: Record<GroupFn, string> = { count: "Đếm", sum: "Tổng", avg: "Trung bình", min: "Nhỏ nhất", max: "Lớn nhất" };
+
+interface GroupExport {
+  cols: Col[];
+  /** One entry per group line, in display order; each cell sits under its own column. */
+  lines: { cells: (unknown | undefined)[]; depth: number }[];
+  truncated: boolean;
+}
+
+/**
+ * The groups and their totals as lines of a sheet. Everything comes from `listGroups`, the one function that also answers the grid, so a
+ * number in the file is the number on the screen. Columns: one per grouping level (the group's value sits under its own level), "Số dòng",
+ * then one per total the view asks for. The reader's own scope applies (split lock included) because `acc` is the exporter's.
+ */
+async function buildGroupExport(db: Db, acc: Awaited<ReturnType<typeof loadTableAccess>>, schema: TableSchema, p: ExportParams, all: Col[]): Promise<GroupExport> {
+  const res = await listGroups(db, acc, schema, { filter: p.filter, timeFilter: p.time_filter, search: p.search, group: p.group!, aggs: p.aggs });
+  const byKey = new Map(all.map((c) => [c.key, c]));
+  const levels: Col[] = p.group!.map((g, i) => {
+    const real = byKey.get(schema.fieldFor(g.field))!;
+    return { ...real, key: `__g${i}` };
+  });
+  const aggs = Object.entries(p.aggs ?? {}).slice(0, 30).map(([ref, fn]) => {
+    const real = byKey.get(schema.fieldFor(ref))!;
+    return { key: real.key, fn, col: { key: `__a_${real.key}_${fn}`, name: `${real.name} (${AGG_LABEL[fn]})`, type: fn === "min" || fn === "max" ? real.type : "number", config: real.config } as Col };
+  });
+  const cols: Col[] = [...levels, { key: "__count", name: "Số dòng", type: "number", config: {} }, ...aggs.map((a) => a.col)];
+  const lines = res.groups.map((g) => ({
+    depth: g.depth,
+    cells: [...levels.map((_, d) => (d === g.depth ? g.path[d] : undefined)), g.count, ...aggs.map((a) => g.aggs[a.key])],
+  }));
+  return { cols, lines, truncated: res.truncated };
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -327,6 +369,7 @@ async function runExport(env: JobEnv, job: JobRow): Promise<void> {
     const formulaRows: [string, string, string][] = [];
     let done = 0;
     const counts: Record<string, number> = {};
+    let groupsTruncated = false;
 
     for (const t of tables) {
       const acc = await loadTableAccess(ctx, t.id);
@@ -343,10 +386,16 @@ async function runExport(env: JobEnv, job: JobRow): Promise<void> {
         cols = wanted;
       }
       // Formulas are visible to the owner only (people the table is shared with see values, never the formula text).
-      if (acc.level === "owner") {
+      if (acc.level === "owner" && !p.groups_only) {
         for (const c of cols) if (c.type === "formula" && typeof c.config.formula === "string") formulaRows.push([t.name, c.name, c.config.formula]);
       }
 
+      let groupOut: GroupExport | null = null;
+      if (p.groups_only) {
+        groupOut = await buildGroupExport(env.db, acc, schema, p, t.columns.map((c) => ({ key: c.key, name: c.name, type: c.type, config: c.config })));
+        cols = groupOut.cols;
+        if (groupOut.truncated) groupsTruncated = true;
+      }
       let sink: SheetSink;
       let sheet: ExcelJS.Worksheet | null = null;
       if (xlsx) {
@@ -378,7 +427,15 @@ async function runExport(env: JobEnv, job: JobRow): Promise<void> {
       const fields = p.columns?.length || hasVirtual ? cols.map((c) => c.key).join(",") : undefined;
       let cursor: string | undefined;
       let n = 0;
-      for (;;) {
+      if (groupOut) {
+        const rows = groupOut.lines.map((l) => ({ data: Object.fromEntries(l.cells.map((v, i) => [cols[i]!.key, v])) }));
+        await loadLookups(env.db, cols, rows as unknown as Raw[], acc.datahub.ownerId, () => sql``, lk);
+        for (const r of rows) await sink.row(cols.map((c) => toCell(c, r.data[c.key], lk)), cols);
+        n = rows.length;
+        done += n;
+        await patchJob(env.db, job.id, { progressDone: Math.min(done, Math.max(total, done)), progressTotal: Math.max(total, done) });
+      }
+      for (; !groupOut; ) {
         if (await cancelRequested(env.db, job.id)) throw new JobCancelled();
         const page = await listRows(env.db, acc, schema, { filter: p.filter, sort: p.sort, search: p.search, timeFilter: p.time_filter, fields, limit: PAGE, cursor, labels: true, consistent: true });
         const rows = page.items as unknown as Raw[];
@@ -410,7 +467,7 @@ async function runExport(env: JobEnv, job: JobRow): Promise<void> {
         ["Datahub", datahubName],
         ["Bảng", tables.map((t) => t.name).join(", ")],
         ["Số dòng", Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join("; ")],
-        ["Ghi chú", "Giá trị đã tính sẵn tại thời điểm xuất."],
+        ["Ghi chú", p.groups_only ? `Dạng tổng hợp: mỗi dòng là một nhóm của view, kèm số dòng và các cột tổng.${groupsTruncated ? " Có hơn 1.000 nhóm ở một cấp nên chỉ có 1.000 nhóm đầu." : ""}` : "Giá trị đã tính sẵn tại thời điểm xuất."],
       ]) info.addRow(r).commit();
       info.commit();
       if (formulaRows.length) {
@@ -475,9 +532,13 @@ export const exportOperations = [
         search: z.string().max(200).optional(),
         time_filter: jsonParam(TimeFilterSchema),
         columns: z.array(z.string().min(1).max(100)).max(200).optional(),
+        groups_only: z.boolean().optional().describe("Xuất dạng tổng hợp: mỗi dòng là một nhóm của view (cột nhóm, Số dòng, các cột tổng), không xuất từng dòng. Cần `table_id` và `group`."),
+        group: jsonParam(z.array(z.object({ field: z.string().min(1).max(100), dir: z.enum(["asc", "desc"]).optional() })).min(1).max(MAX_GROUP_LEVELS)),
+        aggs: jsonParam(z.record(z.string().max(100), z.enum(GROUP_FNS))),
       })
       .refine((v) => !!v.table_id !== !!v.datahub_id, "Gửi đúng một trong `table_id` hoặc `datahub_id`.")
-      .refine((v) => !v.datahub_id || v.format === "xlsx", "Xuất cả datahub chỉ dùng được định dạng xlsx (mỗi bảng một sheet)."),
+      .refine((v) => !v.datahub_id || v.format === "xlsx", "Xuất cả datahub chỉ dùng được định dạng xlsx (mỗi bảng một sheet).")
+      .refine((v) => !v.groups_only || (!!v.table_id && !!v.group), "Xuất tổng hợp cần `table_id` và `group` (cột nhóm của view)."),
     output: JobOut,
     http: { method: "POST", path: "/datahub/exports", status: 202 },
     handler: async (ctx, i) => {
@@ -493,15 +554,19 @@ export const exportOperations = [
         schema.normalizeFilter(i.filter);
         schema.normalizeSort(i.sort);
         for (const c of i.columns ?? []) schema.resolve(c);
+        if (i.groups_only) {
+          for (const g of i.group ?? []) schema.fieldFor(g.field);
+          for (const k of Object.keys(i.aggs ?? {})) schema.fieldFor(k);
+        }
       } else {
         datahubId = (await loadDatahubAccess(ctx, i.datahub_id!)).id;
       }
-      const params: ExportParams = { format: i.format, ...(i.table_id ? { table_id: i.table_id } : { datahub_id: i.datahub_id }), filter: i.filter as FilterNode | undefined, sort: i.sort, search: i.search, time_filter: i.time_filter, columns: i.columns };
+      const params: ExportParams = { format: i.format, ...(i.table_id ? { table_id: i.table_id } : { datahub_id: i.datahub_id }), filter: i.filter as FilterNode | undefined, sort: i.sort, search: i.search, time_filter: i.time_filter, columns: i.columns, ...(i.groups_only ? { groups_only: true, group: i.group, aggs: i.aggs } : {}) };
       const [job] = await ctx.db
         .insert(dhJobs)
         .values({ kind: "export", status: "pending", ownerId: ctx.actor.userId, datahubId, tableId, params: JSON.parse(JSON.stringify(params)) })
         .returning();
-      ctx.audit({ type: "datahub_export", id: job!.id, details: { format: i.format, table_id: tableId, datahub_id: datahubId, scope: tableId ? "table" : "datahub", filtered: !!(i.filter || i.search || i.time_filter), columns: i.columns?.length ?? null } });
+      ctx.audit({ type: "datahub_export", id: job!.id, details: { format: i.format, table_id: tableId, datahub_id: datahubId, scope: tableId ? "table" : "datahub", filtered: !!(i.filter || i.search || i.time_filter), columns: i.columns?.length ?? null, groups_only: !!i.groups_only } });
       return jobOut(job!);
     },
   }),

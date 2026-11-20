@@ -252,6 +252,10 @@ export interface ExportBody {
   search?: string;
   time_filter?: unknown;
   columns?: string[];
+  /** Summary: one line per group of the view (with its row count and totals) instead of the rows. */
+  groups_only?: boolean;
+  group?: { field: string; dir: "asc" | "desc" }[];
+  aggs?: Record<string, string>;
 }
 export const createExport = (body: ExportBody) => api<JobDto>("POST", "/datahub/exports", body);
 
