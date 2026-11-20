@@ -6,7 +6,7 @@ Cập nhật: 20/11/2026
 
 - **Thiết kế:** Module 0–5 và 7 đã chốt. Module 6 là bản nháp vòng 1, chờ Dương phản biện. Module 8–11 chưa làm.
 - **Code:** Stage 0–3 xong. Stage 4 đang làm: bước con 4.1 xong (20/11), tiếp theo là dựng Deals.
-- **Git:** `origin/main` ở bd2597e (hết Stage 3), `origin/dev` ở ce0753f. `dev` local đi trước, chưa push (từ 4.1a tới nay).
+- **Git:** đã push `main` + `dev` tới 154655d (hết bước con 4.1, Dương yêu cầu 20/11).
 - **Mốc test** (f8e71cf, 20/11): `pnpm exec vitest run apps packages` 1073 pass, 9 skip (golden + load, chạy khi có file mẫu hoặc bật cờ); `pnpm test:e2e --project=desktop` 100/100. Không chạy hai lệnh vitest song song (chung DB).
 
 ## Đã xong
