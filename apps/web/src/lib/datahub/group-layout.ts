@@ -34,7 +34,8 @@ export class GroupLayout {
   /** Rows covered by the groups (can be fewer than the table's rows when the group list was cut). */
   readonly rowsCovered: number;
 
-  constructor(groups: GroupLine[], levels: number, closed: ReadonlySet<string>) {
+  constructor(groups: GroupLine[], levels: number, closed: ReadonlySet<string> | ((key: string) => boolean)) {
+    const isClosed = typeof closed === "function" ? closed : (k: string) => closed.has(k);
     let line = 0;
     let rowPos = 0;
     // A closed group hides everything inside it: `hideBelow` is its depth while we are inside one.
@@ -47,7 +48,7 @@ export class GroupLayout {
       hideBelow = null;
       const key = groupKey(g.path);
       const leaf = g.depth === levels - 1;
-      const open = !closed.has(key);
+      const open = !isClosed(key);
       this.segments.push({ start: line, length: 1, header: { group: g, key, open, leaf } });
       line += 1;
       if (leaf) {

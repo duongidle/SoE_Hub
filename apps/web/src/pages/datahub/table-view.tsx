@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { formatCount } from "@soe/shared";
-import { Columns3, Copy, Download, Maximize2, MoreHorizontal, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, Columns3, Copy, Download, Maximize2, MoreHorizontal, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, errorMessage, Field, Input, Modal, Select } from "@/components/ui/form";
@@ -73,6 +73,9 @@ export interface GridView {
   onMove: (key: string, toIndex: number) => void;
   /** Only the owner changes the structure: the header menu shows "Sửa cột" and "Xoá cột" when this is set. */
   canEditColumns: boolean;
+  /** Saves which groups are closed in the view (a person who only views gets their own copy, as with every view change). */
+  onGroupState: (s: { collapsed: boolean; toggled: string[] }) => void;
+  initialGroups: { collapsed: boolean; toggled: string[] };
   onHeaderAction: (key: string, action: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group" | "edit" | "delete") => void;
 }
 
@@ -153,6 +156,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
         const target = visible[to]?.key;
         auto.change({ order: moveColumn(order, key, target ? order.indexOf(target) : order.length) });
       },
+      onGroupState: (s) => auto.change({ groups_collapsed: s.collapsed || undefined, groups_toggled: s.toggled.length ? s.toggled : undefined }),
+      initialGroups: { collapsed: auto.config.groups_collapsed === true, toggled: auto.config.groups_toggled ?? [] },
       canEditColumns: table.access === "owner",
       onHeaderAction: (key, action) => {
         if (action === "edit" || action === "delete") {
@@ -253,7 +258,15 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
 
 function LoadedTable({ table, query, gridView, searching, onClearFilters }: { table: TableDetail; query: SessionQuery; gridView: GridView; searching: boolean; onClearFilters: () => void }) {
   // One session per table layout and query (`key` in ViewBody). Started and stopped by an effect: StrictMode runs it twice in development.
-  const [session] = useState(() => new TableSession(table, query));
+  const [session] = useState(() => {
+    const s = new TableSession(table, query);
+    s.setGroupState(gridView.initialGroups);
+    return s;
+  });
+  const saveGroups = gridView.onGroupState;
+  useEffect(() => {
+    session.bindGroupState(saveGroups);
+  }, [session, saveGroups]);
   useEffect(() => {
     session.start();
     return () => session.stop();
@@ -407,6 +420,12 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters }: { tab
         )}
         {(sel.active || sel.ids.length === 1) && (
           <Button variant="secondary" onClick={() => setOpenRow(sel.ids.length === 1 ? sel.ids[0]! : sel.active)}><Maximize2 size={16} aria-hidden /> Chi tiết dòng</Button>
+        )}
+        {session.grouped && (
+          <>
+            <Button variant="secondary" onClick={() => session.setAllCollapsed(true)} data-testid="groups-collapse-all"><ChevronsDownUp size={16} aria-hidden /> Thu gọn tất cả</Button>
+            <Button variant="secondary" onClick={() => session.setAllCollapsed(false)} data-testid="groups-expand-all"><ChevronsUpDown size={16} aria-hidden /> Mở tất cả</Button>
+          </>
         )}
         {!canWrite && <Badge tone="muted">Chỉ xem</Badge>}
         <div className="ml-auto flex items-center gap-3 text-sm text-muted-foreground" aria-live="polite">

@@ -40,8 +40,13 @@ export class TableSession {
   groupsError: unknown = null;
   /** The group list was cut (too many groups at one level). */
   groupsTruncated = false;
-  /** Groups the person closed (header only). Lost with the session. */
-  closed = new Set<string>();
+  /**
+   * Which groups show only their header. `collapsed` is the mode ("Thu gọn tất cả": every group is closed, new ones too); `toggled` holds the
+   * groups whose state is the opposite of the mode. The view saves both (`onGroupState`), so a reload keeps them (design module2 section 5.1).
+   */
+  collapsed = false;
+  toggled = new Set<string>();
+  onGroupState: ((s: { collapsed: boolean; toggled: string[] }) => void) | null = null;
   layout: GroupLayout | null = null;
   private layoutVersion = 0;
   private layoutListeners = new Set<() => void>();
@@ -97,7 +102,7 @@ export class TableSession {
 
   /** (Re)builds the lines of a grouped table from the group list the server answered. */
   private rebuildLayout(): void {
-    this.layout = this.grouped ? new GroupLayout(this.groupLines, this.query.group!.length, this.closed) : null;
+    this.layout = this.grouped ? new GroupLayout(this.groupLines, this.query.group!.length, (k) => this.isClosed(k)) : null;
     this.bumpLayout();
   }
 
@@ -138,10 +143,37 @@ export class TableSession {
     this.groupsTimer = setTimeout(() => void this.loadGroups(), 200);
   }
 
-  toggleGroup(key: string): void {
-    if (this.closed.has(key)) this.closed.delete(key);
-    else this.closed.add(key);
+  /** Loads the saved state of the groups (when the session opens) without saving it again. */
+  setGroupState(s: { collapsed: boolean; toggled: string[] }): void {
+    this.collapsed = s.collapsed;
+    this.toggled = new Set(s.toggled);
+  }
+
+  /** The view that saves the state of the groups (kept current by the screen). */
+  bindGroupState(fn: (s: { collapsed: boolean; toggled: string[] }) => void): void {
+    this.onGroupState = fn;
+  }
+
+  isClosed(key: string): boolean {
+    return this.collapsed !== this.toggled.has(key);
+  }
+
+  private groupStateChanged(): void {
     this.rebuildLayout();
+    this.onGroupState?.({ collapsed: this.collapsed, toggled: [...this.toggled] });
+  }
+
+  toggleGroup(key: string): void {
+    if (this.toggled.has(key)) this.toggled.delete(key);
+    else this.toggled.add(key);
+    this.groupStateChanged();
+  }
+
+  /** "Thu gọn tất cả" (true) or "Mở tất cả" (false): sets the mode and forgets the single groups. */
+  setAllCollapsed(collapsed: boolean): void {
+    this.collapsed = collapsed;
+    this.toggled = new Set();
+    this.groupStateChanged();
   }
 
   /** Reads again what is on screen (after someone else's change): the rows, and the groups when the table is grouped. */

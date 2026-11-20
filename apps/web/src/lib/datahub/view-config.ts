@@ -25,6 +25,10 @@ export interface ViewConfig {
   colors?: ColorRule[];
   time_filter?: TimeFilter;
   group_aggs?: Record<string, GroupFn>;
+  /** "Thu gọn tất cả" is on: groups not in `groups_toggled` are closed (new groups too). Off: they are open. */
+  groups_collapsed?: boolean;
+  /** Groups (JSON of their path) whose state is the opposite of the mode. */
+  groups_toggled?: string[];
 }
 
 export interface ViewDto {

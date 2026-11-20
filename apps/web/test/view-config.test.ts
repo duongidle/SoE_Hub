@@ -223,4 +223,14 @@ describe("group layout", () => {
     expect(l2.at(3)).toEqual({ type: "row", pos: 3 });
     expect(l2.rowRanges(0, 100)).toEqual([[3, 4], [5, 8]]);
   });
+  it("collapse-all mode closes every group except the ones toggled open, new groups included", () => {
+    const toggled = new Set(['["B"]']);
+    const l = new GroupLayout([...groups, g(0, ["C"], 1), g(1, ["C", "z"], 1)], 2, (k) => true !== toggled.has(k));
+    // "A" and "C" closed (headers only); "B" open but its inner group "B/x" is closed too in this mode.
+    expect(l.at(0)).toMatchObject({ key: '["A"]', open: false });
+    expect(l.at(1)).toMatchObject({ key: '["B"]', open: true });
+    expect(l.at(2)).toMatchObject({ key: '["B","x"]', open: false });
+    expect(l.at(3)).toMatchObject({ key: '["C"]', open: false });
+    expect(l.count).toBe(4);
+  });
 });

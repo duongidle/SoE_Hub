@@ -175,7 +175,7 @@ function GroupButton({ columns, config, change }: { columns: Column[]; config: V
   const aggs = config.group_aggs ?? {};
   const usable = columns.filter(isGroupable);
   const free = (current: string) => usable.filter((c) => c.key === current || !group.some((g) => g.field === c.key));
-  const set = (next: NonNullable<ViewConfig["group"]>) => change(next.length ? { group: next } : { group: undefined, group_aggs: undefined });
+  const set = (next: NonNullable<ViewConfig["group"]>) => change(next.length ? { group: next } : { group: undefined, group_aggs: undefined, groups_collapsed: undefined, groups_toggled: undefined });
   const setAgg = (key: string, fn: GroupFn | "") => {
     const next = { ...aggs };
     if (fn) next[key] = fn;
