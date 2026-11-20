@@ -39,6 +39,8 @@ export interface MTable {
    * column holds a different value for each reader (design module2 section 10): then it is `dh_rows` with the reader's own values laid over `data`.
    */
   rel?: SQL;
+  /** The reader sees only part of the rows (split lock): a join onto another table folds only the keys of that part. */
+  narrow?: boolean;
   /** Who-sees-which-rows key of this table for the reader (`scopeKey` in the Datahub's access.ts); the API sets it, the answer cache uses it. */
   scopeKey?: string;
 }

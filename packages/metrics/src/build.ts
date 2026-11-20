@@ -268,7 +268,10 @@ function joinSql(rs: Resolver, i: number): { join: SQL; fence?: SQL } {
   // The key of the base row is computed ONCE per row inside the fenced subquery of `prepare` (column jkN); written in the ON clause
   // Postgres evaluates it again for every probe and every equality check (about 2x slower on 100,000 rows).
   const col = sql.raw(`jk${i + 1}`);
-  return { join: sql`LEFT JOIN (SELECT ${jkey} AS k, ${obj} AS data FROM ${relOf(j.table)} ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL GROUP BY 1) ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = b.${col}`, fence: sql`${bkey} AS ${col}` };
+  // A base narrowed by the split lock reads a small part of the joined table: only the keys that part holds are folded (a hash semi-join), not the
+  // whole joined table once for every reader.
+  const only = rs.base.narrow ? sql` AND ${jkey} IN (SELECT ${bkey} FROM ${relOf(rs.base)} b WHERE ${rs.base.scope("b")} AND b.deleted_at IS NULL)` : sql``;
+  return { join: sql`LEFT JOIN (SELECT ${jkey} AS k, ${obj} AS data FROM ${relOf(j.table)} ${sql.raw(r)} WHERE ${alive} AND ${jkey} IS NOT NULL${only} GROUP BY 1) ${sql.raw(ref.alias)} ON ${sql.raw(ref.alias)}.k = b.${col}`, fence: sql`${bkey} AS ${col}` };
 }
 
 interface Prepared {
@@ -386,6 +389,10 @@ function prepare(p: PlanInput, mode: "main" | "cohort_sizes" | "outlier_bounds" 
   const fence = joins.flatMap((j) => (j.fence ? [j.fence] : []));
   // `OFFSET 0` keeps Postgres from flattening the subquery back into the join (then the key would be evaluated per probe again).
   const base = fence.length ? sql`(SELECT b.*, ${sql.join(fence, sql`, `)} FROM ${relOf(p.base)} b WHERE ${p.base.scope("b")} AND b.deleted_at IS NULL OFFSET 0) b` : sql`${relOf(p.base)} b`;
+  // The fenced subquery already applies the scope and the trash condition (the first two conditions). Repeating them outside makes Postgres
+  // multiply their selectivity twice, guess ONE row for the base and pick a nested loop against the whole joined table (10 s+ on 100,000 rows
+  // when the split lock narrows the scope); one application gives the right estimate and a hash join.
+  if (fence.length) where.splice(0, 2, sql`true`);
   const from = sql`${base} ${sql.join(joins.map((j) => j.join), sql` `)}`;
   if (p.excludeFirst && mode === "main") {
     if (gSql.length !== 1) bad('"top" (nhóm "Khác") cần đúng một cột nhóm (hoặc đúng một trục thời gian).', { reason: "bad_top", groups: gSql.length });

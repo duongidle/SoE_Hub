@@ -120,6 +120,17 @@ describe("key join statement (3A-2 section 6: speed)", () => {
     // the scope marker is inside the fence too: no row of another table can come through it
     expect(q.sql.indexOf("/*scope*/")).toBeLessThan(q.sql.indexOf("OFFSET 0"));
   });
+  it("the base scope is applied once (inside the fence), so Postgres does not guess one row for a base narrowed by the split lock", () => {
+    const q = text({ joins: [join], measure: { agg: "sum", field: "TT.Số tiền" } });
+    const base = "table_id = '11111111-1111-4111-8111-111111111111'";
+    expect(q.sql.split("/*scope*/").length - 1).toBe(2); // the fenced base and the joined table, nothing outside the fence
+    expect(q.sql.slice(q.sql.indexOf("OFFSET 0"))).not.toContain(base);
+  });
+  it("a base narrowed by the split lock folds only the keys it holds from the joined table; a whole-table base does not", () => {
+    const narrow = text({ base: { ...table, narrow: true }, joins: [join], measure: { agg: "sum", field: "TT.Số tiền" } });
+    expect(narrow.sql).toMatch(/IS NOT NULL AND .* IN \(SELECT .* FROM dh_rows b WHERE/);
+    expect(text({ joins: [join], measure: { agg: "sum", field: "TT.Số tiền" } }).sql).not.toMatch(/ IN \(SELECT/);
+  });
   it("a statement without a key join is unchanged (no fence)", () => {
     const q = text({ measure: { agg: "sum", field: "Tiền" } });
     expect(q.sql).not.toContain("OFFSET 0");
