@@ -239,7 +239,8 @@ test("link không phải Google Sheets và file không đọc được: báo l�
   await d.getByRole("tab", { name: "Tải file" }).click();
   await d.getByLabel("Chọn file").setInputFiles({ name: "hong.xlsx", mimeType: XLSX, buffer: Buffer.from("khong phai zip") });
   await d.getByRole("button", { name: "Đọc dữ liệu" }).click();
-  await expect(d.getByRole("alert")).toBeVisible();
+  // The alert of the link tab may still be on screen, so wait for the one about the file (the upload and the read have finished), not any alert.
+  await expect(d.getByRole("alert").filter({ hasNotText: "Google Sheets" })).toBeVisible();
   await owner.shot("import-bad-source");
 });
 
