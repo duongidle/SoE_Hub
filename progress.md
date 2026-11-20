@@ -5,9 +5,9 @@ Cập nhật: 20/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–5 và 7 đã chốt. Module 6 là bản nháp vòng 1, chờ Dương phản biện. Module 8–11 chưa làm.
-- **Code:** Stage 0–3 xong. Stage 4 đang làm: bước con 4.1 xong (20/11), tiếp theo là dựng Deals.
+- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2 (server bảng mặc định) code xong, chờ Opus rà; tiếp theo 4.3 (giao diện).
 - **Git:** đã push `main` + `dev` tới 154655d (hết bước con 4.1, Dương yêu cầu 20/11).
-- **Mốc test** (f8e71cf, 20/11): `pnpm exec vitest run apps packages` 1073 pass, 9 skip (golden + load, chạy khi có file mẫu hoặc bật cờ); `pnpm test:e2e --project=desktop` 100/100. Không chạy hai lệnh vitest song song (chung DB).
+- **Mốc test** (e5d04fa, 20-21/11): `pnpm exec vitest run apps packages` 1110 pass, 9 skip (golden + load); `pnpm test:e2e --project=desktop` 100/100. Không chạy hai lệnh vitest song song (chung DB).
 
 ## Đã xong
 
@@ -23,17 +23,9 @@ Cập nhật: 20/11/2026
 
 ## Đang làm: Stage 4 (Module 4, Quản lý Deal), Sonnet code, Opus rà
 
-**Kế hoạch (20/11):** 4.2 server bảng mặc định (đang làm: [x] 1 siết chốt chặn `dh_rows` (xong: guard buộc `/*scope:rows*/` hoặc `/*scope:system*/` cho `dh_rows`; vitest apps packages 1073 pass 9 skip + 2 test mới), [x] 2 kiểu Người dùng có thuộc tính + gửi xuống (16bb103), [ ] 3 bộ mặc định theo cây, [x] 4 công thức/Lookup/Rollup sang bảng template khác chủ (vitest apps packages 1094 pass 9 skip), [ ] 5 việc để lại từ 4.1, [ ] 6 OpenAPI/Bruno/quyết định); 4.3 giao diện (trang Template, menu Quản lý Deal, màn Deals); 4.4 thanh toán và com; 4.5 chốt kỳ/BANT/forecast/snapshot; 4.6 chỉ số + dashboard Deals; 4.7 API ngoài, nhập lịch sử, Guest; 4.8 kiểm thử cuối.
+**Kế hoạch (20/11):** 4.2 server bảng mặc định **xong, chờ Opus rà** (a2543ed chốt chặn `dh_rows`; 16bb103 kiểu Người dùng có thuộc tính + gửi xuống; 5d6e5db công thức sang bảng template khác chủ; e5d04fa bộ mặc định theo cây + Index tháng + việc để lại từ 4.1; chi tiết `design/module4-quyet-dinh-khi-code.md` mục 4.2); 4.3 giao diện (trang Template, menu Quản lý Deal, màn Deals); 4.4 thanh toán và com; 4.5 chốt kỳ/BANT/forecast/snapshot; 4.6 chỉ số + dashboard Deals; 4.7 API ngoài, nhập lịch sử, Guest; 4.8 kiểm thử cuối.
 
-**Việc đầu tiên của 4.2 (Opus quyết 20/11):** siết chốt chặn truy vấn (`apps/api/src/auth/query-guard.ts`): `TableAccess.rows()` gắn dấu riêng (ví dụ `/*scope:rows*/`), mọi truy vấn đọc/ghi `dh_rows` phải mang dấu đó hoặc `/*scope:system*/`; dấu `/*scope*/` của `scope()` (chỉ quyền vào bảng) không còn đủ. Mục đích: dùng nhầm `scope()` thay `rows()` (bỏ qua khoá phân chia) sẽ làm cả bộ test fail.
-
-Việc phải làm trong bước dựng Deals (để lại từ 4.1):
-- Lookup/Rollup/công thức từ bảng riêng sang bảng template của người khác (ví dụ Index đọc Deals), tính lại theo người đọc.
-- Web đặt ô chỉ đọc theo từng dòng (Leader xem deal của team); server đã chặn `row_not_editable`.
-- Xoá cột đang được "Ngày sửa của cột" theo dõi: bỏ cột đó khỏi danh sách theo dõi; nếu là cột cuối thì cảnh báo trước khi xoá.
-- Điền lại "Ngày sửa của cột" từ lịch sử phải đẩy tính lại các công thức phụ thuộc.
-- Chuyển giao: deal đã đóng giữ người cũ (đăng ký điều kiện ở `transfer.ts`, 4.1a).
-- "Cho phép leader sửa deal của tôi": màn Deals gọi `datahub.prefs.set` (server đã có).
+**Bước tiếp (4.3):** web đọc `can_edit` theo dòng (`datahub.row.list/get`) để khoá ô; `datahub.prefs.set` cho "Cho phép leader sửa"; trang Template dùng `datahub.template.*` (cột có `autofill`, `meaning` của lựa chọn Status); menu Quản lý Deal (`datahub.datahub.list` đã loại datahub `deal`). Còn nợ của 4.2 (ghi ở quyết định 4.2): guard Status (Won/Huỷ), Probation KPI sau commit, điền lại gửi xuống khi đổi cây, công thức theo người cho cột `person`, tháng Index đầu tiên.
 
 Mục tiêu Deals hạ xuống **20.000 deal** (Dương chốt 20/11): load test Stage 4 dùng 20.000 deal, 20 người phạm vi khác nhau, mọi biểu đồ ≤ 3 s; Datahub thường giữ 100.000 dòng.
 
