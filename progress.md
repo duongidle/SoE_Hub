@@ -25,6 +25,8 @@ Cập nhật: 20/11/2026
 
 **Bước tiếp:** Opus chia bước dựng bảng template mặc định + trang Template + Deals/Index/Probation KPI, rồi giao Sonnet.
 
+**Việc đầu tiên của 4.2 (Opus quyết 20/11):** siết chốt chặn truy vấn (`apps/api/src/auth/query-guard.ts`): `TableAccess.rows()` gắn dấu riêng (ví dụ `/*scope:rows*/`), mọi truy vấn đọc/ghi `dh_rows` phải mang dấu đó hoặc `/*scope:system*/`; dấu `/*scope*/` của `scope()` (chỉ quyền vào bảng) không còn đủ. Mục đích: dùng nhầm `scope()` thay `rows()` (bỏ qua khoá phân chia) sẽ làm cả bộ test fail.
+
 Việc phải làm trong bước dựng Deals (để lại từ 4.1):
 - Lookup/Rollup/công thức từ bảng riêng sang bảng template của người khác (ví dụ Index đọc Deals), tính lại theo người đọc.
 - Web đặt ô chỉ đọc theo từng dòng (Leader xem deal của team); server đã chặn `row_not_editable`.
