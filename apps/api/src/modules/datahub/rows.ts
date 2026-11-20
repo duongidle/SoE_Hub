@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { AppError, DH_BATCH_MAX, toActorRef } from "@soe/shared";
+import { AppError, businessDate, DH_BATCH_MAX, toActorRef } from "@soe/shared";
 import { newId, rowHistory, type Executor, type FieldChange } from "@soe/db";
 import type { HandlerCtx } from "../../core/types";
 import { ownedBy } from "../../auth/access";
@@ -13,10 +13,14 @@ import { buildSearchText, columnTypeDef } from "./column-types";
 import { bulkCreateOff, columnNotEditable, pgError, rowNotEditable, rowOutsideScope } from "./errors";
 import { nextChangeSeq } from "./change-queue";
 import { recordChanges, type RowChange } from "./partial";
+import { markPending } from "./recalc";
 import { touchTrackers, trackers } from "./field-modified";
 import { RowFormulas } from "./row-formulas";
 import { rowFromDb, toApiRow, type ApiRow, type TableSchema } from "./table-schema";
 import { CellError, type DhColumn, type Stored } from "./types";
+import { hasAttrs, userIdsOf } from "./user-values";
+import { checkPeopleCaps, type PeopleCell } from "./people-caps";
+import { autofillColumns, dependentsOf, pushDownRows } from "./pushdown";
 
 /** A merged table is read-only for everyone, its owner included: its rows are written only by the worker (design module3 section 4.3). */
 export function assertWritable(access: TableAccess): void {
@@ -54,6 +58,10 @@ function parseCells(schema: TableSchema, input: Record<string, unknown>, issues:
     const def = columnTypeDef(col.type);
     if (!def.writable) {
       issues.push({ row: rowIndex, column: col.name, message: `Cột "${col.name}" (${def.label}) không sửa được.` });
+      continue;
+    }
+    if (col.autofill) {
+      issues.push({ row: rowIndex, column: col.name, message: `Cột "${col.name}" do hệ thống điền từ cột người tham gia, không sửa được.` });
       continue;
     }
     // Linking rows reveals and changes how another table is read, so only the owner of the datahub does it.
@@ -97,7 +105,7 @@ async function checkRefs(ctx: Ctx, db: Executor, actorId: string, ownerId: strin
       const col = schema.tryResolve(k);
       if (col?.type === "relation" && Array.isArray(v)) {
         const target = col.config.target_table_id as string;
-        links.set(target, new Set([...(links.get(target) ?? []), ...v]));
+        links.set(target, new Set([...(links.get(target) ?? []), ...(v as string[])]));
       }
     }
   });
@@ -118,7 +126,7 @@ async function checkRefs(ctx: Ctx, db: Executor, actorId: string, ownerId: strin
   cells.forEach((m, i) => {
     for (const [k, v] of m) {
       const col = schema.tryResolve(k);
-      if (col?.type === "relation" && Array.isArray(v) && v.some((x) => !okRows.has(x))) issues.push({ row: i, column: col.name, message: `Cột "${col.name}" liên kết tới dòng không tồn tại hoặc không thuộc bảng đích.` });
+      if (col?.type === "relation" && Array.isArray(v) && (v as string[]).some((x) => !okRows.has(x))) issues.push({ row: i, column: col.name, message: `Cột "${col.name}" liên kết tới dòng không tồn tại hoặc không thuộc bảng đích.` });
       const refs = col && v !== null ? columnTypeDef(col.type).refs?.(v) : undefined;
       if (refs?.users?.some((x) => !okUsers.has(x))) issues.push({ row: i, column: col!.name, message: `Người dùng ở cột "${col!.name}" không tồn tại.` });
     }
@@ -315,6 +323,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   if (access.restricted && !ownOnly) for (const p of plans) if (p.kind !== "create" && !access.canEditRow(loaded.get(p.id)!.data)) rowNotEditable(p.id);
   await checkFiles(db, actorId, plans, loaded, schema, issues);
   const userUses: { row: number; column: string; id: string }[] = [];
+  const peopleCells: PeopleCell[] = [];
   const lockedColumns = new Set<string>();
   const changedColumns = new Set<string>();
   const trackerList = trackers(schema.alive);
@@ -374,7 +383,10 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
         const col = schema.resolve(k);
         if (v === null && col.required) issues.push({ row: p.indexes[0]!, column: col.name, message: `Cột "${col.name}" là bắt buộc, không để trống được.` });
         if (access.level !== "owner" && !col.allowEdit) lockedColumns.add(col.name);
-        if (col.type === "user" && typeof v === "string") userUses.push({ row: p.indexes[0]!, column: col.name, id: v });
+        if (col.type === "user") {
+          for (const id of userIdsOf(v)) userUses.push({ row: p.indexes[0]!, column: col.name, id });
+          if (hasAttrs(col)) peopleCells.push({ row: p.indexes[0]!, col, value: v });
+        }
         changes.push({ field: k, old: was, new: v });
         changedColumns.add(k);
       }
@@ -388,7 +400,10 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
       const col = schema.resolve(k);
       if (v === null && col.required) issues.push({ row: p.indexes[0]!, column: col.name, message: `Cột "${col.name}" là bắt buộc, không để trống được.` });
       if (access.level !== "owner" && !col.allowEdit && col.layer !== "custom") lockedColumns.add(col.name);
-      if (col.type === "user" && typeof v === "string") userUses.push({ row: p.indexes[0]!, column: col.name, id: v });
+      if (col.type === "user") {
+          for (const id of userIdsOf(v)) userUses.push({ row: p.indexes[0]!, column: col.name, id });
+          if (hasAttrs(col)) peopleCells.push({ row: p.indexes[0]!, col, value: v });
+        }
       ownWrites.set(p.id, { ...(ownWrites.get(p.id) ?? {}), [k]: v });
       ownChanged = true;
     }
@@ -452,11 +467,17 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
       if (Object.keys(own).length) ownWrites.set(p.id, own);
       // A member's new row carries their name in the main key column, so they see it (design module2 section 10).
       const primary = access.reader ? access.table.split.primary : null;
-      if (primary && data[primary] === undefined) data[primary] = actorId;
+      if (primary && data[primary] === undefined) {
+        const keyCol = schema.tryResolve(primary);
+        data[primary] = keyCol && hasAttrs(keyCol) ? ((columnTypeDef("user").parse([actorId], keyCol) as Stored) ?? actorId) : actorId;
+      }
       if (access.reader && !access.seesRow(data)) rowOutsideScope();
       for (const c of schema.alive) {
         const v = c.storage === "person" ? own[c.key] : data[c.key];
-        if (c.type === "user" && typeof v === "string") userUses.push({ row: p.indexes[0]!, column: c.name, id: v });
+        if (c.type === "user") {
+          for (const id of userIdsOf(v)) userUses.push({ row: p.indexes[0]!, column: c.name, id });
+          if (hasAttrs(c)) peopleCells.push({ row: p.indexes[0]!, col: c, value: v ?? null });
+        }
       }
       for (const c of autoCols) data[c.key] = autoStart.get(c.key)! + n;
       for (const c of requiredCols) {
@@ -474,6 +495,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     throwIssues(issues);
   }
   await checkMembers(db, access, userUses, issues);
+  await checkPeopleCaps(db, access.datahub.id, peopleCells, businessDate(new Date()), issues);
   throwIssues(issues);
 
   // ---- 6. write ----------------------------------------------------------------------------------------
@@ -508,6 +530,14 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
         FROM jsonb_to_recordset(${json}::jsonb) AS v(row_id uuid, set jsonb, unset jsonb) WHERE /*scope*/ c.table_id = ${access.tableId}::uuid AND c.user_id = ${actorId}::uuid AND c.row_id = v.row_id AND jsonb_array_length(v.unset) > 0`);
     }
   }
+  // "Gửi xuống" (module4 4.5): the columns the system fills from the people of a user column follow this write (system write: no history, no audit).
+  const autoCols = autofillColumns(schema.alive);
+  if (autoCols.length && (insertRows.length || updateRows.length)) {
+    const watched = new Set(autoCols.map((c) => c.autofill!.column));
+    const touched = [...insertRows, ...(updateRows.length && [...changedColumns].some((k) => watched.has(k)) ? updateRows : [])];
+    const keys = await pushDownRows(db, access.tableId, schema.alive, touched);
+    await markPending(db, await dependentsOf(db, access.tableId, keys));
+  }
   if (deleteIds.length) {
     const res = await db.execute(sql`UPDATE dh_rows SET deleted_at = now(), deleted_by = ${actorId}::uuid, version = version + 1, updated_at = now(), updated_by = ${actorId}::uuid
       WHERE ${access.rows()} AND deleted_at IS NULL AND id = ANY(${uuidArray(deleteIds)}::uuid[])
@@ -540,7 +570,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
   ctx.audit({ type: "datahub_row", id: access.tableId, details: { table_id: access.tableId, created: created.length, updated: updated.length, deleted: deleted.length, fields: columns } });
   // Who held the key columns before and after: the worker needs it to tell people a row left or joined their view (split lock).
   const keyUsers: string[] | undefined = access.table.split.enabled
-    ? [...new Set([...loaded.values(), ...[...newData.values()].map((data) => ({ data }))].flatMap((r) => access.table.split.keys.map((k) => r.data[k]).filter((v): v is string => typeof v === "string")))].slice(0, 2000)
+    ? [...new Set([...loaded.values(), ...[...newData.values()].map((data) => ({ data }))].flatMap((r) => access.table.split.keys.flatMap((k) => userIdsOf(r.data[k]))))].slice(0, 2000)
     : undefined;
   const emit = async (event: string, rowIds: string[]) => {
     if (rowIds.length) await ctx.emit(event, { aggregateType: "datahub_table", aggregateId: access.tableId, payload: { table_id: access.tableId, row_ids: rowIds, columns, seq, ...(keyUsers ? { key_users: keyUsers } : {}) } });

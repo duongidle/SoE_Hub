@@ -28,4 +28,7 @@ body:json {
 
 docs {
   Thêm cột vào template, có thể kèm `role`. Quyền: `datahub:template:write`.
+
+  Cột Người dùng có thuộc tính (Module 4 mục 4.5): `"type": "user", "config": {"attrs": [{"key": "vai_tro", "label": "Vai trò", "kind": "select", "options": ["Leading", "Associate", "Advisor"]}, {"key": "ty_le_dt", "label": "% doanh thu", "kind": "percent", "default": 0, "sum_max": 1}]}`.
+  Cột hệ thống tự điền từ thuộc tính ("gửi xuống"): `"storage": "person", "type": "text", "autofill": {"column": "Người tham gia", "attr": "vai_tro"}`; thêm `"sum": "team"` hoặc `"tree"` để Leader/Manager nhận tổng.
 }

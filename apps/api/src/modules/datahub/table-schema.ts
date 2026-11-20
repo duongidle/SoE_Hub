@@ -26,6 +26,7 @@ export function columnFromDb(r: Raw): DhColumn {
     layerRoles: (r.layer_roles as string[] | null | undefined) ?? null,
     storage: r.storage === "person" ? "person" : "shared",
     role: (r.role as string | null | undefined) ?? null,
+    autofill: (r.autofill as DhColumn["autofill"] | undefined) ?? null,
     protected: !!r.protected,
     isUnique: !!r.is_unique,
     defaultValue: r.default_value ?? null,

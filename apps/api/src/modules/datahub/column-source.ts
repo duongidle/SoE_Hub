@@ -3,6 +3,7 @@ import type { FieldSpec } from "@soe/db";
 import { columnTypeDef } from "./column-types";
 import { effectiveType, errKey, isComputedType } from "./cell-values";
 import { assertColumnKey, type DhColumn, type Stored } from "./types";
+import { hasAttrs } from "./user-values";
 
 /** A row as the engine loads it (standard columns + the JSONB cells). */
 export interface LoadedRow {
@@ -54,6 +55,8 @@ export class JsonbSource implements ColumnSource {
     // A computed column filters, sorts and indexes like the plain type of its result.
     const def = columnTypeDef(effectiveType(col));
     if (!def.fieldType) return null;
+    // A list of people with attributes filters as a set of ids ("contains this person"), never as one uuid.
+    if (hasAttrs(col)) return { type: "set", expr: sql.raw(`to_jsonb(soe_dh_ids(data->'${assertColumnKey(col.key)}'))`), sortable: false, selectable: false };
     return {
       type: def.fieldType,
       expr: def.expr(col.key),

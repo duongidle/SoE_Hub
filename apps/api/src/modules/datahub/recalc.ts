@@ -699,7 +699,7 @@ async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<
     const linkIds = new Set<string>();
     for (const r of rows) {
       const l = r.data[relKey];
-      if (Array.isArray(l)) l.forEach((x) => linkIds.add(x));
+      if (Array.isArray(l)) (l as string[]).forEach((x) => linkIds.add(x));
     }
     const targets = new Map<string, Scalar>();
     if (!fatal && linkIds.size && fullTarget) {

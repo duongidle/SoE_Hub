@@ -55,6 +55,14 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "so_hop_dong", label: "Số hợp đồng", types: ["text"], required: false, usedBy: ["Ghép tiền về"] },
     ],
   },
+  com_params: {
+    label: "Tham số com",
+    roles: [
+      { key: "hieu_luc_tu", label: "Hiệu lực từ", types: ["date", "datetime"], required: true, usedBy: ["Tỉ lệ com sale", "Ràng buộc % com"] },
+      { key: "ten_tham_so", label: "Tên tham số", types: ["text", "single_select"], required: true, usedBy: ["Tỉ lệ com sale", "Ràng buộc % com"] },
+      { key: "gia_tri", label: "Giá trị", types: ["number", "percent", "currency"], required: true, usedBy: ["Tỉ lệ com sale", "Ràng buộc % com"] },
+    ],
+  },
   ledger: {
     label: "Sổ com",
     roles: [

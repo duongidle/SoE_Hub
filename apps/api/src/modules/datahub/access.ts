@@ -5,6 +5,7 @@ import type { Executor } from "@soe/db";
 import type { HandlerCtx } from "../../core/types";
 import { assertColumnKey, type DhColumn } from "./types";
 import { overlayRel } from "./reader-scope";
+import { userIdsOf } from "./user-values";
 
 /**
  * Who may do what with a datahub (design module2 section 10, module1 section 4.2). Datahubs are private to their owner:
@@ -60,7 +61,8 @@ export function keyMatch(keys: string[], ids: string[], alias?: string): SQL {
   if (keys.length === 0 || ids.length === 0) return sql`false`;
   const arr = `{${ids.join(",")}}`;
   const data = alias ? `${alias}.data` : "data";
-  return sql`(${sql.join(keys.map((k) => sql`((${sql.raw(data)}->>${sql.raw(`'${assertColumnKey(k)}'`)})::uuid = ANY(${arr}::uuid[]))`), sql` OR `)})`;
+  // `soe_dh_ids` reads the people of a cell of either shape (one uuid, or a list with attributes); the partial GIN index of the column (kind `ids`) serves `&&`.
+  return sql`(${sql.join(keys.map((k) => sql`(soe_dh_ids(${sql.raw(data)}->${sql.raw(`'${assertColumnKey(k)}'`)}) && ${arr}::text[])`), sql` OR `)})`;
 }
 
 /**
@@ -125,7 +127,7 @@ export class TableAccess {
   /** In JS: does this reader see a row with these cells? (Same rule as `rows()`.) */
   seesRow(data: Record<string, unknown>): boolean {
     if (!this.reader) return true;
-    const ids = this.table.split.keys.map((k) => data[k]).filter((v): v is string => typeof v === "string");
+    const ids = this.table.split.keys.flatMap((k) => userIdsOf(data[k]));
     return ids.some((id) => this.reader!.ids.includes(id));
   }
 
@@ -136,7 +138,7 @@ export class TableAccess {
    */
   canEditRow(data: Record<string, unknown>): boolean {
     if (!this.reader) return true;
-    const ids = this.table.split.keys.map((k) => data[k]).filter((v): v is string => typeof v === "string");
+    const ids = this.table.split.keys.flatMap((k) => userIdsOf(data[k]));
     return ids.some((id) => id === this.reader!.self || this.reader!.editIds.has(id));
   }
 
@@ -348,7 +350,7 @@ export async function rowAudience(db: Executor, tableId: string, rowIds: string[
   const holders = new Set<string>(extraKeyUsers);
   if (rowIds.length) {
     const res = await db.execute(sql`SELECT data FROM dh_rows WHERE /*scope:system*/ table_id = ${tableId}::uuid AND id = ANY(${`{${rowIds.join(",")}}`}::uuid[])`);
-    for (const r of res.rows as { data: Record<string, unknown> }[]) for (const k of info.key_columns) if (typeof r.data[k] === "string") holders.add(r.data[k] as string);
+    for (const r of res.rows as { data: Record<string, unknown> }[]) for (const k of info.key_columns) for (const id of userIdsOf(r.data[k])) holders.add(id);
   }
   const members = everyone.filter((id) => id !== info.owner_id);
   if (members.length === 0 || holders.size === 0) return [info.owner_id];

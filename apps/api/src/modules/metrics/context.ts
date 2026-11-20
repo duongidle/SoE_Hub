@@ -8,7 +8,8 @@ import { sourceOf } from "../datahub/column-source";
 import { effectiveType } from "../datahub/cell-values";
 import { columnTypeDef } from "../datahub/column-types";
 import { TableSchema, normName } from "../datahub/table-schema";
-import type { DhColumn, SelectOption } from "../datahub/types";
+import { assertColumnKey, type DhColumn, type SelectOption } from "../datahub/types";
+import { hasAttrs } from "../datahub/user-values";
 
 export type Ctx = Pick<HandlerCtx, "db" | "actor">;
 
@@ -37,7 +38,10 @@ export function toMColumn(c: DhColumn): MColumn | null {
     case "multi_select":
     case "attachment": return { ...base, kind: "set" };
     case "relation": return { ...base, kind: "set", relationTarget: c.config.target_table_id as string | undefined };
-    case "user": return { ...base, kind: "uuid" };
+    case "user":
+      // A list of people with attributes reads as a set of ids (the people), so a metric never casts a list to uuid.
+      if (hasAttrs(c)) return { ...base, kind: "set", read: (data: string, as: "text" | "json") => (as === "json" ? sql.raw(`to_jsonb(soe_dh_ids(${data}->'${assertColumnKey(c.key)}'))`) : sql.raw(`(soe_dh_ids(${data}->'${assertColumnKey(c.key)}'))[1]`)) };
+      return { ...base, kind: "uuid" };
     case "text":
     case "long_text":
     case "email":

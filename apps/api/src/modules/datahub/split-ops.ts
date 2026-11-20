@@ -71,11 +71,8 @@ export const splitOperations = [
       await ctx.db.execute(sql`UPDATE dh_tables SET key_split = ${enabled}, key_columns = ${`{${keys.join(",")}}`}::text[], key_primary = ${primary},
         members_bulk_create = ${i.members_bulk_create ?? acc.table.membersBulkCreate}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE /*scope*/ id = ${acc.tableId}::uuid`);
       // One index for each key column (the filter is an OR over them); an index nobody else asked for goes when its column stops being a key.
-      for (const k of keys) await ctx.db.execute(sql`SELECT soe_dh_ensure_index(${acc.tableId}::uuid, ${assertColumnKey(k)}, 'uuid')`);
-      for (const k of cur.keys.filter((x) => !keys.includes(x))) {
-        const asked = await ctx.db.execute(sql`SELECT 1 FROM dh_index_requests WHERE /*scope*/ table_id = ${acc.tableId}::uuid AND column_key = ${k} AND kind = 'uuid'`);
-        if (asked.rows.length === 0) await ctx.db.execute(sql`SELECT soe_dh_drop_indexes(${acc.tableId}::uuid, ${assertColumnKey(k)}, ARRAY['uuid'])`);
-      }
+      for (const k of keys) await ctx.db.execute(sql`SELECT soe_dh_ensure_index(${acc.tableId}::uuid, ${assertColumnKey(k)}, 'ids')`);
+      for (const k of cur.keys.filter((x) => !keys.includes(x))) await ctx.db.execute(sql`SELECT soe_dh_drop_indexes(${acc.tableId}::uuid, ${assertColumnKey(k)}, ARRAY['ids'])`);
       // Who sees which row changed for every member, so the columns that read this table recompute (reader-scoped or not any more).
       const flips = await refreshReaderScoped(ctx.db, acc.datahub.ownerId);
       const readers = await ctx.db.execute(sql`SELECT DISTINCT f.column_id AS id FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id WHERE /*scope*/ c.deleted_at IS NULL AND f.src_table_id = ${acc.tableId}::uuid`);
@@ -151,7 +148,7 @@ export async function taggedRows(db: Executor, datahubId: string, tableId: strin
   }
   const tables: { table_id: string; table_name: string; rows: number }[] = [];
   for (const [id, e] of byTable) {
-    const any = sql.join(e.keys.map((k) => sql`data->>${sql.raw(`'${assertColumnKey(k)}'`)} = ${userId}`), sql` OR `);
+    const any = sql.join(e.keys.map((k) => sql`${userId} = ANY(soe_dh_ids(data->${sql.raw(`'${assertColumnKey(k)}'`)}))`), sql` OR `);
     const n = await db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE /*scope:rows*/ table_id = ${id}::uuid AND deleted_at IS NULL AND (${any})`);
     const rows = (n.rows[0] as { n: number }).n;
     if (rows > 0) tables.push({ table_id: id, table_name: e.name, rows });

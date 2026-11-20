@@ -1,6 +1,7 @@
 import { FError, instantToSerial, isoDateTimeToSerial, isoToSerial, parseDateText, serialToIso, serialToIsoDateTime, toNumberLoose, toText, type FType, type Scalar } from "@soe/formula";
 import type { LoadedRow } from "./column-source";
 import type { DhColumn, Stored } from "./types";
+import { userIdsOf } from "./user-values";
 
 /** Types whose values live in `data` under the column key and that can be grouped / compared by the formula engine. */
 export const COMPUTED_TYPES = ["formula", "lookup", "rollup"] as const;
@@ -94,8 +95,10 @@ function storedToValue(type: string, col: Pick<DhColumn, "config">, stored: Stor
       return Array.isArray(stored) ? stored.map((id) => (col.config.options as { id: string; name: string }[] | undefined)?.find((o) => o.id === id)?.name ?? "").filter(Boolean).join(", ") : null;
     case "attachment":
       return null;
+    case "user":
+      return userIdsOf(stored).join(", ");
     default:
-      if (Array.isArray(stored)) return stored.join(", ");
+      if (Array.isArray(stored)) return (stored as string[]).join(", ");
       return stored as Scalar;
   }
 }

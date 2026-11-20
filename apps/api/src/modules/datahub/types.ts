@@ -1,7 +1,13 @@
 import type { ColumnType } from "@soe/shared";
 
 /** A stored cell value: what lives in `dh_rows.data` under the column key. `null` = empty (the key is removed). */
-export type Stored = string | number | boolean | string[] | null;
+export type Stored = string | number | boolean | string[] | PersonEntry[] | null;
+
+/** One person in a "Người dùng có thuộc tính" cell (design module4 4.5): the person and their attributes (role label, share in percent, yes/no). */
+export interface PersonEntry {
+  id: string;
+  attrs: Record<string, string | number | boolean>;
+}
 
 /** A column definition as the engine sees it (row of `dh_columns`). */
 export interface DhColumn {
@@ -28,6 +34,8 @@ export interface DhColumn {
   storage: "shared" | "person";
   /** Column role (module4 3.7), unique per table. */
   role: string | null;
+  /** Filled by the system from the attributes of the people in a user column of the row (module4 4.5): `person` storage only. */
+  autofill: Autofill | null;
   /** Template column: not renamed, deleted, retyped or edited from the column commands. */
   protected: boolean;
   isUnique: boolean;
@@ -45,11 +53,25 @@ export interface DhColumn {
   calcSeq: number;
 }
 
+/** Where an autofilled column takes its value: the attribute `attr` of each person in the user column `column` (by key). `sum`: the value of a Leader (`team`) or Manager (`tree`) is the total over the people they manage. */
+export interface Autofill {
+  column: string;
+  attr: string;
+  sum?: "team" | "tree";
+}
+
 export interface SelectOption {
   id: string;
   name: string;
   color?: string;
+  /** What a status option means to the functions that read it (module4 3.7: "gắn nghĩa theo mã", so a rename breaks nothing). Only the status column of a table with roles has it. */
+  meaning?: OptionMeaning;
 }
+
+export type OptionMeaning = "open" | "won" | "lost" | "disqualified" | "converted" | "cancelled";
+export const OPTION_MEANINGS: OptionMeaning[] = ["open", "won", "lost", "disqualified", "converted", "cancelled"];
+/** A closed deal: anything that is not "open". */
+export const isClosedMeaning = (m: OptionMeaning | undefined): boolean => m !== undefined && m !== "open";
 
 /** Thrown by column-type validation. The message never contains the cell value (it may end up in the audit log). */
 export class CellError extends Error {

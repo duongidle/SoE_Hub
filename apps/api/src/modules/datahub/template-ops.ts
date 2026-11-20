@@ -18,7 +18,9 @@ import { columnOut, ColumnOut, indexFor } from "./structure";
 import { columnFromDb, TableSchema } from "./table-schema";
 import { ensureDealDatahub, insertTemplateTable, loadTemplate, templateFromDb, renameCustomColumnsTaking, renameOwnTablesTaking, scopeMembers, syncAllTemplates, syncCopyColumns, syncTemplate, systemCtx, TEMPLATE_CONFLICT_EVENT, type Emit, type Template } from "./template-sync";
 import { readSetting } from "../system/settings-catalog";
-import type { DhColumn } from "./types";
+import type { Autofill, DhColumn } from "./types";
+import { refillRows } from "./pushdown";
+import { userAttrs } from "./user-values";
 
 type Raw = Record<string, unknown>;
 type Ctx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId" | "access">;
@@ -381,6 +383,10 @@ export const templateOperations = [
       team_leader_id: Id.optional(),
       storage: z.enum(["shared", "person"]).default("shared"),
       role: z.string().min(1).max(60).optional(),
+      autofill: z
+        .object({ column: z.string().min(1).max(100), attr: z.string().min(1).max(30), sum: z.enum(["team", "tree"]).optional() })
+        .optional()
+        .describe("\"Gửi xuống\" (Module 4 mục 4.5): hệ thống tự điền cột (storage `person`) từ thuộc tính `attr` của mỗi người trong cột Người dùng có thuộc tính `column` của cùng dòng. `sum: team|tree`: Leader/Manager nhận tổng của team/cây."),
     }),
     output: ColumnOut,
     http: { method: "POST", path: "/datahub/templates/:template_id/columns", status: 201 },
@@ -405,9 +411,13 @@ export const templateOperations = [
         const def = assertRoleOfSet(acc.table.roleSet, i.role);
         if (!def.types.includes(i.type === "formula" ? String(i.config?.result_type ?? "number") : i.type)) throw new AppError("validation_error", `Vai trò "${def.label}" cần cột kiểu ${def.types.join(" / ")}.`, { reason: "role_type" });
       }
+      let autofill: Autofill | null = null;
+      if (i.autofill) autofill = await resolveAutofill(ctx, acc, i.autofill, i.type, i.storage);
       await renameCustomColumnsTaking(ctx.db, ctx.emit as Emit, tpl, acc.tableId, acc.datahub.id, tpl.name, [i.name]);
-      const extra: ColumnExtra = { layer: i.layer, layerRef: teamLeader, layerRoles: i.layer === "role" ? i.layer_roles! : null, storage: i.storage, role: i.role ?? null, protectedColumn: true };
-      const created = await createColumn(ctx, acc, i, extra);
+      const { autofill: _af, ...colInput } = i;
+      const extra: ColumnExtra = { layer: i.layer, layerRef: teamLeader, layerRoles: i.layer === "role" ? i.layer_roles! : null, storage: i.storage, role: i.role ?? null, autofill, protectedColumn: true };
+      const created = await createColumn(ctx, acc, colInput, extra);
+      if (autofill) await refillRows(ctx.db, acc.tableId, "all");
       if (tpl.kind === "personal") for (const c of await copiesOf(ctx.db, tpl)) await syncCopyColumns(ctx, tpl, { id: acc.tableId, datahubId: acc.datahub.id }, c, new Set([created.id]));
       ctx.audit({ type: "datahub_template", id: tpl.id, details: { column: created.name, layer: i.layer, role: i.role ?? null } });
       return created;
@@ -573,6 +583,21 @@ export const templateOperations = [
     },
   }),
 ];
+
+/** "Gửi xuống": the source column must be a user column with that attribute, and the column that receives must be person-stored and fit the attribute. */
+async function resolveAutofill(ctx: Ctx, acc: TableAccess, a: { column: string; attr: string; sum?: "team" | "tree" }, type: string, storage: string): Promise<Autofill> {
+  const bad = (m: string, reason = "autofill_invalid"): never => {
+    throw new AppError("validation_error", m, { reason });
+  };
+  if (storage !== "person") bad("Cột tự điền từ Người tham gia phải là cột mỗi người một giá trị (`storage: person`).");
+  const src = (await TableSchema.load(ctx.db, acc)).tryResolve(a.column);
+  if (!src || src.deletedAt || src.type !== "user") return bad(`Không có cột Người dùng "${a.column}" để lấy thuộc tính.`);
+  const attr = userAttrs(src).find((x) => x.key === a.attr);
+  if (!attr) return bad(`Cột "${src.name}" không có thuộc tính "${a.attr}".`);
+  const fits = a.sum ? attr.kind === "percent" && ["percent", "number"].includes(type) : attr.kind === "select" ? type === "text" : attr.kind === "percent" ? ["percent", "number"].includes(type) : type === "checkbox";
+  if (!fits) bad(`Thuộc tính "${attr.label}" (${attr.kind}) không điền được vào cột kiểu ${type}${a.sum ? " theo tổng team/cây" : ""}.`);
+  return { column: src.key, attr: attr.key, ...(a.sum ? { sum: a.sum } : {}) };
+}
 
 /** A template column of the master table, for someone allowed to edit that layer. */
 async function loadTemplateColumn(ctx: Ctx, templateId: string, ref: string, state: "alive" | "trashed" = "alive"): Promise<{ acc: TableAccess; col: DhColumn; tpl: Template; p: Principal }> {

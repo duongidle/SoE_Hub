@@ -15106,6 +15106,37 @@
                                 "type": "boolean",
                                 "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                               },
+                              "autofill": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string"
+                                      },
+                                      "attr": {
+                                        "type": "string"
+                                      },
+                                      "sum": {
+                                        "type": "string",
+                                        "enum": [
+                                          "team",
+                                          "tree"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "attr"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                              },
                               "unique": {
                                 "type": "boolean"
                               },
@@ -15217,6 +15248,7 @@
                               "storage",
                               "role",
                               "protected",
+                              "autofill",
                               "unique",
                               "default_value",
                               "description",
@@ -16490,6 +16522,37 @@
                           "type": "boolean",
                           "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                         },
+                        "autofill": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "column": {
+                                  "type": "string"
+                                },
+                                "attr": {
+                                  "type": "string"
+                                },
+                                "sum": {
+                                  "type": "string",
+                                  "enum": [
+                                    "team",
+                                    "tree"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "column",
+                                "attr"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                        },
                         "unique": {
                           "type": "boolean"
                         },
@@ -16601,6 +16664,7 @@
                         "storage",
                         "role",
                         "protected",
+                        "autofill",
                         "unique",
                         "default_value",
                         "description",
@@ -16929,6 +16993,37 @@
                           "type": "boolean",
                           "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                         },
+                        "autofill": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "column": {
+                                  "type": "string"
+                                },
+                                "attr": {
+                                  "type": "string"
+                                },
+                                "sum": {
+                                  "type": "string",
+                                  "enum": [
+                                    "team",
+                                    "tree"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "column",
+                                "attr"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                        },
                         "unique": {
                           "type": "boolean"
                         },
@@ -17040,6 +17135,7 @@
                         "storage",
                         "role",
                         "protected",
+                        "autofill",
                         "unique",
                         "default_value",
                         "description",
@@ -17487,6 +17583,37 @@
                           "type": "boolean",
                           "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                         },
+                        "autofill": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "column": {
+                                  "type": "string"
+                                },
+                                "attr": {
+                                  "type": "string"
+                                },
+                                "sum": {
+                                  "type": "string",
+                                  "enum": [
+                                    "team",
+                                    "tree"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "column",
+                                "attr"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                        },
                         "unique": {
                           "type": "boolean"
                         },
@@ -17598,6 +17725,7 @@
                         "storage",
                         "role",
                         "protected",
+                        "autofill",
                         "unique",
                         "default_value",
                         "description",
@@ -18203,6 +18331,37 @@
                               "type": "boolean",
                               "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                             },
+                            "autofill": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "attr": {
+                                      "type": "string"
+                                    },
+                                    "sum": {
+                                      "type": "string",
+                                      "enum": [
+                                        "team",
+                                        "tree"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "attr"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                            },
                             "unique": {
                               "type": "boolean"
                             },
@@ -18314,6 +18473,7 @@
                             "storage",
                             "role",
                             "protected",
+                            "autofill",
                             "unique",
                             "default_value",
                             "description",
@@ -30717,6 +30877,7 @@
                     "enum": [
                       "deals",
                       "payments",
+                      "com_params",
                       "ledger"
                     ]
                   }
@@ -31418,6 +31579,37 @@
                                 "type": "boolean",
                                 "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                               },
+                              "autofill": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "column": {
+                                        "type": "string"
+                                      },
+                                      "attr": {
+                                        "type": "string"
+                                      },
+                                      "sum": {
+                                        "type": "string",
+                                        "enum": [
+                                          "team",
+                                          "tree"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "column",
+                                      "attr"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                              },
                               "unique": {
                                 "type": "boolean"
                               },
@@ -31529,6 +31721,7 @@
                               "storage",
                               "role",
                               "protected",
+                              "autofill",
                               "unique",
                               "default_value",
                               "description",
@@ -32613,6 +32806,33 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 60
+                  },
+                  "autofill": {
+                    "description": "\"Gửi xuống\" (Module 4 mục 4.5): hệ thống tự điền cột (storage `person`) từ thuộc tính `attr` của mỗi người trong cột Người dùng có thuộc tính `column` của cùng dòng. `sum: team|tree`: Leader/Manager nhận tổng của team/cây.",
+                    "type": "object",
+                    "properties": {
+                      "column": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "attr": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 30
+                      },
+                      "sum": {
+                        "type": "string",
+                        "enum": [
+                          "team",
+                          "tree"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "column",
+                      "attr"
+                    ]
                   }
                 },
                 "required": [
@@ -32732,6 +32952,37 @@
                           "type": "boolean",
                           "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                         },
+                        "autofill": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "column": {
+                                  "type": "string"
+                                },
+                                "attr": {
+                                  "type": "string"
+                                },
+                                "sum": {
+                                  "type": "string",
+                                  "enum": [
+                                    "team",
+                                    "tree"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "column",
+                                "attr"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                        },
                         "unique": {
                           "type": "boolean"
                         },
@@ -32843,6 +33094,7 @@
                         "storage",
                         "role",
                         "protected",
+                        "autofill",
                         "unique",
                         "default_value",
                         "description",
@@ -33167,6 +33419,37 @@
                               "type": "boolean",
                               "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                             },
+                            "autofill": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "attr": {
+                                      "type": "string"
+                                    },
+                                    "sum": {
+                                      "type": "string",
+                                      "enum": [
+                                        "team",
+                                        "tree"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "attr"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                            },
                             "unique": {
                               "type": "boolean"
                             },
@@ -33278,6 +33561,7 @@
                             "storage",
                             "role",
                             "protected",
+                            "autofill",
                             "unique",
                             "default_value",
                             "description",
@@ -34055,6 +34339,37 @@
                               "type": "boolean",
                               "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                             },
+                            "autofill": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "attr": {
+                                      "type": "string"
+                                    },
+                                    "sum": {
+                                      "type": "string",
+                                      "enum": [
+                                        "team",
+                                        "tree"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "attr"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                            },
                             "unique": {
                               "type": "boolean"
                             },
@@ -34166,6 +34481,7 @@
                             "storage",
                             "role",
                             "protected",
+                            "autofill",
                             "unique",
                             "default_value",
                             "description",
@@ -34595,6 +34911,37 @@
                           "type": "boolean",
                           "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                         },
+                        "autofill": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "column": {
+                                  "type": "string"
+                                },
+                                "attr": {
+                                  "type": "string"
+                                },
+                                "sum": {
+                                  "type": "string",
+                                  "enum": [
+                                    "team",
+                                    "tree"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "column",
+                                "attr"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                        },
                         "unique": {
                           "type": "boolean"
                         },
@@ -34706,6 +35053,7 @@
                         "storage",
                         "role",
                         "protected",
+                        "autofill",
                         "unique",
                         "default_value",
                         "description",
@@ -34995,6 +35343,37 @@
                               "type": "boolean",
                               "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
                             },
+                            "autofill": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "column": {
+                                      "type": "string"
+                                    },
+                                    "attr": {
+                                      "type": "string"
+                                    },
+                                    "sum": {
+                                      "type": "string",
+                                      "enum": [
+                                        "team",
+                                        "tree"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "column",
+                                    "attr"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
+                            },
                             "unique": {
                               "type": "boolean"
                             },
@@ -35106,6 +35485,7 @@
                             "storage",
                             "role",
                             "protected",
+                            "autofill",
                             "unique",
                             "default_value",
                             "description",
@@ -35214,6 +35594,37 @@
                                 "protected": {
                                   "type": "boolean",
                                   "description": "Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."
+                                },
+                                "autofill": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "column": {
+                                          "type": "string"
+                                        },
+                                        "attr": {
+                                          "type": "string"
+                                        },
+                                        "sum": {
+                                          "type": "string",
+                                          "enum": [
+                                            "team",
+                                            "tree"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "column",
+                                        "attr"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."
                                 },
                                 "unique": {
                                   "type": "boolean"
@@ -35326,6 +35737,7 @@
                                 "storage",
                                 "role",
                                 "protected",
+                                "autofill",
                                 "unique",
                                 "default_value",
                                 "description",

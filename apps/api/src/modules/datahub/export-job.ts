@@ -18,6 +18,7 @@ import { GROUP_FNS, listGroups, MAX_GROUP_LEVELS, type GroupFn } from "./rows-gr
 import { Id } from "./shared";
 import { TableSchema } from "./table-schema";
 import { assertColumnKey } from "./types";
+import { entriesOf, formatPeople, userAttrs, userIdsOf } from "./user-values";
 
 export const EXPORT_FORMATS = ["csv", "xlsx", "json"] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
@@ -87,7 +88,7 @@ function toCell(col: Col, v: unknown, lk: Lookups): Cell {
   const arr = Array.isArray(v) ? v : null;
   switch (col.type) {
     case "user":
-      return { kind: "text", v: typeof v === "string" ? (lk.users.get(v) ?? v) : String(v) };
+      return { kind: "text", v: typeof v === "string" ? (lk.users.get(v) ?? v) : Array.isArray(v) ? formatPeople(entriesOf(v), userAttrs({ type: "user", config: col.config }), (id) => lk.users.get(id) ?? id) : String(v) };
     case "relation":
       return { kind: "text", v: (arr ?? [v]).map((id) => lk.links.get(String(id)) ?? String(id)).join(", ") };
     case "attachment":
@@ -214,7 +215,7 @@ async function loadLookups(db: Db, cols: Col[], rows: Raw[], ownerId: string, ta
       const v = data[c.key];
       if (v === null || v === undefined) continue;
       if (c.type === "user" || c.type === "created_by" || c.type === "modified_by") {
-        if (typeof v === "string" && UUID_RE.test(v) && !lk.users.has(v)) need.users.add(v);
+        for (const id of userIdsOf(v)) if (UUID_RE.test(id) && !lk.users.has(id)) need.users.add(id);
       } else if (c.type === "relation" && Array.isArray(v)) {
         const target = c.config.target_table_id as string | undefined;
         if (!target) continue;

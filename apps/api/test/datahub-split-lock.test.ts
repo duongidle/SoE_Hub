@@ -95,7 +95,7 @@ describe("structure rules of the lock", () => {
     expect(tb.key_split.key_columns.map((c: { name: string }) => c.name)).toEqual(["Phụ trách", "Hỗ trợ"]);
     expect(tb.key_split.primary).toBe(x.cols["Phụ trách"]!.key);
     expect(tb.members_bulk_create).toBe(true);
-    const ix = await t.c.db.db.execute(sql`SELECT indexname FROM pg_indexes WHERE indexname LIKE ${`dh_ix_%${x.cols["Hỗ trợ"]!.key}_uuid`}`);
+    const ix = await t.c.db.db.execute(sql`SELECT indexname FROM pg_indexes WHERE indexname LIKE ${`dh_ix_%${x.cols["Hỗ trợ"]!.key}_ids`}`);
     expect(ix.rows.length).toBe(1);
   });
 

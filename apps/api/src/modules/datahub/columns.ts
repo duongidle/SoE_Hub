@@ -19,6 +19,8 @@ import { OwnerIndex, prepareComputed, type DepRow, type PreparedComputed } from 
 import { markPending } from "./recalc";
 import { columnFromDb, rowFromDb, TableSchema } from "./table-schema";
 import { CellError, type DhColumn, type SelectOption, type Stored } from "./types";
+import { hasAttrs } from "./user-values";
+import type { Autofill } from "./types";
 
 type Raw = Record<string, unknown>;
 type Ctx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId">;
@@ -109,6 +111,8 @@ export interface ColumnExtra {
   layerRoles?: string[] | null;
   storage?: "shared" | "person";
   role?: string | null;
+  /** "Gửi xuống": see `pushdown.ts`. Person-stored, system-filled column. */
+  autofill?: Autofill | null;
   templateColumnId?: string | null;
   /** Created by the template commands: protected from the column commands. */
   protectedColumn?: boolean;
@@ -158,13 +162,13 @@ export async function createColumn(ctx: Ctx, acc: TableAccess, i: ColumnInput, e
   // "Ngày sửa của cột": the watched columns, by name or key, become keys.
   if (i.type === "field_modified") config.watch = resolveWatch(await TableSchema.load(ctx.db, acc), config.watch as string[], key);
   const display = normalizeDisplay(i.display);
-  if (i.unique && !def.uniqueable) throw new AppError("validation_error", `Cột kiểu "${def.label}" không đặt được "duy nhất".`);
+  if (i.unique && (!def.uniqueable || hasAttrs({ type: i.type, config }))) throw new AppError("validation_error", `Cột kiểu "${def.label}" không đặt được "duy nhất".`);
   const dflt = parseDefault(i.type, config, i.name, key, i.default_value);
   const position = i.position ?? (await nextPosition(ctx.db, acc));
   try {
-    await ctx.db.execute(sql`INSERT INTO dh_columns (id, table_id, key, name, type, config, position, required, allow_edit, is_unique, default_value, description, display, layer, layer_ref, layer_roles, storage, role, template_column_id, protected, created_by, updated_by)
+    await ctx.db.execute(sql`INSERT INTO dh_columns (id, table_id, key, name, type, config, position, required, allow_edit, is_unique, default_value, description, display, layer, layer_ref, layer_roles, storage, role, autofill, template_column_id, protected, created_by, updated_by)
       VALUES (${id}::uuid, ${acc.tableId}::uuid, ${key}, ${i.name}, ${i.type}, ${JSON.stringify(config)}::jsonb, ${position}::int, ${i.required ?? false}, ${extra.custom ? true : (i.allow_edit ?? (layer ? false : true))}, ${i.unique ?? false}, ${dflt === null ? null : JSON.stringify(dflt)}::jsonb, ${i.description ?? null}, ${JSON.stringify(display)}::jsonb,
-        ${layer}, ${layerRef}::uuid, ${extra.layerRoles ? `{${extra.layerRoles.join(",")}}` : null}::text[], ${storage}, ${extra.role ?? null}, ${extra.templateColumnId ?? null}::uuid, ${extra.protectedColumn ?? false}, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
+        ${layer}, ${layerRef}::uuid, ${extra.layerRoles ? `{${extra.layerRoles.join(",")}}` : null}::text[], ${storage}, ${extra.role ?? null}, ${extra.autofill ? JSON.stringify(extra.autofill) : null}::jsonb, ${extra.templateColumnId ?? null}::uuid, ${extra.protectedColumn ?? false}, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
   } catch (e) {
     rethrowNameConflict(e);
   }
@@ -252,7 +256,7 @@ export async function updateColumn(ctx: Ctx, acc: TableAccess, col: DhColumn, i:
   const display = i.display !== undefined ? normalizeDisplay(i.display) : col.display;
   const name = i.name ?? col.name;
   const unique = i.unique ?? col.isUnique;
-  if (unique && !def.uniqueable) throw new AppError("validation_error", `Cột kiểu "${def.label}" không đặt được "duy nhất".`);
+  if (unique && (!def.uniqueable || hasAttrs({ type: col.type, config }))) throw new AppError("validation_error", `Cột kiểu "${def.label}" không đặt được "duy nhất".`);
   let dflt: Stored | null = col.defaultValue as Stored | null;
   if (i.default_value !== undefined || i.config !== undefined) dflt = parseDefault(col.type, config, name, col.key, i.default_value !== undefined ? i.default_value : col.defaultValue);
   try {

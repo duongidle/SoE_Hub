@@ -4,6 +4,7 @@ import { toActorRef } from "@soe/shared";
 import { registerTransferHandler, type TransferHandler } from "../transfer";
 import { nextChangeSeq } from "./change-queue";
 import { recordChanges, type RowChange } from "./partial";
+import { refillRows } from "./pushdown";
 import { assertColumnKey } from "./types";
 
 type Raw = Record<string, unknown>;
@@ -43,6 +44,12 @@ export const datahubTransferHandler: TransferHandler = {
 
 registerTransferHandler(datahubTransferHandler);
 
+/** Rows still open: a table with a status column by role (Deals) keeps the old person on rows whose status means closed; others have no condition. */
+function closedRowsCondition(statusKey: string | null, closedIds: string[]) {
+  if (!statusKey || closedIds.length === 0) return sql`true`;
+  return sql`NOT (coalesce(data->>${sql.raw(`'${assertColumnKey(statusKey)}'`)}, '') = ANY(${`{${closedIds.join(",")}}`}::text[]))`;
+}
+
 /**
  * Split-lock tables (design module2 section 10, Stage 4.1a): the target of a transfer gets the membership of the source (the same shares) and
  * the tags of the source in the key columns, so the rows of the person who leaves are seen and edited by the person who takes over. Covers the
@@ -61,7 +68,11 @@ export const splitLockTransferHandler: TransferHandler = {
     return (res.rows as Raw[]).map((r) => ({ type: "datahub_table", id: r.id as string, label: `${r.dh as string} / ${r.name as string}`, action: "move" as const }));
   },
   async execute(ex, from, to, _opts, actor) {
-    const tables = (await ex.execute(sql`SELECT DISTINCT t.id, t.datahub_id, d.name AS dh, t.name, t.key_columns, d.owner_id FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
+    const tables = (await ex.execute(sql`SELECT DISTINCT t.id, t.datahub_id, d.name AS dh, t.name, t.key_columns, d.owner_id,
+        (SELECT c.key FROM dh_columns c WHERE c.table_id = t.id AND c.role = 'trang_thai' AND t.role_set = 'deals' AND c.deleted_at IS NULL LIMIT 1) AS closed_key,
+        (SELECT coalesce(array_agg(o->>'id'), '{}') FROM dh_columns c, jsonb_array_elements(c.config->'options') o
+          WHERE c.table_id = t.id AND c.role = 'trang_thai' AND t.role_set = 'deals' AND c.deleted_at IS NULL AND coalesce(o->>'meaning', 'open') <> 'open') AS closed_ids
+      FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
       WHERE /*scope:system*/ t.key_split AND t.deleted_at IS NULL AND d.deleted_at IS NULL
         AND (d.owner_id IN (${from}::uuid, ${to}::uuid) OR EXISTS (SELECT 1 FROM dh_shares s WHERE s.datahub_id = d.id AND s.grantee_id = ${from}::uuid AND (s.table_id IS NULL OR s.table_id = t.id)))`)).rows as Raw[];
     const items = [];
@@ -80,8 +91,16 @@ export const splitLockTransferHandler: TransferHandler = {
       const moved: RowChange[] = [];
       for (const k of (t.key_columns as string[]) ?? []) {
         assertColumnKey(k);
-        const res = await ex.execute(sql`UPDATE dh_rows SET data = jsonb_set(data, ARRAY[${k}::text], to_jsonb(${to}::text)), version = version + 1, updated_at = now(), updated_by = ${actor.userId}::uuid
-          WHERE /*scope:system*/ table_id = ${t.id as string}::uuid AND deleted_at IS NULL AND data->>${sql.raw(`'${k}'`)} = ${from}
+        // The cell holds one person (a uuid string) or a list with attributes: the source's entry becomes the target's; when the target is already in
+        // the list the source's entry is dropped (one entry per person). Closed deals keep their old person (module1 section 8).
+        const cell = sql.raw(`data->'${k}'`);
+        const closed = closedRowsCondition(t.closedKey as string | null, t.closedIds as string[]);
+        const res = await ex.execute(sql`UPDATE dh_rows SET data = jsonb_set(data, ARRAY[${k}::text], CASE
+              WHEN jsonb_typeof(${cell}) = 'string' THEN to_jsonb(${to}::text)
+              WHEN ${to} = ANY(soe_dh_ids(${cell})) THEN coalesce((SELECT jsonb_agg(e) FROM jsonb_array_elements(${cell}) e WHERE e->>'id' <> ${from}), '[]'::jsonb)
+              ELSE (SELECT jsonb_agg(CASE WHEN e->>'id' = ${from} THEN jsonb_set(e, '{id}', to_jsonb(${to}::text)) ELSE e END) FROM jsonb_array_elements(${cell}) e) END),
+            version = version + 1, updated_at = now(), updated_by = ${actor.userId}::uuid
+          WHERE /*scope:system*/ table_id = ${t.id as string}::uuid AND deleted_at IS NULL AND ${from} = ANY(soe_dh_ids(${cell})) AND ${closed}
           RETURNING id, version, data`);
         const rows = res.rows as { id: string; version: number; data: Record<string, unknown> }[];
         if (rows.length === 0) continue;
@@ -92,6 +111,10 @@ export const splitLockTransferHandler: TransferHandler = {
         for (const r of rows) moved.push({ rowId: r.id, kind: "update", old: { ...r.data, [k]: from }, new: r.data });
       }
       if (moved.length) {
+        // The people of these rows changed: "gửi xuống" refills what each person reads (rows are the ones just written).
+        const changedRows = new Map<string, Record<string, unknown>>();
+        for (const m of moved) changedRows.set(m.rowId, m.new as Record<string, unknown>);
+        await refillRows(ex, t.id as string, [...changedRows].map(([id, data]) => ({ id, data: data as never })));
         const seq = await nextChangeSeq(ex);
         await recordChanges(ex, t.id as string, moved, seq);
         const ids = [...new Set(moved.map((m) => m.rowId))];

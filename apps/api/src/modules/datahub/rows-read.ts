@@ -12,6 +12,7 @@ import { exposeErrors } from "./cell-values";
 import { pendingCells, wantedSeq, waitConsistent, type Consistency } from "./consistency";
 import { readSetting } from "../system/settings-catalog";
 import { DH_SETTINGS } from "./limits";
+import { hasAttrs } from "./user-values";
 import { andFilter, timeFilterNode } from "./time-filter";
 
 export interface RowQuery {
@@ -171,14 +172,14 @@ export async function noteIndexUse(db: Executor, access: TableAccess, schema: Ta
     if (!col || META_FIELDS.includes(n.field)) return;
     const def = columnTypeDef(effectiveType(col));
     if (def.virtual) return;
-    add(col.key, def.fieldType === "text" && (n.op === "contains" || n.op === "starts_with") ? "trgm" : def.indexKind);
+    add(col.key, def.fieldType === "text" && (n.op === "contains" || n.op === "starts_with") ? "trgm" : hasAttrs(col) ? null : def.indexKind);
   };
   walk(filter);
   for (const s of sort) {
     const col = schema.tryResolve(s.field);
     if (!col) continue;
     const def = columnTypeDef(effectiveType(col));
-    if (!def.virtual && !def.sortExpr?.(col)) add(col.key, def.indexKind);
+    if (!def.virtual && !def.sortExpr?.(col) && !hasAttrs(col)) add(col.key, def.indexKind);
   }
   for (const [ck, u] of uses) {
     if (seenRequests.has(ck)) continue;

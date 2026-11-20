@@ -3,7 +3,8 @@ import { sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { AppError, COLUMN_TYPES, type ColumnType } from "@soe/shared";
 import type { FieldType } from "@soe/db";
-import { assertColumnKey, CellError, type DhColumn, type SelectOption, type Stored } from "./types";
+import { assertColumnKey, CellError, OPTION_MEANINGS, type DhColumn, type PersonEntry, type SelectOption, type Stored } from "./types";
+import { MAX_PEOPLE, userAttrSchema, userAttrs, userIdsOf, type UserAttr } from "./user-values";
 
 /**
  * Column-type registry (design module2 section 4). One definition per type: its config, how a value is validated
@@ -161,6 +162,7 @@ const OptionSchema = z.strictObject({
   id: z.string().regex(/^o_[a-z0-9]{4,12}$/, "Mã lựa chọn không hợp lệ.").optional(),
   name: z.string().normalize("NFC").trim().min(1, "Tên lựa chọn không được để trống.").max(100, "Tên lựa chọn tối đa 100 ký tự."),
   color: z.string().trim().max(20).optional(),
+  meaning: z.enum(OPTION_MEANINGS).optional(),
 });
 
 /** Select options: ids assigned for new ones, names unique in the column (case-insensitive), order = sort order. */
@@ -175,8 +177,69 @@ export function normalizeOptions(raw: unknown): SelectOption[] {
     let id = o.id ?? newOptionId();
     while (seenIds.has(id)) id = newOptionId();
     seenIds.add(id);
-    return { id, name: o.name, ...(o.color ? { color: o.color } : {}) };
+    return { id, name: o.name, ...(o.color ? { color: o.color } : {}), ...(o.meaning ? { meaning: o.meaning } : {}) };
   });
+}
+
+function checkAttrs(attrs: UserAttr[], ctx: z.RefinementCtx): void {
+  const seen = new Set<string>();
+  for (const a of attrs) {
+    if (seen.has(a.key)) ctx.addIssue({ code: "custom", message: `Mã thuộc tính bị trùng: "${a.key}".` });
+    seen.add(a.key);
+    if (a.kind === "select" && (!a.options || a.options.length === 0)) ctx.addIssue({ code: "custom", message: `Thuộc tính "${a.label}" kiểu nhãn cần danh sách nhãn.` });
+    if (a.kind !== "select" && a.options) ctx.addIssue({ code: "custom", message: `Thuộc tính "${a.label}" không có danh sách nhãn.` });
+    if ((a.sum_max !== undefined || a.cap_param !== undefined) && a.kind !== "percent") ctx.addIssue({ code: "custom", message: `Giới hạn tổng chỉ dùng cho thuộc tính phần trăm ("${a.label}").` });
+  }
+}
+
+/** One attribute value: a label of the list, a fraction 0..1 ("25%" is read as 0.25), or yes/no. Empty gives the default (or nothing). */
+function parseAttr(a: UserAttr, v: unknown, col: ColCtx): string | number | boolean | undefined {
+  const empty = v === undefined || v === null || (typeof v === "string" && v.trim() === "");
+  if (empty) return a.default === null || a.default === undefined ? undefined : (a.default as string | number | boolean);
+  const what = `Thuộc tính "${a.label}" của cột "${col.name}"`;
+  if (a.kind === "select") {
+    const hit = typeof v === "string" ? a.options!.find((o) => norm(o) === norm(v)) : undefined;
+    if (!hit) throw new CellError(`${what} chỉ nhận một trong: ${a.options!.join(", ")}.`);
+    return hit;
+  }
+  if (a.kind === "percent") {
+    const n = typeof v === "string" && /^\s*-?\d+(\.\d+)?\s*%\s*$/.test(v) ? plainNumber(v.replace("%", ""), what) / 100 : plainNumber(v, what);
+    if (n < 0 || n > 1) throw new CellError(`${what} phải từ 0% đến 100%.`);
+    return n;
+  }
+  if (typeof v === "boolean") return v;
+  if (typeof v === "string" && ["true", "có", "co", "yes"].includes(norm(v))) return true;
+  if (typeof v === "string" && ["false", "không", "khong", "no"].includes(norm(v))) return false;
+  throw new CellError(`${what} chỉ nhận có/không.`);
+}
+
+/** A list of people with attributes: `[{ id, attrs }]` (a bare uuid is a person with the default attributes). Every person once, at most MAX_PEOPLE. */
+function parsePeople(value: unknown, col: ColCtx, attrs: UserAttr[]): PersonEntry[] | null {
+  if (isEmptyInput(value)) return null;
+  const list = Array.isArray(value) ? value : [value];
+  if (list.length === 0) return null;
+  if (list.length > MAX_PEOPLE) throw new CellError(`Cột "${col.name}" tối đa ${MAX_PEOPLE} người.`);
+  const out: PersonEntry[] = [];
+  for (const e of list) {
+    const raw = typeof e === "string" ? { id: e, attrs: {} } : e && typeof e === "object" ? (e as { id?: unknown; attrs?: unknown }) : null;
+    const id = typeof raw?.id === "string" ? raw.id.trim().toLowerCase() : "";
+    if (!UUID_RE.test(id)) throw new CellError(`Cột "${col.name}" cần danh sách người dùng: mã người (uuid) kèm thuộc tính.`);
+    if (out.some((x) => x.id === id)) throw new CellError(`Cột "${col.name}": mỗi người chỉ xuất hiện một lần.`);
+    const given = (raw!.attrs && typeof raw!.attrs === "object" ? raw!.attrs : {}) as Record<string, unknown>;
+    for (const k of Object.keys(given)) if (!attrs.some((a) => a.key === k)) throw new CellError(`Cột "${col.name}" không có thuộc tính "${k}".`);
+    const outAttrs: PersonEntry["attrs"] = {};
+    for (const a of attrs) {
+      const v = parseAttr(a, given[a.key], col);
+      if (v !== undefined) outAttrs[a.key] = v;
+    }
+    out.push({ id, attrs: outAttrs });
+  }
+  for (const a of attrs) {
+    if (a.sum_max === undefined) continue;
+    const total = out.reduce((s, e) => s + (typeof e.attrs[a.key] === "number" ? (e.attrs[a.key] as number) : 0), 0);
+    if (total > a.sum_max + 1e-9) throw new CellError(`Tổng "${a.label}" của cột "${col.name}" là ${Math.round(total * 10000) / 100}%, vượt mức tối đa ${Math.round(a.sum_max * 10000) / 100}%.`);
+  }
+  return out;
 }
 
 const selectConfig = z.strictObject({ options: z.array(z.unknown()).default([]) });
@@ -369,14 +432,18 @@ const defs: ColumnTypeDef[] = [
   {
     type: "user", label: "Người dùng", group: "contact", available: true, writable: true,
     fieldType: "uuid", expr: (k) => sql`(${j(k)})::uuid`, sortable: true, indexKind: "uuid", uniqueable: true,
-    configSchema: emptyConfig, defaultConfig: () => ({}),
+    configSchema: z.strictObject({ attrs: z.array(userAttrSchema).max(8, "Tối đa 8 thuộc tính.").optional() }).superRefine((c, ctx) => checkAttrs(c.attrs ?? [], ctx)),
+    defaultConfig: () => ({}),
     parse(value, col) {
+      const attrs = userAttrs({ type: "user", config: col.config });
+      if (attrs.length) return parsePeople(value, col, attrs);
       if (isEmptyInput(value)) return null;
       if (typeof value !== "string" || !UUID_RE.test(value.trim())) throw new CellError(`Cột "${col.name}" cần mã người dùng (uuid).`);
       return value.trim().toLowerCase();
     },
-    toPlain: plain,
-    refs: (v) => ({ users: typeof v === "string" ? [v] : [] }),
+    toPlain: (v) => (Array.isArray(v) ? userIdsOf(v).join(", ") : plain(v)),
+    searchText: () => null,
+    refs: (v) => ({ users: userIdsOf(v) }),
   },
   {
     type: "attachment", label: "Đính kèm", group: "file", available: true, writable: true,
@@ -393,7 +460,7 @@ const defs: ColumnTypeDef[] = [
       return ids.length ? ids : null;
     },
     toPlain: () => null,
-    refs: (v) => ({ files: Array.isArray(v) ? v : [] }),
+    refs: (v) => ({ files: Array.isArray(v) ? (v as string[]) : [] }),
   },
   {
     type: "auto_number", label: "Số tự tăng", group: "compute", available: true, writable: false,

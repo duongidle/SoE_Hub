@@ -152,6 +152,11 @@ export const dhColumns = pgTable(
     storage: text("storage").notNull().default("shared"),
     /** Column role (design module4 3.7): unique per table. */
     role: text("role"),
+    /**
+     * "Gửi xuống" (design module4 4.5): a column of storage `person` that the system fills from the attributes of the people named in a user column of the
+     * same row: `{ column, attr, sum? }`. Nobody types into it. See `apps/api/src/modules/datahub/pushdown.ts`.
+     */
+    autofill: jsonb("autofill"),
     /** A copy of a personal template: the column of the master table this one follows (same name, type, formula by names). */
     templateColumnId: uuid("template_column_id"),
     /** Protected (template) column: no rename, delete, type change or edit from the column commands. */

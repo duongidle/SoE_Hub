@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AppError, DhNameSchema } from "@soe/shared";
 import { newId, type Executor } from "@soe/db";
 import { defineCommand, defineQuery } from "../../core/registry";
-import { LEVEL_SQL, loadDatahubAccess, loadReader, loadTableAccess } from "./access";
+import { keyMatch, LEVEL_SQL, loadDatahubAccess, loadReader, loadTableAccess } from "./access";
 import { getLimits, quotaExceeded } from "./limits";
 import { rethrowNameConflict } from "./errors";
 import { emitStructure, Id, STRUCTURE_EVENT, Ts } from "./shared";
@@ -11,7 +11,6 @@ import { columnFromDb } from "./table-schema";
 import { isComputedType } from "./cell-values";
 import { displayConfig, OwnerIndex } from "./computed";
 import { columnTypeDef } from "./column-types";
-import { assertColumnKey } from "./types";
 
 const LevelOut = z.enum(["owner", "edit_data", "view"]);
 
@@ -57,8 +56,7 @@ async function tablesOf(db: Executor, userId: string, datahubIds: string[]): Pro
     // A table under the split lock tells a member only how many rows THEY see.
     if (r.key_split && r.level !== "owner") {
       const rd = (reader ??= await loadReader(db, userId));
-      const keys = (r.key_columns as string[]) ?? [];
-      const cond = keys.length ? sql.join(keys.map((k) => sql`((data->>${sql.raw(`'${assertColumnKey(k)}'`)})::uuid = ANY(${`{${rd.ids.join(",")}}`}::uuid[]))`), sql` OR `) : sql`false`;
+      const cond = keyMatch((r.key_columns as string[]) ?? [], rd.ids);
       rowCount = ((await db.execute(sql`SELECT count(*)::int AS n FROM dh_rows WHERE /*scope:rows*/ table_id = ${r.id as string}::uuid AND deleted_at IS NULL AND (${cond})`)).rows[0] as { n: number }).n;
     }
     list.push({ id: r.id as string, name: r.name as string, position: r.position as number, row_count: rowCount, access: r.level as "owner" | "edit_data" | "view", kind: r.kind === "merged" ? "merged" : "normal", members_bulk_create: r.members_bulk_create !== false });
@@ -119,6 +117,7 @@ export const ColumnOut = z.object({
   storage: z.enum(["shared", "person"]).describe("`shared`: một giá trị mỗi dòng. `person`: mỗi người một giá trị."),
   role: z.string().nullable().describe("Vai trò cột (Module 4 mục 3.7) nếu cột đang giữ vai trò."),
   protected: z.boolean().describe("Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."),
+  autofill: z.object({ column: z.string(), attr: z.string(), sum: z.enum(["team", "tree"]).optional() }).nullable().describe("Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."),
   unique: z.boolean(),
   default_value: z.unknown(),
   description: z.string().nullable(),
@@ -141,7 +140,7 @@ export function columnOut(c: ReturnType<typeof columnFromDb>, ix: OwnerIndex | n
   if (def.type === "auto_number") delete config.seq;
   if (isComputedType(c.type) || c.type === "relation") config = displayConfig({ type: c.type, config, tableId: c.tableId }, ix);
   const calc = isComputedType(c.type) ? { status: c.calcStatus as "ready" | "pending" | "running", done: c.calcDone, total: c.calcTotal, at: c.calcAt, seq: c.calcSeq } : null;
-  return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, allow_edit: c.allowEdit, layer: c.layer, layer_ref: c.layerRef, layer_roles: c.layerRoles, storage: c.storage, role: c.role, protected: c.protected, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, version: c.version, calc };
+  return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, allow_edit: c.allowEdit, layer: c.layer, layer_ref: c.layerRef, layer_roles: c.layerRoles, storage: c.storage, role: c.role, protected: c.protected, autofill: c.autofill, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, version: c.version, calc };
 }
 
 /** Index of the owner's tables, loaded only when a column needs names of other objects. */
