@@ -125,7 +125,22 @@ export async function listRows(db: Executor, access: TableAccess, schema: TableS
   await noteIndexUse(db, access, schema, filter, sortItems).catch(() => {});
   const items = shape(page.items, schema, q.labels ?? false);
   await attachPending(db, access.tableId, items, sel ? new Set(sel.columns.map((c) => c.key)) : undefined);
+  await attachCanEdit(db, access, items);
   return { ...page, items, ...(consistency ? { extra: { consistency } } : {}) };
+}
+
+/**
+ * Under the split lock a reader may see a row they cannot edit (a Leader's view of a team member's deal): `can_edit` says it per row, with the SAME rule the
+ * server applies on write (`TableAccess.canEditRow`), so the grid can lock the cells instead of letting the person try and fail. Only rows of a locked
+ * table read by a member carry it; for the owner, or a table without the lock, every row is editable (the Edit permission is the table's).
+ */
+async function attachCanEdit(db: Executor, access: TableAccess, items: Shaped[]): Promise<void> {
+  if (!access.restricted || items.length === 0) return;
+  const keys = access.table.split.keys;
+  const res = await db.execute(sql`SELECT id, ${sql.join(keys.map((k, n) => sql`data->${sql.raw(`'${assertColumnKey(k)}'`)} AS ${sql.raw(`k${n}`)}`), sql`, `)} FROM dh_rows
+    WHERE ${access.rows()} AND id = ANY(${`{${items.map((i) => i.id as string).join(",")}}`}::uuid[])`);
+  const byId = new Map((res.rows as Record<string, unknown>[]).map((r) => [r.id as string, Object.fromEntries(keys.map((k, n) => [k, r[`k${n}`]]))]));
+  for (const it of items) it.can_edit = access.canEditRow(byId.get(it.id as string) ?? {});
 }
 
 /** Adds `pending` (keys of the computed columns of the row that are being computed) to the rows that have any. */
@@ -146,6 +161,7 @@ export async function getRow(db: Executor, access: TableAccess, schema: TableSch
   if (!r) throw new AppError("not_found", "Không tìm thấy dòng.");
   const [row] = shape([r], schema, o.labels ?? false);
   await attachPending(db, access.tableId, [row!], sel ? new Set(sel.columns.map((c) => c.key)) : undefined);
+  await attachCanEdit(db, access, [row!]);
   return { ...row!, ...(consistency ? { consistency } : {}) };
 }
 

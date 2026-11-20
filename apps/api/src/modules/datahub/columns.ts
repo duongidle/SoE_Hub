@@ -13,7 +13,7 @@ import { emitStructure, Id, STRUCTURE_EVENT } from "./shared";
 import { columnOut, ColumnOut, indexFor } from "./structure";
 import { isComputedType } from "./cell-values";
 import { resolveLinkTarget } from "./link-targets";
-import { backfillTracker, resolveWatch } from "./field-modified";
+import { backfillTracker, releaseWatchedColumn, resolveWatch } from "./field-modified";
 import { findAffectedFormulas, optionRenames } from "./option-rename";
 import { OwnerIndex, prepareComputed, type DepRow, type PreparedComputed } from "./computed";
 import { markPending } from "./recalc";
@@ -294,6 +294,7 @@ export async function updateColumn(ctx: Ctx, acc: TableAccess, col: DhColumn, i:
 export async function deleteColumn(ctx: Ctx, acc: TableAccess, col: DhColumn): Promise<{ id: string; deleted: true }> {
       if (acc.table.kind === "merged" && !isComputedType(col.type)) throw new AppError("forbidden", "Không xoá được cột dữ liệu của bảng gộp. Bỏ cột ở phần cấu hình ghép cột.", { reason: "merged_table_columns" });
   assertNotKeyColumn(acc, col, "xoá");
+  await releaseWatchedColumn(ctx.db, acc, col);
   await ctx.db.execute(sql`UPDATE dh_columns SET deleted_at = now(), deleted_by = ${ctx.actor.userId}::uuid, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
   ctx.audit({ type: "datahub_column", id: col.id, details: { table_id: acc.tableId, name: col.name } });
   await emitStructure(ctx, acc.datahub.id, acc.tableId, "column_deleted");

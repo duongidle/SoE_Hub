@@ -198,10 +198,10 @@ export const structureOperations = [
     handler: async (ctx, i) => {
       const me = ctx.actor.userId;
       const parts = [];
-      if (i.scope !== "shared") parts.push(sql`SELECT d.*, u.full_name AS owner_name FROM dh_datahubs d JOIN users u ON u.id = d.owner_id WHERE /*scope*/ d.owner_id = ${me}::uuid AND d.deleted_at IS NULL`);
+      if (i.scope !== "shared") parts.push(sql`SELECT d.*, u.full_name AS owner_name FROM dh_datahubs d JOIN users u ON u.id = d.owner_id WHERE /*scope*/ d.owner_id = ${me}::uuid AND d.deleted_at IS NULL AND d.system_key IS NULL`);
       if (i.scope !== "mine") {
         parts.push(sql`SELECT d.*, u.full_name AS owner_name FROM dh_datahubs d JOIN users u ON u.id = d.owner_id
-          WHERE /*scope*/ d.owner_id <> ${me}::uuid AND d.deleted_at IS NULL AND EXISTS (SELECT 1 FROM dh_shares s WHERE s.datahub_id = d.id AND s.grantee_id = ${me}::uuid)`);
+          WHERE /*scope*/ d.owner_id <> ${me}::uuid AND d.deleted_at IS NULL AND d.system_key IS NULL AND EXISTS (SELECT 1 FROM dh_shares s WHERE s.datahub_id = d.id AND s.grantee_id = ${me}::uuid)`);
       }
       const res = await ctx.db.execute(sql`${sql.join(parts.map((p) => sql`(${p})`), sql` UNION ALL `)} ORDER BY created_at`);
       const rows = res.rows as Raw[];

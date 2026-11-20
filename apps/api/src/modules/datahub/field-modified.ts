@@ -5,6 +5,8 @@ import type { TableAccess } from "./access";
 import { isComputedType } from "./cell-values";
 import { MAX_WATCH } from "./column-types";
 import type { TableSchema } from "./table-schema";
+import { dependentsOf } from "./pushdown";
+import { markPending } from "./recalc";
 import { assertColumnKey, type DhColumn, type Stored } from "./types";
 
 /**
@@ -69,5 +71,24 @@ export async function backfillTracker(db: Executor, acc: TableAccess, key: strin
             AND EXISTS (SELECT 1 FROM jsonb_array_elements(changes) c WHERE c->>'field' = ANY(${fields}::text[]))
           GROUP BY row_id) h
     WHERE ${acc.rows("r")} AND r.id = h.row_id`);
+  // The values changed under the formulas that read this column (Closing date reads "Ngày đổi Status"): they recompute, like after any change of a source.
+  await markPending(db, await dependentsOf(db, acc.tableId, [key]));
   return res.rowCount ?? 0;
+}
+
+/**
+ * A column that "Ngày sửa của cột" columns watch is being deleted (design module4 19a work 19c). It leaves their lists; a tracker whose LAST watched column it is
+ * cannot go on, so the deletion is refused with the trackers named, for the screen to warn before ("Cột X là cột cuối được theo dõi bởi Y").
+ */
+export async function releaseWatchedColumn(db: Executor, acc: TableAccess, col: { key: string; name: string }): Promise<void> {
+  const res = await db.execute(sql`SELECT id, name, config FROM dh_columns WHERE ${acc.scope()} AND type = 'field_modified' AND deleted_at IS NULL AND config->'watch' ? ${col.key}`);
+  const trackers = res.rows as { id: string; name: string; config: { watch: string[] } }[];
+  const last = trackers.filter((t) => t.config.watch.length === 1);
+  if (last.length) {
+    throw new AppError("conflict", `Cột "${col.name}" là cột duy nhất được theo dõi bởi ${last.map((t) => `"${t.name}"`).join(", ")}. Bỏ hoặc đổi cột theo dõi đó trước.`, { reason: "watched_by_tracker", column: col.name, trackers: last.map((t) => ({ id: t.id, name: t.name })) });
+  }
+  for (const t of trackers) {
+    const watch = t.config.watch.filter((k) => k !== col.key);
+    await db.execute(sql`UPDATE dh_columns SET config = jsonb_set(config, '{watch}', ${JSON.stringify(watch)}::jsonb), version = version + 1, updated_at = now() WHERE ${acc.scope()} AND id = ${t.id}::uuid`);
+  }
 }

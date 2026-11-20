@@ -5,6 +5,7 @@ import type { Logger } from "pino";
 import type { Config } from "../config";
 import { purgeSessions } from "../auth/sessions";
 import { datahubJobs } from "../modules/datahub";
+import { addIndexMonths } from "../modules/deal";
 import { scrubExpiredCodes } from "../modules/notification";
 
 /** The internal system account (a row of `users`, kind `system`, created by migration 0003). */
@@ -118,4 +119,13 @@ export const jobs: JobDef[] = [
     },
   },
   ...datahubJobs,
+  {
+    name: "deal-index-months",
+    cron: "10 0 * * *",
+    tz: BUSINESS_TIMEZONE,
+    description: "Mỗi ngày thêm dòng tháng mới vào bảng Index của mọi người khi sang tháng (Module 4 mục 5).",
+    async run({ db, logger }) {
+      await addIndexMonths(db, new Date(), logger);
+    },
+  },
 ];

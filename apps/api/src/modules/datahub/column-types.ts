@@ -220,6 +220,7 @@ function parsePeople(value: unknown, col: ColCtx, attrs: UserAttr[]): PersonEntr
   if (list.length === 0) return null;
   if (list.length > MAX_PEOPLE) throw new CellError(`Cột "${col.name}" tối đa ${MAX_PEOPLE} người.`);
   const out: PersonEntry[] = [];
+  const notGiven: Set<string>[] = [];
   for (const e of list) {
     const raw = typeof e === "string" ? { id: e, attrs: {} } : e && typeof e === "object" ? (e as { id?: unknown; attrs?: unknown }) : null;
     const id = typeof raw?.id === "string" ? raw.id.trim().toLowerCase() : "";
@@ -233,6 +234,17 @@ function parsePeople(value: unknown, col: ColCtx, attrs: UserAttr[]): PersonEntr
       if (v !== undefined) outAttrs[a.key] = v;
     }
     out.push({ id, attrs: outAttrs });
+    notGiven.push(new Set(attrs.filter((a) => given[a.key] === undefined || given[a.key] === null || given[a.key] === "").map((a) => a.key)));
+  }
+  // A value the person did not give may depend on another attribute (a lone Leading has all the revenue; a Leading counts as a deal).
+  for (const a of attrs) {
+    const w = a.default_when;
+    if (!w) continue;
+    const matching = out.filter((e) => e.attrs[w.attr] === w.value);
+    if (w.only_one && matching.length !== 1) continue;
+    out.forEach((e, n) => {
+      if (e.attrs[w.attr] === w.value && notGiven[n]!.has(a.key)) e.attrs[a.key] = w.set;
+    });
   }
   for (const a of attrs) {
     if (a.sum_max === undefined) continue;

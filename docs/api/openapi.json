@@ -19049,6 +19049,10 @@
                             },
                             "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
                           },
+                          "can_edit": {
+                            "description": "Chỉ có khi bảng có khoá phân chia và bạn không phải chủ: bạn có sửa được dòng này không (Leader thấy deal của team nhưng chỉ sửa khi người đó cho phép).",
+                            "type": "boolean"
+                          },
                           "marks": {
                             "description": "Chỉ số các quy tắc tô màu mà dòng thoả (khi gửi `marks`).",
                             "type": "array",
@@ -19324,6 +19328,10 @@
                             "type": "string"
                           },
                           "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
+                        },
+                        "can_edit": {
+                          "description": "Chỉ có khi bảng có khoá phân chia và bạn không phải chủ: bạn có sửa được dòng này không (Leader thấy deal của team nhưng chỉ sửa khi người đó cho phép).",
+                          "type": "boolean"
                         },
                         "marks": {
                           "description": "Chỉ số các quy tắc tô màu mà dòng thoả (khi gửi `marks`).",
@@ -20244,6 +20252,10 @@
                           },
                           "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
                         },
+                        "can_edit": {
+                          "description": "Chỉ có khi bảng có khoá phân chia và bạn không phải chủ: bạn có sửa được dòng này không (Leader thấy deal của team nhưng chỉ sửa khi người đó cho phép).",
+                          "type": "boolean"
+                        },
                         "marks": {
                           "description": "Chỉ số các quy tắc tô màu mà dòng thoả (khi gửi `marks`).",
                           "type": "array",
@@ -20534,6 +20546,10 @@
                             "type": "string"
                           },
                           "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
+                        },
+                        "can_edit": {
+                          "description": "Chỉ có khi bảng có khoá phân chia và bạn không phải chủ: bạn có sửa được dòng này không (Leader thấy deal của team nhưng chỉ sửa khi người đó cho phép).",
+                          "type": "boolean"
                         },
                         "marks": {
                           "description": "Chỉ số các quy tắc tô màu mà dòng thoả (khi gửi `marks`).",
@@ -21007,6 +21023,10 @@
                               },
                               "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
                             },
+                            "can_edit": {
+                              "description": "Chỉ có khi bảng có khoá phân chia và bạn không phải chủ: bạn có sửa được dòng này không (Leader thấy deal của team nhưng chỉ sửa khi người đó cho phép).",
+                              "type": "boolean"
+                            },
                             "marks": {
                               "description": "Chỉ số các quy tắc tô màu mà dòng thoả (khi gửi `marks`).",
                               "type": "array",
@@ -21422,6 +21442,10 @@
                                         },
                                         "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
                                       },
+                                      "can_edit": {
+                                        "description": "Chỉ có khi bảng có khoá phân chia và bạn không phải chủ: bạn có sửa được dòng này không (Leader thấy deal của team nhưng chỉ sửa khi người đó cho phép).",
+                                        "type": "boolean"
+                                      },
                                       "marks": {
                                         "description": "Chỉ số các quy tắc tô màu mà dòng thoả (khi gửi `marks`).",
                                         "type": "array",
@@ -21695,6 +21719,10 @@
                             "type": "string"
                           },
                           "description": "Mã các cột công thức, lookup, rollup của dòng đang chờ tính (chỉ có khi có ô đang tính)."
+                        },
+                        "can_edit": {
+                          "description": "Chỉ có khi bảng có khoá phân chia và bạn không phải chủ: bạn có sửa được dòng này không (Leader thấy deal của team nhưng chỉ sửa khi người đó cho phép).",
+                          "type": "boolean"
                         },
                         "marks": {
                           "description": "Chỉ số các quy tắc tô màu mà dòng thoả (khi gửi `marks`).",
@@ -30888,6 +30916,7 @@
                     "enum": [
                       "deals",
                       "payments",
+                      "index",
                       "com_params",
                       "ledger"
                     ]

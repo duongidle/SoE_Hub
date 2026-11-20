@@ -24,6 +24,8 @@ import { userAttrs } from "./user-values";
 
 type Raw = Record<string, unknown>;
 type Ctx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId" | "access">;
+/** What the template code that needs no principal uses (the default set of a new tree runs it as the Manager, without a request). */
+type CoreCtx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId">;
 
 const EMITS = [STRUCTURE_EVENT, "datahub.share.changed", TEMPLATE_CONFLICT_EVENT];
 
@@ -59,7 +61,7 @@ async function loadEditable(ctx: Ctx, templateId: string, opts: { withDeleted?: 
 }
 
 /** The master table as its OWNER sees it: the template commands change the template on the owner's behalf, so every layer is in view. */
-async function masterAccess(ctx: Ctx, tpl: Template): Promise<TableAccess> {
+async function masterAccess(ctx: CoreCtx, tpl: Template): Promise<TableAccess> {
   const res = await ctx.db.execute(sql`SELECT d.owner_id FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id WHERE /*scope:system*/ t.id = ${tpl.masterTableId!}::uuid`);
   const owner = (res.rows[0] as { owner_id: string }).owner_id;
   return loadTableAccess(systemCtx(ctx.db, ctx.emit as Emit, owner), tpl.masterTableId!, "owner");
@@ -163,6 +165,53 @@ const ColumnFields = {
   allow_edit: z.boolean().optional().describe("Thành viên có quyền Sửa có được sửa ô của cột này không (mặc định không, với cột template)."),
 };
 
+/** The body of `datahub.template.create` after the checks; the default template set of a new tree calls it as the Manager of that tree (no principal needed). */
+export async function createTemplateCore(
+  ctx: CoreCtx,
+  o: { name: string; kind: "shared" | "personal"; scope: "tree" | "team"; managerId: string; leaderId: string | null; memberPermission: "view" | "edit_data"; roleSet: string | null; actorId: string },
+): Promise<{ id: string; tableId: string }> {
+  const id = newId();
+  try {
+    await ctx.db.execute(sql`INSERT INTO dh_templates (id, kind, scope, manager_id, leader_id, name, member_permission, role_set, created_by, updated_by)
+      VALUES (${id}::uuid, ${o.kind}, ${o.scope}, ${o.managerId}::uuid, ${o.leaderId}::uuid, ${o.name}, ${o.memberPermission}, ${o.roleSet}, ${o.actorId}::uuid, ${o.actorId}::uuid)`);
+  } catch (e) {
+    rethrowNameConflict(e);
+  }
+  const emit = ctx.emit as Emit;
+  const dhId = await ensureDealDatahub(ctx.db, emit, o.actorId, { id, name: o.name });
+  await renameOwnTablesTaking(ctx.db, emit, { id, name: o.name }, o.actorId, dhId);
+  const tableId = await insertTemplateTable(ctx.db, { datahubId: dhId, name: o.name, templateId: id, userId: o.kind === "personal" ? o.actorId : null, roleSet: o.roleSet, actorId: o.actorId });
+  await ctx.db.execute(sql`UPDATE dh_templates SET master_table_id = ${tableId}::uuid WHERE /*scope:system*/ id = ${id}::uuid`);
+  await syncTemplate(ctx, id);
+  ctx.audit({ type: "datahub_template", id, details: { name: o.name, kind: o.kind, scope: o.scope, leader_id: o.leaderId } });
+  await ctx.emit(STRUCTURE_EVENT, { aggregateType: "datahub_table", aggregateId: tableId, payload: { datahub_id: dhId, table_id: tableId, change: "table_created" } });
+  return { id, tableId };
+}
+
+type NewTemplateColumn = z.output<z.ZodObject<typeof ColumnFields>> & {
+  layer: "basic" | "role" | "team";
+  layer_roles?: ("manager" | "leader" | "user")[];
+  storage: "shared" | "person";
+  role?: string;
+  autofill?: { column: string; attr: string; sum?: "team" | "tree" };
+};
+
+/** Adds a column to the master table of a template (and to the copies of a personal one). The checks of who may are the caller's; the default set of a new tree calls this as the Manager. */
+export async function addTemplateColumn(ctx: CoreCtx, tpl: Template, acc: TableAccess, i: NewTemplateColumn, teamLeader: string | null) {
+  let autofill: Autofill | null = null;
+  if (i.autofill) autofill = await resolveAutofill(ctx, acc, i.autofill, i.type, i.storage);
+  await renameCustomColumnsTaking(ctx.db, ctx.emit as Emit, tpl, acc.tableId, acc.datahub.id, tpl.name, [i.name]);
+  const { autofill: _af, ...colInput } = i;
+  const extra: ColumnExtra = { layer: i.layer, layerRef: teamLeader, layerRoles: i.layer === "role" ? i.layer_roles! : null, storage: i.storage, role: i.role ?? null, autofill, protectedColumn: true };
+  const created = await createColumn(ctx, acc, colInput, extra);
+  if (autofill) await refillRows(ctx.db, acc.tableId, "all");
+  if (tpl.kind === "personal") for (const c of await copiesOf(ctx.db, tpl)) await syncCopyColumns(ctx, tpl, { id: acc.tableId, datahubId: acc.datahub.id }, c, new Set([created.id]));
+  return created;
+}
+
+/** The master table of a template as its OWNER sees it (exported for the default template set). */
+export { masterAccess };
+
 export const templateOperations = [
   defineCommand({
     name: "datahub.template.create",
@@ -210,21 +259,7 @@ export const templateOperations = [
       const limit = await readSetting(ctx.db, DH_SETTINGS.templatesPerScope);
       const used = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_templates WHERE /*scope:system*/ deleted_at IS NULL AND manager_id = ${managerId}::uuid AND scope = ${scope} AND leader_id IS NOT DISTINCT FROM ${leaderId}::uuid`);
       if ((used.rows[0] as { n: number }).n >= limit) quotaExceeded(scope === "tree" ? "bảng template mỗi cây" : "bảng template mỗi team", limit);
-      const id = newId();
-      try {
-        await ctx.db.execute(sql`INSERT INTO dh_templates (id, kind, scope, manager_id, leader_id, name, member_permission, role_set, created_by, updated_by)
-          VALUES (${id}::uuid, ${i.kind}, ${scope}, ${managerId}::uuid, ${leaderId}::uuid, ${i.name}, ${i.member_permission}, ${i.role_set ?? null}, ${p.userId}::uuid, ${p.userId}::uuid)`);
-      } catch (e) {
-        rethrowNameConflict(e);
-      }
-      const emit = ctx.emit as Emit;
-      const dhId = await ensureDealDatahub(ctx.db, emit, p.userId, { id, name: i.name });
-      await renameOwnTablesTaking(ctx.db, emit, { id, name: i.name }, p.userId, dhId);
-      const tableId = await insertTemplateTable(ctx.db, { datahubId: dhId, name: i.name, templateId: id, userId: i.kind === "personal" ? p.userId : null, roleSet: i.role_set ?? null, actorId: p.userId });
-      await ctx.db.execute(sql`UPDATE dh_templates SET master_table_id = ${tableId}::uuid WHERE /*scope:system*/ id = ${id}::uuid`);
-      await syncTemplate(ctx, id);
-      ctx.audit({ type: "datahub_template", id, details: { name: i.name, kind: i.kind, scope, leader_id: leaderId } });
-      await ctx.emit(STRUCTURE_EVENT, { aggregateType: "datahub_table", aggregateId: tableId, payload: { datahub_id: dhId, table_id: tableId, change: "table_created" } });
+      const { id } = await createTemplateCore(ctx, { name: i.name, kind: i.kind, scope, managerId, leaderId, memberPermission: i.member_permission, roleSet: i.role_set ?? null, actorId: p.userId });
       return templateOut(ctx, p, (await loadTemplate(ctx.db, id))!);
     },
   }),
@@ -411,14 +446,7 @@ export const templateOperations = [
         const def = assertRoleOfSet(acc.table.roleSet, i.role);
         if (!def.types.includes(i.type === "formula" ? String(i.config?.result_type ?? "number") : i.type)) throw new AppError("validation_error", `Vai trò "${def.label}" cần cột kiểu ${def.types.join(" / ")}.`, { reason: "role_type" });
       }
-      let autofill: Autofill | null = null;
-      if (i.autofill) autofill = await resolveAutofill(ctx, acc, i.autofill, i.type, i.storage);
-      await renameCustomColumnsTaking(ctx.db, ctx.emit as Emit, tpl, acc.tableId, acc.datahub.id, tpl.name, [i.name]);
-      const { autofill: _af, ...colInput } = i;
-      const extra: ColumnExtra = { layer: i.layer, layerRef: teamLeader, layerRoles: i.layer === "role" ? i.layer_roles! : null, storage: i.storage, role: i.role ?? null, autofill, protectedColumn: true };
-      const created = await createColumn(ctx, acc, colInput, extra);
-      if (autofill) await refillRows(ctx.db, acc.tableId, "all");
-      if (tpl.kind === "personal") for (const c of await copiesOf(ctx.db, tpl)) await syncCopyColumns(ctx, tpl, { id: acc.tableId, datahubId: acc.datahub.id }, c, new Set([created.id]));
+      const created = await addTemplateColumn(ctx, tpl, acc, i, teamLeader);
       ctx.audit({ type: "datahub_template", id: tpl.id, details: { column: created.name, layer: i.layer, role: i.role ?? null } });
       return created;
     },
@@ -586,7 +614,7 @@ export const templateOperations = [
 ];
 
 /** "Gửi xuống": the source column must be a user column with that attribute, and the column that receives must be person-stored and fit the attribute. */
-async function resolveAutofill(ctx: Ctx, acc: TableAccess, a: { column: string; attr: string; sum?: "team" | "tree" }, type: string, storage: string): Promise<Autofill> {
+async function resolveAutofill(ctx: CoreCtx, acc: TableAccess, a: { column: string; attr: string; sum?: "team" | "tree" }, type: string, storage: string): Promise<Autofill> {
   const bad = (m: string, reason = "autofill_invalid"): never => {
     throw new AppError("validation_error", m, { reason });
   };

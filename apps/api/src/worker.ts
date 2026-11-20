@@ -4,6 +4,7 @@ import { startOutboxDispatcher } from "./core/outbox-dispatcher";
 import { defaultSubscribers } from "./core/subscribers";
 import { jobs } from "./jobs";
 import { registerTrashTables } from "./modules";
+import { ensureAllTrees } from "./modules/deal";
 import { markVolatilePending, resetRunningColumns, resetRunningJobs, startJobLoop, startMergeLoop, startRecalcLoop } from "./modules/datahub";
 
 const c = createContainer({}, "worker");
@@ -32,6 +33,8 @@ for (const job of jobs) {
 
 // Formula columns: columns left `running` by a crash go back in the queue, TODAY()/NOW() columns missed while the worker was
 // down are queued now (catch-up), and the loop recomputes whatever is pending.
+// Managers that were in the org chart before the default template set existed get it now (a new Manager gets it from the org event).
+await ensureAllTrees(c.db.db).catch((e) => c.logger.error({ err: e }, "default templates for existing trees failed"));
 await resetRunningColumns(c.db.db);
 await markVolatilePending(c.db.db);
 const recalc = startRecalcLoop(c.db.db, c.logger, c.config.WORKER_OUTBOX_POLL_MS);

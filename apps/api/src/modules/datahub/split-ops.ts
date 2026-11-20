@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError } from "@soe/shared";
 import type { Executor } from "@soe/db";
+import type { HandlerCtx } from "../../core/types";
 import { defineCommand, defineQuery } from "../../core/registry";
 import { loadDatahubAccess, loadTableAccess } from "./access";
 import { DH_REASON } from "./errors";
@@ -14,6 +15,53 @@ import { tableOut, TableOut } from "./structure";
 
 /** Most key columns of the split lock (design module2 section 10). */
 export const MAX_KEY_COLUMNS = 5;
+
+type SplitIn = { table_id: string; key_split?: boolean; key_columns?: string[]; key_primary?: string | null; members_bulk_create?: boolean };
+type SplitCtx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit">;
+
+/** The body of `datahub.table.share_options.set`; the default template set calls it too, as the Manager who owns the table. */
+export async function setShareOptions(ctx: SplitCtx, i: SplitIn) {
+  const acc = await loadTableAccess(ctx, i.table_id, "owner");
+  if (acc.table.kind === "merged") throw new AppError("forbidden", "Bảng gộp không có khoá phân chia.", { reason: "merged_table_read_only" });
+  const schema = await TableSchema.load(ctx.db, acc);
+  const cur = acc.table.split;
+  let keys = cur.keys;
+  if (i.key_columns !== undefined) {
+    keys = [];
+    for (const ref of i.key_columns) {
+      const col = schema.tryResolve(ref);
+      if (!col || col.deletedAt) throw new AppError("validation_error", `Không tìm thấy cột "${ref}".`, { reason: DH_REASON.keyColumn });
+      if (col.type !== "user") throw new AppError("validation_error", `Cột khoá phải là kiểu Người dùng; cột "${col.name}" không phải.`, { reason: DH_REASON.keyColumn, column: col.name });
+      if (!keys.includes(col.key)) keys.push(col.key);
+    }
+  }
+  let primary: string | null = cur.primary;
+  if (i.key_primary !== undefined) {
+    if (i.key_primary === null) primary = null;
+    else {
+      const col = schema.tryResolve(i.key_primary);
+      if (!col || !keys.includes(col.key)) throw new AppError("validation_error", "Cột khoá chính phải là một trong các cột khoá.", { reason: DH_REASON.keyColumn });
+      primary = col.key;
+    }
+  }
+  if (primary && !keys.includes(primary)) primary = null;
+  if (!primary && keys.length > 0) primary = keys[0]!;
+  const enabled = i.key_split ?? cur.enabled;
+  if (enabled && keys.length === 0) throw new AppError("validation_error", "Bật khoá phân chia cần ít nhất một cột khoá kiểu Người dùng.", { reason: DH_REASON.keyColumn });
+  await ctx.db.execute(sql`UPDATE dh_tables SET key_split = ${enabled}, key_columns = ${`{${keys.join(",")}}`}::text[], key_primary = ${primary},
+    members_bulk_create = ${i.members_bulk_create ?? acc.table.membersBulkCreate}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE /*scope*/ id = ${acc.tableId}::uuid`);
+  // One index for each key column (the filter is an OR over them); an index nobody else asked for goes when its column stops being a key.
+  for (const k of keys) await ctx.db.execute(sql`SELECT soe_dh_ensure_index(${acc.tableId}::uuid, ${assertColumnKey(k)}, 'ids')`);
+  for (const k of cur.keys.filter((x) => !keys.includes(x))) await ctx.db.execute(sql`SELECT soe_dh_drop_indexes(${acc.tableId}::uuid, ${assertColumnKey(k)}, ARRAY['ids'])`);
+  // Who sees which row changed for every member, so the columns that read this table recompute (reader-scoped or not any more).
+  const flips = await refreshReaderScoped(ctx.db, acc.datahub.ownerId);
+  const readers = await ctx.db.execute(sql`SELECT DISTINCT f.column_id AS id FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id WHERE /*scope*/ c.deleted_at IS NULL AND f.src_table_id = ${acc.tableId}::uuid`);
+  await markPending(ctx.db, [...new Set([...(readers.rows as { id: string }[]).map((r) => r.id), ...flips.became, ...flips.stopped])]);
+  ctx.audit({ type: "datahub_table", id: acc.tableId, details: { key_split: enabled, key_columns: keys.length, members_bulk_create: i.members_bulk_create } });
+  // Who sees which row changed for every member: caches, merged tables and open screens learn it from this one event.
+  await emitStructure(ctx, acc.datahub.id, acc.tableId, "table_updated");
+  return tableOut(ctx.db, await loadTableAccess(ctx, acc.tableId));
+}
 
 /**
  * Settings of the split lock and of shared editing of one table (design module2 section 10): the lock on/off, its key columns (1-5 columns
@@ -40,48 +88,7 @@ export const splitOperations = [
     }),
     output: TableOut,
     http: { method: "PUT", path: "/tables/:table_id/share-options" },
-    handler: async (ctx, i) => {
-      const acc = await loadTableAccess(ctx, i.table_id, "owner");
-      if (acc.table.kind === "merged") throw new AppError("forbidden", "Bảng gộp không có khoá phân chia.", { reason: "merged_table_read_only" });
-      const schema = await TableSchema.load(ctx.db, acc);
-      const cur = acc.table.split;
-      let keys = cur.keys;
-      if (i.key_columns !== undefined) {
-        keys = [];
-        for (const ref of i.key_columns) {
-          const col = schema.tryResolve(ref);
-          if (!col || col.deletedAt) throw new AppError("validation_error", `Không tìm thấy cột "${ref}".`, { reason: DH_REASON.keyColumn });
-          if (col.type !== "user") throw new AppError("validation_error", `Cột khoá phải là kiểu Người dùng; cột "${col.name}" không phải.`, { reason: DH_REASON.keyColumn, column: col.name });
-          if (!keys.includes(col.key)) keys.push(col.key);
-        }
-      }
-      let primary: string | null = cur.primary;
-      if (i.key_primary !== undefined) {
-        if (i.key_primary === null) primary = null;
-        else {
-          const col = schema.tryResolve(i.key_primary);
-          if (!col || !keys.includes(col.key)) throw new AppError("validation_error", "Cột khoá chính phải là một trong các cột khoá.", { reason: DH_REASON.keyColumn });
-          primary = col.key;
-        }
-      }
-      if (primary && !keys.includes(primary)) primary = null;
-      if (!primary && keys.length > 0) primary = keys[0]!;
-      const enabled = i.key_split ?? cur.enabled;
-      if (enabled && keys.length === 0) throw new AppError("validation_error", "Bật khoá phân chia cần ít nhất một cột khoá kiểu Người dùng.", { reason: DH_REASON.keyColumn });
-      await ctx.db.execute(sql`UPDATE dh_tables SET key_split = ${enabled}, key_columns = ${`{${keys.join(",")}}`}::text[], key_primary = ${primary},
-        members_bulk_create = ${i.members_bulk_create ?? acc.table.membersBulkCreate}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE /*scope*/ id = ${acc.tableId}::uuid`);
-      // One index for each key column (the filter is an OR over them); an index nobody else asked for goes when its column stops being a key.
-      for (const k of keys) await ctx.db.execute(sql`SELECT soe_dh_ensure_index(${acc.tableId}::uuid, ${assertColumnKey(k)}, 'ids')`);
-      for (const k of cur.keys.filter((x) => !keys.includes(x))) await ctx.db.execute(sql`SELECT soe_dh_drop_indexes(${acc.tableId}::uuid, ${assertColumnKey(k)}, ARRAY['ids'])`);
-      // Who sees which row changed for every member, so the columns that read this table recompute (reader-scoped or not any more).
-      const flips = await refreshReaderScoped(ctx.db, acc.datahub.ownerId);
-      const readers = await ctx.db.execute(sql`SELECT DISTINCT f.column_id AS id FROM dh_formula_deps f JOIN dh_columns c ON c.id = f.column_id WHERE /*scope*/ c.deleted_at IS NULL AND f.src_table_id = ${acc.tableId}::uuid`);
-      await markPending(ctx.db, [...new Set([...(readers.rows as { id: string }[]).map((r) => r.id), ...flips.became, ...flips.stopped])]);
-      ctx.audit({ type: "datahub_table", id: acc.tableId, details: { key_split: enabled, key_columns: keys.length, members_bulk_create: i.members_bulk_create } });
-      // Who sees which row changed for every member: caches, merged tables and open screens learn it from this one event.
-      await emitStructure(ctx, acc.datahub.id, acc.tableId, "table_updated");
-      return tableOut(ctx.db, await loadTableAccess(ctx, acc.tableId));
-    },
+    handler: async (ctx, i) => setShareOptions(ctx, i),
   }),
 
   defineQuery({

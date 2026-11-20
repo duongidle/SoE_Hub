@@ -94,7 +94,7 @@ export const splitLockTransferHandler: TransferHandler = {
         // The cell holds one person (a uuid string) or a list with attributes: the source's entry becomes the target's; when the target is already in
         // the list the source's entry is dropped (one entry per person). Closed deals keep their old person (module1 section 8).
         const cell = sql.raw(`data->'${k}'`);
-        const closed = closedRowsCondition(t.closedKey as string | null, t.closedIds as string[]);
+        const closed = closedRowsCondition((t.closed_key as string | null) ?? null, (t.closed_ids as string[] | null) ?? []);
         const res = await ex.execute(sql`UPDATE dh_rows SET data = jsonb_set(data, ARRAY[${k}::text], CASE
               WHEN jsonb_typeof(${cell}) = 'string' THEN to_jsonb(${to}::text)
               WHEN ${to} = ANY(soe_dh_ids(${cell})) THEN coalesce((SELECT jsonb_agg(e) FROM jsonb_array_elements(${cell}) e WHERE e->>'id' <> ${from}), '[]'::jsonb)

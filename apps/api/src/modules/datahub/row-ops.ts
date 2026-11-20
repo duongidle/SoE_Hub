@@ -29,6 +29,7 @@ const RowOut = z.object({
   updated_by: z.uuid().nullable().optional(),
   data: z.record(z.string(), z.unknown()),
   pending: Pending.optional(),
+  can_edit: z.boolean().optional().describe("Chỉ có khi bảng có khoá phân chia và bạn không phải chủ: bạn có sửa được dòng này không (Leader thấy deal của team nhưng chỉ sửa khi người đó cho phép)."),
   marks: z.array(z.number().int()).optional().describe("Chỉ số các quy tắc tô màu mà dòng thoả (khi gửi `marks`)."),
 });
 

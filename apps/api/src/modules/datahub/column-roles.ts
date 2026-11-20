@@ -55,6 +55,10 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "so_hop_dong", label: "Số hợp đồng", types: ["text"], required: false, usedBy: ["Ghép tiền về"] },
     ],
   },
+  index: {
+    label: "Index",
+    roles: [{ key: "thang", label: "Tháng", types: ["date"], required: true, usedBy: ["Worker thêm dòng tháng mới", "Dashboard Deals"] }],
+  },
   com_params: {
     label: "Tham số com",
     roles: [
