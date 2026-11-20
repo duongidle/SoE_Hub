@@ -69,7 +69,7 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 | 12 | — | tất cả | Làm lại giao diện, rà toàn bộ chuẩn giao diện | — | |
 | — | Automation | 0, 2, 6 | Module lõi, hoãn; kiến trúc để sẵn chỗ (Module 0 mục 19) | Hoãn | |
 
-**Bước con:** stage lớn chia bước con để giao việc; danh sách và trạng thái ở `progress.md` mục "Đang làm", cột "Code" ở bảng trên ghi bước đang làm. Xong một bước con thì cập nhật cả hai chỗ. **Mọi stage có giao diện kết thúc bằng một bước con kiểm thử riêng** (như 2E), không gộp với bước có code.
+**Bước con:** stage lớn chia bước con để giao việc. **Chia bước con to** (Dương chốt 20/11/2026): mỗi bước con là một khối chức năng trọn vẹn, đủ cho một phiên Sonnet dài, không chia nhỏ theo từng màn hay từng lệnh; mỗi lần giao là một lần Sonnet đọc lại từ đầu. danh sách và trạng thái ở `progress.md` mục "Đang làm", cột "Code" ở bảng trên ghi bước đang làm. Xong một bước con thì cập nhật cả hai chỗ. **Mọi stage có giao diện kết thúc bằng một bước con kiểm thử riêng** (như 2E), không gộp với bước có code.
 
 **Định nghĩa xong của mỗi stage:**
 
