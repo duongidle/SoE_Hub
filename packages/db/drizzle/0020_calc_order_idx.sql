@@ -1,0 +1,1 @@
+CREATE INDEX "dh_columns_calc_order_idx" ON "dh_columns" USING btree ("calc_bulk","calc_requested_at","id") WHERE "dh_columns"."calc_status" = 'pending' AND "dh_columns"."deleted_at" IS NULL;

@@ -199,6 +199,8 @@ export const dhColumns = pgTable(
     check("dh_columns_key_chk", sql`${t.key} ~ '^[a-z][a-z0-9_]{0,40}$'`),
     check("dh_columns_calc_status_chk", sql`${t.calcStatus} IN ('ready', 'pending', 'running')`),
     index("dh_columns_calc_idx").on(t.calcStatus).where(sql`${t.calcStatus} <> 'ready'`),
+    // `claimNext` walks the pending columns in this order and stops at the first one whose inputs are ready (4.6C).
+    index("dh_columns_calc_order_idx").on(t.calcBulk, t.calcRequestedAt, t.id).where(sql`${t.calcStatus} = 'pending' AND ${t.deletedAt} IS NULL`),
   ],
 );
 
