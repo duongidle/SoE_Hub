@@ -75,6 +75,7 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "ma_so_thue", label: "Mã số thuế", types: ["text"], required: false, usedBy: ["Ghép tiền về"] },
       { key: "so_hop_dong", label: "Số hợp đồng", types: ["text"], required: false, usedBy: ["Ghép tiền về"] },
       { key: "dot_so", label: "Đợt số", types: ["number"], required: false, usedBy: ["Lệnh thanh toán"] },
+      { key: "ma_ngoai", label: "Mã ngoài của đợt", types: ["text"], required: false, usedBy: ["Lệnh thanh toán (hệ thống ngoài gọi theo mã ngoài)"] },
       { key: "so_tien_nhan", label: "Số tiền nhận (gồm VAT)", types: MONEY, required: false, usedBy: ["Lệnh thanh toán", "Tiền về"] },
       { key: "tien_ve", label: "Tiền về (liên kết)", types: ["relation"], required: false, usedBy: ["Lệnh thanh toán"] },
       { key: "nguoi_tham_gia", label: "Người tham gia", types: ["user"], required: false, usedBy: ["Phạm vi xem"] },

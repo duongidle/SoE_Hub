@@ -271,9 +271,23 @@ const ScheduleItem = z.object({
   amount: money.describe("Số tiền dự kiến, chưa VAT."),
   due: ymd.describe("Hạn thanh toán."),
   com_split: SplitIn.optional(),
+  source: z.string().trim().min(1).max(40).optional().describe("Hệ thống ngoài đặt mã (ví dụ `bpm`). Đi cùng `external_id`."),
+  external_id: z.string().trim().min(1).max(120).optional().describe("Mã đợt của hệ thống ngoài. Đã có đợt mang mã này (của deal này) thì sửa đợt đó, chưa có thì tạo đợt mới mang mã: gọi lại không sinh đợt trùng. Cần cột `Mã ngoài` ở bảng Đợt thanh toán."),
 });
 
-const PaymentOut = z.object({ id: Id, seq: z.number().int().nullable(), amount: z.number(), due: z.string(), created: z.boolean() });
+const PaymentOut = z.object({ id: Id, seq: z.number().int().nullable(), amount: z.number(), due: z.string(), created: z.boolean(), external_id: z.string().nullable() });
+
+/** The key an external system's instalment is stored under: `source:external_id`, or the id alone without a source. */
+const externalKey = (e: { source?: string; external_id: string }): string => (e.source ? `${e.source}:${e.external_id}` : e.external_id);
+
+/** The instalments of the tree that carry these external keys: key -> payment id. */
+async function paymentsByExternal(ctx: Ctx, tree: Tree, keys: string[]): Promise<Map<string, string>> {
+  const col = roleCol(tree.dots, "ma_ngoai", false);
+  if (!col) throw new AppError("conflict", `Bảng "${tree.dots.name}" chưa có cột giữ vai trò "ma_ngoai" (Mã ngoài của đợt), nên chưa nhận \`external_id\`. Thêm cột và gán vai trò ở trang Template.`, { reason: "external_id_unsupported" });
+  const expr = sourceOf(col).cellExpr(col, "data", "text");
+  const res = await ctx.db.execute(sql`SELECT id, ${expr} AS k FROM dh_rows WHERE ${tree.dots.acc.rows()} AND deleted_at IS NULL AND ${expr} = ANY(${`{${keys.map((k) => `"${k.replace(/(["\\])/g, "\\$1")}"`).join(",")}}`}::text[])`);
+  return new Map((res.rows as { id: string; k: string }[]).map((r) => [r.k, r.id]));
+}
 
 export const paymentOperations = [
   defineCommand({
@@ -295,8 +309,18 @@ export const paymentOperations = [
       const m = statusMeaning(tree.deals, deal);
       if (m && m !== "open" && m !== "won") throw new AppError("conflict", "Deal đã đóng, không lập lịch thanh toán. Đưa deal về trạng thái mở trước.", { reason: "deal_closed" });
       const have = await paymentsOfDeal(ctx, tree, i.deal_id);
+      // An instalment of an external system is found by its own code: a call repeated with the same codes edits what it made instead of making it again.
+      const extKeys = i.payments.flatMap((p) => (p.external_id !== undefined ? [externalKey({ source: p.source, external_id: p.external_id })] : []));
+      if (new Set(extKeys).size !== extKeys.length) throw new AppError("validation_error", "Hai đợt trong cùng một lần gọi mang cùng mã ngoài.", { reason: "duplicate_external_id" });
+      const known = extKeys.length ? await paymentsByExternal(ctx, tree, extKeys) : new Map<string, string>();
+      const items = i.payments.map((p) => {
+        if (p.external_id === undefined) return p;
+        const found = known.get(externalKey({ source: p.source, external_id: p.external_id }));
+        if (found && p.id && p.id !== found) throw new AppError("conflict", "Mã ngoài này đã thuộc một đợt khác.", { reason: "external_id_taken", payment_id: found });
+        return found ? { ...p, id: found } : p;
+      });
       const touched = new Set<string>();
-      for (const id of [...i.remove_ids, ...i.payments.flatMap((p) => (p.id ? [p.id] : []))]) {
+      for (const id of [...i.remove_ids, ...items.flatMap((p) => (p.id ? [p.id] : []))]) {
         const row = have.get(id);
         if (!row) throw new AppError("not_found", "Đợt không thuộc deal này.", { reason: "payment_not_of_deal", payment_id: id });
         if (confirmed(tree.dots, row)) throw new AppError("conflict", "Đợt đã xác nhận tiền về, không sửa hoặc xoá bằng lịch. Huỷ xác nhận trước.", { reason: "payment_confirmed", payment_id: id });
@@ -304,7 +328,7 @@ export const paymentOperations = [
         touched.add(id);
       }
       // The people of the instalment come from the deal, as each of them holds their share (read before anything is written: participants.ts).
-      const needPeople = i.payments.some((p) => !p.id);
+      const needPeople = items.some((p) => !p.id);
       const parts = needPeople ? await participantsOf(ctx, tree.deals, deal) : [];
       if (needPeople) await assertComCap(ctx, tree.deals, parts, i.deal_id);
       const people = (needPeople ? peopleCell(tree.dots, parts) : []) as unknown as Stored;
@@ -312,8 +336,9 @@ export const paymentOperations = [
       let seq = nextSeq;
       const src = sourceValue(tree.dots, ctx);
       const ops: RowOp[] = [];
-      const plan: { created: boolean; seq: number | null; amount: number; due: string }[] = [];
-      for (const p of i.payments) {
+      const plan: { created: boolean; seq: number | null; amount: number; due: string; external: string | null }[] = [];
+      for (const p of items) {
+        const external = p.external_id !== undefined ? externalKey({ source: p.source, external_id: p.external_id }) : null;
         const data = cells(tree.dots, [
           ["phap_nhan", p.legal_entity],
           ["ma_so_thue", p.tax_code],
@@ -321,17 +346,18 @@ export const paymentOperations = [
           ["so_tien_du_kien", p.amount],
           ["han", p.due],
           ["chia_com_dot", p.com_split ? (splitCell(p.com_split) as unknown as Stored) : undefined],
+          ["ma_ngoai", external ?? undefined],
         ]);
         if (p.id) {
           const cur = have.get(p.id)!;
           Object.assign(data, cells(tree.dots, [["dot_so", p.seq]]));
           ops.push({ op: "update", id: p.id, data });
-          plan.push({ created: false, seq: p.seq ?? (numOf(cellOf(tree.dots, cur, "dot_so")) || null), amount: p.amount, due: p.due });
+          plan.push({ created: false, seq: p.seq ?? (numOf(cellOf(tree.dots, cur, "dot_so")) || null), amount: p.amount, due: p.due, external });
         } else {
           seq = p.seq ?? seq + 1;
           Object.assign(data, cells(tree.dots, [["deal", [i.deal_id] as Stored], ["dot_so", seq], ["nguoi_tham_gia", people], ["nguon_nhap", src]]));
           ops.push({ op: "create", data });
-          plan.push({ created: true, seq, amount: p.amount, due: p.due });
+          plan.push({ created: true, seq, amount: p.amount, due: p.due, external });
         }
       }
       for (const id of i.remove_ids) ops.push({ op: "delete", id });
@@ -341,10 +367,10 @@ export const paymentOperations = [
       const keep = [...have.keys()].filter((id) => !i.remove_ids.includes(id));
       const linkCol = roleCol(tree.deals, "dot_thanh_toan", false);
       if (linkCol && (created.length || i.remove_ids.length)) await write(ctx, tree.deals, [{ op: "update", id: i.deal_id, data: { [linkCol.key]: [...keep, ...created] } }]);
-      ctx.audit({ type: "deal_payment", id: i.deal_id, details: { operation: "schedule", payments: i.payments.length, removed: i.remove_ids.length } });
+      ctx.audit({ type: "deal_payment", id: i.deal_id, details: { operation: "schedule", payments: items.length, removed: i.remove_ids.length } });
       return {
         deal_id: i.deal_id,
-        payments: plan.map((x, n) => ({ id: results[n]!.id, seq: x.seq, amount: x.amount, due: x.due, created: x.created })),
+        payments: plan.map((x, n) => ({ id: results[n]!.id, seq: x.seq, amount: x.amount, due: x.due, created: x.created, external_id: x.external })),
         removed: i.remove_ids,
       };
     },
@@ -378,7 +404,9 @@ export const paymentOperations = [
       allocations: z
         .array(
           z.object({
-            payment_id: Id,
+            payment_id: Id.optional().describe("Đợt cần xác nhận. Hoặc dùng `external_id` (kèm `source`)."),
+            source: z.string().trim().min(1).max(40).optional(),
+            external_id: z.string().trim().min(1).max(120).optional().describe("Mã ngoài của đợt (đặt lúc `payment.schedule`), thay cho `payment_id`."),
             amount: money.describe("Số tiền về của đợt, chưa VAT."),
             amount_received: money.optional().describe("Số tiền nhận của đợt, gồm VAT. Bỏ trống = `amount`."),
             com_split: SplitIn.optional(),
@@ -395,8 +423,21 @@ export const paymentOperations = [
       ledger_ids: z.array(Id),
     }),
     http: { method: "POST", path: "/deal/payments/confirm", status: 200 },
-    handler: async (ctx, i) => {
+    handler: async (ctx, input) => {
       const tree = await loadTree(ctx);
+      // An instalment may be named by its external code instead of its id.
+      for (const a of input.allocations) if ((a.payment_id === undefined) === (a.external_id === undefined)) throw new AppError("validation_error", "Mỗi phần chia cần đúng một trong `payment_id` hoặc `external_id`.", { reason: "payment_ref_required" });
+      const byCode = input.allocations.flatMap((a) => (a.external_id !== undefined ? [externalKey({ source: a.source, external_id: a.external_id })] : []));
+      const codes = byCode.length ? await paymentsByExternal(ctx, tree, byCode) : new Map<string, string>();
+      const i = {
+        ...input,
+        allocations: input.allocations.map((a) => {
+          if (a.external_id === undefined) return { ...a, payment_id: a.payment_id! };
+          const id = codes.get(externalKey({ source: a.source, external_id: a.external_id }));
+          if (!id) throw new AppError("not_found", "Không có đợt thanh toán mang mã ngoài này.", { reason: "payment_not_found", external_id: a.external_id });
+          return { ...a, payment_id: id };
+        }),
+      };
       const ids = i.allocations.map((a) => a.payment_id);
       if (new Set(ids).size !== ids.length) throw new AppError("validation_error", "Một đợt chỉ nhận một phần trong một lần gọi.", { reason: "duplicate_payment" });
       const dots = await readRows(ctx, tree.dots, ids);

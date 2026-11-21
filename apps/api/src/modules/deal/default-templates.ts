@@ -393,6 +393,7 @@ const PAYMENTS: DefaultTable = {
     { name: "Mã số thuế", type: "text", role: "ma_so_thue" },
     { name: "Số hợp đồng", type: "text", role: "so_hop_dong" },
     { name: "Đợt số", type: "number", role: "dot_so" },
+    { name: "Mã ngoài", type: "text", role: "ma_ngoai", hidden: true, description: "Mã đợt do hệ thống ngoài đặt (`nguồn:mã`). Hệ thống ghi khi lệnh thanh toán nhận `external_id`; dùng để gọi lại không sinh đợt trùng." },
     { name: "Số tiền dự kiến (chưa VAT)", type: "currency", role: "so_tien_du_kien", required: true },
     { name: "Hạn", type: "date", role: "han", required: true },
     { name: "Ngày tiền về", type: "date", role: "ngay_tien_ve" },
