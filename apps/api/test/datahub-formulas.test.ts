@@ -349,23 +349,32 @@ describe("TODAY() and NOW() columns", () => {
     const col = (await a("datahub.table.get", { table_id: x.tableId })).columns.find((c: { key: string }) => c.key === left.key);
     expect(col.calc.status).toBe("ready");
     const d1 = day1[left.key] as number;
+    // markVolatilePending is global (every table in the shared DB), so assert on this table's own columns only.
+    // A volatile column of another table (e.g. the Đợt thanh toán default template) must not change the result: add one that stays stale.
+    const other = await makeTable(a, { columns: [{ name: "Hạn", type: "date" }] });
+    await addFormula(other.tableId, "Hôm nay", "=TODAY()");
+    await drainOutbox(t);
+    const ownDue = async (now: Date): Promise<number> => {
+      await markVolatilePending(t.c.db.db, now);
+      return Number((await q(`SELECT count(*) FROM dh_columns WHERE table_id = $1 AND deleted_at IS NULL AND calc_status = 'pending'`, [x.tableId]))[0]!.count);
+    };
     // Nothing is due right now.
-    expect(await markVolatilePending(t.c.db.db, new Date())).toBe(0);
+    expect(await ownDue(new Date())).toBe(0);
     // Tomorrow 00:04 Vietnam time: the TODAY() job has not run yet; the hourly NOW() column is due.
     const vn = new Date(Date.now() + 7 * 3_600_000);
     const at0004 = new Date(Date.UTC(vn.getUTCFullYear(), vn.getUTCMonth(), vn.getUTCDate() + 1, 0, 4) - 7 * 3_600_000);
-    expect(await markVolatilePending(t.c.db.db, at0004)).toBe(1);
+    expect(await ownDue(at0004)).toBe(1);
     await drainOutbox(t, { now: at0004 });
     // 00:05 and later: TODAY() columns are due too (also covers "worker started after the missed run").
     const at0006 = new Date(at0004.getTime() + 2 * 60_000);
-    expect(await markVolatilePending(t.c.db.db, at0006)).toBe(1);
+    expect(await ownDue(at0006)).toBe(1);
     await drainOutbox(t, { now: at0006 });
     const day2 = (await a("datahub.row.get", { table_id: x.tableId, row_id: r.id })).data;
     expect(day2[left.key] as number).toBeLessThan(d1);
     expect(day2[stamp.key]).not.toBe(day1[stamp.key]);
     expect(Number((await q(`SELECT count(*) FROM row_history WHERE table_id = $1`, [x.tableId]))[0]!.count)).toBe(1);
     // After the catch-up nothing is due until the next boundary.
-    expect(await markVolatilePending(t.c.db.db, at0006)).toBe(0);
+    expect(await ownDue(at0006)).toBe(0);
   });
 });
 
