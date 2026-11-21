@@ -811,23 +811,50 @@ export async function resolveScope(db: Executor, job: { col: DhColumn; tableId: 
 // queue processing
 // ================================================================================================
 
+const ready = (alias: string) => sql.raw(`NOT EXISTS (SELECT 1 FROM dh_formula_deps f JOIN dh_columns y ON y.table_id = f.src_table_id AND y.key = f.src_key AND y.deleted_at IS NULL
+                        WHERE f.column_id = ${alias}.id AND y.id <> ${alias}.id AND y.calc_status <> 'ready')`);
+
+/** One batch of pending columns in claim order, with whether each has all its inputs ready (exported so a test can EXPLAIN it). */
+export function claimBatchQuery(after: { bulk: boolean; at: string; id: string } | null) {
+  return sql`WITH b AS MATERIALIZED (
+      SELECT c2.id, c2.calc_bulk, c2.calc_requested_at, c2.calc_requested_at::text AS at FROM dh_columns c2
+      WHERE /*scope:system*/ c2.calc_status = 'pending' AND c2.deleted_at IS NULL
+        ${after ? sql`AND (c2.calc_bulk, c2.calc_requested_at, c2.id) > (${after.bulk}::boolean, ${after.at}::timestamptz, ${after.id}::uuid)` : sql``}
+      ORDER BY c2.calc_bulk, c2.calc_requested_at, c2.id LIMIT ${CLAIM_BATCH})
+    SELECT b.id, b.calc_bulk AS bulk, b.at, ${ready("b")} AS ok FROM b ORDER BY b.calc_bulk, b.calc_requested_at, b.id`;
+}
+
 /**
  * Takes the next pending column whose own inputs are not themselves waiting (so a chain runs in dependency order).
  * What a person asked for (`calc_bulk` false) goes before background building (a new member's tree: hundreds of columns that
  * once kept a person's formula waiting 45 seconds); inside each kind, oldest request first.
  */
 export async function claimNext(db: Db): Promise<{ id: string; claimedAt: string } | null> {
-  const res = await db.execute(sql`UPDATE dh_columns c SET calc_status = 'running', calc_done = 0, calc_total = (SELECT row_count FROM dh_tables WHERE id = c.table_id)
-    WHERE /*scope:system*/ c.id = (
-      SELECT c2.id FROM dh_columns c2
-      WHERE c2.calc_status = 'pending' AND c2.deleted_at IS NULL
-        AND NOT EXISTS (SELECT 1 FROM dh_formula_deps f JOIN dh_columns y ON y.table_id = f.src_table_id AND y.key = f.src_key AND y.deleted_at IS NULL
-                        WHERE f.column_id = c2.id AND y.id <> c2.id AND y.calc_status <> 'ready')
-      ORDER BY c2.calc_bulk, c2.calc_requested_at, c2.id LIMIT 1 FOR UPDATE SKIP LOCKED)
-    RETURNING c.id, clock_timestamp()::text AS claimed_at`);
-  const r = res.rows[0] as Raw | undefined;
-  return r ? { id: r.id as string, claimedAt: r.claimed_at as string } : null;
+  // The pending columns are read in order, one batch at a time (the batch is cut by LIMIT before anything is compared), and only the batch is
+  // checked for waiting inputs. The cost of a claim then does not depend on how many columns are pending or on the planner's estimate of it.
+  let after: { bulk: boolean; at: string; id: string } | null = null;
+  for (;;) {
+    const batch: { id: string; bulk: boolean; at: string; ok: boolean }[] = (
+      await db.execute(claimBatchQuery(after))
+    ).rows as never;
+    if (batch.length === 0) return null;
+    for (const c of batch) {
+      if (!c.ok) continue;
+      // Taken one by one in order; SKIP LOCKED passes a column another worker holds. The inputs are checked again under the lock.
+      const res = await db.execute(sql`UPDATE dh_columns c SET calc_status = 'running', calc_done = 0, calc_total = (SELECT row_count FROM dh_tables WHERE id = c.table_id)
+        WHERE /*scope:system*/ c.id = (SELECT c2.id FROM dh_columns c2 WHERE c2.id = ${c.id}::uuid AND c2.calc_status = 'pending' AND c2.deleted_at IS NULL AND ${ready("c2")} FOR UPDATE SKIP LOCKED)
+        RETURNING c.id, clock_timestamp()::text AS claimed_at`);
+      const r = res.rows[0] as Raw | undefined;
+      if (r) return { id: r.id as string, claimedAt: r.claimed_at as string };
+    }
+    if (batch.length < CLAIM_BATCH) return null;
+    const last = batch[batch.length - 1]!;
+    after = { bulk: last.bulk, at: last.at, id: last.id };
+  }
 }
+
+/** Pending columns read per round by `claimNext`. */
+export const CLAIM_BATCH = 32;
 
 export interface RecalcOptions {
   /** Share of the table above which a partial recomputation becomes a full one (default `PARTIAL_MAX_RATIO`; 1 = never, used by tests). */
