@@ -193,7 +193,7 @@ function TableTabs({ dh, currentId, dashboardOn }: { dh: DatahubBrief; currentId
   );
 }
 
-function TableNameDialog({ title, submit, initial = "", save, onClose }: { title: string; submit: string; initial?: string; save: (name: string) => Promise<void>; onClose: () => void }) {
+export function TableNameDialog({ title, submit, initial = "", save, onClose }: { title: string; submit: string; initial?: string; save: (name: string) => Promise<void>; onClose: () => void }) {
   const [name, setName] = useState(initial);
   const [touched, setTouched] = useState(false);
   const input = useRef<HTMLInputElement>(null);

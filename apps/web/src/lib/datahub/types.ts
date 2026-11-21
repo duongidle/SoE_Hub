@@ -43,6 +43,16 @@ export interface Column {
   required: boolean;
   /** Members with the Sửa permission may type into this column (the owner always may). Missing = yes. */
   allow_edit?: boolean;
+  /** Template layer (Module 4 mục 3.1): null = column of an ordinary table; `custom` = yours alone. */
+  layer?: "basic" | "role" | "team" | "custom" | null;
+  layer_ref?: string | null;
+  layer_roles?: string[] | null;
+  storage?: "shared" | "person";
+  role?: string | null;
+  /** A column of a template table: not renamed, retyped or deleted from the table, only on the Template page. */
+  protected?: boolean;
+  /** Filled by the system from the people of a Người dùng column of the same row; nobody types into it. */
+  autofill?: { column: string; attr: string; sum?: "team" | "tree" } | null;
   unique: boolean;
   default_value: unknown;
   description: string | null;
@@ -67,6 +77,9 @@ export interface TableDetail {
   max_columns: number;
   key_split?: { enabled: boolean; key_columns: { key: string; name: string }[]; primary: string | null };
   members_bulk_create?: boolean;
+  /** Template table (Quản lý Deal): `protected` columns, anyone who sees it adds a column of their own. */
+  protected?: boolean;
+  template_id?: string | null;
 }
 
 export interface Row {
@@ -78,6 +91,8 @@ export interface Row {
   updated_at?: string;
   updated_by?: string | null;
   data: Record<string, unknown>;
+  /** Only under the split lock for a non-owner: may this person edit this row (a Leader sees a team member's deal but edits it only when allowed). */
+  can_edit?: boolean;
   /** Keys of the computed columns of this row that are waiting to be recalculated. */
   pending?: string[];
   /** Indexes of the colour rules of the view this row satisfies (decided by the server). */

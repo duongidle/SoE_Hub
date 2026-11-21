@@ -748,7 +748,13 @@ export function SettingsPage() {
     <div className="flex flex-col gap-4">
       <PageTitle>Cài đặt hệ thống</PageTitle>
       <ErrorText error={catalog.error ?? rows.error} />
-      {catalog.data?.map((c) => (
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-2 pt-5 text-sm">
+          <span>Bộ template mặc định của Quản lý Deal (bảng, cột, công thức cho cây mới) sửa ở trang riêng.</span>
+          <Link to="/quan-tri/template-deal" className="font-medium text-primary underline">Template Quản lý Deal</Link>
+        </CardContent>
+      </Card>
+      {catalog.data?.filter((c) => c.key !== DEAL_DEFAULTS_KEY).map((c) => (
         <SettingEditor key={c.key} def={c} row={rows.data?.data.find((r) => r.key === c.key)} loaded={!!rows.data} />
       ))}
     </div>
@@ -912,6 +918,62 @@ export function DatahubLimitsPage() {
           </Table>
         )}
       </section>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ Template Quản lý Deal (default set) */
+
+const DEAL_DEFAULTS_KEY = "deal.default_templates";
+
+/** `/quan-tri/template-deal` — Admin edits the default template set a NEW tree gets (design module4 3.1, 3.8). Trees that exist keep theirs and change at the Template page. */
+export function DealDefaultsPage() {
+  const qc = useQueryClient();
+  const catalog = useQuery({ queryKey: ["settings", "catalog"], queryFn: () => api<CatalogItem[]>("GET", "/system/settings-catalog") });
+  const rows = useQuery({ queryKey: ["settings", "rows"], queryFn: () => apiList<SettingRow>(`/system/settings${qs({ limit: 200 })}`) });
+  const def = catalog.data?.find((c) => c.key === DEAL_DEFAULTS_KEY);
+  const row = rows.data?.data.find((r) => r.key === DEAL_DEFAULTS_KEY);
+  const current = row ? row.value : def?.default;
+  const [text, setText] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const shown = text ?? JSON.stringify(current ?? [], null, 2);
+  const save = useMutation({
+    mutationFn: (value: unknown) => api("PUT", `/system/settings/${DEAL_DEFAULTS_KEY}`, { value, ...(row ? { version: row.version } : {}) }),
+    onSuccess: () => {
+      setText(null);
+      void qc.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+  const tables = Array.isArray(current) ? (current as { name: string; kind: string; columns?: unknown[] }[]) : [];
+  const submit = () => {
+    setLocalError(null);
+    try {
+      save.mutate(JSON.parse(shown));
+    } catch {
+      setLocalError("Nội dung không phải JSON hợp lệ. Kiểm dấu ngoặc và dấu phẩy.");
+    }
+  };
+  return (
+    <div className="flex flex-col gap-4">
+      <PageTitle>Template Quản lý Deal</PageTitle>
+      <p className="text-sm text-muted-foreground">{def?.description}</p>
+      <ErrorText error={catalog.error ?? rows.error} />
+      <Card>
+        <CardContent className="flex flex-col gap-2 pt-5 text-sm" data-testid="deal-defaults">
+          <div className="font-medium">Các bảng của bộ mặc định ({tables.length})</div>
+          <ul className="flex flex-wrap gap-2" aria-label="Các bảng của bộ mặc định">
+            {tables.map((t) => <li key={t.name} className="rounded-md bg-muted px-2 py-1">{t.name} · {t.kind === "shared" ? "chung" : "riêng"} · {(t.columns ?? []).length} cột</li>)}
+          </ul>
+          <label className="mt-2 font-medium" htmlFor="deal-defaults-json">Nội dung (JSON)</label>
+          <textarea id="deal-defaults-json" className="min-h-96 w-full rounded-md border border-border bg-card p-2 font-mono text-xs" spellCheck={false} value={shown} disabled={!def || !rows.data} onChange={(e) => setText(e.target.value)} />
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={submit} disabled={!def || save.isPending || text === null} loading={save.isPending}>Lưu bộ mặc định</Button>
+            <Button variant="secondary" disabled={!def || save.isPending} onClick={() => setText(JSON.stringify(def?.default ?? [], null, 2))}>Đặt lại về bộ dựng sẵn</Button>
+          </div>
+          <ErrorText error={localError ?? save.error} />
+          {save.isSuccess && text === null && !localError && <p className="text-xs text-ok">Đã lưu. Chỉ cây tạo sau này nhận bộ mới.</p>}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { notify } from "@/components/ui/toast";
 import { ErrorState } from "@/components/ui/states";
 import { Tip } from "@/components/ui/tooltip";
 import { fetchRowsByIds, getHistory } from "@/lib/datahub/api";
-import { NO_ACCESS, cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, PICKER_TYPES, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
+import { NO_ACCESS, cellError, cellValue, displayText, editText, ERROR_HELP, attrsOf, entriesOf, nameKey, optionsOf, parseCellText, PICKER_TYPES, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
 import type { TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ import { AttachmentField } from "./attachment-field";
 import { OriginLink } from "./merge-status";
 import { OptionChip, PersonPicker, RatingPicker } from "./pickers";
 import { RelationPicker } from "./relation-picker";
+import { PeopleAttrsEditor } from "./people-attrs";
 
 const OP_LABEL: Record<string, string> = { create: "Tạo dòng", update: "Sửa", delete: "Xoá vào thùng rác", restore: "Khôi phục", upsert: "Cập nhật" };
 const VIA_LABEL: Record<string, string> = { web: "", api: "qua API", mcp: "qua AI", form: "qua form", import: "qua import", automation: "tự động", system: "hệ thống" };
@@ -93,7 +94,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
   // Why this field cannot be typed into. A person who may only view gets one notice at the top of the panel, not one per field.
   const viewOnly = level === "view";
   const picker = PICKER_TYPES.has(col.type);
-  const reason = viewOnly ? null : picker && pickerEditable(col, level) ? null : readOnlyReason(col, level);
+  const reason = viewOnly ? null : picker && pickerEditable(col, level) ? null : readOnlyReason(col, level, row);
   const type = typeOf(col);
   const value = cellValue(col, row);
   const err = cellError(col, value);
@@ -168,6 +169,33 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
             onDone={() => setLinking(false)}
             onCancel={() => setLinking(false)}
           />
+        )}
+      </div>
+    );
+  } else if (type === "user" && attrsOf(col).length > 0) {
+    entriesOf(value).forEach((e) => session.labels.wantPerson(e.id));
+    const shown = displayText(col, row, ctx);
+    control = (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-start justify-between gap-2">
+          <span id={id} data-testid={`people-text-${col.key}`} className="min-h-9 py-1.5 text-sm [overflow-wrap:anywhere]">{shown}</span>
+          <Button variant="secondary" onClick={() => setPerson((v) => !v)} className="shrink-0">{person ? "Đóng" : viewOnly || reason ? "Xem chi tiết" : "Sửa người"}</Button>
+        </div>
+        {person && (
+          <PeopleAttrsEditor col={col} tableId={session.table.id} value={value} names={ctx.people} readonly={viewOnly || !!reason} busy={busy} error={error} onCancel={() => setPerson(false)} onSave={(list) => {
+            void (async () => {
+              setBusy(true);
+              try {
+                await session.edit([{ rowId: row.id, key: col.key, value: list }], `Sửa ô "${col.name}"`);
+                setError(null);
+                setPerson(false);
+              } catch (e) {
+                setError(await session.explain(e));
+              } finally {
+                setBusy(false);
+              }
+            })();
+          }} />
         )}
       </div>
     );

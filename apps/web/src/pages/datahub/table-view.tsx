@@ -10,13 +10,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { Tip } from "@/components/ui/tooltip";
-import { createView, dhKeys, getDatahub, getTable, listViews, rememberView, updateView } from "@/lib/datahub/api";
+import { createView, dhKeys, getDatahub, getTable, lookupPeople, listViews, rememberView, updateView } from "@/lib/datahub/api";
 import { nameKey, optionsOf, parseCellText, readOnlyReason, type Parsed } from "@/lib/datahub/cells";
 import { TableSession } from "@/lib/datahub/session";
 import type { Column, Level, TableDetail } from "@/lib/datahub/types";
 import { ViewAutosave } from "@/lib/datahub/view-autosave";
 import { buildQuery, DEFAULT_ROW_HEIGHT, fullOrder, layoutColumns, moveColumn, normalizeConfig, pruneConfig, querySignature, ROW_HEIGHTS, type ColorRule, type SessionQuery, type ViewConfig, type ViewDto } from "@/lib/datahub/view-config";
-import { liveBus, type LiveSignal } from "@/lib/session";
+import { can, liveBus, useMe, type LiveSignal } from "@/lib/session";
+import { canAddColumnHere, canEditColumnHere, isTemplateTable, layerLabel, templatePageUrl } from "@/lib/datahub/template-ui";
 import { TableGrid, type GridApi } from "./grid";
 import { PersonPicker, RatingPicker } from "./pickers";
 import { ColumnEditor } from "./column-editor";
@@ -73,10 +74,16 @@ export interface GridView {
   onMove: (key: string, toIndex: number) => void;
   /** Only the owner changes the structure: the header menu shows "Sửa cột" and "Xoá cột" when this is set. */
   canEditColumns: boolean;
+  /** May this person change this column from the table (an ordinary table: its owner; a template table: only the person's own columns). */
+  canEditColumn: (c: Column) => boolean;
+  /** Tag drawn on the header of a template table column (`Mẫu`, `Riêng`...). */
+  layerTag: (c: Column) => string | null;
+  /** The column belongs to a template this person may edit: "Sửa trong template". */
+  inTemplate: (c: Column) => boolean;
   /** Saves which groups are closed in the view (a person who only views gets their own copy, as with every view change). */
   onGroupState: (s: { collapsed: boolean; toggled: string[] }) => void;
   initialGroups: { collapsed: boolean; toggled: string[] };
-  onHeaderAction: (key: string, action: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group" | "edit" | "delete") => void;
+  onHeaderAction: (key: string, action: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group" | "edit" | "delete" | "template") => void;
 }
 
 /** Owns the current view: which one is open (the address keeps it), its settings (saved as they change) and the session of rows it reads. */
@@ -132,12 +139,19 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   const [moreOpen, setMoreOpen] = useState(false);
   const [colUI, setColUI] = useState<{ kind: "manage" } | { kind: "add" } | { kind: "edit"; col: Column } | null>(null);
   const deleteCol = useColumnDelete(table);
+  const meQ = useMe();
+  const me = meQ.data;
   const [search, setSearch] = useState("");
   const debounced = useDebounced(search, 350);
   const { dead } = useMemo(() => pruneConfig(config, table.columns), [config, table.columns]);
   const query = useMemo(() => buildQuery(config, table.columns, debounced), [config, table.columns, debounced]);
   const colLayout = useMemo(() => layoutColumns(config, table.columns), [config, table.columns]);
   const rowHeightName = config.row_height ?? DEFAULT_ROW_HEIGHT;
+  const nav = useNavigate();
+  // The name of the Leader on a `Mẫu · Team <tên>` tag.
+  const teamLeaders = useMemo(() => [...new Set(table.columns.filter((c) => c.layer === "team" && c.layer_ref).map((c) => c.layer_ref!))], [table.columns]);
+  const leadersQ = useQuery({ queryKey: ["dh-team-leaders", teamLeaders.join(",")], queryFn: () => lookupPeople({ ids: teamLeaders }), enabled: teamLeaders.length > 0, staleTime: 60_000 });
+  const leaderNames = useMemo(() => new Map((leadersQ.data ?? []).map((p) => [p.id, p.full_name] as const)), [leadersQ.data]);
 
   const change = useCallback((patch: Partial<Record<keyof ViewConfig, unknown>>) => auto.change(patch), [auto]);
   const gridView: GridView = useMemo(
@@ -158,11 +172,18 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
       },
       onGroupState: (s) => auto.change({ groups_collapsed: s.collapsed || undefined, groups_toggled: s.toggled.length ? s.toggled : undefined }),
       initialGroups: { collapsed: auto.config.groups_collapsed === true, toggled: auto.config.groups_toggled ?? [] },
-      canEditColumns: table.access === "owner",
+      canEditColumns: table.access === "owner" || isTemplateTable(table),
+      canEditColumn: (c) => canEditColumnHere(table, c, me?.user.id),
+      layerTag: (c) => layerLabel(c, table, c.layer === "team" && c.layer_ref ? leaderNames.get(c.layer_ref) : undefined),
+      inTemplate: (c) => isTemplateTable(table) && c.layer !== "custom" && can(me, "datahub:template:write"),
       onHeaderAction: (key, action) => {
+        if (action === "template") {
+          if (table.template_id) void nav({ href: templatePageUrl(table.template_id, key) });
+          return;
+        }
         if (action === "edit" || action === "delete") {
           const target = table.columns.find((x) => x.key === key);
-          if (!target || table.access !== "owner") return;
+          if (!target || !canEditColumnHere(table, target, me?.user.id)) return;
           if (action === "edit") setColUI({ kind: "edit", col: target });
           else void deleteCol(target);
           return;
@@ -179,7 +200,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [auto, colLayout, config.colors, rowHeightName, table.columns, table.access],
+    [auto, colLayout, config.colors, rowHeightName, table.columns, table.access, table.template_id, me, leaderNames],
   );
 
   const cleanDead = () => {
@@ -200,7 +221,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
     { key: "import", label: "Nhập", icon: <Upload size={16} aria-hidden />, run: () => setImportOpen(true), disabled: false, show: canEditData && canBulk },
     { key: "dup", label: "Tìm dòng trùng", icon: <Copy size={16} aria-hidden />, run: () => setDupOpen(true), disabled: false, show: canEditData },
     { key: "trash", label: "Thùng rác", icon: <Trash size={16} aria-hidden />, run: () => setTrashOpen(true), disabled: false, show: canEditData },
-    { key: "add", label: "Thêm cột", icon: <Plus size={16} aria-hidden />, run: () => setColUI({ kind: "add" }), disabled: table.columns.length >= table.max_columns, show: table.access === "owner" },
+    { key: "add", label: "Thêm cột", icon: <Plus size={16} aria-hidden />, run: () => setColUI({ kind: "add" }), disabled: table.columns.length >= table.max_columns, show: canAddColumnHere(table) },
   ].filter((x) => x.show);
   const sig = `${table.id}:${columnsSignature(table)}:${querySignature(query)}:${reloadKey}`;
   const saveText = auto.status === "saving" ? "Đang lưu view…" : auto.status === "saved" ? "Đã lưu view" : "";

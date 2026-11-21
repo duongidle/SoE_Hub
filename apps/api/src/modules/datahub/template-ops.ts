@@ -363,7 +363,12 @@ export const templateOperations = [
     permission: "datahub:datahub:use",
     aiAllowed: true,
     input: z.object({ template_id: Id }),
-    output: z.object({ template: TemplateOut, columns: z.array(ColumnOut), members: z.array(z.object({ id: Id, full_name: z.string(), view_only: z.boolean() })) }),
+    output: z.object({
+      template: TemplateOut,
+      columns: z.array(ColumnOut),
+      members: z.array(z.object({ id: Id, full_name: z.string(), view_only: z.boolean() })),
+      roles: z.array(z.object({ key: z.string(), label: z.string(), types: z.array(z.string()), required: z.boolean(), used_by: z.array(z.string()), column: z.string().nullable().describe("Mã cột đang giữ vai trò (null = chưa có)." ) })).describe("Bộ vai trò cột của bảng (rỗng khi bảng không dùng vai trò)."),
+    }),
     http: { method: "GET", path: "/datahub/templates/:template_id" },
     handler: async (ctx, i) => {
       const { tpl, p } = await loadEditable(ctx, i.template_id, { withDeleted: true });
@@ -379,7 +384,8 @@ export const templateOperations = [
       const members = await scopeMembers(ctx.db, tpl);
       const names = members.length ? await ctx.db.execute(sql`SELECT id, full_name FROM users WHERE /*scope:system*/ id = ANY(${`{${members.map((m) => m.id).join(",")}}`}::uuid[]) ORDER BY full_name`) : { rows: [] };
       const viewOnly = new Map(members.map((m) => [m.id, m.viewOnly]));
-      return { template: out, columns: list.map((c) => columnOut(c, ix)), members: editable ? (names.rows as { id: string; full_name: string }[]).map((r) => ({ id: r.id, full_name: r.full_name, view_only: viewOnly.get(r.id) ?? false })) : [] };
+      const roles = (tpl.roleSet ? (ROLE_SETS[tpl.roleSet]?.roles ?? []) : []).map((r) => ({ key: r.key, label: r.label, types: r.types, required: r.required, used_by: r.usedBy, column: list.find((c) => c.role === r.key && !c.deletedAt)?.key ?? null }));
+      return { template: out, roles, columns: list.map((c) => columnOut(c, ix)), members: editable ? (names.rows as { id: string; full_name: string }[]).map((r) => ({ id: r.id, full_name: r.full_name, view_only: viewOnly.get(r.id) ?? false })) : [] };
     },
   }),
 

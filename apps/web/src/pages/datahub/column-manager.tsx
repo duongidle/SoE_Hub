@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/ui/states";
 import { formatCount } from "@soe/shared";
 import { columnTypes, deleteColumn, dhKeys, restoreColumn } from "@/lib/datahub/api";
 import type { Column, Level, TableDetail } from "@/lib/datahub/types";
+import { canAddColumnHere, canEditColumnHere, isTemplateTable, layerLabel, layerScopeText } from "@/lib/datahub/template-ui";
+import { useMe } from "@/lib/session";
 
 /** Delete a column into the trash and offer "Hoàn tác" (restoring it brings its values back). */
 export function useColumnDelete(table: TableDetail) {
@@ -32,10 +34,15 @@ export function useColumnDelete(table: TableDetail) {
 
 /** The columns of the table as a list: who may change them sees "Sửa" and "Xoá" and "Thêm cột"; everyone else sees the list and why it is locked. */
 export function ColumnManager({ table, level, onAdd, onEdit, onDelete, onClose }: { table: TableDetail; level: Level; onAdd: () => void; onEdit: (c: Column) => void; onDelete: (c: Column) => void; onClose: () => void }) {
-  const owner = level === "owner";
+  const meQ = useMe();
+  const me = meQ.data?.user.id;
+  const template = isTemplateTable(table);
+  // On a template table everyone adds columns of their own; the template columns change only on the Template page.
+  const owner = template ? canAddColumnHere(table) : level === "owner";
   const typesQ = useQuery({ queryKey: ["dh-column-types"], queryFn: columnTypes, staleTime: Infinity });
   const label = (t: string) => typesQ.data?.find((x) => x.type === t)?.label ?? t;
   const full = table.columns.length >= table.max_columns;
+  const editable = (c: Column) => canEditColumnHere(table, c, me);
   return (
     <Modal title="Cột của bảng" open onClose={onClose} wide>
       <div className="flex flex-col gap-4">
@@ -60,12 +67,15 @@ export function ColumnManager({ table, level, onAdd, onEdit, onDelete, onClose }
                   <span className="font-medium [overflow-wrap:anywhere]">{c.name}</span>
                   <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <Badge>{label(c.type)}</Badge>
+                    {layerLabel(c, table) && <Badge tone={c.layer === "custom" ? "muted" : undefined}>{layerLabel(c, table)}</Badge>}
+                    {c.autofill && <span>Hệ thống tự điền</span>}
                     {c.required && <span>Bắt buộc</span>}
                     {c.unique && <span>Không trùng</span>}
                   </span>
+                  {template && <span className="text-xs text-muted-foreground">{layerScopeText(c)}</span>}
                   {c.description && <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{c.description}</span>}
                 </div>
-                {owner && (
+                {owner && editable(c) && (
                   <span className="flex shrink-0 gap-1">
                     <Tip label="Sửa cột"><Button variant="ghost" aria-label={`Sửa cột ${c.name}`} onClick={() => onEdit(c)} className="!px-2"><Pencil size={16} aria-hidden /></Button></Tip>
                     <Tip label="Xoá cột"><Button variant="ghost" aria-label={`Xoá cột ${c.name}`} onClick={() => onDelete(c)} className="!px-2 !text-bad"><Trash2 size={16} aria-hidden /></Button></Tip>

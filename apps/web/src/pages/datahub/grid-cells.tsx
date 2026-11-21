@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/form";
 import { AttachmentField } from "./attachment-field";
 import { PersonPicker, RatingPicker, SelectPicker } from "./pickers";
 import { RelationPicker, type Linked } from "./relation-picker";
+import { PeopleAttrsEditor } from "./people-attrs";
+import type { Column } from "@/lib/datahub/types";
+import type { PersonEntry } from "@/lib/datahub/cells";
 
 /** Cells the grid draws itself: select chips, stars, a person. Their editors are the pickers shared with the detail panel. */
 
@@ -14,6 +17,7 @@ export type SoeData =
   | { t: "select"; ids: string[]; options: SelectOption[]; multi: boolean; readonly: boolean }
   | { t: "rating"; value: number | null; max: number; readonly: boolean }
   | { t: "person"; id: string | null; name: string; readonly: boolean; tableId: string }
+  | { t: "persons"; col: Column; value: PersonEntry[]; text: string; names: ReadonlyMap<string, string>; readonly: boolean; tableId: string }
   | { t: "relation"; ids: string[]; names: string[]; multiple: boolean; readonly: boolean; tableId: string; column: string; learn: (id: string, label: string) => void }
   | { t: "files"; ids: string[]; max: number; readonly: boolean; tableId: string };
 export type SoeCell = CustomCell<SoeData>;
@@ -83,6 +87,15 @@ const PersonEditor: ProvideEditorComponent<SoeCell> = ({ value, onFinishedEditin
   return (
     <Overlay target={target}>
       <PersonPicker tableId={d.tableId} value={d.id} valueName={d.name} onCancel={() => onFinishedEditing(undefined)} onDone={(p) => onFinishedEditing({ ...value, data: { ...d, id: p?.id ?? null, name: p?.full_name ?? "" }, copyData: p?.full_name ?? "" }, [0, 0])} />
+    </Overlay>
+  );
+};
+
+const PersonsEditor: ProvideEditorComponent<SoeCell> = ({ value, onFinishedEditing, target }) => {
+  const d = value.data as Extract<SoeData, { t: "persons" }>;
+  return (
+    <Overlay target={target}>
+      <PeopleAttrsEditor col={d.col} tableId={d.tableId} value={d.value} names={d.names} readonly={d.readonly} onCancel={() => onFinishedEditing(undefined)} onSave={(list) => onFinishedEditing({ ...value, data: { ...d, value: list ?? [] }, copyData: d.text }, [0, 0])} />
     </Overlay>
   );
 };
@@ -182,6 +195,10 @@ export const soeRenderer: CustomRenderer<SoeCell> = {
         ctx.fillText(label, x + 6, midY + 1);
         x += w + 4;
       });
+    } else if (d.t === "persons") {
+      ctx.textAlign = "left";
+      ctx.fillStyle = d.text ? theme.textDark : theme.textLight;
+      ctx.fillText(d.text ? fitText(ctx, d.text, rect.width - padX * 2) : "—", rect.x + padX, midY + 1);
     } else if (d.t === "person") {
       ctx.fillStyle = theme.textDark;
       ctx.textAlign = "left";
@@ -217,8 +234,8 @@ export const soeRenderer: CustomRenderer<SoeCell> = {
   },
   provideEditor: (cell) => {
     const d = cell.data;
-    if (d.readonly && d.t !== "files") return undefined;
-    return { editor: d.t === "select" ? SelectEditor : d.t === "rating" ? RatingEditor : d.t === "relation" ? RelationEditor : d.t === "files" ? FilesEditor : PersonEditor, disablePadding: true, disableStyling: true };
+    if (d.readonly && d.t !== "files" && d.t !== "persons") return undefined;
+    return { editor: d.t === "persons" ? PersonsEditor : d.t === "select" ? SelectEditor : d.t === "rating" ? RatingEditor : d.t === "relation" ? RelationEditor : d.t === "files" ? FilesEditor : PersonEditor, disablePadding: true, disableStyling: true };
   },
   onPaste: () => undefined,
 };

@@ -9,9 +9,10 @@ import { can, useLiveUpdates, useMe, type Me } from "@/lib/session";
 const PUBLIC_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
 
 /** Menu items. A user sees an item only when the permission list returned by the API contains its permission. */
-const NAV: { to: string; label: string; permission: string | null }[] = [
+const NAV: { to: string; label: string; permission: string | null; dealOnly?: boolean }[] = [
   { to: "/", label: "Tổng quan", permission: null },
   { to: "/datahub", label: "Datahub", permission: "datahub:datahub:use" },
+  { to: "/quan-ly-deal", label: "Quản lý Deal", permission: "datahub:datahub:use", dealOnly: true },
   { to: "/dashboard", label: "Dashboard chia sẻ", permission: null },
   { to: "/to-chuc", label: "Org chart", permission: "org:member:read" },
   { to: "/cap-du-lieu", label: "Cấp dữ liệu Guest", permission: "guest:grant:manage" },
@@ -21,10 +22,13 @@ const NAV: { to: string; label: string; permission: string | null }[] = [
   { to: "/quan-tri/chuyen-giao", label: "Chuyển giao", permission: "data:transfer" },
   { to: "/quan-tri/datahub-gioi-han", label: "Giới hạn Datahub", permission: "system:setting:write" },
   { to: "/quan-tri/cai-dat", label: "Cài đặt hệ thống", permission: "system:setting:write" },
+  { to: "/quan-tri/template-deal", label: "Template Quản lý Deal", permission: "system:setting:write" },
 ];
 
 /** Pages that need a permission when opened by URL (same permissions the API checks). */
 const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
+  { prefix: "/quan-ly-deal/template", permission: "datahub:template:write" },
+  { prefix: "/quan-ly-deal", permission: "datahub:datahub:use" },
   { prefix: "/datahub", permission: "datahub:datahub:use" },
   { prefix: "/to-chuc", permission: "org:member:read" },
   { prefix: "/cap-du-lieu", permission: "guest:grant:manage" },
@@ -34,6 +38,7 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
   { prefix: "/quan-tri/chuyen-giao", permission: "data:transfer" },
   { prefix: "/quan-tri/datahub-gioi-han", permission: "system:setting:write" },
   { prefix: "/quan-tri/cai-dat", permission: "system:setting:write" },
+  { prefix: "/quan-tri/template-deal", permission: "system:setting:write" },
 ];
 
 const isPublic = (path: string) => PUBLIC_PATHS.includes(path);
@@ -86,7 +91,9 @@ export function Shell() {
     );
   }
 
-  const items = NAV.filter((n) => !n.permission || can(me, n.permission));
+  // "Quản lý Deal" is for people who have the datahub (Manager, Leader, User); Admin and Guest have none (Module 4 mục 1.1).
+  const hasDeal = me.user.roles.some((r) => ["manager", "leader", "user"].includes(r));
+  const items = NAV.filter((n) => (!n.permission || can(me, n.permission)) && (!n.dealOnly || hasDeal));
   const needed = requiredPermission(shown);
   const denied = needed !== null && !can(me, needed);
   const logout = async () => {
@@ -101,7 +108,7 @@ export function Shell() {
   };
 
   // An open table fills the window (the grid scrolls inside it); other pages are a centered column.
-  const wide = shown.startsWith("/datahub/");
+  const wide = shown.startsWith("/datahub/") || (shown.startsWith("/quan-ly-deal") && shown !== "/quan-ly-deal/template");
   return (
     <div className={wide ? "flex h-dvh flex-col" : "min-h-dvh"}>
       <a href="#noi-dung" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[80] focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:shadow-md">

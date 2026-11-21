@@ -1,5 +1,5 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from "@tanstack/react-router";
-import { AuditLogPage, DatahubLimitsPage, ServiceAccountsPage, SettingsPage, TokenApprovalPage, TransferPage } from "@/pages/admin";
+import { AuditLogPage, DealDefaultsPage, DatahubLimitsPage, ServiceAccountsPage, SettingsPage, TokenApprovalPage, TransferPage } from "@/pages/admin";
 import { AccountPage, NotificationsPage, TokensPage } from "@/pages/account";
 import { CodeFlowPage, LoginPage, SetPasswordPage } from "@/pages/auth";
 import { SharedDashboardPage, SharedDashboardsPage } from "@/pages/dashboard/shared";
@@ -34,6 +34,9 @@ export const router = createRouter({
     lazyPage("/datahub/$datahubId/dashboard", () => import("@/pages/datahub/detail"), "DatahubPage"),
     lazyPage("/datahub/$datahubId/dashboard/$dashboardId", () => import("@/pages/datahub/detail"), "DatahubPage"),
     lazyPage("/datahub/$datahubId/$tableId", () => import("@/pages/datahub/detail"), "DatahubPage"),
+    lazyPage("/quan-ly-deal", () => import("@/pages/deal/home"), "DealHomePage"),
+    lazyPage("/quan-ly-deal/template", () => import("@/pages/deal/template"), "TemplatePage"),
+    lazyPage("/quan-ly-deal/$tableId", () => import("@/pages/deal/home"), "DealHomePage"),
     r("/dashboard", SharedDashboardsPage),
     r("/dashboard/$dashboardId", SharedDashboardPage),
     r("/to-chuc", OrgPage),
@@ -47,6 +50,7 @@ export const router = createRouter({
     r("/quan-tri/chuyen-giao", TransferPage),
     r("/quan-tri/datahub-gioi-han", DatahubLimitsPage),
     r("/quan-tri/cai-dat", SettingsPage),
+    r("/quan-tri/template-deal", DealDefaultsPage),
   ]),
 });
 

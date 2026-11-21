@@ -22,7 +22,9 @@ export function typeOf(col: Pick<Column, "type" | "config">): string {
 }
 
 /** Why a column cannot be typed into (null = it can, when the person may edit data). */
-export function readOnlyReason(col: Column, level: Level): string | null {
+export function readOnlyReason(col: Column, level: Level, row?: Pick<Row, "can_edit">): string | null {
+  if (row?.can_edit === false) return "Bạn xem được dòng này nhưng không sửa được. Người tham gia deal cần bật \"Cho phép leader sửa deal của tôi\".";
+  if (col.autofill) return "Cột này do hệ thống điền từ cột Người tham gia, hãy sửa ở đó.";
   if (COMPUTED_TYPES.has(col.type)) return "Cột này do công thức tính, không sửa trực tiếp.";
   if (col.type === "auto_number") return "Số tự tăng do hệ thống điền.";
   if (SYSTEM_TYPES.has(col.type)) return "Cột hệ thống, không sửa được.";
@@ -133,6 +135,9 @@ export function displayText(col: Column, row: Row, ctx: CellCtx): string {
       return Array.isArray(v) ? v.map((id) => ctx.linked.get(String(id)) ?? "…").join(", ") : EMPTY;
     case "attachment":
       return Array.isArray(v) ? `${v.length} tệp` : EMPTY;
+    case "user":
+      if (attrsOf(col).length) return peopleText(col, v, ctx) || EMPTY;
+      return one(type, col, v, ctx);
     case "long_text":
       return String(v).replace(/\s*\n\s*/g, " ");
     default:
@@ -234,6 +239,7 @@ export function parseCellText(col: Column, text: string, peopleByName?: PeopleBy
       return { ok: true, value: ids.length ? ids : null };
     }
     case "user": {
+      if (attrsOf(col).length) return bad("Cột này có thuộc tính cho từng người (vai trò, %). Sửa trong ô hoặc ngăn chi tiết dòng, không gõ hay dán được.");
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t)) return { ok: true, value: t.toLowerCase() };
       const id = peopleByName?.get(strip(t));
       return id ? { ok: true, value: id } : bad(`Không tìm thấy người tên "${clip(t)}". Chọn từ danh sách khi sửa ô.`);
@@ -252,4 +258,35 @@ function findOption(col: Column, text: string): SelectOption | undefined {
 export function sameValue(a: unknown, b: unknown): boolean {
   if (isEmpty(a) && isEmpty(b)) return true;
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+
+// ---- Người dùng có thuộc tính (Module 4 mục 4.5): the cell is a list `[{ id, attrs }]`
+export interface PersonAttr { key: string; label: string; kind: "select" | "percent" | "boolean"; options?: string[]; default?: string | number | boolean | null; sum_max?: number }
+export interface PersonEntry { id: string; attrs: Record<string, string | number | boolean | null> }
+
+export const attrsOf = (col: Pick<Column, "type" | "config">): PersonAttr[] => (col.type === "user" && Array.isArray((col.config as { attrs?: unknown }).attrs) ? ((col.config as { attrs: PersonAttr[] }).attrs) : []);
+
+export function entriesOf(v: unknown): PersonEntry[] {
+  if (typeof v === "string") return [{ id: v, attrs: {} }];
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((e): PersonEntry[] => (typeof e === "string" ? [{ id: e, attrs: {} }] : e && typeof e === "object" && typeof (e as PersonEntry).id === "string" ? [{ id: (e as PersonEntry).id, attrs: { ...((e as PersonEntry).attrs ?? {}) } }] : []));
+}
+
+export function attrText(a: PersonAttr, v: unknown): string {
+  if (v === undefined || v === null || v === "") return "";
+  if (a.kind === "percent" && typeof v === "number") return formatPercent(v, {});
+  if (a.kind === "boolean") return v === true ? `${a.label}: có` : `${a.label}: không`;
+  return String(v);
+}
+
+export function peopleText(col: Column, v: unknown, ctx: CellCtx): string {
+  const attrs = attrsOf(col);
+  return entriesOf(v)
+    .map((e) => {
+      const name = `${ctx.people.get(e.id) ?? "…"}${ctx.noAccess?.has(e.id) ? ` (${NO_ACCESS})` : ""}`;
+      const parts = attrs.map((a) => attrText(a, e.attrs[a.key])).filter(Boolean);
+      return parts.length ? `${name} (${parts.join("; ")})` : name;
+    })
+    .join(", ");
 }

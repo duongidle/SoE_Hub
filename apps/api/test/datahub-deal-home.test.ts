@@ -36,10 +36,9 @@ type Home = { datahub_id: string | null; tables: { id: string; datahub_id: strin
 
 describe("datahub.deal.home", () => {
   let shared: { id: string; master_table_id: string };
-  let personal: { id: string };
-  it("lists template tables first (shared one from the Manager's datahub, own copy of a personal one), then the tables you made", async () => {
+    it("lists template tables first (shared one from the Manager's datahub, own copy of a personal one), then the tables you made", async () => {
     shared = await mgrA("datahub.template.create", { name: "Home chung", kind: "shared", member_permission: "edit_data" });
-    personal = await mgrA("datahub.template.create", { name: "Home riêng", kind: "personal" });
+    await mgrA("datahub.template.create", { name: "Home riêng", kind: "personal" });
     const mine = await userA1("datahub.datahub.list", {});
     expect(mine.length).toBe(0);
     const home = (await userA1("datahub.deal.home", {})) as Home;
@@ -94,5 +93,16 @@ describe("datahub.template.impact", () => {
     await mgrA("datahub.template.update", { template_id: tpl.id, leader_can_add_columns: true });
     const team = await leaderA("datahub.template.impact", { template_id: tpl.id, layer: "team" });
     expect(team.count).toBe(2);
+  });
+});
+
+describe("datahub.template.get roles", () => {
+  it("lists the roles of the table's role set with the column that holds each", async () => {
+    const tpl = await mgrA("datahub.template.create", { name: "Có vai trò", kind: "personal", role_set: "index" });
+    const col = await mgrA("datahub.template.column.create", { template_id: tpl.id, name: "Tháng", type: "date", role: "thang" });
+    const got = await mgrA("datahub.template.get", { template_id: tpl.id });
+    expect(got.roles).toEqual([expect.objectContaining({ key: "thang", required: true, column: col.key })]);
+    const plain = await mgrA("datahub.template.create", { name: "Không vai trò", kind: "shared" });
+    expect((await mgrA("datahub.template.get", { template_id: plain.id })).roles).toEqual([]);
   });
 });

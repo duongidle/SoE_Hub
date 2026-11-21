@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/toast";
 import { createMerged, dhKeys, getTable, listDatahubs, MERGE_STRATEGY_LABELS, previewMerge, updateMerged, type MergeInfo, type MergeInput, type MergeStrategy } from "@/lib/datahub/api";
 import type { TableDetail } from "@/lib/datahub/types";
+import { dealKeys, getDealHome } from "@/lib/datahub/deal-api";
 import { MergeDiagnosticsView } from "./merge-status";
 import { nameError } from "./list";
 
@@ -52,7 +53,15 @@ export function MergeDialog({ datahubId, existing, onClose }: { datahubId: strin
   const [picked, setPicked] = useState("");
 
   const mine = useQuery({ queryKey: dhKeys.list, queryFn: () => listDatahubs("mine") });
-  const options = useMemo(() => (mine.data ?? []).flatMap((d) => d.tables.filter((t) => t.kind !== "merged" && t.access === "owner").map((t) => ({ id: t.id, label: `${d.name} – ${t.name}` }))), [mine.data]);
+  // The tables of Quản lý Deal are their own group (the datahub is not in the list above).
+  const deal = useQuery({ queryKey: dealKeys.home, queryFn: getDealHome });
+  const options = useMemo(
+    () => [
+      ...(mine.data ?? []).flatMap((d) => d.tables.filter((t) => t.kind !== "merged" && t.access === "owner").map((t) => ({ id: t.id, label: `${d.name} – ${t.name}` }))),
+      ...(deal.data?.tables ?? []).filter((t) => t.kind !== "merged" && t.access === "owner").map((t) => ({ id: t.id, label: `Quản lý Deal – ${t.name}` })),
+    ],
+    [mine.data, deal.data],
+  );
   const labelOf = (id: string) => options.find((o) => o.id === id)?.label ?? cfg?.sources.find((s) => s.table_id === id)?.name ?? "Bảng nguồn";
 
   // Source columns for the hand mapping.

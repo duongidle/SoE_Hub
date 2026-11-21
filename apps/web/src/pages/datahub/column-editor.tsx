@@ -5,7 +5,7 @@ import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, Select, Textarea
 import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/toast";
 import { Tip } from "@/components/ui/tooltip";
-import { changeColumnType, columnTypes, createColumn, dhKeys, optionImpact, previewTypeChange, updateColumn, type OptionImpact } from "@/lib/datahub/api";
+import { changeColumnType, columnTypes, createColumn, dhKeys, optionImpact, previewTypeChange, updateColumn, type ColumnBody, type OptionImpact } from "@/lib/datahub/api";
 import { COMPUTED, ROLLUP_FUNCTIONS, TEXT_LIKE, buildBody, buildConfig, columnError, convertibleTypes, describeConversion, draftFromColumn, emptyDraft, firstError, groupedTypes, hasNumberFormat, hasProperty, moveOption, nextColor, sampleLine, validateDraft, type ColumnDraft, type ConversionReport, type DraftErrors, type TypeInfo } from "@/lib/datahub/column-config";
 import { parseCellText, SYSTEM_TYPES } from "@/lib/datahub/cells";
 import type { Column, TableDetail } from "@/lib/datahub/types";
@@ -32,8 +32,32 @@ function parseDefault(d: ColumnDraft): { ok: true; value: unknown } | { ok: fals
  * Add a column or change one (design module2 sections 4 and 6). Everything the type needs is on one form; each field says what is wrong under
  * itself. Changing the type first asks the server what would happen to the values and shows it before anything is written.
  */
-export function ColumnEditor({ table, column, onClose }: { table: TableDetail; column?: Column; onClose: () => void }) {
+/** Where a column editor saves. The default is the ordinary column commands of the table; the Template page gives the template commands. */
+export interface ColumnAdapter {
+  create: (body: ColumnBody) => Promise<unknown>;
+  update: (key: string, body: ColumnBody) => Promise<unknown>;
+  changeType: (key: string, type: string, config: Record<string, unknown> | undefined, acceptDataLoss: boolean) => Promise<unknown>;
+  preview: (key: string, type: string, config?: Record<string, unknown>) => ReturnType<typeof previewTypeChange>;
+  optionImpact: (key: string, options: { id?: string; name: string; color?: string }[]) => Promise<OptionImpact>;
+  /** Refresh what shows the columns after a save. */
+  refresh: () => Promise<unknown>;
+}
+
+const tableAdapter = (tableId: string, qc: ReturnType<typeof useQueryClient>): ColumnAdapter => ({
+  create: (b) => createColumn(tableId, b),
+  update: (k, b) => updateColumn(tableId, k, b),
+  changeType: (k, t, c, a) => changeColumnType(tableId, k, t, c, a),
+  preview: (k, t, c) => previewTypeChange(tableId, k, t, c),
+  optionImpact: (k, o) => optionImpact(tableId, k, o),
+  refresh: () => qc.invalidateQueries({ queryKey: dhKeys.table(tableId) }),
+});
+
+export function ColumnEditor({ table, column, onClose, adapter, confirmText, notice }: { table: TableDetail; column?: Column; onClose: () => void; adapter?: ColumnAdapter; confirmText?: string; notice?: React.ReactNode }) {
   const qc = useQueryClient();
+  const ad = adapter ?? tableAdapter(table.id, qc);
+  // The Template page asks "Áp dụng cho N người" before the first write of a save.
+  const [asking, setAsking] = useState(false);
+  const confirmed = useRef(false);
   const editing = !!column;
   const typesQ = useQuery({ queryKey: ["dh-column-types"], queryFn: columnTypes, staleTime: Infinity });
   const types: TypeInfo[] = typesQ.data ?? [];
@@ -71,7 +95,7 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
   };
 
   const done = async (text: string) => {
-    await qc.invalidateQueries({ queryKey: dhKeys.table(table.id) });
+    await ad.refresh();
     notify.ok(text);
     onClose();
   };
@@ -91,11 +115,12 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
     setBusy(true);
     try {
       if (!column) {
-        await createColumn(table.id, buildBody(draft, def.value));
+        if (confirmText && !confirmed.current) return void setAsking(true);
+        await ad.create(buildBody(draft, def.value));
         return await done("Đã thêm cột");
       }
       if (draft.type !== column.type) {
-        const report = await previewTypeChange(table.id, column.key, draft.type, buildConfig(draft));
+        const report = await ad.preview(column.key, draft.type, buildConfig(draft));
         setConfirm({ report });
         return;
       }
@@ -107,18 +132,20 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
       const isSelect = column.type === "single_select" || column.type === "multi_select";
       const renamed = isSelect && !sameConfig && draft.options.some((o) => o.id && original.options.some((x) => x.id === o.id && x.name.trim() !== o.name.trim()));
       if (renamed) {
-        const data = await optionImpact(table.id, column.key, draft.options.map((o) => ({ ...(o.id ? { id: o.id } : {}), name: o.name.trim(), color: o.color })));
+        const data = await ad.optionImpact(column.key, draft.options.map((o) => ({ ...(o.id ? { id: o.id } : {}), name: o.name.trim(), color: o.color })));
         if (data.formulas.length > 0) {
           setImpact({ data, patch });
           return;
         }
       }
-      await updateColumn(table.id, column.key, patch);
+      if (confirmText && !confirmed.current) return void setAsking(true);
+      await ad.update(column.key, patch);
       await done("Đã lưu cột");
     } catch (e) {
       failWith(e);
     } finally {
       setBusy(false);
+      confirmed.current = false;
     }
   };
 
@@ -127,7 +154,7 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
     if (!column || !impact) return;
     setBusy(true);
     try {
-      await updateColumn(table.id, column.key, { ...impact.patch, ...(updateFormulas ? { update_formulas: true } : {}) });
+      await ad.update(column.key, { ...impact.patch, ...(updateFormulas ? { update_formulas: true } : {}) });
       setImpact(null);
       await done(updateFormulas ? "Đã lưu cột và cập nhật công thức" : "Đã lưu cột");
     } catch (e) {
@@ -144,10 +171,10 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
     setBusy(true);
     try {
       const def = parseDefault(draft);
-      await changeColumnType(table.id, column.key, draft.type, buildConfig(draft), confirm.report.cannot_convert > 0);
+      await ad.changeType(column.key, draft.type, buildConfig(draft), confirm.report.cannot_convert > 0);
       // A type change resets the format and the default; the rest of the form is written on top of it.
       const body = buildBody(draft, def.ok ? def.value : null);
-      await updateColumn(table.id, column.key, { name: body.name, description: body.description, required: body.required, allow_edit: body.allow_edit, unique: body.unique, default_value: body.default_value, display: body.display });
+      await ad.update(column.key, { name: body.name, description: body.description, required: body.required, allow_edit: body.allow_edit, unique: body.unique, default_value: body.default_value, display: body.display });
       setConfirm(null);
       await done("Đã đổi kiểu cột");
     } catch (e) {
@@ -169,6 +196,7 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
     <>
       <Modal title={editing ? `Sửa cột "${column!.name}"` : "Thêm cột"} open onClose={onClose} dirty={dirty && !busy} wide>
         <form ref={form} className="flex flex-col gap-4" noValidate onSubmit={(e) => { e.preventDefault(); void save(); }}>
+          {notice}
           <div data-field="name">
             <Field label="Tên cột" required error={shown("name")} hint="Không trùng tên cột khác trong bảng, không chứa [ hoặc ]. Công thức gọi cột bằng tên này.">
               <Input value={draft.name} onChange={(e) => { set({ name: e.target.value }); setErrors((x) => ({ ...x, name: undefined })); }} maxLength={100} autoComplete="off" autoFocus {...fieldProps("name")} />
@@ -274,6 +302,9 @@ export function ColumnEditor({ table, column, onClose }: { table: TableDetail; c
           </div>
         </form>
       </Modal>
+      {asking && confirmText && (
+        <ConfirmDialog title="Áp dụng thay đổi template?" message={<span data-testid="template-confirm">{confirmText}</span>} confirmLabel="Xác nhận" onClose={() => setAsking(false)} onConfirm={() => { confirmed.current = true; setAsking(false); void save(); }} />
+      )}
 
       {impact && (
         <Modal title="Công thức đang so chữ với tên cũ" open onClose={() => setImpact(null)}>

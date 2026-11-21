@@ -3,7 +3,7 @@ import "@glideapps/glide-data-grid/dist/index.css";
 import { formatCount, formatNumber } from "@soe/shared";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { notify } from "@/components/ui/toast";
-import { NO_ACCESS, cellError, cellValue, displayText, editText, ERROR_HELP, nameKey, optionsOf, parseCellText, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
+import { NO_ACCESS, cellError, cellValue, displayText, editText, ERROR_HELP, attrsOf, entriesOf, nameKey, optionsOf, parseCellText, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
 import { planPaste } from "@/lib/datahub/paste";
 import type { CellEdit, TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
@@ -196,7 +196,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
       }
       const row = line ? store.rowAt(line.pos) : undefined;
       if (!col || !row) return { kind: GridCellKind.Loading, allowOverlay: false };
-      const reason = readOnlyReason(col, level);
+      const reason = readOnlyReason(col, level, row);
       const ro = !canWrite || reason !== null;
       const v = cellValue(col, row);
       const type = typeOf(col);
@@ -221,6 +221,13 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
           return cell;
         }
         case "user": {
+          if (attrsOf(col).length) {
+            const list = entriesOf(v);
+            list.forEach((e) => labels.wantPerson(e.id));
+            // Looking at the people of a deal is allowed even when the cell cannot be edited.
+            const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: true, copyData: text === "—" ? "" : text, data: { t: "persons", col, value: list, text: text === "—" ? "" : text, names: labels.people, readonly: ro, tableId: session.table.id }, themeOverride: tint };
+            return cell;
+          }
           const id = typeof v === "string" ? v : null;
           if (id) labels.wantPerson(id);
           const name = id ? (labels.people.get(id) ?? "…") : "";
@@ -294,6 +301,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
         const d = (cell as SoeCell).data;
         if (d.t === "select") return { ok: true, value: d.multi ? (d.ids.length ? d.ids : null) : (d.ids[0] ?? null) };
         if (d.t === "rating") return { ok: true, value: d.value };
+        if (d.t === "persons") return { ok: true, value: d.value.length ? d.value : null };
         if (d.t === "relation" || d.t === "files") return { ok: true, value: d.ids.length ? d.ids : null };
         return { ok: true, value: d.id };
       }
@@ -392,7 +400,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
         if (!row) continue;
         for (let c = dst.x; c < dst.x + dst.width; c++) {
           const col = columns[c];
-          if (!col || readOnlyReason(col, level)) {
+          if (!col || readOnlyReason(col, level, row)) {
             skipped++;
             continue;
           }
@@ -427,7 +435,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
           if (!row) continue;
           for (let c = rg.x; c < rg.x + rg.width; c++) {
             const col = columns[c];
-            if (col && !readOnlyReason(col, level) && !col.required) edits.push({ rowId: row.id, key: col.key, value: col.type === "checkbox" ? false : null });
+            if (col && !readOnlyReason(col, level, row) && !col.required) edits.push({ rowId: row.id, key: col.key, value: col.type === "checkbox" ? false : null });
           }
         }
       }
@@ -531,6 +539,34 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
     [columns, store, ctx, widthOf, lineAt, aggOf, headerText],
   );
 
+  // A template table: the header carries the tag of the layer (`Mẫu`, `Riêng`...) after the name when there is room.
+  const drawHeader = useCallback(
+    (args: { ctx: CanvasRenderingContext2D; columnIndex: number; theme: Theme; rect: Rectangle }, drawContent: () => void) => {
+      drawContent();
+      const col = columns[args.columnIndex];
+      const tag = col ? view.layerTag(col) : null;
+      if (!col || !tag) return;
+      const { ctx: c, rect, theme: th } = args;
+      c.save();
+      c.font = `${th.headerFontStyle} ${FONT_STACK}`;
+      const nameW = c.measureText(col.name).width;
+      c.font = `11px ${FONT_STACK}`;
+      const w = c.measureText(tag).width + 10;
+      const x = rect.x + th.cellHorizontalPadding + nameW + 8;
+      if (x + w < rect.x + rect.width - 30) {
+        c.fillStyle = token(col.layer === "custom" ? "--muted" : "--selected");
+        c.beginPath();
+        c.roundRect(x, rect.y + rect.height / 2 - 9, w, 18, 4);
+        c.fill();
+        c.fillStyle = token("--muted-foreground");
+        c.textBaseline = "middle";
+        c.fillText(tag, x + 5, rect.y + rect.height / 2 + 1);
+      }
+      c.restore();
+    },
+    [columns, view],
+  );
+
   const drawCell = useCallback(
     (args: { ctx: CanvasRenderingContext2D; col: number; row: number; rect: Rectangle }, draw: () => void) => {
       const col = columns[args.col];
@@ -569,7 +605,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   const rowsCount = session.lineCount;
   return (
     // data-* : the layout the browser tests use to find a cell on the canvas.
-    <div className="relative min-h-[60dvh] flex-1 sm:min-h-0" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-lines={rowsCount} data-marker-width={MARKER_WIDTH}>
+    <div className="relative min-h-[60dvh] flex-1 sm:min-h-0" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
       {theme && (
         <DataEditor
           ref={ref}
@@ -613,6 +649,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
           }}
           onItemHovered={onItemHovered}
           drawCell={drawCell}
+          drawHeader={drawHeader}
           trailingRowOptions={canWrite && !grouped ? { hint: "Thêm dòng", sticky: true, tint: true } : undefined}
           onRowAppended={canWrite && !grouped ? () => onAddRow().then(() => undefined) : undefined}
           smoothScrollX
@@ -638,7 +675,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
         />
       )}
       <PointPopover at={menu} label={menu ? `Cột ${menu.col.name}` : "Cột"} onClose={() => setMenu(null)}>
-        {menu && <HeaderMenu col={menu.col} canEdit={view.canEditColumns} frozen={view.frozen} index={columns.findIndex((c) => c.id === menu.col.id)} sole={columns.length <= 1} onAction={(a) => { view.onHeaderAction(menu.col.key, a); setMenu(null); }} />}
+        {menu && <HeaderMenu col={menu.col} canEdit={view.canEditColumn(menu.col)} inTemplate={view.inTemplate(menu.col)} frozen={view.frozen} index={columns.findIndex((c) => c.id === menu.col.id)} sole={columns.length <= 1} onAction={(a) => { view.onHeaderAction(menu.col.key, a); setMenu(null); }} />}
       </PointPopover>
       {tip && tip.v === version && (
         <div role="tooltip" className="pointer-events-none fixed z-[70] max-w-xs -translate-x-1/2 rounded-md bg-foreground px-2 py-1 text-xs text-background shadow-md [overflow-wrap:anywhere]" style={{ left: tip.x, top: tip.y }}>
@@ -653,7 +690,7 @@ const clampWidth = (w: number) => Math.max(70, Math.min(600, Math.round(w)));
 
 const AGG_SHORT = { count: "Đếm", sum: "Tổng", avg: "TB", min: "Nhỏ nhất", max: "Lớn nhất" } as const;
 
-function HeaderMenu({ col, canEdit, frozen, index, sole, onAction }: { col: Column; canEdit: boolean; frozen: number; index: number; sole: boolean; onAction: (a: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group" | "edit" | "delete") => void }) {
+function HeaderMenu({ col, canEdit, inTemplate, frozen, index, sole, onAction }: { col: Column; canEdit: boolean; inTemplate: boolean; frozen: number; index: number; sole: boolean; onAction: (a: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group" | "edit" | "delete" | "template") => void }) {
   const item = "flex min-h-11 w-full items-center rounded px-2 text-left hover:bg-muted sm:min-h-9 disabled:opacity-50";
   const kind = kindOf(col);
   const [asc, desc] = kind === "date" || kind === "datetime" ? ["Sắp xếp cũ → mới", "Sắp xếp mới → cũ"] : kind === "number" ? ["Sắp xếp nhỏ → lớn", "Sắp xếp lớn → nhỏ"] : kind === "select" ? ["Sắp xếp theo thứ tự lựa chọn", "Sắp xếp ngược thứ tự lựa chọn"] : ["Sắp xếp A → Z", "Sắp xếp Z → A"];
@@ -668,6 +705,12 @@ function HeaderMenu({ col, canEdit, frozen, index, sole, onAction }: { col: Colu
       {isGroupable(col) && <button type="button" role="menuitem" className={item} onClick={() => onAction("group")}>Nhóm theo cột này</button>}
       <button type="button" role="menuitem" className={item} onClick={() => onAction(index + 1 === frozen ? "unfreeze" : "freeze")}>{index + 1 === frozen ? "Bỏ cố định" : "Cố định đến cột này"}</button>
       <button type="button" role="menuitem" className={item} disabled={sole} onClick={() => onAction("hide")}>Ẩn cột</button>
+      {inTemplate && (
+        <>
+          <div role="separator" className="my-1 h-px bg-border" />
+          <button type="button" role="menuitem" className={item} onClick={() => onAction("template")}>Sửa trong template…</button>
+        </>
+      )}
       {canEdit && (
         <>
           <div role="separator" className="my-1 h-px bg-border" />

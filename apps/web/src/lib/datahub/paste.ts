@@ -85,7 +85,7 @@ export function planPaste(o: {
     cells.forEach((text, dx) => {
       const col = o.columns[o.startCol + dx];
       if (!col) return;
-      if (readOnlyReason(col, o.level)) {
+      if (readOnlyReason(col, o.level, row)) {
         plan.skipped++;
         return;
       }
