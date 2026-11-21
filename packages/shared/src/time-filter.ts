@@ -19,11 +19,24 @@ export const TimeRangeSchema = z.discriminatedUnion("kind", [
 ]);
 export type TimeRange = z.infer<typeof TimeRangeSchema>;
 
-export const TimeFilterSchema = z.strictObject({
-  /** Date columns (key, name, or `_created_at` / `_updated_at`). A row matches when ANY of them falls in the range. */
-  columns: z.array(z.string().min(1).max(100)).min(1).max(10),
-  range: TimeRangeSchema,
-});
+/**
+ * Four readings of "a deal belongs to the period" (design module4 11a). Used by a table whose columns have the roles of the Deals set
+ * (`ngay_bat_dau`, `ngay_chot`, `ngay_du_kien_chot`, `trang_thai`); the rule is evaluated on the server (`timeFilterNode`), never by the web.
+ * - `related` (default of Quản lý Deal): Start date <= end of the period AND (the deal is open OR Closing date >= start of the period);
+ * - `received`: Start date in the period; `closed`: the deal is closed and Closing date is in the period;
+ * - `expected`: the deal is open and its expected closing date is in the period, or it has an unpaid instalment due in the period.
+ */
+export const DEAL_PERIOD_RULES = ["related", "received", "closed", "expected"] as const;
+export type DealPeriodRule = (typeof DEAL_PERIOD_RULES)[number];
+
+export const TimeFilterSchema = z
+  .strictObject({
+    /** Date columns (key, name, or `_created_at` / `_updated_at`). A row matches when ANY of them falls in the range. May be empty when `deal_rule` is given. */
+    columns: z.array(z.string().min(1).max(100)).max(10),
+    range: TimeRangeSchema,
+    deal_rule: z.enum(DEAL_PERIOD_RULES).optional(),
+  })
+  .refine((v) => v.columns.length > 0 || v.deal_rule !== undefined, { message: "Chọn ít nhất một cột ngày, hoặc một cách hiểu kỳ của deal.", path: ["columns"] });
 export type TimeFilter = z.infer<typeof TimeFilterSchema>;
 
 export interface DateRange {

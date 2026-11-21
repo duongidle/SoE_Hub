@@ -333,6 +333,8 @@ _Phần 4.1–4.5A. Mỗi bước con sau cập nhật phần của mình trong 
 
 - So sánh phiên bản chính sách com: query `commission.policy.diff` ở `apps/api/src/modules/deal/policy-diff.ts` `policyDiffOperations` (quyền `deal:policy:write`). Bảng `Chính sách com` có bộ vai trò `com_policy`, Deals có vai trò `nguon_lead`, `level_bc`, `performance_bc` (`apps/api/src/modules/datahub/column-roles.ts` `ROLE_SETS`).
 
+- Lọc "deal thuộc kỳ" (bốn cách hiểu, Module 4 mục 11a): tham số `deal_rule` của `time_filter` (`related` / `received` / `closed` / `expected`), kiểu `TimeFilterSchema` ở `packages/shared/src/time-filter.ts`, tính ở `apps/api/src/modules/datahub/time-filter.ts` `timeFilterNode` (cột tìm theo vai trò `ngay_bat_dau`, `ngay_chot`, `ngay_du_kien_chot`, `trang_thai`). `columns` được để `[]` khi có `deal_rule`. Dùng được ở `datahub.row.list`, nhóm, xuất file.
+
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.
 - Không đưa số chính sách com thật vào code, bộ mặc định hay test (bảng chính sách và tham số tạo rỗng; Manager điền).

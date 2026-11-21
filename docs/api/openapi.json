@@ -18742,7 +18742,6 @@
               "type": "object",
               "properties": {
                 "columns": {
-                  "minItems": 1,
                   "maxItems": 10,
                   "type": "array",
                   "items": {
@@ -18855,6 +18854,15 @@
                       ],
                       "additionalProperties": false
                     }
+                  ]
+                },
+                "deal_rule": {
+                  "type": "string",
+                  "enum": [
+                    "related",
+                    "received",
+                    "closed",
+                    "expected"
                   ]
                 }
               },
@@ -19492,7 +19500,6 @@
               "type": "object",
               "properties": {
                 "columns": {
-                  "minItems": 1,
                   "maxItems": 10,
                   "type": "array",
                   "items": {
@@ -19605,6 +19612,15 @@
                       ],
                       "additionalProperties": false
                     }
+                  ]
+                },
+                "deal_rule": {
+                  "type": "string",
+                  "enum": [
+                    "related",
+                    "received",
+                    "closed",
+                    "expected"
                   ]
                 }
               },
@@ -38179,7 +38195,6 @@
                     "type": "object",
                     "properties": {
                       "columns": {
-                        "minItems": 1,
                         "maxItems": 10,
                         "type": "array",
                         "items": {
@@ -38292,6 +38307,15 @@
                             ],
                             "additionalProperties": false
                           }
+                        ]
+                      },
+                      "deal_rule": {
+                        "type": "string",
+                        "enum": [
+                          "related",
+                          "received",
+                          "closed",
+                          "expected"
                         ]
                       }
                     },

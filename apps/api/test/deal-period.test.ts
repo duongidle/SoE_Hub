@@ -251,3 +251,35 @@ describe("commission.policy.diff", () => {
     for (const who of [leaderA, userA1, guest]) expect((await fails(who("commission.policy.diff", {}))).code).toBe("forbidden");
   });
 });
+
+describe("time filter: the four readings of a deal belonging to the period", () => {
+  it("related / received / closed / expected, evaluated on the server by role", async () => {
+    const mk = (extra: Record<string, unknown>) => newDeal({ "Start date": "2031-02-10", ...extra });
+    const a = await mk({ "Ngày dự kiến chốt": "2031-08-01" }); // received in Q1, open
+    const b = await mk({ "Start date": "2030-11-01", Status: "Lost", "Ngày đóng (sửa tay)": "2031-03-15" }); // closed in Q1
+    const c = await mk({ "Start date": "2031-05-01" }); // starts after the period
+    const d = await mk({ "Start date": "2029-01-01", "Ngày dự kiến chốt": "2031-02-20" }); // expected in Q1
+    const e = await mk({ "Start date": "2029-01-01" }); // an unpaid instalment due in Q1
+    await schedule(e, [{ amount: 1_000_000, due: "2031-02-25" }]);
+    const f = await mk({ "Start date": "2029-01-01", Status: "Lost", "Ngày đóng (sửa tay)": "2030-12-31" }); // closed before the period
+    await drainOutbox(t);
+    const q1 = { kind: "period", unit: "quarter", year: 2031, index: 1 };
+    const ids = async (deal_rule?: string) => {
+      const r = await mgrA("datahub.row.list", { table_id: tables["Deals"]!, time_filter: JSON.stringify({ columns: [], range: q1, ...(deal_rule ? { deal_rule } : {}) }), limit: 200 });
+      return (r.items as { id: string }[]).map((x) => x.id).sort();
+    };
+    // Deals of the earlier tests (started in 2026 and still open) also run in Q1 2031: only this test's deals are compared.
+    const lab: Record<string, string> = { [a]: "a", [b]: "b", [c]: "c", [d]: "d", [e]: "e", [f]: "f" };
+    const names = async (rule: string) => (await ids(rule)).filter((x) => lab[x]).map((x) => lab[x]).sort();
+    expect(await names("related")).toEqual(["a", "b", "d", "e"]);
+    expect(await names("received")).toEqual(["a"]);
+    expect(await names("closed")).toEqual(["b"]);
+    expect(await names("expected")).toEqual(["d", "e"]);
+    // without a rule and without columns the filter is refused
+    expect((await fails(mgrA("datahub.row.list", { table_id: tables["Deals"]!, time_filter: JSON.stringify({ columns: [], range: q1 }) }))).code).toMatch(/invalid_filter|validation_error/);
+    // the member's own view is narrowed the same way and never widened
+    const my = (await tplOf(userA1, "Deals")).my_table_id as string;
+    const mine = await userA1("datahub.row.list", { table_id: my, time_filter: JSON.stringify({ columns: [], range: q1, deal_rule: "closed" }), limit: 200 });
+    expect((mine.items as { id: string }[]).map((x) => x.id)).toEqual([b]);
+  });
+});
