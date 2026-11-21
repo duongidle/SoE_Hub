@@ -360,6 +360,10 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Forecast cho Leader: `deal/forecast.ts` `forecastScope` (quyền `deal:forecast:read`, Leader lọc theo `loadReader().ids` và `DealFact.people`). Test: `deal-period.test.ts`.
 - Dashboard Deals tự dựng cùng cây: `deal/default-dashboard.ts` `ensureDealDashboardForTree` (gọi cuối `ensureTreeTemplates`), `DEAL_DASHBOARD_CHARTS`, `DEAL_DASHBOARD_METRICS` (chỉ số cohort CR1/CR2).
 
+**Cycle và cohort chín (4.6B)**
+- Query `deal.cycle` (`apps/api/src/modules/deal/cycle.ts` `cycleOperations`): cycle Won 12 tháng theo loại deal (`cycleStats`, `waitDays` mặc định 90 ngày dưới 10 deal), ngày cắt `matureCutoff`. Mọi thành viên của cây đọc (chỉ số ngày). `DealFact.start` (`forecast.ts` `dealFacts`) là Start date. Biểu đồ cohort đánh dấu `options.mature_cohort` (`packages/metrics/src/chart.ts`); web tô nhạt tháng sau `mature_through`. Test: `apps/api/test/deal-cycle.test.ts`.
+- Tính lại cột theo người đọc: `apps/api/src/modules/datahub/recalc.ts` `recalcColumn` đọc danh mục của chủ (`OwnerIndex.load`) một lần rồi truyền cho `recalcFormula`/`recalcLink` của chủ và từng thành viên. Không gọi `OwnerIndex.load` trong vòng lặp người đọc.
+
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.
 - Không đưa số chính sách com thật vào code, bộ mặc định hay test (bảng chính sách và tham số tạo rỗng; Manager điền).

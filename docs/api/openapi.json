@@ -48894,6 +48894,9 @@
                     },
                     "ignore_cross": {
                       "type": "boolean"
+                    },
+                    "mature_cohort": {
+                      "type": "boolean"
                     }
                   },
                   "additionalProperties": false
@@ -55426,6 +55429,298 @@
                         "groups",
                         "by_type",
                         "deals"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deal/cycle": {
+      "get": {
+        "operationId": "deal.cycle",
+        "summary": "Cycle deal (trung vị, trung bình, P75, P90) và ngày cắt cohort đã chín theo mốc.",
+        "description": "Cycle = `Closing date` - `Start date` của deal Won trong 12 tháng gần nhất của cây, theo loại deal (làm tròn lên ngày). Dưới 10 deal Won thì dùng 90 ngày (`defaulted`). `milestone`: `median`, `mean`, `p75`, `p90` hoặc `none` (không chờ). `days` là số ngày chờ của mốc; `cutoff` = hôm nay - `days`; `mature_through` là ngày cuối của tháng cohort chín gần nhất (cohort là tháng nhận deal), `mature_month` là tháng đó. Biểu đồ cohort đặt khoảng thời gian tới `mature_through` và tô nhạt các tháng sau. Mọi thành viên của cây đọc được (chỉ có số ngày, không có deal hay tiền). Không đưa `deal_type` thì tính chung mọi loại.",
+        "tags": [
+          "deal"
+        ],
+        "x-command-name": "deal.cycle",
+        "x-ai-allowed": true,
+        "x-permission": "deal:deal:read",
+        "parameters": [
+          {
+            "name": "milestone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": "median",
+              "type": "string",
+              "enum": [
+                "median",
+                "mean",
+                "p75",
+                "p90",
+                "none"
+              ]
+            }
+          },
+          {
+            "name": "deal_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "milestone": {
+                          "type": "string",
+                          "enum": [
+                            "median",
+                            "mean",
+                            "p75",
+                            "p90",
+                            "none"
+                          ]
+                        },
+                        "deal_type": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "today": {
+                          "type": "string"
+                        },
+                        "won_count": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "stats": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "median": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "mean": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "p75": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "p90": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "median",
+                                "mean",
+                                "p75",
+                                "p90"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "days": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "defaulted": {
+                          "type": "boolean"
+                        },
+                        "cutoff": {
+                          "type": "string"
+                        },
+                        "mature_through": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "mature_month": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "by_type": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "won_count": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "stats": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "median": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "mean": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "p75": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "p90": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "median",
+                                      "mean",
+                                      "p75",
+                                      "p90"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "days": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "defaulted": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "won_count",
+                              "stats",
+                              "days",
+                              "defaulted"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "milestone",
+                        "deal_type",
+                        "today",
+                        "won_count",
+                        "stats",
+                        "days",
+                        "defaulted",
+                        "cutoff",
+                        "mature_through",
+                        "mature_month",
+                        "by_type"
                       ],
                       "additionalProperties": false
                     }

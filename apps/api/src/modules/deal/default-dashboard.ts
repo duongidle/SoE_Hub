@@ -39,8 +39,8 @@ export const DEAL_DASHBOARD_CHARTS: Record<string, unknown>[] = [
     options: { format: "money" },
   },
   // CR1 and CR2 by cohort (module4 10.1-10.2): deals grouped by the month they were received, counted whenever they closed. Derived (formula) over the saved metrics below.
-  { type: "line", title: "CR1 theo cohort (tháng nhận)", series: [{ metric: { name: "CR1 cohort", formula: "=[Cohort gặp khách]/[Cohort nhận]", format: "percent", time: { bucket: "month" } } }], options: { format: "percent" } },
-  { type: "line", title: "CR2 (Winrate) theo cohort (tháng nhận)", series: [{ metric: { name: "CR2 cohort", formula: "=[Cohort Won]/[Cohort gặp khách]", format: "percent", time: { bucket: "month" } } }], options: { format: "percent" } },
+  { type: "line", title: "CR1 theo cohort (tháng nhận)", series: [{ metric: { name: "CR1 cohort", formula: "=[Cohort gặp khách]/[Cohort nhận]", format: "percent", time: { bucket: "month" } } }], options: { format: "percent", mature_cohort: true } },
+  { type: "line", title: "CR2 (Winrate) theo cohort (tháng nhận)", series: [{ metric: { name: "CR2 cohort", formula: "=[Cohort Won]/[Cohort gặp khách]", format: "percent", time: { bucket: "month" } } }], options: { format: "percent", mature_cohort: true } },
   { type: "bar", title: "Doanh thu theo loại deal", series: [{ metric: sum("role:doanh_thu_duoc_tinh"), group_by: ["role:loai_deal"] }], options: { format: "compact" } },
 ];
 

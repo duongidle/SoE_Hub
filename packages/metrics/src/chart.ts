@@ -84,6 +84,8 @@ export const ChartOptionsSchema = z.strictObject({
   /** Dashboard filters (3C-2): this chart ignores the common filter bar, or the filters made by clicking other charts. */
   ignore_filters: z.boolean().optional(),
   ignore_cross: z.boolean().optional(),
+  /** Cohort chart of deals (design module4 10.2): the page marks the months after the "mature" cut-off of `deal.cycle` (pale, "tạm tính") and may cut the range at it. */
+  mature_cohort: z.boolean().optional(),
 });
 export type ChartOptions = z.output<typeof ChartOptionsSchema>;
 

@@ -9,5 +9,6 @@ export { DEAL_SETTINGS, startDealDefaultsLoop, ensureAllTrees, ensureMissingTabl
 export { paymentOperations } from "./payments";
 export { periodOperations } from "./period";
 export { forecastOperations, snapshotAllTrees, snapshotTree, quarterOf } from "./forecast";
+export { cycleOperations } from "./cycle";
 export { policyDiffOperations } from "./policy-diff";
 export { ensureDealDashboard, ensureDealDashboardForTree, DEAL_DASHBOARD_NAME, DEAL_DASHBOARD_CHARTS, DEAL_DASHBOARD_METRICS } from "./default-dashboard";

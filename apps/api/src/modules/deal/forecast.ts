@@ -48,6 +48,8 @@ export interface DealFact {
   type: string;
   meaning: string;
   expectedClose: string | null;
+  /** `Start date` (role `ngay_bat_dau`): the day the deal was received. */
+  start: string | null;
   closing: string | null;
   revenue: number;
   /** Instalments not yet paid: planned amount and due date. */
@@ -65,7 +67,7 @@ export async function dealFacts(db: Executor, managerId: string): Promise<DealFa
   const dots = await roleTable(db, managerId, "payments");
   if (!deals) return [];
   const k = (role: string) => deals.key(role);
-  const [kType, kStatus, kName, kExp, kClose, kRev] = ["loai_deal", "trang_thai", "ten_cong_ty", "ngay_du_kien_chot", "ngay_chot", "doanh_thu"].map(k);
+  const [kType, kStatus, kName, kExp, kClose, kRev, kStart] = ["loai_deal", "trang_thai", "ten_cong_ty", "ngay_du_kien_chot", "ngay_chot", "doanh_thu", "ngay_bat_dau"].map(k);
   const types = deals.options("loai_deal");
   const statuses = deals.options("trang_thai");
   const rows = (await db.execute(sql`SELECT id, data FROM dh_rows WHERE /*scope:system*/ table_id = ${deals.tableId}::uuid AND deleted_at IS NULL`)).rows as { id: string; data: Record<string, unknown> }[];
@@ -100,6 +102,7 @@ export async function dealFacts(db: Executor, managerId: string): Promise<DealFa
     type: (kType && types.get(String(r.data[kType]))?.name) || "Khác",
     meaning: (kStatus && statuses.get(String(r.data[kStatus]))?.meaning) || "open",
     expectedClose: kExp ? dateOf(r.data[kExp]) : null,
+    start: kStart ? dateOf(r.data[kStart]) : null,
     closing: kClose ? dateOf(r.data[kClose]) : null,
     revenue: kRev ? numOf(r.data[kRev]) : 0,
     openDots: byDeal.get(r.id) ?? [],

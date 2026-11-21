@@ -1,0 +1,25 @@
+meta {
+  name: deal.cycle
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deal/cycle
+  body: none
+  auth: none
+}
+
+params:query {
+  ~milestone: median
+  ~deal_type: deal_type
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Cycle deal (trung vị, trung bình, P75, P90) và ngày cắt cohort đã chín theo mốc.
+  Quyền: `deal:deal:read`.
+}
