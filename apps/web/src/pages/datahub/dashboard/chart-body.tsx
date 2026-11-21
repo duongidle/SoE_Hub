@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
 import { cartesianPicks, pickOf, toCartesian, toPivot, toSlices, type SeriesInput } from "@/lib/dashboard/chart-data";
 import { chartKey, runChartData, type ChartRef } from "@/lib/dashboard/api";
-import { cartesianOption, pieOption, sparklineOption } from "@/lib/dashboard/echart-options";
+import { cartesianOption, immatureCategories, pieOption, sparklineOption } from "@/lib/dashboard/echart-options";
 import { boxplotOption, bulletOption, cohortOption, funnelOption, gaugeOption, heatmapOption, histogramOption, QUADRANT_LABEL, rankingOption, scatterOption, waterfallOption } from "@/lib/dashboard/echart-more";
 import { formatValue } from "@/lib/dashboard/format";
 import type { ChartDataResult, ChartDef, FormatName, PickInfo, QueryResult, SeriesDef, ViewFilters } from "@/lib/dashboard/types";
@@ -69,20 +69,22 @@ export interface ChartBodyProps {
   exportRef?: { current: ChartExport | null };
   /** KPI card: the number opens the rows behind it. */
   onOpenRows?: () => void;
+  /** Cohort chart of deals (`options.mature_cohort`): the last day of the last mature month; later months are drawn pale. */
+  matureThrough?: string | null;
 }
 
-export function ChartBody({ chart, datahubId, chartId, version, filters, onPick, exportRef, onOpenRows }: ChartBodyProps) {
+export function ChartBody({ chart, datahubId, chartId, version, filters, onPick, exportRef, onOpenRows, matureThrough }: ChartBodyProps) {
   const q = useChartData(chart, { datahubId, chartId, version, filters });
   if (chart.type === "note") return <p className="contain-scroll h-full overflow-auto whitespace-pre-wrap px-1 text-sm [overflow-wrap:anywhere]">{chart.text?.trim() || "Ô ghi chú trống."}</p>;
   if (!chart.series.length) return <ChartMessage title="Chưa chọn số liệu" hint="Mở cấu hình để chọn bảng, cột và cách tính." />;
   if (q.isError && !q.data) return errorView(q.error);
   if (q.isPending || !q.data) return <Skeleton className="h-full w-full" aria-busy="true" aria-label="Đang tải biểu đồ" />;
-  return <Loaded chart={chart} data={q.data} onPick={onPick} exportRef={exportRef} onOpenRows={onOpenRows} />;
+  return <Loaded chart={chart} data={q.data} onPick={onPick} exportRef={exportRef} onOpenRows={onOpenRows} matureThrough={chart.options?.mature_cohort ? matureThrough : null} />;
 }
 
 const EMPTY = <ChartMessage title="Chưa có dữ liệu" hint="Không có dòng nào khớp bộ lọc và khoảng thời gian của biểu đồ này." />;
 
-function Loaded({ chart, data, onPick, exportRef, onOpenRows }: { chart: ChartDef; data: ChartDataResult; onPick?: (pick: PickInfo) => void; exportRef?: { current: ChartExport | null }; onOpenRows?: () => void }) {
+function Loaded({ chart, data, onPick, exportRef, onOpenRows, matureThrough }: { chart: ChartDef; data: ChartDataResult; onPick?: (pick: PickInfo) => void; exportRef?: { current: ChartExport | null }; onOpenRows?: () => void; matureThrough?: string | null }) {
   const o = chart.options ?? {};
   const results = data.series;
   const first = results[0];
@@ -272,11 +274,13 @@ function Loaded({ chart, data, onPick, exportRef, onOpenRows }: { chart: ChartDe
       if (!cart.categories.length || empty) return EMPTY;
       const compare = cart.series.map((_, i) => !!chart.series[Math.min(i, chart.series.length - 1)]?.compare && chart.series.length === cart.series.length);
       const picks = cartesianPicks(inputs, cart);
+      const nPale = immatureCategories(picks, cart.categories.length, matureThrough).filter(Boolean).length;
       return wrap(
         <>
-          {canvas(cartesianOption({ chart, data: cart, format, compare, picks }), `${title}: ${cart.series.length} chuỗi, ${cart.categories.length} nhóm`)}
+          {canvas(cartesianOption({ chart, data: cart, format, compare, picks, matureThrough }), `${title}: ${cart.series.length} chuỗi, ${cart.categories.length} nhóm`)}
           <A11yTable caption={title} head={["Nhóm", ...cart.series.map((s) => s.name)]} rows={cart.categories.map((c, k) => [c, ...cart.series.map((s) => formatValue(s.data[k] ?? null, format === "compact" ? "number" : format))])} />
         </>,
+        nPale > 0 ? `${nPale} tháng cuối là tạm tính: cohort chưa chín, còn deal đang mở.` : null,
       );
     }
   }

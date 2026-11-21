@@ -28,9 +28,20 @@ export interface CartesianArgs {
   compare: boolean[];
   /** Per series and category: where a click lands (for cross filtering). */
   picks?: (PickInfo | undefined)[][];
+  /** Cohort charts of deals: the last day of the last mature month (from `deal.cycle`); the categories after it are drawn pale and called "tạm tính". */
+  matureThrough?: string | null;
 }
 
-export function cartesianOption({ chart, data, format, compare, picks }: CartesianArgs): Record<string, unknown> {
+/** Which categories start after the cut-off: the date of each group comes from the server (the group value), nothing is computed from the numbers. */
+export function immatureCategories(picks: CartesianArgs["picks"], count: number, through: string | null | undefined): boolean[] {
+  if (!through) return [];
+  return Array.from({ length: count }, (_, k) => {
+    const v = picks?.[0]?.[k]?.groups?.[0]?.value;
+    return typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v) && v.slice(0, 10) > through;
+  });
+}
+
+export function cartesianOption({ chart, data, format, compare, picks, matureThrough }: CartesianArgs): Record<string, unknown> {
   const t = base();
   const o = chart.options ?? {};
   const horizontal = chart.type === "bar";
@@ -40,6 +51,8 @@ export function cartesianOption({ chart, data, format, compare, picks }: Cartesi
   const rightAxis = chart.type === "combo" && data.series.some((s) => s.axis === "right");
   const showLegend = o.legend ?? (data.series.length > 1 || compare.some(Boolean));
 
+  const pale = immatureCategories(picks, data.categories.length, matureThrough);
+  const firstPale = pale.indexOf(true);
   const series: Record<string, unknown>[] = [];
   const colors: string[] = [];
   data.series.forEach((s, i) => {
@@ -54,7 +67,10 @@ export function cartesianOption({ chart, data, format, compare, picks }: Cartesi
       ...(chart.type === "combo" ? { yAxisIndex: s.axis === "right" ? 1 : 0 } : {}),
       ...(stackName ? { stack: stackName } : {}),
       ...(isLine ? { smooth: !!o.smooth, symbolSize: 6, ...(chart.type === "area" ? { areaStyle: { opacity: 0.25 } } : {}) } : { barMaxWidth: 40 }),
-      data: values.map((v, k) => (v === null ? null : { value: v, real: real(k), pick: picks?.[i]?.[k] })),
+      data: values.map((v, k) => (v === null ? null : { value: v, real: real(k), pick: picks?.[i]?.[k], ...(pale[k] ? { itemStyle: { color, opacity: 0.35 } } : {}) })),
+      ...(i === 0 && firstPale >= 0 && !horizontal
+        ? { markArea: { silent: true, itemStyle: { color: t.muted, opacity: 0.12 }, label: { show: true, position: "insideTop", color: t.muted, fontSize: 11 }, data: [[{ name: "Tạm tính, chưa chín", xAxis: data.categories[firstPale] }, { xAxis: data.categories[data.categories.length - 1] }]] } }
+        : {}),
       itemStyle: { color },
       lineStyle: { color, width: 2 },
       label: { show: !!o.labels, position: horizontal ? "right" : stackName ? "inside" : "top", color: t.text, fontSize: 11, formatter: (p: { data?: { real?: number | null } }) => formatValue(p.data?.real ?? null, format === "percent" ? "percent" : "compact") },
@@ -113,8 +129,9 @@ export function cartesianOption({ chart, data, format, compare, picks }: Cartesi
       confine: true,
       axisPointer: { type: horizontal ? "shadow" : "line" },
       formatter: (params: unknown) => {
-        const list = (Array.isArray(params) ? params : [params]) as { axisValueLabel?: string; marker?: string; seriesName?: string; data?: { real?: number | null } | null }[];
-        const head = `<div style="font-weight:600;margin-bottom:4px">${escapeHtml(String(list[0]?.axisValueLabel ?? ""))}</div>`;
+        const list = (Array.isArray(params) ? params : [params]) as { axisValueLabel?: string; dataIndex?: number; marker?: string; seriesName?: string; data?: { real?: number | null } | null }[];
+        const tentative = pale[list[0]?.dataIndex ?? -1] ? " (tạm tính, chưa chín)" : "";
+        const head = `<div style="font-weight:600;margin-bottom:4px">${escapeHtml(String(list[0]?.axisValueLabel ?? "") + tentative)}</div>`;
         return head + list.map((p) => `<div>${p.marker ?? ""} ${escapeHtml(String(p.seriesName ?? ""))}: <b>${escapeHtml(formatValue(p.data?.real ?? null, format === "compact" ? "number" : format))}</b></div>`).join("");
       },
     },

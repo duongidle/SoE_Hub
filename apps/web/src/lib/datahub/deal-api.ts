@@ -77,3 +77,35 @@ export const changeTemplateColumnType = (id: string, key: string, type: string, 
   api<{ column: Column; report: ConversionReport }>("POST", `${tc(id, key)}/type`, { type, config, accept_data_loss: acceptDataLoss });
 export const deleteTemplateColumn = (id: string, key: string) => api("DELETE", tc(id, key));
 export const restoreTemplateColumn = (id: string, key: string) => api<Column>("POST", `${tc(id, key)}/restore`, {});
+
+// ---- cycle and forecast (the numbers are the server's: `deal.cycle`, `deal.forecast`) ------------------------------------------
+
+export const CYCLE_MILESTONES = [
+  { value: "median", label: "Trung vị" },
+  { value: "mean", label: "Trung bình" },
+  { value: "p75", label: "P75" },
+  { value: "p90", label: "P90" },
+  { value: "none", label: "Không chờ" },
+] as const;
+export type CycleMilestone = (typeof CYCLE_MILESTONES)[number]["value"];
+export interface DealCycle {
+  milestone: CycleMilestone;
+  today: string;
+  won_count: number;
+  stats: { median: number; mean: number; p75: number; p90: number } | null;
+  days: number;
+  defaulted: boolean;
+  cutoff: string;
+  mature_through: string | null;
+  mature_month: string | null;
+}
+export interface DealForecast {
+  from: string;
+  to: string;
+  signed: number;
+  unsigned: number;
+  by_type: { type: string; signed: number; unsigned: number }[];
+}
+export const dealCycleKeys = { cycle: (m: string) => ["deal-cycle", m] as const, forecast: (from: string, to: string) => ["deal-forecast", from, to] as const };
+export const getCycle = (milestone: CycleMilestone) => api<DealCycle>("GET", `/deal/cycle${qs({ milestone })}`);
+export const getForecast = (from: string, to: string) => api<DealForecast>("GET", `/deal/forecast${qs({ from, to })}`);

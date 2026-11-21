@@ -49,6 +49,8 @@ export interface SeriesDef {
 }
 
 export interface ChartOptions {
+  /** Cohort chart of deals: months after the "mature" cut-off are drawn pale (module4 10.2). */
+  mature_cohort?: boolean;
   stack?: "none" | "stack" | "percent";
   labels?: boolean;
   legend?: boolean;

@@ -93,7 +93,15 @@ function CardMenu({ record, index, datahubId, filters, pick, owner, onEdit, onDu
  * One dashboard: the grid of charts, the common filters, cross filtering, the rows behind a number, and (for the owner) editing.
  * `mode = "viewer"` is for a person it was shared with, or a Guest: the same page without any editing.
  */
-export function DashboardView({ dh, dashboardId, mode = "owner" }: { dh?: DatahubBrief; dashboardId: string; mode?: "owner" | "viewer" }) {
+export function DashboardView({ dh, dashboardId, mode = "owner", period, mature }: {
+  dh?: DatahubBrief;
+  dashboardId: string;
+  mode?: "owner" | "viewer";
+  /** Quản lý Deal: the shared period replaces the date range of the filter bar (module4 11a). `from`/`to` are the dates the server resolved for it. */
+  period?: { range: unknown; from: string | null; to: string | null } | null;
+  /** Cohort charts of deals (`options.mature_cohort`): months after `through` are drawn pale; with `cut` the range stops at `through`. */
+  mature?: { through: string | null; cut: boolean } | null;
+}) {
   const qc = useQueryClient();
   const owner = mode === "owner";
   const q = useQuery({ queryKey: owner ? dashKeys.one(dashboardId) : ["mt-dashboard-view", dashboardId], queryFn: () => (owner ? getDashboard(dashboardId) : viewDashboard(dashboardId)) });
@@ -148,7 +156,17 @@ export function DashboardView({ dh, dashboardId, mode = "owner" }: { dh?: Datahu
   });
 
   const cross = useMemo(() => Object.entries(picks).flatMap(([chartId, p]) => crossFiltersOf(p, chartId)), [picks]);
-  const viewFilters: ViewFilters = useMemo(() => ({ ...(filters?.range ? { range: filters.range } : {}), ...(filters?.conditions?.length ? { conditions: filters.conditions } : {}), ...(cross.length ? { cross } : {}) }), [filters, cross]);
+  const range = period?.range ?? filters?.range;
+  const viewFilters: ViewFilters = useMemo(() => ({ ...(range ? { range } : {}), ...(filters?.conditions?.length ? { conditions: filters.conditions } : {}), ...(cross.length ? { cross } : {}) }), [filters, cross, range]);
+  // A cohort chart that cuts at the mature month: the range of the period, ended at the cut-off the server gave (dates only compared, nothing computed).
+  const filtersFor = useCallback(
+    (chart: ChartRecord["chart"]): ViewFilters => {
+      if (!mature?.cut || !mature.through || !chart.options?.mature_cohort) return viewFilters;
+      const to = period?.to && period.to < mature.through ? period.to : mature.through;
+      return { ...viewFilters, range: { kind: "between", ...(period?.from ? { from: period.from } : {}), to } };
+    },
+    [viewFilters, mature, period],
+  );
   const pickChart = useCallback((chartId: string) => (pick: PickInfo) => {
     setPicks((p) => {
       const cur = p[chartId];
@@ -251,7 +269,7 @@ export function DashboardView({ dh, dashboardId, mode = "owner" }: { dh?: Datahu
             record={r}
             index={i}
             datahubId={datahubId}
-            filters={viewFilters}
+            filters={filtersFor(r.chart)}
             pick={picks[r.id]}
             owner={owner}
             exportRef={refOf(r.id)}
@@ -268,14 +286,15 @@ export function DashboardView({ dh, dashboardId, mode = "owner" }: { dh?: Datahu
             datahubId={datahubId}
             chartId={r.id}
             version={r.version}
-            filters={viewFilters}
+            filters={filtersFor(r.chart)}
+            matureThrough={mature?.through ?? null}
             onPick={r.chart.options?.ignore_cross === true ? undefined : pickChart(r.id)}
             exportRef={refOf(r.id)}
             onOpenRows={() => setRows({ chartId: r.id, title: chartTitle(r.chart, i), series: 0, group: [] })}
           />
         ),
       })),
-    [q.data, datahubId, viewFilters, picks, owner, dup, pickChart],
+    [q.data, datahubId, filtersFor, mature, picks, owner, dup, pickChart],
   );
 
   if (q.isLoading) return <Skeleton className="h-64 w-full" aria-busy="true" aria-label="Đang tải dashboard" />;
@@ -310,6 +329,7 @@ export function DashboardView({ dh, dashboardId, mode = "owner" }: { dh?: Datahu
           onReset={() => reset.mutate()}
           onSaveDefault={owner ? () => saveDefault.mutate() : undefined}
           exactText={!owner}
+          rangeLocked={!!period}
           picks={pickList}
           onClearPick={(id) => setPicks((p) => { const { [id]: _g, ...rest } = p; void _g; return rest; })}
           onClearPicks={() => setPicks({})}

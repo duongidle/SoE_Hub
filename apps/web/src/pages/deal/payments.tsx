@@ -100,23 +100,33 @@ export function PaymentsPage() {
 type DotView = "pending" | "month" | "ai";
 const DOT_VIEWS: { value: DotView; label: string }[] = [
   { value: "pending", label: "Chờ tiền về" },
-  { value: "month", label: "Đã về tháng này" },
+  { value: "month", label: "Đã về trong kỳ" },
   { value: "ai", label: "Do AI nhập chưa kiểm" },
 ];
+
+/** The period of "Đã về trong kỳ": the Manager may open last month to cancel a confirmation of a month that is not closed yet (module4 12). */
+const DOT_PERIODS = [
+  { value: "this_month", label: "Tháng này" },
+  { value: "last_month", label: "Tháng trước" },
+  { value: "this_quarter", label: "Quý này" },
+  { value: "last_quarter", label: "Quý trước" },
+] as const;
+type DotPeriod = (typeof DOT_PERIODS)[number]["value"];
 
 function InstalmentsTab({ manager }: { manager: boolean }) {
   const qc = useQueryClient();
   const { dots, deals } = usePaymentTables();
   const s = useSchema(dots?.id);
   const [view, setView] = useState<DotView>("pending");
+  const [period, setPeriod] = useState<DotPeriod>("this_month");
   const [scheduling, setScheduling] = useState(false);
   const [undo, setUndo] = useState<Row | null>(null);
   const ngay = s.key("ngay_tien_ve");
   const rowsQ = useQuery({
-    queryKey: ["pay-rows", dots?.id, view],
+    queryKey: ["pay-rows", dots?.id, view, period],
     enabled: !!dots && !!s.table,
     queryFn: async () => {
-      const filter = view === "pending" ? { field: ngay, op: "is_empty" } : view === "month" ? { field: ngay, op: "this_month" } : undefined;
+      const filter = view === "pending" ? { field: ngay, op: "is_empty" } : view === "month" ? { field: ngay, op: period } : undefined;
       return (await fetchRows(dots!.id, { filter, limit: 500 })).data;
     },
   });
@@ -146,6 +156,11 @@ function InstalmentsTab({ manager }: { manager: boolean }) {
             </button>
           ))}
         </div>
+        {view === "month" && (
+          <Select aria-label="Kỳ của các đợt đã về" data-testid="dot-period" className="!w-auto" value={period} onChange={(e) => setPeriod(e.target.value as DotPeriod)}>
+            {DOT_PERIODS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </Select>
+        )}
         {manager && deals && (
           <Button className="ml-auto" data-testid="open-schedule" onClick={() => setScheduling(true)}>
             <Plus size={16} aria-hidden /> Lập lịch cho deal
@@ -157,7 +172,7 @@ function InstalmentsTab({ manager }: { manager: boolean }) {
       ) : rowsQ.error ? (
         <ErrorState error={rowsQ.error} onRetry={() => void rowsQ.refetch()} title="Không tải được các đợt" />
       ) : rows.length === 0 ? (
-        <EmptyState title="Không có đợt nào" hint={view === "pending" ? "Chưa có đợt nào đang chờ tiền về." : view === "month" ? "Tháng này chưa có đợt nào về." : "Không có đợt nào do AI nhập mà chưa kiểm."} />
+        <EmptyState title="Không có đợt nào" hint={view === "pending" ? "Chưa có đợt nào đang chờ tiền về." : view === "month" ? "Kỳ này chưa có đợt nào về." : "Không có đợt nào do AI nhập mà chưa kiểm."} />
       ) : (
         <Table>
           <thead>

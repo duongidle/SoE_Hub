@@ -15,24 +15,28 @@ import { TableNameDialog } from "../datahub/detail";
 import { TableView } from "../datahub/table-view";
 import { SharedPeriodContext, useSharedPeriodState } from "@/lib/datahub/deal-view";
 import { SharedPeriodBar } from "./period-bar";
+import { DealDashboard } from "./dashboard";
 
 /** `/quan-ly-deal/:tableId`: the tables of the menu Quản lý Deal (template tables first, then your own) and the open one. Module 4 mục 1.1, 16. */
-export function DealHomePage() {
+export function DealHomePage({ dashboard = false }: { dashboard?: boolean } = {}) {
   const { tableId } = useParams({ strict: false }) as { tableId?: string };
   const nav = useNavigate();
   const q = useQuery({ queryKey: dealKeys.home, queryFn: getDealHome });
   const home = q.data;
 
   useEffect(() => {
-    if (home && !tableId && home.tables[0]) void nav({ to: "/quan-ly-deal/$tableId", params: { tableId: home.tables[0].id }, replace: true });
-  }, [home, tableId, nav]);
+    if (home && !dashboard && !tableId && home.tables[0]) void nav({ to: "/quan-ly-deal/$tableId", params: { tableId: home.tables[0].id }, replace: true });
+  }, [home, tableId, nav, dashboard]);
 
   if (q.isLoading) return <div className="flex flex-col gap-3" aria-busy="true" aria-label="Đang tải"><Skeleton className="h-8 w-64" /><Skeleton className="h-9 w-full max-w-xl" /><Skeleton className="h-64 w-full" /></div>;
   if (q.error || !home) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được Quản lý Deal" />;
-  return <DealBody home={home} tableId={tableId} />;
+  return <DealBody home={home} tableId={tableId} dashboard={dashboard} />;
 }
 
-function DealBody({ home, tableId }: { home: { datahub_id: string | null; tables: DealTable[] }; tableId?: string }) {
+/** `/quan-ly-deal/dashboard`: the default Deals dashboard in the menu of Quản lý Deal. */
+export const DealDashboardPage = () => <DealHomePage dashboard />;
+
+function DealBody({ home, tableId, dashboard }: { home: { datahub_id: string | null; tables: DealTable[] }; tableId?: string; dashboard: boolean }) {
   const meQ = useMe();
   const me = meQ.data;
   const current = home.tables.find((t) => t.id === tableId);
@@ -66,9 +70,11 @@ function DealBody({ home, tableId }: { home: { datahub_id: string | null; tables
           )}
         </div>
       </div>
-      <SharedPeriodBar state={period} showRule={current?.role_set === "deals"} />
-      <DealTabs home={home} currentId={tableId} />
-      {home.tables.length === 0 ? (
+      <SharedPeriodBar state={period} showRule={!dashboard && current?.role_set === "deals"} />
+      <DealTabs home={home} currentId={dashboard ? undefined : tableId} dashboard={dashboard} />
+      {dashboard ? (
+        period.loading ? <Skeleton className="h-64 w-full" /> : <DealDashboard home={home} period={period} />
+      ) : home.tables.length === 0 ? (
         <EmptyState title="Chưa có bảng nào" hint="Bảng mặc định (Deals, Index...) do Manager của cây dựng ở trang Template. Bạn vẫn tạo được bảng riêng của mình." />
       ) : !current ? (
         tableId ? <NoAccessState title="Không mở được bảng" hint="Bảng này không tồn tại, đã bị lưu trữ, hoặc không còn trong phạm vi của bạn." /> : <Skeleton className="h-64 w-full" />
@@ -101,7 +107,7 @@ function LeaderEditToggle() {
   );
 }
 
-function DealTabs({ home, currentId }: { home: { datahub_id: string | null; tables: DealTable[] }; currentId?: string }) {
+function DealTabs({ home, currentId, dashboard }: { home: { datahub_id: string | null; tables: DealTable[] }; currentId?: string; dashboard: boolean }) {
   const qc = useQueryClient();
   const nav = useNavigate();
   const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "rename"; t: DealTable } | { kind: "delete"; t: DealTable } | null>(null);
@@ -118,6 +124,13 @@ function DealTabs({ home, currentId }: { home: { datahub_id: string | null; tabl
   return (
     <>
       <div role="tablist" aria-label="Các bảng Quản lý Deal" className="flex items-center gap-1 overflow-x-auto border-b border-border">
+        {home.tables.some((t) => t.role_set === "deals") && (
+          <div className={cn("flex shrink-0 items-center border-b-2", dashboard ? "border-primary" : "border-transparent")}>
+            <Link to="/quan-ly-deal/dashboard" role="tab" aria-selected={dashboard} data-testid="deal-dashboard-tab" className={cn("px-3 py-3 text-sm sm:py-2", dashboard ? "font-medium" : "text-muted-foreground hover:text-foreground")}>
+              Dashboard
+            </Link>
+          </div>
+        )}
         {home.tables.map((t) => {
           const on = t.id === currentId;
           const mine = t.template_id === null;

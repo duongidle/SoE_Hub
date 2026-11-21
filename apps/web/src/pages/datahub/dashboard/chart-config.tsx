@@ -9,6 +9,7 @@ import { AGG_LABELS, BUCKET_LABELS, FORMAT_LABELS, MAX_SERIES_PER_CHART, RANGES,
 import { bottom, defaultSizeOf } from "@/lib/dashboard/layout";
 import { CHART_TYPES, type Agg, type Bucket, type ChartDef, type ChartRecord, type ChartType, type SavedMetric, type SavedSource, type SeriesDef } from "@/lib/dashboard/types";
 import { dhKeys, getTable } from "@/lib/datahub/api";
+import { dealKeys, getDealHome } from "@/lib/datahub/deal-api";
 import type { Column, DatahubBrief } from "@/lib/datahub/types";
 import { FilterEditor } from "../filter-editor";
 import { ChartBody } from "./chart-body";
@@ -27,7 +28,8 @@ function useDebounced<T>(value: T, ms: number): T {
 /** Columns a series can use: of its base table and, with a saved source, of the joined tables (`Alias.Column`). */
 interface Cols {
   base: Column[];
-  all: { name: string; col: Column }[];
+  /** Columns by name, then (for a table whose columns have roles) the roles as `role:<key>` (module4 13). */
+  all: { name: string; col: Column; role?: string }[];
   loading: boolean;
 }
 
@@ -41,11 +43,28 @@ function useSourceColumns(dh: DatahubBrief, sources: SavedSource[], sel: string 
   const qs = useQueries({ queries: ids.map((id) => ({ queryKey: dhKeys.table(id), queryFn: () => getTable(id), staleTime: 60_000 })) });
   const detail = (id?: string) => qs.find((q) => q.data?.id === id)?.data;
   const baseCols = detail(base?.id)?.columns ?? [];
-  const all = [
+  const all: Cols["all"] = [
     ...baseCols.map((c) => ({ name: c.name, col: c })),
+    ...baseCols.filter((c) => !!c.role).map((c) => ({ name: `role:${c.role}`, col: c, role: c.name })),
     ...joins.flatMap((j) => (detail(j.table?.id)?.columns ?? []).map((c) => ({ name: `${j.alias}.${c.name}`, col: c }))),
   ];
   return { base: baseCols, all, loading: qs.some((q) => q.isPending) };
+}
+
+/** `Vai trò` first (the metric follows the column when the Manager moves the role), then the columns. */
+function colOptions(list: Cols["all"]) {
+  const roles = list.filter((c) => c.role !== undefined);
+  const cols = list.filter((c) => c.role === undefined);
+  return (
+    <>
+      {roles.length > 0 && (
+        <optgroup label="Vai trò">
+          {roles.map((c) => <option key={c.name} value={c.name}>{`${c.name.slice(5).replace(/_/g, " ")} → cột "${c.role}"`}</option>)}
+        </optgroup>
+      )}
+      {roles.length > 0 ? <optgroup label="Cột">{cols.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}</optgroup> : cols.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+    </>
+  );
 }
 
 function SaveAsDialog({ title, hint, initial, busy, error, onSave, onClose }: { title: string; hint: string; initial: string; busy: boolean; error: unknown; onSave: (name: string) => void; onClose: () => void }) {
@@ -148,6 +167,9 @@ function SeriesEditor({ dh, chart, index, series: s, metrics, sources, onChange,
   const cols = useSourceColumns(dh, sources, sel);
   const [dialog, setDialog] = useState<"metric" | "source" | null>(null);
   const tables = dh.tables;
+  // The template tables of Quản lý Deal are their own group in the list of sources (module4 13).
+  const dealHome = useQuery({ queryKey: dealKeys.home, queryFn: getDealHome, staleTime: 60_000 });
+  const dealTableIds = new Set((dealHome.data?.tables ?? []).filter((x) => x.template_id !== null).map((x) => x.id));
 
   const patchMetric = (p: Partial<NonNullable<SeriesDef["metric"]>>) => {
     const next = { ...(s.metric ?? { name: "Biểu đồ" }), ...p };
@@ -214,8 +236,13 @@ function SeriesEditor({ dh, chart, index, series: s, metrics, sources, onChange,
           <Field label="Nguồn dữ liệu" required>
             <Select value={sel ?? ""} onChange={(e) => patchMetric({ source: e.target.value || undefined, measure: undefined, filter: undefined, group_by: undefined, time: undefined })}>
               <option value="">Chọn bảng…</option>
+              {tables.some((t) => dealTableIds.has(t.id)) && (
+                <optgroup label="Quản lý Deal">
+                  {tables.filter((t) => dealTableIds.has(t.id)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </optgroup>
+              )}
               <optgroup label="Bảng">
-                {tables.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {tables.filter((t) => !dealTableIds.has(t.id)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </optgroup>
               {sources.length > 0 && (
                 <optgroup label="Nguồn đã lưu">
@@ -231,7 +258,7 @@ function SeriesEditor({ dh, chart, index, series: s, metrics, sources, onChange,
                 <Field label="Cột số cần xem phân bố" required hint="Mỗi dòng là một giá trị; số liệu do server tính.">
                   <Select value={measure?.field ?? ""} onChange={(e) => patchMetric({ measure: e.target.value ? { agg: "sum", field: e.target.value } : undefined })}>
                     <option value="">Chọn cột…</option>
-                    {cols.all.filter((c) => isNumberCol(c.col)).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    {colOptions(cols.all.filter((c) => isNumberCol(c.col)))}
                   </Select>
                 </Field>
               ) : (
@@ -249,7 +276,7 @@ function SeriesEditor({ dh, chart, index, series: s, metrics, sources, onChange,
                 <Field label="Cột giá trị" required>
                   <Select value={measure.field ?? ""} onChange={(e) => patchMetric({ measure: { ...measure, ...(e.target.value ? { field: e.target.value } : { field: undefined }) } })}>
                     <option value="">Chọn cột…</option>
-                    {cols.all.filter((c) => (measure.agg === "count_distinct" ? true : isNumberCol(c.col) || ((measure.agg === "min" || measure.agg === "max") && isDateCol(c.col)))).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    {colOptions(cols.all.filter((c) => (measure.agg === "count_distinct" ? true : isNumberCol(c.col) || ((measure.agg === "min" || measure.agg === "max") && isDateCol(c.col)))))}
                   </Select>
                 </Field>
               )}
@@ -271,7 +298,7 @@ function SeriesEditor({ dh, chart, index, series: s, metrics, sources, onChange,
                 <Field label="Cột ngày" hint="Cột để chọn khoảng và gộp theo kỳ.">
                   <Select value={time.field ?? ""} onChange={(e) => patchTime({ field: e.target.value || undefined, ...(e.target.value ? {} : { bucket: undefined, range: undefined }) })}>
                     <option value="">Không dùng</option>
-                    {cols.all.filter((c) => isDateCol(c.col)).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    {colOptions(cols.all.filter((c) => isDateCol(c.col)))}
                   </Select>
                 </Field>
               )}
@@ -303,7 +330,7 @@ function SeriesEditor({ dh, chart, index, series: s, metrics, sources, onChange,
                   <Field label={`Cột nhóm ${i + 1}`}>
                     <Select value={g.field} onChange={(e) => setGroups(groups.map((x, k) => (k === i ? { field: e.target.value } : x)))}>
                       {cols.all.some((c) => c.name === g.field) ? null : <option value={g.field}>{g.field}</option>}
-                      {cols.all.filter((c) => isGroupCol(c.col) || isDateCol(c.col)).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+                      {colOptions(cols.all.filter((c) => isGroupCol(c.col) || isDateCol(c.col)))}
                     </Select>
                   </Field>
                   {colByName(g.field) && isDateCol(colByName(g.field)!) && (

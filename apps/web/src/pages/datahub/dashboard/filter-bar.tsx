@@ -12,7 +12,7 @@ const show = (v: DashCondition["value"]) => (Array.isArray(v) ? v.join(", ") : v
  * charts. A change is saved as the viewer's own copy by the caller; "Về mặc định" drops that copy. The owner may also make the current
  * filters the default for everyone.
  */
-export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefault, exactText, picks, onClearPick, onClearPicks }: {
+export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefault, exactText, rangeLocked, picks, onClearPick, onClearPicks }: {
   fields: FilterField[];
   value: DashFilters;
   onChange: (v: DashFilters) => void;
@@ -23,6 +23,8 @@ export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefa
   onSaveDefault?: () => void;
   /** Viewer who is not the owner: a text column is filtered by exact value (the server refuses "chứa"). */
   exactText?: boolean;
+  /** The date range comes from elsewhere (the shared period of Quản lý Deal): it is shown, not chosen here. */
+  rangeLocked?: boolean;
   picks: { chartId: string; title: string; pick: PickInfo }[];
   onClearPick: (chartId: string) => void;
   onClearPicks: () => void;
@@ -49,11 +51,17 @@ export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefa
     onChange(next.length ? { ...rest, conditions: next } : rest);
   };
   const tok = rangeToken(value.range);
-  const active = !!value.range || conds.length > 0;
+  const active = (!rangeLocked && !!value.range) || conds.length > 0;
 
   return (
     <section aria-label="Bộ lọc chung" className="mb-3 flex flex-col gap-2 rounded-lg border border-border bg-card p-3" data-testid="filter-bar">
       <div className="flex flex-wrap items-end gap-2">
+        {rangeLocked ? (
+          <p className="flex flex-col gap-1 text-sm" data-testid="filter-range-locked">
+            <span className="font-medium">Khoảng thời gian</span>
+            <span className="flex min-h-9 items-center text-muted-foreground">Theo kỳ chung ở đầu trang</span>
+          </p>
+        ) : (
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Khoảng thời gian</span>
           <Select value={tok} onChange={(e) => setRange(e.target.value)} aria-label="Khoảng thời gian chung" className="w-auto min-w-44" data-testid="filter-range">
@@ -61,6 +69,7 @@ export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefa
             {tok === "custom" && <option value="custom">Tuỳ chỉnh (giữ nguyên)</option>}
           </Select>
         </label>
+        )}
         {fields.length > 0 && (
           <div className="flex flex-wrap items-end gap-2">
             <label className="flex flex-col gap-1 text-sm">
