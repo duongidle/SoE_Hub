@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { as, drainOutbox, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
-import { BUILTIN_DEFAULT_SET, ensureTreeTemplates } from "../src/modules/deal";
+import { BUILTIN_DEFAULT_SET, DEAL_DASHBOARD_NAME, ensureDealDashboard, ensureTreeTemplates } from "../src/modules/deal";
 import { workerEmit } from "../src/modules/datahub/template-sync";
 import { processPendingColumns } from "../src/modules/datahub";
 
@@ -127,5 +127,37 @@ describe("Index: revenue and forecast by the person's share", () => {
     expect(a2["Doanh thu Tổng"]).toBe(0);
     const l = await idx(leaderA);
     expect(l["Doanh thu Tổng (team)"]).toBe(100_000_000);
+  });
+});
+
+describe("metrics point at a column by role", () => {
+  it("`role:<key>` reads the column holding the role, per reader (own revenue, own deal count)", async () => {
+    const run = (call: ReturnType<typeof as>, measure: Record<string, unknown>, filter?: Record<string, unknown>) =>
+      call("metrics.query", { metric: { name: "m", source: tables["Deals"]!, measure }, ...(filter ? { filter } : {}) });
+    expect((await run(userA1, { agg: "sum", field: "role:doanh_thu_duoc_tinh" })).rows[0].value).toBe(100_000_000);
+    expect((await run(userA2, { agg: "sum", field: "role:doanh_thu_duoc_tinh" })).rows[0].value).toBe(0);
+    expect((await run(mgrA, { agg: "sum", field: "role:doanh_thu" })).rows[0].value).toBe(100_000_000);
+    const mine = { field: "Tính vào số deal của tôi", op: "eq", value: true };
+    expect((await run(userA1, { agg: "count" }, mine)).rows[0].value).toBe(1);
+    expect((await run(userA2, { agg: "count" }, mine)).rows[0].value).toBe(0);
+    await expect(run(userA1, { agg: "sum", field: "role:khong_co" })).rejects.toMatchObject({ code: expect.stringMatching(/invalid|not_found|validation/) });
+  });
+});
+
+describe("default Deals dashboard", () => {
+  it("is made once by data; each viewer's numbers are their own; people outside the tree do not see it", async () => {
+    const dh = (await mgrA("datahub.table.get", { table_id: tables["Deals"]! })).datahub_id as string;
+    const id = await ensureDealDashboard((op, input) => mgrA(op, input), t.c.db.db, dh);
+    expect(await ensureDealDashboard((op, input) => mgrA(op, input), t.c.db.db, dh)).toBe(id);
+    const kpiOf = async (call: ReturnType<typeof as>, title: string) => {
+      const d = await call("metrics.dashboard.view", { dashboard_id: id });
+      const chart = (d.charts as { id: string; chart: { title?: string } }[]).find((c) => c.chart.title === title)!;
+      const r = await call("metrics.chart.data", { chart_id: chart.id });
+      return JSON.stringify(r);
+    };
+    const shared = await userA1("metrics.dashboard.shared");
+    expect(((Array.isArray(shared) ? shared : shared.items) as { name: string }[]).map((x) => x.name)).toContain(DEAL_DASHBOARD_NAME);
+    expect(await kpiOf(userA1, "Doanh thu tính cho tôi")).toContain("100000000");
+    expect(await kpiOf(userA2, "Doanh thu tính cho tôi")).not.toContain("100000000");
   });
 });

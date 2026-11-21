@@ -119,5 +119,7 @@ export type ChartDef = z.output<typeof ChartDefSchema>;
 export const DashboardConfigSchema = z.strictObject({
   filters: z.lazy(() => DashFiltersSchema).optional(),
   guest_visible: z.boolean().optional(),
+  /** Numbers are computed with the VIEWER's own rights (their rows, their own values of "của tôi" columns), and everyone who reads the datahub may open it (default Deals dashboard, module4 13). */
+  as_viewer: z.boolean().optional(),
 });
 export type DashboardConfig = z.output<typeof DashboardConfigSchema>;

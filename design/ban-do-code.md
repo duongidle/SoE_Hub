@@ -347,6 +347,11 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Nút "Ưu tiên hôm nay", "Cần chấm lại hôm nay": `deal-view.tsx` `quickAvailable`, `overlayQuery` (lọc + sắp, tạm, không lưu), cột tìm theo vai trò `thu_tu_uu_tien`, `can_cham_lai`, `trang_thai`, `ngay_du_kien_chot`. Không có logic chấm điểm ở web.
 - e2e: `apps/web/e2e/stage4-5.spec.ts`.
 
+**Cột "của tôi", Index, dashboard Deals (4.6A)**
+- Cột Deals/Đợt/Sổ com/Index mới khai ở `apps/api/src/modules/deal/default-templates.ts` (`COM_DU_KIEN`, `COM_CHO_NHAN`, `indexLateColumns`); cột muộn (`late_columns`) cho cột đọc bảng tạo sau. Liên kết Sổ com ghi ở `apps/api/src/modules/deal/payments.ts` `linkLedger`.
+- Chỉ số trỏ vai trò: `role:<key>` (`packages/metrics/src/columns.ts` `findColumn`, `MTable.roles` ở `apps/api/src/modules/metrics/context.ts` `loadMTable`).
+- Dashboard tính theo người xem: `as_viewer` ở `DashboardConfigSchema`; `apps/api/src/modules/metrics/dashboard-access.ts` `viewDash`, `computeCtx`. Dashboard Deals mặc định: `apps/api/src/modules/deal/default-dashboard.ts` `ensureDealDashboard`. Test: `apps/api/test/deal-com-columns.test.ts`.
+
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.
 - Không đưa số chính sách com thật vào code, bộ mặc định hay test (bảng chính sách và tham số tạo rỗng; Manager điền).

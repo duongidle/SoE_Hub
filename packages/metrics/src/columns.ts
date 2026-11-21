@@ -47,6 +47,8 @@ export interface MTable {
    * lock then joins that table instead of folding the whole joined table again for every reader.
    */
   fold?: (q: { sql: string; params: unknown[] }) => string;
+  /** Column roles (module4 3.7) of a template table: `role:<key>` in a metric names the column that holds the role, so a metric follows the role when it moves to another column. */
+  roles?: Record<string, MColumn>;
   /** Who-sees-which-rows key of this table for the reader (`scopeKey` in the Datahub's access.ts); the API sets it, the answer cache uses it. */
   scopeKey?: string;
 }
@@ -62,6 +64,7 @@ export const normRef = (s: string): string => s.normalize("NFC").trim().toLowerC
 /** Finds a column by key or by name (not case sensitive). */
 export function findColumn(t: MTable, ref: string): MColumn | null {
   const n = normRef(ref);
+  if (ref.startsWith("role:")) return t.roles?.[ref.slice(5).trim()] ?? null;
   return t.columns.find((c) => c.key === ref) ?? t.columns.find((c) => normRef(c.name) === n) ?? null;
 }
 

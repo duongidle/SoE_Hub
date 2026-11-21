@@ -27,6 +27,12 @@ export interface ViewedDash {
 
 export const GUEST_DATA_TYPE = "dashboard";
 
+/** Does the person have a share of the datahub (any table)? */
+async function readsDatahub(ctx: Ctx, datahubId: string, userId: string): Promise<boolean> {
+  const r = await ctx.db.execute(sql`SELECT 1 FROM dh_shares s WHERE /*scope*/ s.datahub_id = ${datahubId}::uuid AND s.grantee_id = ${userId}::uuid LIMIT 1`);
+  return r.rows.length > 0;
+}
+
 export async function viewDash(ctx: Ctx, id: string): Promise<ViewedDash> {
   const me = ctx.actor.userId;
   const res = await ctx.db.execute(sql`SELECT d.id, d.datahub_id, d.name, d.position, d.version, d.updated_at, d.config, h.owner_id, h.name AS datahub_name, u.full_name AS owner_name,
@@ -40,14 +46,15 @@ export async function viewDash(ctx: Ctx, id: string): Promise<ViewedDash> {
   let role: DashRole | null = null;
   if (ownerId === me) role = "owner";
   else if (row.shared) role = "shared";
+  else if (config.as_viewer && (await readsDatahub(ctx, row.datahub_id as string, me))) role = "shared";
   else if (config.guest_visible && (await guestCanAccess(ctx.db as never, { guestUserId: me, dataType: GUEST_DATA_TYPE, channel: "web", ownerUserId: ownerId }))) role = "guest";
   if (!role) throw new AppError("not_found", "Không tìm thấy dashboard.");
   return { row, role, ownerId, ownerName: (row.owner_name as string | null) ?? null, datahubId: row.datahub_id as string, datahubName: row.datahub_name as string, config };
 }
 
 /** The context numbers are computed in: the owner's rights (for the owner it is the caller's own). */
-export function computeCtx(ctx: Ctx, v: Pick<ViewedDash, "role" | "ownerId">): Ctx {
-  return v.role === "owner" ? ctx : { db: ctx.db, actor: { ...ctx.actor, userId: v.ownerId } };
+export function computeCtx(ctx: Ctx, v: Pick<ViewedDash, "role" | "ownerId"> & { config?: DashboardConfig }): Ctx {
+  return v.role === "owner" || v.config?.as_viewer ? ctx : { db: ctx.db, actor: { ...ctx.actor, userId: v.ownerId } };
 }
 
 export async function chartRowsOf(ctx: Ctx, dashboardId: string): Promise<{ id: string; config: ChartDef }[]> {

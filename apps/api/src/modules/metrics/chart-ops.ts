@@ -289,8 +289,9 @@ export const chartOperations = [
       const me = ctx.actor.userId;
       const base = sql`SELECT d.id, d.name, d.datahub_id, h.name AS datahub_name, h.owner_id, u.full_name AS owner_name, d.updated_at
         FROM mt_dashboards d JOIN dh_datahubs h ON h.id = d.datahub_id LEFT JOIN users u ON u.id = h.owner_id`;
-      const shared = await ctx.db.execute(sql`${base} JOIN mt_dashboard_shares s ON s.dashboard_id = d.id
-        WHERE /*scope*/ s.grantee_id = ${me}::uuid AND d.deleted_at IS NULL AND h.deleted_at IS NULL ORDER BY d.name`);
+      const shared = await ctx.db.execute(sql`${base}
+        WHERE /*scope*/ (EXISTS (SELECT 1 FROM mt_dashboard_shares s WHERE s.dashboard_id = d.id AND s.grantee_id = ${me}::uuid)
+          OR (d.config->>'as_viewer' = 'true' AND EXISTS (SELECT 1 FROM dh_shares x WHERE x.datahub_id = d.datahub_id AND x.grantee_id = ${me}::uuid))) AND d.deleted_at IS NULL AND h.deleted_at IS NULL ORDER BY d.name`);
       const items: { id: string; name: string; datahub_id: string; datahub_name: string; owner_name: string | null; role: "shared" | "guest"; updated_at: Date }[] = (shared.rows as Raw[]).map((r) => ({ id: r.id as string, name: r.name as string, datahub_id: r.datahub_id as string, datahub_name: r.datahub_name as string, owner_name: (r.owner_name as string | null) ?? null, role: "shared" as const, updated_at: r.updated_at as Date }));
       const guest = await ctx.db.execute(sql`SELECT 1 FROM users WHERE /*scope:system*/ id = ${me}::uuid AND 'guest' = ANY(roles)`);
       if (guest.rows.length) {

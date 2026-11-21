@@ -61,7 +61,12 @@ const STANDARD: MColumn[] = [
 export async function loadMTable(ctx: Ctx, access: TableAccess): Promise<MTable> {
   const schema = await TableSchema.load(ctx.db, access);
   const cols = schema.alive.map(toMColumn).filter((c): c is MColumn => !!c);
-  return { id: access.tableId, name: access.table.name, columns: [...cols, ...STANDARD], scope: (alias) => access.rows(alias), scopeKey: scopeKey(access), rel: access.rel(), narrow: access.restricted, ...(foldHook(access) ? { fold: foldHook(access)! } : {}) };
+  const roles: Record<string, MColumn> = {};
+  for (const c of schema.alive) {
+    const m = c.role ? cols.find((x) => x.key === c.key) : null;
+    if (c.role && m) roles[c.role] = m;
+  }
+  return { id: access.tableId, name: access.table.name, columns: [...cols, ...STANDARD], ...(Object.keys(roles).length ? { roles } : {}), scope: (alias) => access.rows(alias), scopeKey: scopeKey(access), rel: access.rel(), narrow: access.restricted, ...(foldHook(access) ? { fold: foldHook(access)! } : {}) };
 }
 
 export interface ResolvedSource {
