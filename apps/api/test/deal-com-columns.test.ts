@@ -17,7 +17,6 @@ let leaderA: ReturnType<typeof as>;
 let userA1: ReturnType<typeof as>;
 let userA2: ReturnType<typeof as>;
 const tables: Record<string, string> = {};
-const names: Record<string, string> = {};
 const person = (id: string, attrs: Record<string, unknown> = {}) => ({ id, attrs });
 const settle = async () => {
   await drainOutbox(t);
