@@ -41,6 +41,8 @@ export const DefaultTableSchema = z.strictObject({
   /** The split lock: key columns (by name) and the main key. Off when absent. */
   split: z.strictObject({ columns: z.array(NAME).min(1).max(5), primary: NAME.optional() }).optional(),
   columns: z.array(DefaultColumnSchema).min(1).max(150),
+  /** Columns added after every table of the set exists (two tables that link to each other: a link column needs its target table first). */
+  late_columns: z.array(DefaultColumnSchema).max(50).optional(),
 });
 
 export const DefaultSetSchema = z.array(DefaultTableSchema).min(1).max(20);
@@ -100,6 +102,8 @@ const TI_LE_COM_SALE =
   `IF([Nhóm dịch vụ]="PS",SUMIFS([Tham số com].[Giá trị],[Tham số com].[Tên tham số],"Tỉ lệ PS POD",[Tham số com].[Hiệu lực từ],${latest("Tham số com", '[Tham số com].[Tên tham số],"Tỉ lệ PS POD",')}),""))`;
 
 const PEOPLE = "Người tham gia";
+const DOT_TABLE = "Đợt thanh toán";
+const DOT_LINK = "Đợt thanh toán";
 const DEALS: DefaultTable = {
   name: "Deals",
   kind: "shared",
@@ -114,7 +118,8 @@ const DEALS: DefaultTable = {
     { name: "Status", type: "single_select", config: opts(STATUS, STATUS_MEANING), role: "trang_thai", default_value: "Processing", allow_edit: true, description: "Won chỉ do hệ thống đặt khi tiền về đợt đầu; Huỷ chỉ Manager." },
     { name: "Ngày đổi Status", type: "field_modified", config: { watch: ["Status"] }, hidden: true },
     { name: "Ngày đóng (sửa tay)", type: "date", description: "Manager nhập khi biết ngày chính xác hơn ngày tự tính." },
-    { name: "Ngày tiền về đầu tiên", type: "date", hidden: true, description: "Sẽ thành roll-up của bảng Đợt thanh toán." },
+    { name: DOT_LINK, type: "relation", config: { target_table: DOT_TABLE, multiple: true }, role: "dot_thanh_toan", hidden: true, description: "Ghi bởi lệnh lập lịch thanh toán." },
+    { name: "Ngày tiền về đầu tiên", type: "rollup", config: { relation: DOT_LINK, target_column: "Ngày tiền về", fn: "min" }, hidden: true, description: "Ngày tiền về sớm nhất trong các đợt của deal (bảng Đợt thanh toán)." },
     {
       name: "Closing date",
       type: "formula",
@@ -124,7 +129,7 @@ const DEALS: DefaultTable = {
     { name: "Ghi chú", type: "long_text", allow_edit: true },
     { name: "Sale", type: "text", allow_edit: true, description: "Email hoặc tên sale (sale không phải người dùng SoE Hub)." },
     { name: "Doanh thu dự kiến", type: "currency", allow_edit: true },
-    { name: "Đã thu", type: "currency", role: "da_thu", hidden: true, description: "Sẽ thành roll-up của bảng Đợt thanh toán." },
+    { name: "Đã thu", type: "rollup", config: { relation: DOT_LINK, target_column: "Số tiền về (chưa VAT)", fn: "sum" }, role: "da_thu", hidden: true, description: "Tổng số tiền về (chưa VAT) của các đợt của deal." },
     { name: "Doanh thu", type: "formula", config: { formula: '=IF([Status]="Won",[Đã thu],[Doanh thu dự kiến])', result_type: "number" }, role: "doanh_thu" },
     { name: "Nguồn lead", type: "single_select", config: opts(["ML", "SH"]), allow_edit: true },
     { name: "Level BC", type: "single_select", config: opts(LEVELS), allow_edit: true },
@@ -243,5 +248,95 @@ const KPI: DefaultTable = {
   ],
 };
 
+
+// ------------------------------------------------------------------------------------------------
+// Tiền về, Đợt thanh toán, Sổ com (module4 7): payments and commission by instalment. Rows are written by the payment commands (module4 7.4).
+// ------------------------------------------------------------------------------------------------
+
+const SOURCE = opts(["Tay", "AI", "API"]);
+const COM_ONLY = { attrs: [{ key: "ty_le_com", label: "% com", kind: "percent", default: 0, cap_param: "Tỉ lệ SoE" }] };
+const PEOPLE_ATTRS = DEALS.columns.find((c) => c.name === PEOPLE)!.config!;
+
+/** The bank transfers (module4 7.3a). Manager only: the key column of the split lock is never filled, so a member reads no row. */
+const RECEIPTS: DefaultTable = {
+  name: "Tiền về",
+  kind: "shared",
+  role_set: "receipts",
+  member_permission: "view",
+  split: { columns: ["Người xem"], primary: "Người xem" },
+  columns: [
+    { name: "Ngày nhận", type: "date", role: "ngay_nhan", required: true },
+    { name: "Số tiền (gồm VAT)", type: "currency", role: "so_tien", required: true },
+    { name: "Tên đơn vị trả", type: "text", role: "nguoi_tra" },
+    { name: "Số tài khoản", type: "text", role: "so_tai_khoan" },
+    { name: "Ngân hàng", type: "text" },
+    { name: "Nội dung chuyển khoản", type: "long_text", role: "noi_dung" },
+    { name: "Nguồn nhập", type: "single_select", config: SOURCE, role: "nguon_nhap", default_value: "Tay" },
+    { name: "Đã kiểm", type: "checkbox", role: "da_kiem" },
+    { name: "Người xem", type: "user", hidden: true, description: "Luôn để trống: bảng chỉ Manager đọc." },
+  ],
+  late_columns: [
+    { name: "Đợt", type: "relation", config: { target_table: DOT_TABLE, multiple: true }, role: "dot" },
+    { name: "Đã phân bổ", type: "rollup", config: { relation: "Đợt", target_column: "Số tiền nhận (gồm VAT)", fn: "sum" } },
+    { name: "Còn lại", type: "formula", config: { formula: "=[Số tiền (gồm VAT)]-[Đã phân bổ]", result_type: "number" } },
+    { name: "Trạng thái", type: "formula", config: { formula: '=IF([Đã phân bổ]=0,"Chưa ghép",IF([Còn lại]>0,"Ghép một phần","Đã ghép"))', result_type: "text" } },
+  ],
+};
+
+/** One row per instalment of a contract (module4 7.2). */
+const PAYMENTS: DefaultTable = {
+  name: DOT_TABLE,
+  kind: "shared",
+  role_set: "payments",
+  member_permission: "view",
+  split: { columns: [PEOPLE], primary: PEOPLE },
+  columns: [
+    { name: "Pháp nhân", type: "text", role: "phap_nhan" },
+    { name: "Mã số thuế", type: "text", role: "ma_so_thue" },
+    { name: "Số hợp đồng", type: "text", role: "so_hop_dong" },
+    { name: "Đợt số", type: "number", role: "dot_so" },
+    { name: "Số tiền dự kiến (chưa VAT)", type: "currency", role: "so_tien_du_kien", required: true },
+    { name: "Hạn", type: "date", role: "han", required: true },
+    { name: "Ngày tiền về", type: "date", role: "ngay_tien_ve", required: true },
+    { name: "Số tiền về (chưa VAT)", type: "currency", role: "so_tien_ve", required: true },
+    { name: "Số tiền nhận (gồm VAT)", type: "currency", role: "so_tien_nhan" },
+    { name: "Tiền về", type: "relation", config: { target_table: "Tiền về", multiple: false }, role: "tien_ve" },
+    { name: "Chia com đợt này", type: "user", config: COM_ONLY, role: "chia_com_dot", required: true, layer: "role", layer_roles: ["manager"] },
+    {
+      name: "Trạng thái",
+      type: "formula",
+      config: { formula: '=IF([Ngày tiền về]<>"",IF([Số tiền về (chưa VAT)]<[Số tiền dự kiến (chưa VAT)],"Về thiếu","Đã về"),IF([Hạn]="","Chưa đến hạn",IF([Hạn]<TODAY(),"Quá hạn",IF([Hạn]-TODAY()<=7,"Sắp đến hạn","Chưa đến hạn"))))', result_type: "text" },
+    },
+    { name: "Kỳ", type: "formula", config: { formula: '=IF([Ngày tiền về]="","",DATE(YEAR([Ngày tiền về]),MONTH([Ngày tiền về]),1))', result_type: "date" }, role: "ky", required: true },
+    { name: PEOPLE, type: "user", config: PEOPLE_ATTRS, role: "nguoi_tham_gia" },
+    { name: "Nguồn nhập", type: "single_select", config: SOURCE, role: "nguon_nhap", default_value: "Tay" },
+    { name: "Đã kiểm", type: "checkbox", role: "da_kiem" },
+  ],
+  late_columns: [{ name: "Deal", type: "relation", config: { target_table: "Deals", multiple: false }, role: "deal", required: true }],
+};
+
+/** One row per person per instalment (module4 7.3). `Tạm tính` rows are formulas; closed and adjusted rows keep a fixed amount in `Com cố định`. */
+const LEDGER: DefaultTable = {
+  name: "Sổ com",
+  kind: "shared",
+  role_set: "ledger",
+  member_permission: "view",
+  split: { columns: ["Người"], primary: "Người" },
+  columns: [
+    { name: "Người", type: "user", role: "nguoi", required: true },
+    { name: "Đợt", type: "relation", config: { target_table: DOT_TABLE, multiple: false }, role: "dot", required: true },
+    { name: "Deal", type: "relation", config: { target_table: "Deals", multiple: false }, role: "deal" },
+    { name: "Kỳ", type: "lookup", config: { relation: "Đợt", target_column: "Kỳ" }, role: "ky", required: true },
+    { name: "Số tiền về", type: "lookup", config: { relation: "Đợt", target_column: "Số tiền về (chưa VAT)" } },
+    { name: "Tỉ lệ com sale", type: "lookup", config: { relation: "Deal", target_column: "Tỉ lệ com sale" } },
+    { name: "Com sale", type: "formula", config: { formula: '=IF([Tỉ lệ com sale]="","",[Số tiền về]*[Tỉ lệ com sale])', result_type: "number" } },
+    { name: "% com", type: "percent", role: "ty_le_com" },
+    { name: "Com cố định", type: "currency", role: "com_co_dinh", description: "Số cứng của dòng Đã chốt / Điều chỉnh." },
+    { name: "Trạng thái", type: "single_select", config: opts(["Tạm tính", "Đã chốt", "Điều chỉnh"]), role: "trang_thai_com", default_value: "Tạm tính" },
+    { name: "Com", type: "formula", config: { formula: '=IF([Trạng thái]="Tạm tính",IF([Com sale]="","",[Com sale]*[% com]),[Com cố định])', result_type: "number" }, role: "com" },
+    { name: "Lý do", type: "text", role: "ly_do" },
+  ],
+};
+
 /** The built-in default set, in dependency order: a table that a formula reads is made before it. */
-export const BUILTIN_DEFAULT_SET: DefaultTable[] = [PARAMS, POLICY, DEALS, INDEX, KPI];
+export const BUILTIN_DEFAULT_SET: DefaultTable[] = [PARAMS, POLICY, RECEIPTS, PAYMENTS, DEALS, INDEX, KPI, LEDGER];

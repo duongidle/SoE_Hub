@@ -82,7 +82,7 @@ describe("the set is generated for a tree", () => {
   it("members get Deals, their own Index and Probation KPI; the policy tables are read-only for them", async () => {
     for (const who of [leaderA, userA1, userA2]) {
       const names = (await who("datahub.template.list")).map((x: { name: string; my_table_id: string | null }) => [x.name, !!x.my_table_id]);
-      expect(Object.fromEntries(names)).toEqual({ "Tham số com": true, "Chính sách com": true, Deals: true, Index: true, "Probation KPI": true });
+      expect(Object.fromEntries(names)).toEqual({ "Tham số com": true, "Chính sách com": true, Deals: true, Index: true, "Probation KPI": true, "Tiền về": true, "Đợt thanh toán": true, "Sổ com": true });
     }
     expect((await fails(userA1("datahub.row.create", { table_id: tables["Chính sách com"]!, data: { "Tỉ lệ": 0.5 } }))).code).toBe("forbidden");
     expect((await fails(userA1("datahub.row.create", { table_id: tables["Tham số com"]!, data: { "Giá trị": 1 } }))).code).toBe("forbidden");
