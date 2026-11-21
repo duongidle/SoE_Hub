@@ -61,7 +61,7 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 | 3 | M3 `module3-metric-dashboard.md` | 2 | Engine metric, biểu đồ, dashboard, bảng gộp | Đã chốt | Đã xong |
 | 4 | M4 `module4-quan-ly-deal.md` | 2, 3 | 4.1 sửa Stage 2 (mục 19a); template Deals, người tham gia, thanh toán và com theo đợt, chốt kỳ, snapshot, forecast, BANT, dashboard Deals, API ngoài. **Mốc Engine v1** | Đã chốt | Đang làm (4.1–4.3 xong; tiếp 4.4) |
 | 5 | M5 `module5-ket-noi-ai.md` | 1, 4 | MCP, OAuth + DCR, token, key API của cây, kết nối AI chờ duyệt, nhóm cấm AI, thao tác lớn, Bruno đầy đủ | Đã chốt | |
-| 6 | M6 `module6-thong-bao.md` | 1 | Thông báo đầy đủ, nhắc hẹn, nhắc hạn | Nháp | |
+| 6 | M6 `module6-thong-bao.md` | 1, 2, 4 | Thông báo đầy đủ (một cửa vào `notify`), Web Push, nhắc hẹn, nhắc hạn Deal, bản tin buổi sáng, thông báo chung | Đã chốt | |
 | 7 | M7 `module7-dynamic-form.md` | 2, 3, 5, 6 | Builder kéo thả, form công khai, nháp, chấm điểm, nguồn dữ liệu, JSON | Đã chốt | |
 | 8 | M8 `module8-knowledge-aihub.md` | 1, 6 | Đăng → kiểm tra → duyệt → xuất bản; Knowledge; AI Hub | Chưa | |
 | 9 | M9 `module9-onboarding.md` | 6, 7 | Lộ trình, checklist, bài test, theo dõi | Chưa | |

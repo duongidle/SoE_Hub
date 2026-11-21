@@ -1,6 +1,6 @@
 # Module 6 — Thông báo, nhắc hẹn, nhắc hạn
 
-> Trạng thái: **Bản nháp vòng 2, chờ Dương chốt** · 21/11/2026 (vòng 1: 19/11)
+> Trạng thái: **Đã chốt** · 21/11/2026 (vòng 1: 19/11, vòng 2 và chốt: 21/11)
 > Phụ thuộc: [Module 0](module0-nen-tang.md) (outbox, pg-boss, SSE, file), [Module 1](module1-tai-khoan-phan-quyen.md) (mục 9 thông báo tối thiểu, phạm vi dữ liệu), [Module 2](module2-datahub.md) (cột ngày, bộ lọc, view), [Module 4](module4-quan-ly-deal.md) (Deals, Đợt thanh toán, vai trò cột, template theo lớp, hàng chờ BANT), [Module 5](module5-ket-noi-ai.md) (menu Thông báo cho AI, thao tác lớn).
 > Để module sau: loại thông báo của Form, Knowledge, AI Hub, Onboarding, Workspace do module đó đăng ký (mục 3.3). Chiến dịch nhắc trên bảng bất kỳ, gửi qua email, chat ngoài: để Automation.
 
@@ -163,7 +163,7 @@ Không bao giờ báo cho chính người gây ra (sửa deal của mình thì k
 
 ### 5.5 Bản tin buổi sáng
 
-Một thông báo mỗi ngày lúc 08:00 (người dùng đổi giờ hoặc tắt; mặc định **bật**, Dương chốt 21/11). Không phân biệt ngày làm việc; ngày rơi vào giờ yên lặng (mặc định Chủ nhật) thì chỉ nằm trong chuông, không đẩy. Nội dung gom những việc cần làm hôm nay:
+Mặc định **bật**, 08:00 mọi ngày (Dương chốt 21/11). Mỗi người **chọn giờ gửi và chọn ngày nhận** (tick từng thứ trong tuần), hoặc tắt. Hệ thống không có khái niệm ngày làm việc. Bản tin rơi vào giờ yên lặng (mặc định Chủ nhật) thì chỉ nằm trong chuông, không đẩy. Nội dung gom những việc cần làm hôm nay:
 
 - Số deal trong hàng chờ "Cần chấm lại hôm nay" (Module 4 mục 8).
 - Deal đang mở có **Ngày dự kiến chốt** trong 7 ngày tới, và deal đã quá Ngày dự kiến chốt mà vẫn mở.
@@ -311,4 +311,4 @@ Mỗi lần gửi có thể thêm người lẻ nằm trong phạm vi của ngư
 
 ## 13. Câu hỏi còn mở
 
-Không còn. Đã chốt với Dương 21/11: Web Push ở Stage 6; nhắc hẹn chỉ nhắc mình; bản tin 08:00 bật mặc định, không phân biệt ngày làm việc; nhắc hạn chỉ cho Deal, cột do người đặt chọn, đặt ở Cài đặt → Thông báo; giờ yên lặng 21:00–07:30 và Chủ nhật, người dùng chỉnh được; toast thay hộp thoại trình duyệt; module độc lập, một cửa vào; có thông báo chung. Chờ Dương xem bản vòng 2 để đổi trạng thái thành **Đã chốt**.
+Không còn. Đã chốt với Dương 21/11: Web Push ở Stage 6; nhắc hẹn chỉ nhắc mình; bản tin 08:00 bật mặc định, người dùng chọn giờ và ngày nhận; nhắc hạn chỉ cho Deal, cột do người đặt chọn, đặt ở Cài đặt → Thông báo; giờ yên lặng 21:00–07:30 và Chủ nhật, người dùng chỉnh được; toast thay hộp thoại trình duyệt; module độc lập, một cửa vào; có thông báo chung. Không làm chat (Dương 21/11): thông báo chung chỉ một chiều.

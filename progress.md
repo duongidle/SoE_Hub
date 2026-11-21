@@ -4,7 +4,7 @@ Cập nhật: 21/11/2026
 
 ## Trạng thái
 
-- **Thiết kế:** Module 0–5 và 7 đã chốt. Module 6 bản nháp vòng 2 (21/11, đã ghi mọi ý Dương), chờ Dương chốt. Module 8–11 chưa làm.
+- **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
 - **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2, 4.3 xong (21/11, Opus rà đạt); bản đồ code Module 0–3 xong (`design/ban-do-code.md`, Opus rà và sửa luật sai, 5999ea3); đang làm 4.4 (thanh toán và com): **4.4A server** (agent 1) → bàn giao → **4.4B web + e2e + cả bộ test** (agent 2). Agent quá ~120 lượt thì dừng ở commit, ghi bàn giao, Opus giao agent mới.
 - **Git:** đã push `main` + `dev` tới 154655d (hết bước con 4.1, Dương yêu cầu 20/11).
 - **Mốc test** (e817470, 21/11): `pnpm exec vitest run apps packages` 1120 pass, 9 skip (golden + load; 1110 -> 1120 do test mới của 4.3); `pnpm test:e2e --project=desktop` 109/109 (gồm 9 của stage4-3). Không chạy hai lệnh vitest song song (chung DB: chạy chồng làm 5 test hỏng giả).
@@ -81,6 +81,5 @@ Không chặn bước con (CLAUDE.md, "Điện thoại là ưu tiên thấp"); g
 - **Module 4 (Opus đề xuất ở 4.6):** công thức theo người cho cột lưu theo người (`Doanh thu tính cho tôi`, `Com dự kiến của tôi`) và các cột Index/Probation đọc Đợt thanh toán: engine Module 2 chưa hỗ trợ, cần thiết kế.
 - **Module 4 (4.4A):** cây đã tạo trước 4.4 giữ `Đã thu` là cột thường (engine không đổi cột thường thành rollup); dev dựng lại cây. Bảng Tiền về "chỉ Manager" làm bằng khoá phân chia theo cột `Người xem` luôn trống.
 - **Module 4:** màn so sánh phiên bản chính sách com khi AI cập nhật (đề xuất, chưa chốt).
-- **Module 6:** vòng 2 chờ Dương chốt; chốt xong cập nhật CLAUDE.md (cột "Cần" Stage 6) theo mục 12 "Thay đổi so với quy định đã chốt".
 - **Stage 9 Onboarding:** lúc bắt đầu stage hỏi Dương có kiểm giao diện kỹ như ngoại lệ không; tới lúc đó giữ quy định cũ (kiểm kỹ).
 - Danh sách token cần duyệt và tài khoản hệ thống chưa phân trang (giới hạn 500); phân trang ở Stage 5.
