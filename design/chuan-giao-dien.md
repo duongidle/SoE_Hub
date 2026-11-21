@@ -68,6 +68,7 @@ Giới hạn khi dùng skill trong dự án này:
   - **Không có quyền:** nói rõ là không có quyền, không hiện trang trống.
 - Nút đang gửi thì khoá và hiện trạng thái chờ, không cho bấm hai lần. Thao tác xoá hoặc khó hoàn tác phải xác nhận, nút nguy hiểm màu `bad` và đặt tách khỏi nút chính; nếu được thì có "Hoàn tác" thay cho hỏi lại.
 - Thao tác xong báo ngắn bằng toast ("Đã lưu"), tự tắt sau 3–5 giây, không cướp focus.
+- **Không dùng hộp thoại của trình duyệt** (`alert`, `confirm`, `prompt`): báo kết quả, cảnh báo, lỗi bằng toast; hỏi xác nhận bằng hộp thoại trong ứng dụng (hoặc làm luôn kèm "Hoàn tác"). Lint `no-alert` chặn từ code (Dương chốt 21/11/2026).
 - Hộp thoại có nút đóng, Esc đóng được; đang có thay đổi chưa lưu thì hỏi trước khi đóng. Không dùng hộp thoại khi làm trực tiếp trên trang được. Dropdown, popover hiển thị qua portal để không bị cắt bởi khung cuộn.
 
 ## Form và ô nhập
