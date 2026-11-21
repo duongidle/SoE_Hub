@@ -13,19 +13,26 @@ export interface Subscriber {
   handle(event: OutboxRow, db: Db): Promise<void>;
 }
 
+export type Lane = "interactive" | "derived" | "bulk";
+
 export interface DispatchOptions {
   batchSize?: number;
   maxAttempts?: number;
-  /** Which events this call takes: `interactive` (`auth.*`, `notification.*`), `bulk` (all others), default all. */
-  lane?: "interactive" | "bulk";
+  /** Which events this call takes: `interactive` (`auth.*`, `notification.*`), `derived` (what the recalculation and the merges announce), `bulk` (all others), default all. */
+  lane?: Lane;
 }
 
 /**
- * A person waits for `auth.*` (the activation code) and `notification.*`; the other events can be heavy (a new member gets the default tables copied, a default set writes
- * hundreds of events) and one batch of them takes seconds. The worker runs the two lanes as two loops, so a slow batch of bulk events never holds a code back.
- * Handlers read the database when they run and the lanes do not share events, so neither depends on the order between them.
+ * Three lanes, each its own loop in the worker, so one kind of event never holds up the others.
+ * - `interactive`: `auth.*` (the activation code) and `notification.*`, a person is waiting for them.
+ * - `derived`: `datahub.formula.recalculated`, `datahub.merge.synced`. The recalculation writes them by the tens of thousands (a default template set alone: ~600), only listeners
+ *   (SSE, merges, metric cache) read them. Alone in `bulk` they delayed the events that START a recalculation (a new row) by 3-8 seconds.
+ * - `bulk`: the rest, which can be heavy too (a new member gets the default tables copied: seconds per batch).
+ * Handlers read the database when they run and the lanes share no event, so none depends on the order between lanes.
  */
 const interactive = sql`(event LIKE 'auth.%' OR event LIKE 'notification.%')`;
+const derived = sql`event IN ('datahub.formula.recalculated', 'datahub.merge.synced')`;
+const laneWhere = (lane: Lane | undefined) => (lane === "interactive" ? interactive : lane === "derived" ? derived : lane === "bulk" ? sql`NOT (${interactive} OR ${derived})` : undefined);
 
 const MAX_BACKOFF_SECONDS = 15 * 60;
 
@@ -47,7 +54,7 @@ export async function dispatchOutboxOnce(db: Db, subscribers: Subscriber[], log:
     const rows = await tx
       .select()
       .from(outbox)
-      .where(and(eq(outbox.status, "pending"), lte(outbox.availableAt, sql`now()`), opts.lane === "interactive" ? interactive : opts.lane === "bulk" ? sql`NOT ${interactive}` : undefined))
+      .where(and(eq(outbox.status, "pending"), lte(outbox.availableAt, sql`now()`), laneWhere(opts.lane)))
       .orderBy(outbox.createdAt, outbox.id)
       .limit(batchSize)
       .for("update", { skipLocked: true });
@@ -87,10 +94,10 @@ export async function dispatchOutboxOnce(db: Db, subscribers: Subscriber[], log:
   });
 }
 
-/** Runs `dispatchOutboxOnce` in a loop until `stop()` is called: one loop per lane (see above) unless `opts.lane` is given. */
+/** Runs `dispatchOutboxOnce` in a loop until `stop()` is called: one loop per lane (see `Lane`) unless `opts.lane` is given. */
 export function startOutboxDispatcher(db: Db, subscribers: Subscriber[], log: Logger, pollMs: number, opts: DispatchOptions = {}) {
   if (!opts.lane) {
-    const lanes = (["interactive", "bulk"] as const).map((lane) => startOutboxDispatcher(db, subscribers, log, pollMs, { ...opts, lane }));
+    const lanes = (["interactive", "derived", "bulk"] as const).map((lane) => startOutboxDispatcher(db, subscribers, log, pollMs, { ...opts, lane }));
     return { stop: async () => void (await Promise.all(lanes.map((l) => l.stop()))) };
   }
   let stopped = false;

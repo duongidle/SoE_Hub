@@ -97,15 +97,17 @@ describe("outbox dispatcher", () => {
     expect(seen).toHaveLength(1);
   });
 
-  it("lanes: interactive takes only auth.* and notification.*, bulk takes the rest", async () => {
+  it("lanes: interactive takes auth.* and notification.*, derived the recalculation events, bulk the rest", async () => {
     const agg = newId();
-    for (const event of ["test.bulk.1", "auth.code.requested", "test.bulk.2", "notification.notification.created"]) await enqueueOutbox(t.c.db.db, { event, aggregateId: agg, payload: {} });
+    for (const event of ["test.bulk.1", "auth.code.requested", "test.bulk.2", "notification.notification.created", "datahub.formula.recalculated"]) await enqueueOutbox(t.c.db.db, { event, aggregateId: agg, payload: {} });
     const seen: string[] = [];
     const sub = (): Subscriber[] => [only(agg, { name: "x", match: () => true, handle: async (ev) => void seen.push(ev.event) })];
     await dispatchOutboxOnce(t.c.db.db, sub(), t.c.logger, { batchSize: 500, lane: "interactive" });
     expect(seen).toEqual(["auth.code.requested", "notification.notification.created"]);
+    await dispatchOutboxOnce(t.c.db.db, sub(), t.c.logger, { batchSize: 500, lane: "derived" });
+    expect(seen.slice(2)).toEqual(["datahub.formula.recalculated"]);
     await dispatchOutboxOnce(t.c.db.db, sub(), t.c.logger, { batchSize: 500, lane: "bulk" });
-    expect(seen.slice(2)).toEqual(["test.bulk.1", "test.bulk.2"]);
+    expect(seen.slice(3)).toEqual(["test.bulk.1", "test.bulk.2"]);
   });
 
   it("backoff grows and is capped", () => {

@@ -117,7 +117,16 @@ describe("tree history (module1 2.3)", () => {
 
 describe("visibility of the org chart (two managers never see each other)", () => {
   it("admin sees all, managers / members their own tree, guests only themselves", async () => {
-    const ids = async (s: WebSession) => (await req("GET", "/org/members?limit=500", s.read)).json().data.map((r: { id: string }) => r.id) as string[];
+    // All pages: the test database is shared by every file, so the list is longer than one page (a page of 500 cut off a person by name).
+    const ids = async (s: WebSession) => {
+      const out: string[] = [];
+      for (let cursor = ""; ; ) {
+        const body = (await req("GET", `/org/members?limit=500${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, s.read)).json();
+        out.push(...body.data.map((r: { id: string }) => r.id));
+        if (!body.next_cursor) return out;
+        cursor = body.next_cursor;
+      }
+    };
     const a = await ids(adm);
     expect(a).toEqual(expect.arrayContaining([o.userA1.id, o.userB1.id]));
     const ma = await ids(mA);
