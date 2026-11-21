@@ -256,14 +256,15 @@ _Phần 4.1–4.3. Mỗi bước con sau cập nhật phần của mình trong c
 - Đồng bộ chủ → bản sao: `apps/api/src/modules/datahub/template-sync.ts` `syncTemplate`, `syncCopyColumns`; chạy lại cả hệ: `syncAllTemplates`. Người nhận theo phạm vi: `scopeMembers`.
 - Cây tổ chức đổi thì template theo: `apps/api/src/modules/datahub/template-ops.ts` `templateSubscriber`.
 - Khoá phân chia và chung/riêng của bảng: `apps/api/src/modules/datahub/split-ops.ts` `setShareOptions`. Cờ "Cho phép leader sửa": lệnh `datahub.prefs.get` / `datahub.prefs.set` cùng file; đọc ra cấp dưới sửa được ở `apps/api/src/modules/datahub/access.ts` `loadReader` (`editIds`).
-- Vai trò cột (cột bắt buộc của bộ vai trò `deals`, `deal_payments`, `index`, `com_params`…): `apps/api/src/modules/datahub/column-roles.ts` `ROLE_SETS`. Kiểm: `assertRoleOfSet`, `fitsRole`; cột nào đang giữ vai trò: `columnUsage`. Cột có vai trò `required` luôn còn một cột, chỉ chuyển được sang cột khác.
+- Sửa được một dòng (`can_edit`) khi người đọc nằm trong cột khoá phân chia của dòng, hoặc người trong cột khoá thuộc `editIds`: `apps/api/src/modules/datahub/access.ts` `canEditRow`. Chủ bảng luôn sửa được.
+- Vai trò cột (cột bắt buộc của bộ vai trò `deals`, `payments`, `index`, `com_params`, `ledger`): `apps/api/src/modules/datahub/column-roles.ts` `ROLE_SETS`. Kiểm: `assertRoleOfSet`, `fitsRole`; cột nào đang giữ vai trò: `columnUsage`. Cột có vai trò `required` luôn còn một cột, chỉ chuyển được sang cột khác.
 - Hàm dùng chung tìm cột theo vai trò, không theo tên cột. Thêm vai trò mới = thêm vào `ROLE_SETS`.
 
 **Bộ mặc định theo cây (Deals, Index, Probation KPI, Chính sách com, Tham số com)**
 - Khai báo bằng dữ liệu: `apps/api/src/modules/deal/default-templates.ts` `BUILTIN_DEFAULT_SET`, kiểu `DefaultTable` / `DefaultColumn`. Mỗi bảng một khối, cột có `role`, `layer`, `autofill`, `split`.
 - Thêm bảng mặc định mới (4.4: Đợt thanh toán, Sổ com, Tiền về): thêm một khối vào `BUILTIN_DEFAULT_SET` (kèm `role_set` mới trong `ROLE_SETS` nếu cần). Không viết code dựng riêng cho từng bảng. Công thức là công thức Excel của engine.
 - Dựng cho một cây: `apps/api/src/modules/deal/tree-templates.ts` `ensureTreeTemplates` (chạy lại được; bảng đã có tên thì bỏ qua). Cho mọi Manager chưa có cây: `ensureAllTrees`.
-- Cây đã tạo không nhận bảng mới của bộ mặc định tự động. Cây đang chạy cần bảng mới thì gọi `ensureTreeTemplates` (bảng trùng tên được bỏ qua), hoặc `ensureAllTrees` chỉ chạy cho Manager chưa có cây nào.
+- Cây đã tạo không nhận bảng mới của bộ mặc định tự động. Cây đang chạy cần bảng mới thì gọi `ensureTreeTemplates` (bảng trùng tên được bỏ qua), hoặc `ensureAllTrees` chỉ chạy cho Manager chưa có cây nào. **Thêm bảng mặc định mới (Đợt thanh toán, Sổ com, Tiền về ở 4.4) phải có đường đưa nó vào các cây đang chạy**, vì `ensureAllTrees` không tự làm.
 - Admin sửa bộ mặc định qua setting `deal.default_templates` (`apps/api/src/modules/deal/tree-templates.ts` `DEAL_SETTINGS`, đăng ký trong `apps/api/src/modules/deal/index.ts`). Sửa chỉ ảnh hưởng cây tạo sau.
 - Vòng lặp worker: `apps/api/src/modules/deal/tree-templates.ts` `startDealDefaultsLoop`, nối ở `apps/api/src/worker.ts`. Dựng bảng nặng nên không đặt trong subscriber outbox.
 - Datahub "Quản lý Deal" của người dùng: `apps/api/src/modules/datahub/template-sync.ts` `ensureDealDatahub`.
