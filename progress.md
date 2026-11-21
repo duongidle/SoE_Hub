@@ -7,7 +7,7 @@ Cập nhật: 21/11/2026
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
 - **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2, 4.3 xong (21/11, Opus rà đạt); bản đồ code Module 0–3 xong (`design/ban-do-code.md`, Opus rà và sửa luật sai, 5999ea3); 4.4 (thanh toán và com) xong, chờ Opus rà; tiếp 4.5 (chốt kỳ, BANT, forecast, snapshot).
 - **Git:** đã push `main` + `dev` tới 154655d (hết bước con 4.1, Dương yêu cầu 20/11).
-- **Mốc test** (e817470, 21/11): `pnpm exec vitest run apps packages` 1120 pass, 9 skip (golden + load; 1110 -> 1120 do test mới của 4.3); `pnpm test:e2e --project=desktop` 109/109 (gồm 9 của stage4-3). Không chạy hai lệnh vitest song song (chung DB: chạy chồng làm 5 test hỏng giả).
+- **Mốc test** (4.4B): `pnpm exec vitest run apps packages` 1141 pass, 9 skip (c1704f4; sau đó chỉ đổi điều kiện của subscriber refill ở 2630f26, `datahub-user-attrs` 16/16 pass lại); `pnpm test:e2e --project=desktop` 116/116 (2630f26, gồm 7 của stage4-4). Lần chạy e2e đầu (c1704f4) hỏng 2-3 bài ở bước dựng người ("Không thấy mã ... trong hộp thông báo"), mỗi lần bài khác; chạy riêng từng file thì pass; nguyên nhân: subscriber refill đánh dấu mọi sự kiện `org.member.changed`, đã sửa ở 2630f26. Không chạy hai lệnh vitest song song (chung DB).
 
 ## Đã xong
 
