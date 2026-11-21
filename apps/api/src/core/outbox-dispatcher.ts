@@ -16,7 +16,16 @@ export interface Subscriber {
 export interface DispatchOptions {
   batchSize?: number;
   maxAttempts?: number;
+  /** Which events this call takes: `interactive` (`auth.*`, `notification.*`), `bulk` (all others), default all. */
+  lane?: "interactive" | "bulk";
 }
+
+/**
+ * A person waits for `auth.*` (the activation code) and `notification.*`; the other events can be heavy (a new member gets the default tables copied, a default set writes
+ * hundreds of events) and one batch of them takes seconds. The worker runs the two lanes as two loops, so a slow batch of bulk events never holds a code back.
+ * Handlers read the database when they run and the lanes do not share events, so neither depends on the order between them.
+ */
+const interactive = sql`(event LIKE 'auth.%' OR event LIKE 'notification.%')`;
 
 const MAX_BACKOFF_SECONDS = 15 * 60;
 
@@ -35,14 +44,11 @@ export async function dispatchOutboxOnce(db: Db, subscribers: Subscriber[], log:
   const maxAttempts = opts.maxAttempts ?? 8;
 
   return db.transaction(async (tx) => {
-    // Events `auth.*` and `notification.*`: a person is waiting for these (the activation code, a notification), so they go before the rest of the queue. Order inside each group is still by time. The dispatcher
-    // is one line, and a bulk change (building a default template set writes hundreds of events) would otherwise hold them back for seconds. They do not depend on the
-    // events they overtake: handlers read the database when they run.
     const rows = await tx
       .select()
       .from(outbox)
-      .where(and(eq(outbox.status, "pending"), lte(outbox.availableAt, sql`now()`)))
-      .orderBy(sql`CASE WHEN ${outbox.event} LIKE 'auth.%' OR ${outbox.event} LIKE 'notification.%' THEN 0 ELSE 1 END`, outbox.createdAt, outbox.id)
+      .where(and(eq(outbox.status, "pending"), lte(outbox.availableAt, sql`now()`), opts.lane === "interactive" ? interactive : opts.lane === "bulk" ? sql`NOT ${interactive}` : undefined))
+      .orderBy(outbox.createdAt, outbox.id)
       .limit(batchSize)
       .for("update", { skipLocked: true });
 
@@ -81,8 +87,12 @@ export async function dispatchOutboxOnce(db: Db, subscribers: Subscriber[], log:
   });
 }
 
-/** Runs `dispatchOutboxOnce` in a loop until `stop()` is called. */
+/** Runs `dispatchOutboxOnce` in a loop until `stop()` is called: one loop per lane (see above) unless `opts.lane` is given. */
 export function startOutboxDispatcher(db: Db, subscribers: Subscriber[], log: Logger, pollMs: number, opts: DispatchOptions = {}) {
+  if (!opts.lane) {
+    const lanes = (["interactive", "bulk"] as const).map((lane) => startOutboxDispatcher(db, subscribers, log, pollMs, { ...opts, lane }));
+    return { stop: async () => void (await Promise.all(lanes.map((l) => l.stop()))) };
+  }
   let stopped = false;
   let timer: NodeJS.Timeout | null = null;
   let running: Promise<void> = Promise.resolve();
