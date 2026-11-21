@@ -1,12 +1,13 @@
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { collectDeps, findGroupable, inferType, parseFormula, toDisplayFormula, toStoredFormula, validateCalls, type FType, type GroupableCall, type Node, type RefTarget } from "@soe/formula";
+import { collectDeps, findGroupable, walk, inferType, parseFormula, toDisplayFormula, toStoredFormula, validateCalls, type FType, type GroupableCall, type Node, type RefTarget } from "@soe/formula";
 import { AppError } from "@soe/shared";
 import type { Executor } from "@soe/db";
 import { formulaTypeOf, isComputedType, RESULT_TYPES, resultTypeFor, resultTypeOf, type ResultType } from "./cell-values";
 import { normName, type TableSchema } from "./table-schema";
-import { idsOf } from "./reader-scope";
+import { idsOf, VIEWER_DEP_KEY } from "./reader-scope";
 import type { DhColumn } from "./types";
+import { userAttrs } from "./user-values";
 
 /** Max rows of a table a formula may scan in memory (conditions the grouped SQL cannot answer), design module2 section 6.6. */
 export const SCAN_ROW_LIMIT = 20_000;
@@ -310,12 +311,32 @@ async function assertNoCycle(db: Executor, ix: OwnerIndex, self: { tableId: stri
   }
 }
 
+
 function depsOfAst(ast: Node, here: string): { deps: DepRow[]; volatile: "today" | "now" | null } {
   const d = collectDeps(ast);
   return {
-    deps: [...d.cells.map((k) => ({ srcTableId: here, srcKey: k, kind: "cell" as const })), ...d.ranges.map((r) => ({ srcTableId: r.table, srcKey: r.key, kind: "range" as const }))],
+    deps: [...(d.usesViewer ? [{ srcTableId: here, srcKey: VIEWER_DEP_KEY, kind: "cell" as const }] : []), ...d.cells.map((k) => ({ srcTableId: here, srcKey: k, kind: "cell" as const })), ...d.ranges.map((r) => ({ srcTableId: r.table, srcKey: r.key, kind: "range" as const }))],
     volatile: d.volatile,
   };
+}
+
+/** ATTR(ô, người, "tên"): the cell must be a column of this table that holds people with attributes, and a literal name must be one of them. */
+function checkAttrCalls(ast: Node, ix: OwnerIndex, tableId: string): void {
+  walk(ast, (n) => {
+    if (n.t !== "call" || n.name !== "ATTR") return;
+    const [a, , nm] = n.args;
+    if (!a || a.t !== "key" || a.table !== null) throw new AppError("validation_error", "Đối số đầu của ATTR phải là một cột Người dùng của chính bảng này.", { position: { start: n.s, end: n.e } });
+    const col = ix.column(tableId, a.key);
+    if (!col || col.type !== "user") throw new AppError("validation_error", "Đối số đầu của ATTR phải là một cột Người dùng có thuộc tính.", { position: { start: n.s, end: n.e } });
+    const attrs = userAttrs(col as never);
+    if (attrs.length === 0) throw new AppError("validation_error", "Cột Người dùng này chưa có thuộc tính nào để lấy bằng ATTR.", { position: { start: n.s, end: n.e } });
+    if (nm && nm.t === "str") {
+      const want = nm.v.trim().toLowerCase();
+      if (!attrs.some((x) => x.key.toLowerCase() === want || x.label.trim().toLowerCase() === want)) {
+        throw new AppError("validation_error", `Cột Người dùng này không có thuộc tính "${nm.v}". Có: ${attrs.map((x) => x.label).join(", ")}.`, { position: { start: nm.s, end: nm.e } });
+      }
+    }
+  });
 }
 
 /** Preview and save share this: parse, resolve names, check, infer the result type. */
@@ -328,6 +349,7 @@ export function compileFormula(source: string, ix: OwnerIndex, at: Where, own: {
   const r = toStoredFormula(source, nameResolver(ix, at, own));
   if (!r.ok) throw new AppError("validation_error", r.error.message, { position: { start: r.error.start, end: r.error.end } });
   const { deps, volatile } = depsOfAst(r.ast, at.tableId);
+  checkAttrCalls(r.ast, ix, at.tableId);
   const colOf = (t: string | null, k: string) => ix.column(t ?? at.tableId, k);
   const type = inferType(r.ast, (n) => (n.t === "key" ? typeOfColumn(colOf(n.table, n.key)) : "unknown"));
   const grouped = groupableCalls(r.ast, (t, k) => ix.column(t, k));

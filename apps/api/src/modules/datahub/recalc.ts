@@ -29,6 +29,7 @@ import { columnFromDb, rowFromDb } from "./table-schema";
 import { assertColumnKey, type DhColumn, type Stored } from "./types";
 import type { LoadedRow } from "./column-source";
 import { keyMatch } from "./access";
+import { attrOfCell } from "./user-values";
 import { dropPersonalValues, idsOf, membersOf, overlayRel, refreshReaderScoped } from "./reader-scope";
 
 type Raw = Record<string, unknown>;
@@ -599,9 +600,17 @@ export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: str
     scan.set(w, await loadScanColumn(db, ix, t, k, reader));
   }
 
+  const meId = reader ? reader.userId : ix.ownerId;
   const ctx: EvalContext = {
     now,
     plans,
+    me: () => meId ?? null,
+    attr: (key, person, name) => {
+      const c = colsByKey.get(key);
+      if (!c) throw new FError("#REF!", "Cột được tham chiếu đã bị xoá.");
+      if (c.type !== "user") throw new FError("#VALUE!", "ATTR cần một cột Người dùng.");
+      return attrOfCell(c, current.data[key], person, name);
+    },
     cell: cellOfRow,
     range: (table, key) => {
       const bad = refError(table, key);

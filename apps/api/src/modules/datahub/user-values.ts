@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FError } from "@soe/formula";
 import type { DhColumn, PersonEntry } from "./types";
 
 /**
@@ -78,4 +79,20 @@ export function formatPeople(entries: PersonEntry[], attrs: UserAttr[], nameOf: 
       return parts.length ? `${nameOf(e.id)} (${parts.join("; ")})` : nameOf(e.id);
     })
     .join(", ");
+}
+
+/**
+ * The value of attribute `name` (label or code, case-insensitive) of `person` in a stored user cell of `col`: a number, text or boolean; null when the person
+ * is not in the cell or the attribute has no value. Used by the formula function ATTR (design module2 section 6.2). An unknown attribute name is a #NAME? error.
+ */
+export function attrOfCell(col: Pick<DhColumn, "type" | "config">, stored: unknown, person: string, name: string): string | number | boolean | null {
+  const attrs = userAttrs(col);
+  const want = name.trim().toLowerCase();
+  const a = attrs.find((x) => x.key.toLowerCase() === want || x.label.trim().toLowerCase() === want);
+  if (!a) throw new FError("#NAME?", `Cột không có thuộc tính "${name}".`);
+  const p = person.trim().toLowerCase();
+  const e = entriesOf(stored).find((x) => x.id.toLowerCase() === p);
+  if (!e) return null;
+  const v = e.attrs[a.key];
+  return v === undefined ? null : (v as string | number | boolean | null);
 }

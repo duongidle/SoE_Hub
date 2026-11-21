@@ -1,6 +1,7 @@
 import { collectDeps, evaluate, FError, parseFormula, type EvalContext, type Node } from "@soe/formula";
 import { applyOutcome, cellValue, resultTypeOf, valueToStored } from "./cell-values";
 import type { TableSchema } from "./table-schema";
+import { attrOfCell } from "./user-values";
 import type { DhColumn, Stored } from "./types";
 
 const parseCache = new Map<string, Node | null>();
@@ -50,6 +51,8 @@ export class RowFormulas {
       if (c.readerScoped) continue;
       const ast = parsedExpr(c.config.expr);
       if (ast && collectDeps(ast).ranges.length > 0) continue;
+      // Viewer functions (ME, ISME) are not computed here either, even before the column is flagged: the worker computes them for each reader.
+      if (ast && collectDeps(ast).usesViewer) continue;
       compiled.push({ col: c, ast, cells: ast ? collectDeps(ast).cells : [] });
     }
     if (compiled.length === 0) return null;
@@ -83,6 +86,12 @@ export class RowFormulas {
       },
       range: () => {
         throw new FError("#REF!", "Công thức này đọc cả cột nên do worker tính.");
+      },
+      attr: (key, person, name) => {
+        const c = this.byKey.get(key);
+        if (!c) throw new FError("#REF!", "Cột được tham chiếu đã bị xoá.");
+        if (c.type !== "user") throw new FError("#VALUE!", "ATTR cần một cột Người dùng.");
+        return attrOfCell(c, data[key], person, name);
       },
       rowInfo: () => ({ id: meta.id, rowNo: meta.rowNo, createdAt: cellValue({ type: "created_time", key: "_", config: {} } as DhColumn, row) as number, modifiedAt: cellValue({ type: "modified_time", key: "_", config: {} } as DhColumn, row) as number }),
     };

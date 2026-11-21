@@ -16,6 +16,12 @@ import { loadReader } from "./access";
 type Raw = Record<string, unknown>;
 
 /**
+ * Marker dependency of a column that uses ME() or ISME(): a `cell` dependency on the pseudo column `~viewer` of its own table (no real column has this key).
+ * `refreshReaderScoped` reads it as "the value depends on who reads it", directly or through a column that reads this one.
+ */
+export const VIEWER_DEP_KEY = "~viewer";
+
+/**
  * `FROM` fragment for the rows of a table as ONE person reads them: `dh_rows` with the person's own values of the reader-scoped columns laid
  * over `data` (the owner's values of those columns are dropped first), then their own values of the person-stored columns (`dh_person_cells`, `withPerson`). `keep` = extra condition on alias `r` (the split lock of the table, kept
  * inside so the key indexes still apply). Used as `FROM ${overlayRel(...)} <alias>`.
@@ -74,7 +80,7 @@ export async function refreshReaderScoped(db: Executor, ownerId: string): Promis
   }
   const idOf = new Map(rows.map((r) => [`${r.table_id}:${r.key}`, r.id]));
   const scoped = new Set<string>();
-  for (const r of rows) if ((byCol.get(r.id) ?? []).some((d) => (d.person || (d.kind === "range" && d.split)))) scoped.add(r.id);
+  for (const r of rows) if ((byCol.get(r.id) ?? []).some((d) => (d.person || (d.kind === "range" && d.split) || (d.key === VIEWER_DEP_KEY && d.table === r.table_id)))) scoped.add(r.id);
   for (let changed = true; changed; ) {
     changed = false;
     for (const r of rows) {

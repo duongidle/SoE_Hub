@@ -12,6 +12,10 @@ export interface Fixture {
   ranges?: Record<string, Value[]>;
   plans?: Map<number, GroupPlan>;
   now?: Date;
+  /** The viewer (ME). */
+  me?: string;
+  /** User cells with attributes by cell key: person id to attributes by label. */
+  people?: Record<string, Record<string, Record<string, Scalar>>>;
 }
 
 /** Names in tests: `[a_b]` is the cell `a_b`; `[T1].[x]` and `[T2].[x]` are columns of the two tables. */
@@ -38,6 +42,8 @@ export function ctxOf(f: Fixture = {}): EvalContext {
     },
     rowInfo: () => ({ id: "row-1", rowNo: 7, createdAt: d(2026, 11, 1), modifiedAt: d(2026, 11, 2) }),
     plans: f.plans,
+    me: () => f.me ?? null,
+    attr: (key, person, name) => f.people?.[key]?.[person]?.[name] ?? null,
   };
 }
 

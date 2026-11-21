@@ -11,6 +11,8 @@ export interface FormulaDeps {
   /** Uses TODAY() (recalculated daily) or NOW() (hourly). */
   volatile: "today" | "now" | null;
   usesRowInfo: boolean;
+  /** Uses ME() or ISME(): the value depends on who reads it (design module2 section 6.2, 10). */
+  usesViewer: boolean;
 }
 
 export function collectDeps(ast: Node): FormulaDeps {
@@ -18,6 +20,7 @@ export function collectDeps(ast: Node): FormulaDeps {
   const ranges = new Map<string, { table: string; key: string }>();
   let volatile: FormulaDeps["volatile"] = null;
   let usesRowInfo = false;
+  let usesViewer = false;
   walk(ast, (n) => {
     if (n.t === "key") {
       if (n.table === null) cells.add(n.key);
@@ -27,9 +30,10 @@ export function collectDeps(ast: Node): FormulaDeps {
       if (fn?.volatile === "now") volatile = "now";
       else if (fn?.volatile === "today" && volatile !== "now") volatile = "today";
       if (fn?.group === "Thông tin dòng") usesRowInfo = true;
+      if (n.name === "ME" || n.name === "ISME") usesViewer = true;
     }
   });
-  return { cells: [...cells], ranges: [...ranges.values()], volatile, usesRowInfo };
+  return { cells: [...cells], ranges: [...ranges.values()], volatile, usesRowInfo, usesViewer };
 }
 
 export interface Issue extends ParseError {

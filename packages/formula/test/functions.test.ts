@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ALL_FUNCTIONS, FUNCTION_CATALOG, parseFormula, validateCalls, type Scalar } from "../src";
-import { T1, T2, calc, d, type Fixture } from "./helpers";
+import { ALL_FUNCTIONS, collectDeps, FUNCTION_CATALOG, parseFormula, validateCalls, type Scalar } from "../src";
+import { T1, T2, calc, compile, d, type Fixture } from "./helpers";
 
 type Case = [formula: string, expected: Scalar | string, fixture?: Fixture];
 
@@ -442,5 +442,32 @@ describe("catalog", () => {
     expect(FUNCTION_CATALOG).toHaveLength(ALL_FUNCTIONS.length);
     void T1;
     void T2;
+  });
+});
+
+describe("viewer functions", () => {
+  const people = { ng: { u1: { "% com": 0.3, "Vai trò": "Leading" }, u2: { "% com": 0.1 } } };
+  it("ME, ISME, ATTR", () => {
+    run([
+      ["ME()", "u1", { me: "u1" }],
+      ["ISME([ng])", true, { me: "u1", cells: { ng: "u2, u1" } }],
+      ["ISME([ng])", false, { me: "u3", cells: { ng: "u2, u1" } }],
+      ["ISME([ng])", false, { me: "u1", cells: { ng: null } }],
+      ['ATTR([ng], ME(), "% com")', 0.3, { me: "u1", cells: { ng: "u1, u2" }, people }],
+      ['ATTR([ng], ME(), "% com")', 0.1, { me: "u2", cells: { ng: "u1, u2" }, people }],
+      ['ATTR([ng], ME(), "% com")', null, { me: "u9", cells: { ng: "u1, u2" }, people }],
+      ['IF([lead]=ME(),[lead_pct],0)', 0.6, { me: "u1", cells: { lead: "u1", lead_pct: 0.6 } }],
+      ['IF([lead]=ME(),[lead_pct],0)', 0, { me: "u2", cells: { lead: "u1", lead_pct: 0.6 } }],
+      ["ME()", "#VALUE!"],
+      ['ATTR("x", ME(), "a")', "#VALUE!", { me: "u1" }],
+    ]);
+  });
+  it("is in the catalogue and ME/ISME mark a column as viewer dependent", () => {
+    for (const n of ["ME", "ISME", "ATTR"]) expect(FUNCTION_CATALOG.find((f) => f.name === n)?.group).toBe("Người xem");
+    const deps = (src: string) => collectDeps(compile(src).ast);
+    expect(deps("ME()").usesViewer).toBe(true);
+    expect(deps("IF(ISME([a]),1,0)").usesViewer).toBe(true);
+    expect(deps("[a]+1").usesViewer).toBe(false);
+    expect(deps('ATTR([a], [b], "x")').usesViewer).toBe(false);
   });
 });

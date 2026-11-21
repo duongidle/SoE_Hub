@@ -32,6 +32,10 @@ export interface EvalContext {
   /** A whole column of a table (this one or another). Errors (`#REF!`, `#PERM!`, too large) are thrown as `FError`. */
   range(table: string, key: string): RangeValue;
   rowInfo(): RowInfo;
+  /** The person who reads the value (viewer functions): the owner for the owner's pass, the member for a member's pass. Absent where there is no viewer. */
+  me?(): string | null;
+  /** The attribute `name` (label or code) of `person` in the user cell `key` of the current row; null when the person is not in the cell. */
+  attr?(key: string, person: string, name: string): Scalar;
   /** Grouped plans by call-node id. */
   plans?: Map<number, GroupPlan>;
 }
@@ -45,7 +49,7 @@ export type RetType = FType | ((args: FType[]) => FType);
 
 export interface FnDef {
   name: string;
-  group: "Logic" | "Toán" | "Thống kê" | "Chuỗi" | "Ngày" | "Tra cứu" | "Thông tin dòng";
+  group: "Logic" | "Toán" | "Thống kê" | "Chuỗi" | "Ngày" | "Tra cứu" | "Thông tin dòng" | "Người xem";
   /** Syntax shown in the editor, e.g. `IF(điều_kiện, nếu_đúng, nếu_sai)`. */
   syntax: string;
   /** Short Vietnamese description. */

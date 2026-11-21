@@ -13,7 +13,7 @@ import { rowFromDb, TableSchema } from "./table-schema";
 
 const FunctionOut = z.object({
   name: z.string(),
-  group: z.string().describe("Logic, Toán, Thống kê, Chuỗi, Ngày, Tra cứu hoặc Thông tin dòng."),
+  group: z.string().describe("Logic, Toán, Thống kê, Chuỗi, Ngày, Tra cứu, Thông tin dòng hoặc Người xem."),
   syntax: z.string().describe("Cú pháp, ví dụ `IF(điều_kiện, nếu_đúng, [nếu_sai])`; tham số trong [ ] là tuỳ chọn."),
   description: z.string().describe("Mô tả tiếng Việt ngắn."),
   example: z.string(),
