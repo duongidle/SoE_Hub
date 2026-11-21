@@ -78,22 +78,22 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 
 1. Chức năng đúng thiết kế; mọi lệch hoặc bổ sung đã ghi vào "Quyết định khi code".
 2. Test unit và test phân quyền của stage pass; test các stage trước không hỏng.
-3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`. Từ Stage 6: thao tác mới khai báo menu, `access`, nhóm cấm AI (Module 5 mục 3.5); việc hay làm qua AI có tool chọn lọc.
+3. Mọi endpoint mới có trong OpenAPI (tự sinh ở mỗi bước con) và có request mẫu trong `docs/api/bruno/` (gom làm một lần ở bước kiểm thử cuối stage, Dương chốt 22/11/2026). Từ Stage 6: thao tác mới khai báo menu, `access`, nhóm cấm AI (Module 5 mục 3.5); việc hay làm qua AI có tool chọn lọc.
 4. Có giao diện tối thiểu dùng được mọi chức năng của stage.
 5. Đã qua kiểm thử cuối stage (`design/kiem-thu.md`): chỉ kiểm lỗi chức năng và số liệu; lỗi tìm thấy đã sửa; kết quả ghi vào `progress.md`.
 6. Mục của module trong `design/ban-do-code.md` đủ và đúng. Mỗi bước con cập nhật phần của mình trong cùng commit với code, lúc code còn trong ngữ cảnh, không dồn tới cuối stage.
 7. `progress.md` cập nhật; cột "Code" ghi "Đã xong" (Opus ghi sau khi rà đạt); đã commit.
 
-**Kiểm thử theo cấp** (Dương chốt 19/11/2026, sửa 20/11/2026; kiểm thử nặng chỉ chạy một lần mỗi stage):
+**Kiểm thử theo cấp** (Dương chốt 19/11/2026, sửa 20/11 và 22/11/2026; kiểm thử nặng chỉ chạy một lần mỗi stage). Lý do giảm ngày 22/11: Stage 4 mỗi bước con mất tới 200 phút, phần lớn là chờ test và chạy cả bộ để thử từng giả thuyết. Giữ những lớp kiểm rẻ mà bắt lỗi nặng (quyền, tiền com, hồi quy engine), bỏ lớp trùng.
 
 | Lúc nào | Ai | Chạy gì |
 | --- | --- | --- |
 | Mỗi bước con | Sonnet | `typecheck`, `lint`, unit test của phần vừa sửa (`pnpm exec vitest run <thư mục/file>`), e2e desktop của **đúng spec bước đó** (áp cho từng phần nhỏ trong bước con). Chạm phần dùng chung (`apps/web/src/components/ui`, `RowsStore`, registry, engine công thức, phân quyền, `access.ts`, `rows.ts`) thì chạy thêm unit test của các module dùng phần đó; **không** chạy cả bộ e2e. Không chạy 375px, bộ skill giao diện, `break-ui`. Không chạy hai lệnh vitest song song (chung DB). Chạy cả bộ bằng một lệnh chạy hết rồi in tổng kết; không viết vòng chờ hỏi file kết quả (mỗi lượt hỏi đọc lại cả ngữ cảnh). Ghi vào `progress.md`: lệnh, **mã commit đã chạy test**, số pass/fail/skip (skip đổi so với mốc thì ghi lý do). |
-| Kết thúc mỗi bước con | Sonnet | Một lần: toàn bộ `pnpm exec vitest run apps packages` và cả bộ `pnpm test:e2e --project=desktop` (khoảng 10 phút), lọc output như mục "Phân vai" (c), để lỗi hồi quy lộ ngay ở bước con gây ra nó (Dương chốt 20/11/2026). Ghi mã commit và số pass/fail/skip vào `progress.md`. |
-| Rà bước con | Opus | Đọc diff và kết quả test Sonnet ghi, so với thiết kế. **Không chạy lại test Sonnet đã chạy** (Dương chốt 20/11/2026). Chỉ chạy lại khi: (1) có test chập chờn hoặc "fail rồi chạy lại pass"; (2) có commit sửa code sau mã commit đã chạy test (chỉ chạy phần bị ảnh hưởng); (3) số liệu vô lý (thiếu mã commit, số test giảm, skip tăng không giải thích). Chạm phần dùng chung thì **đọc kỹ diff ở chỗ đó** (lộ quyền, sai phạm vi dòng thường không bị test bắt) và grep nơi gọi của hàm dùng chung bị đổi để kiểm Sonnet không sót. |
+| Kết thúc mỗi bước con | Sonnet | Một lần: toàn bộ `pnpm exec vitest run apps packages` (khoảng 3 phút), và e2e desktop của **các spec liên quan** tới phần đã sửa (spec của bước con, spec của màn hoặc module bị chạm). **Không** chạy cả bộ e2e: để tới kiểm thử cuối stage (Dương chốt 22/11/2026, thay quy định 20/11). Ghi mã commit và số pass/fail/skip vào `progress.md`. |
+| Rà bước con | Opus | Đọc diff và kết quả test Sonnet ghi, so với thiết kế. **Không chạy lại test Sonnet đã chạy** (Dương chốt 20/11/2026). Chỉ chạy lại khi: (1) có test chập chờn hoặc "fail rồi chạy lại pass": chạy lại đúng phần đó; (2) có commit sửa **code** sau mã commit đã chạy test: chỉ chạy phần bị ảnh hưởng (commit chỉ sửa tài liệu hay `progress.md` thì không chạy); (3) số liệu vô lý (thiếu mã commit, số test giảm, skip tăng không giải thích). Chạm phần dùng chung thì **đọc kỹ diff ở chỗ đó** (lộ quyền, sai phạm vi dòng thường không bị test bắt) và grep nơi gọi của hàm dùng chung bị đổi để kiểm Sonnet không sót. |
 | Kiểm thử cuối stage | Sonnet chạy, Opus điều phối | Toàn bộ `pnpm test` và cả bộ e2e, đi luồng thật theo vai trò, dữ liệu xấu nhất. Chi tiết: `design/kiem-thu.md`. |
 
-**Test chập chờn là lỗi**: tìm nguyên nhân và sửa, không chạy lại tới khi pass, không `skip` (`design/kiem-thu.md` mục 3). **Điện thoại là ưu tiên thấp**: lỗi giao diện chỉ ở 375px không chặn bước con, ghi vào `progress.md` "Lỗi điện thoại để sau"; trừ trang công khai (`design/kiem-thu.md` mục 4).
+**Test chập chờn là lỗi**: tìm nguyên nhân và sửa, không chạy lại tới khi pass, không `skip` (`design/kiem-thu.md` mục 3). Tái hiện bằng **chạy lặp đúng chỗ** (nhóm file chạy trước file lỗi, `--repeat-each`), không chạy cả bộ để thử từng giả thuyết. Sửa xong chạy cả bộ **một lần** để xác nhận (Dương chốt 22/11/2026). **Điện thoại là ưu tiên thấp**: lỗi giao diện chỉ ở 375px không chặn bước con, ghi vào `progress.md` "Lỗi điện thoại để sau"; trừ trang công khai (`design/kiem-thu.md` mục 4).
 
 ## Phân vai khi code
 
