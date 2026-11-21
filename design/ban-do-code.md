@@ -15,7 +15,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
    - Đường dẫn đứng một mình cũng phải tồn tại.
    - Bản đồ lệch với code thì test đỏ ở lần chạy cả bộ của bước con.
 8. **Lưới an toàn không dựa vào bản đồ:**
-   - Luật quan trọng nhất nằm trong code, không chỉ ở đây. Ví dụ truy vấn `dh_rows` thiếu dấu phạm vi thì chốt chặn `auth/query-guard.ts` báo lỗi ngay.
+   - Luật quan trọng nhất nằm trong code, không chỉ ở đây. Ví dụ truy vấn `dh_rows` thiếu dấu phạm vi thì chốt chặn `apps/api/src/auth/query-guard.ts` báo lỗi ngay.
    - Typecheck, test phân quyền, cả bộ test cuối mỗi bước con.
    - Opus rà diff phần dùng chung và grep nơi gọi.
 
@@ -32,11 +32,114 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 
 ## Module 0: Nền tảng
 
-_Chưa viết._
+### Thêm một lệnh hoặc truy vấn registry
+- Muốn thêm lệnh ghi (một transaction, có audit, có thể emit) → `defineCommand` ở `apps/api/src/core/registry.ts`. Muốn thêm truy vấn đọc → `defineQuery`, cùng file.
+- Mẫu đầy đủ (input zod, `permission`, `aiAllowed`, `emits`, audit, emit): lệnh `guest.grant.create` ở `apps/api/src/modules/guest/index.ts` `guestOperations`.
+- Tên lệnh dạng `<module>.<đối tượng>.<động từ>`. Mỗi lệnh có `http: { method, path }`, REST và OpenAPI sinh từ đây.
+- Chuỗi quyền chỉ được dùng chuỗi có trong `PERMISSIONS` ở `packages/shared/src/permissions.ts`. Quyền mới thì khai báo ở đó, rồi thêm vào `ROLE_PERMISSIONS` cùng file.
+- `permission: null` là công khai (đăng nhập, xin mã). `aiAllowed: false` thì kênh `mcp` bị từ chối.
+- Muốn ghi chi tiết audit → `ctx.audit({ type, id, details })` trong handler. Target thuộc dữ liệu riêng → `registerPrivateAuditTarget` ở `apps/api/src/core/audit-privacy.ts`, audit chỉ giữ tên trường, không giữ giá trị.
+- Muốn báo lỗi → `throw new AppError("<mã>", "thông điệp", details)`. Mã nằm ở `ERROR_CODES` trong `packages/shared/src/errors.ts`, không viết chuỗi mã ở nơi khác.
+- Muốn emit sự kiện → khai `emits: ["tên"]` trong lệnh, rồi `ctx.emit(tên, { aggregateType, aggregateId, payload })`. Sự kiện phải có trong danh mục: `EventDef` ở `apps/api/src/core/events.ts` (mẫu: `authEvents` ở `apps/api/src/modules/auth/events.ts`).
+- `EventDef.audience` quyết định ai nhận tín hiệu SSE. Không có `audience` thì không ai nhận.
+- Đăng ký module: thêm lệnh vào `buildRegistry` và sự kiện vào `EventRegistry` ở `apps/api/src/modules/index.ts`. Bảng có thùng rác → `registerTrashTables` cùng file.
+- Ghi có version chống ghi đè → `versionedUpdate`, xoá mềm → `softDelete`, khôi phục → `restoreRow`, thùng rác → `registerTrashTable` (tất cả ở `packages/db/src/helpers/versioned.ts`). Bảng mới dùng `standardColumns` ở `packages/db/src/schema/columns.ts`.
+- Lịch sử dòng → `recordRowHistory` và `diffRows` ở `packages/db/src/helpers/history.ts`. Audit tự ghi bởi executor (`apps/api/src/core/executor.ts` `OperationExecutor`), lệnh không tự gọi `writeAudit`.
+- Đổi lược đồ → file SQL mới ở `packages/db/drizzle/`, không sửa file đã chạy. Có endpoint mới thì thêm request Bruno ở `docs/api/bruno/`.
+
+### Outbox, subscriber, worker, job
+- Sự kiện vào bảng `outbox` cùng transaction với lệnh (`enqueueOutbox` ở `packages/db/src/helpers/outbox.ts`).
+- Muốn phản ứng với sự kiện → viết một `Subscriber` (`apps/api/src/core/outbox-dispatcher.ts`), thêm vào `defaultSubscribers` ở `apps/api/src/core/subscribers.ts`. Giao ít nhất một lần, nên handler phải idempotent.
+- Mẫu subscriber: `createNotificationSubscriber` ở `apps/api/src/modules/notification/index.ts`. Thông báo cho sự kiện mới → thêm `Notifier` vào bảng `notifiers` cùng file.
+- Dispatcher xử lý từng sự kiện nối tiếp nhau. **Việc nặng (dựng nhiều bảng, quét nhiều dòng) không chạy trong subscriber.** Đã có lỗi thật: dựng template trong dispatcher làm trễ mọi sự kiện sau, kể cả thông báo mã kích hoạt.
+- Việc nặng làm một trong hai cách. Vòng riêng, truy vấn chính là hàng đợi, bỏ nhịp nếu lần trước chưa xong: mẫu `startDealDefaultsLoop` ở `apps/api/src/modules/deal/tree-templates.ts`, gắn vào `apps/api/src/worker.ts`. Hoặc job định kỳ: thêm vào `jobs` ở `apps/api/src/jobs/index.ts` (cron, mẫu `system-heartbeat`).
+- Vòng mới phải có `stop()` và được gọi trong `shutdown` của `apps/api/src/worker.ts`.
+- Job và worker chạy với `systemActor` (`apps/api/src/jobs/index.ts`), không có người dùng.
+- Muốn ghi cài đặt hệ thống từ job → `systemSettings`, đọc → `getSetting` (`packages/db/src/helpers/settings.ts`).
+
+### SSE, file, audit
+- SSE chỉ mang tín hiệu (tên sự kiện + id đối tượng), không mang dữ liệu: `SseHub` ở `apps/api/src/http/sse.ts`. Worker gửi qua `pg_notify` bởi subscriber `sse.fanout` (`createSseFanout`). Client nhận ở `useLiveUpdates` (`apps/web/src/lib/session.tsx`): thêm một dòng `on(tên sự kiện, [khoá query])` để làm mới.
+- File: lệnh `file.upload.init`, `file.upload.complete`, `file.download.url` ở `apps/api/src/modules/system/files.ts` `fileOperations`. Ghi/đọc phía server → `StorageDriver` (`apps/api/src/storage/types.ts`), tạo bằng `createStorage`. Bảng `files` có chủ, nằm trong chốt chặn truy vấn.
+- Idempotency-Key do executor xử lý (`packages/db/src/helpers/idempotency.ts`), lệnh không tự làm.
+- Khoá kỳ ghi dữ liệu: `assertPeriodOpen` ở `packages/db/src/helpers/period-lock.ts`. Snapshot: `createSnapshot` ở `packages/db/src/helpers/snapshots.ts`.
+- Lọc, sắp xếp, phân trang keyset cho danh sách → `listPage` với `FieldMap` (`packages/db/src/query/keyset.ts`, `packages/db/src/query/filter.ts` `compileFilter`). Tham số danh sách: `listParamsShape` ở `packages/shared/src/filter.ts`.
+- Định dạng số, ngày, tiền (múi giờ VN) dùng chung server và web → `packages/shared/src/format.ts` `formatCurrency`. Giờ nghiệp vụ → `businessDate` ở `packages/shared/src/time-filter.ts`.
+
+### Khung test (apps/api/test)
+- Dựng app và DB test: `makeApp` ở `apps/api/test/helpers.ts`; HTTP dùng header `devHeaders` (`TestActorResolver` ở `apps/api/src/auth/dev.ts`).
+- Dựng org mẫu (Admin, Manager A/B, Leader, User, Guest): `seedOrg` ở `apps/api/test/fixtures.ts`. Đăng nhập thật: `login`. Token: `activeToken`.
+- Gọi lệnh như một người, qua executor thật (kiểm quyền, audit, sự kiện): `as` ở `apps/api/test/dh-helpers.ts`. Muốn thấy lỗi → `fails`. Chạy hết outbox và hàng đợi tính lại → `drainOutbox`.
+- Tạo actor thủ công → `actorOf` cùng file.
+- Không chạy hai lệnh vitest song song, chung DB. Test không dùng DB (như `ban-do-code.test.ts`) thì không bị ràng buộc này.
+
+### UI dùng chung
+- `apps/web/src/components/ui/form.tsx`: `Button`, `Input`, `Select`, `Field`, `Modal`, `ConfirmDialog`, `Table`, `Tabs`, `Notice`, `PageTitle`.
+- Trạng thái trống, lỗi, không quyền → `EmptyState`, `ErrorState`, `NoAccessState` (`apps/web/src/components/ui/states.tsx`). Chờ tải → `Skeleton`. Thông báo ngắn → `notify` (`apps/web/src/components/ui/toast.tsx`).
+- Menu thả, popover, tooltip: `Menu` (`dropdown.tsx`), `Popover` (`popover.tsx`), `Tip` (`tooltip.tsx`). Nhãn nhỏ: `Badge`. Khối nội dung: `Card`.
+- Gọi API → `api` và `apiList` (`apps/web/src/lib/api.ts`). Lỗi từ server là `ApiError`, lấy thông điệp bằng `errorMessage`. Tạo query string → `qs`.
+- Màu, phông, token giao diện → `apps/web/src/lib/theme.ts` `token`. Gộp class → `cn` ở `apps/web/src/lib/utils.ts`.
+- Người đang đăng nhập → `useMe`; ẩn nút theo quyền → `can` (`apps/web/src/lib/session.tsx`). Việc này chỉ để giao diện gọn, server mới là nơi chặn quyền.
+- Chuẩn giao diện đầy đủ ở `design/chuan-giao-dien.md`.
+
+### Bảng chính
+- `outbox`: hàng đợi sự kiện. `audit_log`: nhật ký chỉ ghi thêm. `row_history`: lịch sử dòng. `idempotency_keys`, `files`, `system_settings`, `period_locks`, `snapshots`, `snapshot_rows`.
+
+### Luật cấm
+- Không chạy việc nặng trong subscriber outbox (làm trễ mọi sự kiện sau). Dùng vòng hoặc job riêng.
+- Không viết chuỗi mã lỗi hay chuỗi quyền ngoài `ERROR_CODES` và `PERMISSIONS`.
+- `emit` sự kiện chưa khai trong `emits` hoặc chưa có trong danh mục thì executor ném lỗi. Query không được emit.
+- Không đưa dữ liệu dòng vào payload SSE. Chỉ tên sự kiện và id.
+- Thay đổi do công thức tính lại không ghi lịch sử, audit hay đổi `version`.
+- Không xoá cứng bản ghi nghiệp vụ. Dùng `softDelete`; bảng không bao giờ xoá cứng đăng ký `neverHardDelete`.
+- Ghi tay vào `audit_log` ngoài `writeAudit` và executor là không được; audit chỉ ghi thêm.
 
 ## Module 1: Tài khoản, phân quyền
 
-_Chưa viết._
+### Actor, vai trò, cây tổ chức
+- Actor (ai đang gọi, qua kênh nào) ở `packages/shared/src/actor.ts` `Actor`. Handler nhận `ctx.actor` và `ctx.access`.
+- Vai trò và quyền: `ROLES`, `ROLE_PERMISSIONS`, `permissionsFor` ở `packages/shared/src/permissions.ts`. Một người có thể có nhiều vai trò.
+- Admin là quản trị hệ thống, không có quyền nghiệp vụ (tạo deal, khoá kỳ, snapshot, tạo datahub...). Luật ở `design/quy-dinh-chung.md` mục "Tài khoản và phân quyền".
+- Người dùng: bảng `users`; vị trí trong cây: `org_memberships` (bản ghi có `valid_to` rỗng là hiện tại), quyền bổ sung: `user_permissions`.
+- Muốn biết vị trí hiện tại của một người (Manager, Leader) → `currentMembership` ở `apps/api/src/modules/org/view.ts`. Lấy tên hiển thị → `namesOf`. Lấy một người → `getPerson`.
+- Muốn lấy cấp dưới (cây của Manager, team của Leader) → không tự query `org_memberships`. Gọi `ctx.access.scope("deal")` hoặc `scope("org")` rồi dùng `scopeSql`. Hàm gốc: `computeScope` ở `apps/api/src/auth/access.ts`.
+- Muốn đếm người dưới quyền → `countReports` ở `apps/api/src/modules/org/service.ts`. Đổi vai trò hoặc vị trí → `validatePlacement`, `assertNoOrphans`, `writePlacement` cùng file.
+- Muốn lấy mọi người có một vai trò (ví dụ Admin để gửi thông báo) → `activeUsersWithRole` ở `apps/api/src/auth/access.ts`.
+
+### Kiểm quyền và phạm vi dữ liệu
+- Kiểm quyền thao tác: khai `permission` trong lệnh, `RoleAuthorizer` (`apps/api/src/auth/access.ts`) kiểm tài khoản, quyền theo vai trò và scope của token. Trong handler cần kiểm thêm → `ctx.access.can(...)`.
+- Kiểm theo dữ liệu: `ctx.access.scope(kind)` trả `Scope`. Có bốn loại (`ScopeKind`): `deal` (Admin đọc mọi cây, Manager cây mình, Leader team, User mình), `org`, `org_write`, `owner` (chỉ mình).
+- Mọi truy vấn bảng có chủ phải kèm điều kiện phạm vi: `scopeSql(cột chủ, scope)` hoặc `ownedBy(cột chủ, userId)`. Truy vấn có chủ ý trên toàn hệ thống (job, công cụ Admin đã kiểm quyền riêng) → `systemScope()`. Tất cả ở `apps/api/src/auth/access.ts`.
+- Một cột `owner` cho một dòng thì kiểm một dòng bằng `scopeIncludes(scope, ownerId)`.
+- Muốn đăng ký bảng có chủ mới → `registerOwnedTable("tên_bảng")` ở `apps/api/src/auth/query-guard.ts` (mẫu: `apps/api/src/modules/metrics/index.ts`). Bảng mà quyền phụ thuộc người đọc (khoá phân chia của `dh_rows`) → `registerOwnedTable(tên, { rows: true })`.
+- Chốt chặn `checkScopedQuery` (`apps/api/src/auth/query-guard.ts`) chạy ở mọi môi trường ngoài production, nên cả bộ test chứng minh luật. Dấu `/*scope*/` do `scopeSql` và `ownedBy` đặt; `/*scope:system*/` do `systemScope()`; `/*scope:rows*/` chỉ do `TableAccess.rows()` của Datahub đặt. Bảng `rows: true` chỉ chấp nhận `scope:rows` hoặc `scope:system`.
+- Insert không bị chốt chặn (chủ do code gán). Lỗi ném ra là `UnscopedQueryError`.
+- Admin không đọc dữ liệu Datahub riêng và nhật ký Admin không ghi giá trị dòng: `registerPrivateAuditTarget` (xem Module 0).
+
+### Phiên, token, Guest, chuyển giao
+- Đăng nhập web dùng cookie phiên và CSRF: `createSession`, `csrfFor` ở `apps/api/src/auth/sessions.ts`. Gọi API ngoài dùng token tiền tố `soe_pat_` (cá nhân, Admin duyệt) hoặc `soe_svc_` (tài khoản hệ thống). `SessionTokenResolver` biến request thành actor.
+- Khoá người hoặc đổi quyền thì thu hồi phiên và token: `revokeUserSessions`, `revokeUserTokens`, cùng file. Token cá nhân không được mang quyền `auth:` hoặc `onboarding:` (`isTokenAllowedPermission` ở `packages/shared/src/permissions.ts`); quyền hiệu lực là giao của quyền tài khoản và scope token (`effectivePermissions`). Vai trò đổi thì `reconcileUserTokens` ở `apps/api/src/modules/org/service.ts` thu hẹp token.
+- Mật khẩu: `hashPassword`, `verifyPassword`, `assertPasswordPolicy` ở `apps/api/src/auth/password.ts`. Mã 6 số xin kích hoạt/đặt lại: `issueCode` ở `apps/api/src/modules/auth/codes.ts`.
+- Guest mặc định không có quyền. Module cần cho Guest đọc dữ liệu thì đăng ký loại dữ liệu bằng `registerGrantDataType` và gọi `guestCanAccess` trong truy vấn (`apps/api/src/modules/guest/index.ts`). Guest không bao giờ thấy cột cá nhân.
+- Chuyển giao dữ liệu giữa hai tài khoản (Admin): module có dữ liệu có chủ đăng ký `registerTransferHandler` (`apps/api/src/modules/transfer/index.ts`, mẫu `fileTransferHandler`; Datahub: `apps/api/src/modules/datahub/transfer.ts`).
+- Thông báo trong ứng dụng: bảng `notifications` (chủ là người nhận). Tạo thông báo cho sự kiện mới → thêm vào `notifiers` (xem Module 0). Danh sách loại: `NOTIFICATION_TYPES`.
+- Cài đặt hệ thống: định nghĩa `SettingDef` (khoá, nhãn, `schema` zod, mặc định), đăng ký `registerSettings(...)` ở `apps/api/src/modules/system/settings-catalog.ts` (mẫu: `registerSettings` trong `apps/api/src/modules/metrics/index.ts`). Đọc → `readSetting`. Ghi bằng lệnh `system.setting.set`, sai kiểu bị `schema` từ chối.
+- Module chỉ đăng ký setting qua `import` module đó trong `apps/api/src/modules/index.ts`, nếu không API không thấy setting trong catalog.
+
+### Bảng chính
+- `users`, `org_memberships` (lịch sử vị trí), `user_permissions` (quyền bổ sung), `sessions`, `api_tokens`, `service_accounts`, `auth_codes`, `data_grants` (cấp dữ liệu Guest), `notifications`.
+
+### Luật cấm về phân quyền
+- Không SELECT, UPDATE, DELETE thẳng bảng có chủ mà thiếu `scopeSql`, `ownedBy` hoặc `systemScope()`. Chốt chặn `apps/api/src/auth/query-guard.ts` `checkScopedQuery` báo lỗi ngay trong dev và test.
+- Không dùng `scope()` thường cho `dh_rows`: bỏ qua khoá phân chia. Phải qua `TableAccess.rows()`. Chốt chặn cũng chặn.
+- Không dùng `systemScope()` trong lệnh người dùng để "cho chạy". Chỉ cho job, worker, công cụ Admin đã kiểm quyền riêng.
+- Không tự tính cây hay team bằng query `org_memberships` rải rác. Một nơi tính: `computeScope`.
+- Không kiểm quyền chỉ ở web. `can` ở web chỉ ẩn nút; server kiểm ở `permission` của lệnh và scope trong handler.
+- Admin không có quyền nghiệp vụ. Không thêm quyền `deal:*`, `datahub:*`, `form:*` cho vai trò admin trong `ROLE_PERMISSIONS`.
+- Hai Manager không thấy dữ liệu của nhau; Admin đọc Deal mọi cây chỉ-đọc, không đọc Datahub riêng.
+- Token và tài khoản hệ thống không được mang quyền ngoài `SERVICE_ACCOUNT_PERMISSIONS` (service) hay `auth:`/`onboarding:` (token cá nhân).
+- Lệnh về mật khẩu, phiên, token, kết nối AI đặt `aiAllowed: false` (kênh mcp bị chặn ở executor).
+- Người rời đi thì khoá tài khoản (lệnh `org.member.lock`) rồi chuyển giao dữ liệu (`data.transfer.execute`), không xoá.
+- Không gửi mã kích hoạt qua email. Mã đi qua thông báo trong ứng dụng, mã hoá trong payload sự kiện (`encrypt` ở `apps/api/src/auth/crypto.ts`).
 
 ## Module 2: Datahub
 
