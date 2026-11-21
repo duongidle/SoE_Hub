@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { enqueueOutbox, orgMemberships } from "@soe/db";
+import { enqueueOutbox, orgMemberships, outbox } from "@soe/db";
 import { as, drainOutbox, makeTable, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
@@ -287,5 +287,19 @@ describe("a merged table whose source is a table with the split lock (design mod
     await owner("datahub.row.update", { table_id: dealsId, row_id: rid.d4!, data: { "Phụ trách": org.userB1.id }, version: d4v + 1 });
     await drainOutbox(t);
     expect(JSON.stringify((await userA1("datahub.row.list", { table_id: merged.table.id, limit: 100 })).items)).not.toContain("800");
+  });
+});
+
+describe("moving a whole tree (4.6D)", () => {
+  it("org.tree.transfer announces each moved person like a single move, so the columns that read by person recompute", async () => {
+    // Last in the file: tree B (LeaderB, UserB1) joins MgrA, who then sees UserB1's deal (K2, 800).
+    const before = await all(mgrA, "Tổng rollup");
+    const r = await as(t, org.admin.id)("org.tree.transfer", { manager_id: org.mgrB.id, to_manager_id: org.mgrA.id });
+    expect(r.moved).toBe(2);
+    const ev = await t.c.db.db.select().from(outbox).where(sql`${outbox.event} = 'org.member.changed' AND ${outbox.payload}->>'change' = 'updated' AND ${outbox.aggregateId} IN (${org.leaderB.id}, ${org.userB1.id})`);
+    expect(new Set(ev.map((e) => e.aggregateId))).toEqual(new Set([org.leaderB.id, org.userB1.id]));
+    await drainOutbox(t);
+    expect(before.K2).toBe(0);
+    expect((await all(mgrA, "Tổng rollup")).K2).toBe(800);
   });
 });

@@ -183,7 +183,7 @@ export const transferOperations = [
     summary: "Admin chuyển cả một cây (Leader, User, Guest trong cây) sang Manager khác. Lịch sử cây được giữ.",
     permission: "data:transfer",
     aiAllowed: false,
-    emits: ["org.tree.transferred"],
+    emits: ["org.tree.transferred", "org.member.changed"],
     input: z.object({ manager_id: z.uuid(), to_manager_id: z.uuid() }),
     output: z.object({ moved: z.number().int() }),
     http: { method: "POST", path: "/admin/trees/:manager_id/transfer" },
@@ -201,7 +201,11 @@ export const transferOperations = [
       for (const m of sorted) {
         const [u] = await ctx.db.select().from(users).where(eq(users.id, m.userId)).limit(1);
         const placement = await validatePlacement(ctx.db, m.userId, (u?.roles ?? []) as never, { managerId: i.to_manager_id, leaderId: m.leaderId });
-        if (await writePlacement(ctx.db, m.userId, placement, ctx.actor.userId)) moved++;
+        if (await writePlacement(ctx.db, m.userId, placement, ctx.actor.userId)) {
+          moved++;
+          // Same event as a move by `org.member.update`: the columns that read by person (and the ones pushed down) follow the new tree.
+          await ctx.emit("org.member.changed", { aggregateType: "user", aggregateId: m.userId, payload: { user_id: m.userId, change: "updated" } });
+        }
       }
       ctx.audit({ type: "org_tree", id: i.manager_id, details: { to_manager_id: i.to_manager_id, moved } });
       await ctx.emit("org.tree.transferred", { aggregateType: "org_tree", aggregateId: i.manager_id, payload: { from_manager_id: i.manager_id, to_manager_id: i.to_manager_id, moved } });
