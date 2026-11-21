@@ -6,7 +6,7 @@ Tách từ `CLAUDE.md` ngày 20/11/2026. Phần tóm tắt (ai chạy gì ở b�
 
 **Sonnet** kiểm thử chức năng đầy đủ một lần:
 
-- `pnpm test` toàn bộ, toàn bộ e2e desktop; điện thoại chỉ các luồng chính (mục 4).
+- `DH_EQUIV_EDITS=2500 pnpm test` toàn bộ (bài `datahub-partial-equivalence` mặc định chỉ 500 lần sửa ngẫu nhiên; cuối stage chạy đủ 2.500, thêm ~2,5 phút), toàn bộ e2e desktop; điện thoại chỉ các luồng chính (mục 4).
 - Chạy api + worker + web thật, mở trên trình duyệt thật (Playwright có chụp màn hình, hoặc Claude in Chrome), đi hết các luồng chính của stage với từng vai trò liên quan; không có lỗi console/network.
 - Bảng/grid: kiểm mọi chức năng hiển thị và thao tác (tải dữ liệu khi cuộn, sửa ô, kéo thả và đổi độ rộng cột, lọc, sắp xếp, nhóm, view…).
 - Dữ liệu xấu nhất về **chức năng và số liệu**: danh sách rỗng, 10.000 dòng, số rất lớn, số âm, giá trị trống, tên có `<b>` hiện đúng là chữ, không cắt số/tiền/ngày.

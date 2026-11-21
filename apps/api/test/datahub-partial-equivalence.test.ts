@@ -9,7 +9,7 @@ import { markPending } from "../src/modules/datahub/recalc";
  * restores, key changes, relation edits, chains). After EVERY batch the stored values of every computed column, produced
  * by the partial recalculation, must equal exactly what a full recomputation of every column produces.
  */
-const EDITS = Number(process.env.DH_EQUIV_EDITS ?? 2500);
+const EDITS = Number(process.env.DH_EQUIV_EDITS ?? 500);
 const SEED = Number(process.env.DH_EQUIV_SEED ?? 20261118);
 
 let t: TestApp;

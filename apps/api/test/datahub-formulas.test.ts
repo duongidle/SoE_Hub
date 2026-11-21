@@ -339,12 +339,15 @@ describe("formulas across tables and datahubs (worker)", () => {
 });
 
 describe("TODAY() and NOW() columns", () => {
+  // A fixed clock (midday Vietnam time), not the real one: with the real clock the test failed when it ran between 00:00 and 00:05, because the column
+  // computed then is really stale at the 00:05 boundary of the same day.
   it("are recomputed after midnight (00:05 Vietnam time) and hourly, with catch-up, without logging", async () => {
+    const base = new Date("2026-11-22T05:00:00Z");
     const x = await makeTable(a, { columns: [{ name: "Hạn", type: "date" }] });
     const left = await addFormula(x.tableId, "Còn lại", "=DATEDIF(TODAY(), [Hạn], \"D\")");
     const stamp = await addFormula(x.tableId, "Giờ", "=NOW()");
     const r = await a("datahub.row.create", { table_id: x.tableId, data: { Hạn: "2030-01-10" } });
-    await drainOutbox(t);
+    await drainOutbox(t, { now: base });
     const day1 = (await a("datahub.row.get", { table_id: x.tableId, row_id: r.id })).data;
     const col = (await a("datahub.table.get", { table_id: x.tableId })).columns.find((c: { key: string }) => c.key === left.key);
     expect(col.calc.status).toBe("ready");
@@ -353,15 +356,15 @@ describe("TODAY() and NOW() columns", () => {
     // A volatile column of another table (e.g. the Đợt thanh toán default template) must not change the result: add one that stays stale.
     const other = await makeTable(a, { columns: [{ name: "Hạn", type: "date" }] });
     await addFormula(other.tableId, "Hôm nay", "=TODAY()");
-    await drainOutbox(t);
+    await drainOutbox(t, { now: base });
     const ownDue = async (now: Date): Promise<number> => {
       await markVolatilePending(t.c.db.db, now);
       return Number((await q(`SELECT count(*) FROM dh_columns WHERE table_id = $1 AND deleted_at IS NULL AND calc_status = 'pending'`, [x.tableId]))[0]!.count);
     };
     // Nothing is due right now.
-    expect(await ownDue(new Date())).toBe(0);
+    expect(await ownDue(base)).toBe(0);
     // Tomorrow 00:04 Vietnam time: the TODAY() job has not run yet; the hourly NOW() column is due.
-    const vn = new Date(Date.now() + 7 * 3_600_000);
+    const vn = new Date(base.getTime() + 7 * 3_600_000);
     const at0004 = new Date(Date.UTC(vn.getUTCFullYear(), vn.getUTCMonth(), vn.getUTCDate() + 1, 0, 4) - 7 * 3_600_000);
     expect(await ownDue(at0004)).toBe(1);
     await drainOutbox(t, { now: at0004 });
