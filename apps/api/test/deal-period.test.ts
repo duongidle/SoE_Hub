@@ -5,6 +5,7 @@ import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
 import { BUILTIN_DEFAULT_SET, ensureTreeTemplates } from "../src/modules/deal";
 import { workerEmit } from "../src/modules/datahub/template-sync";
+import { quarterOf, snapshotAllTrees } from "../src/modules/deal";
 
 /** Stage 4.5A: period closing (design module4 12). Invented figures only. Tree A: MgrA > LeaderA > UserA1, MgrA > UserA2. */
 let t: TestApp;
@@ -167,5 +168,57 @@ describe("period.close and what it freezes", () => {
     await upd(mgrA, tables["Đợt thanh toán"]!, p1[0]!, { "Số tiền nhận (gồm VAT)": 100_000_000 });
     expect((await fails(upd(mgrA, tables["Sổ com"]!, ledger1[0]!, { "% com": 0.5 }))).details.reason).toBe("ledger_line_closed");
     expect((await fails(mgrA("period.reopen", { month: "2026-07", reason: "x" }))).code).toBe("not_found");
+  });
+});
+
+describe("forecast and snapshot", () => {
+  const today = businessDate(new Date());
+  const q = quarterOf(today);
+  const after = new Date(Date.parse(`${q.end}T00:00:00Z`) + 40 * 86_400_000).toISOString().slice(0, 10);
+  let d5: string, d6: string, d7: string;
+  let p5: string[];
+  let snap: { id: string; forecast: number; row_count: number };
+
+  it("forecast has two parts: signed (instalments not yet paid, due in the range) and unsigned (open deals with no schedule)", async () => {
+    d5 = await newDeal();
+    d6 = await newDeal({ "Ngày dự kiến chốt": q.end, "Doanh thu dự kiến": 80_000_000 });
+    d7 = await newDeal({ "Loại deal": "PS không kèm POD", "Ngày dự kiến chốt": after, "Doanh thu dự kiến": 30_000_000 });
+    p5 = (await schedule(d5, [{ amount: 100_000_000, due: q.end }, { amount: 50_000_000, due: q.end }])).payments.map((x: { id: string }) => x.id);
+    await drainOutbox(t);
+    const f = await mgrA("deal.forecast", { from: q.start, to: q.end });
+    expect(f.signed).toBeGreaterThanOrEqual(150_000_000);
+    expect(f.unsigned).toBeGreaterThanOrEqual(80_000_000);
+    const pod = f.by_type.find((x: { type: string }) => x.type === "POD bán mới");
+    expect(pod.signed).toBeGreaterThanOrEqual(150_000_000);
+    expect(f.by_type.find((x: { type: string }) => x.type === "PS không kèm POD")).toBeUndefined(); // d7 expects to close after the range
+    expect(f.by_month.length).toBeGreaterThan(0);
+    for (const who of [leaderA, userA1, guest]) expect((await fails(who("deal.forecast", { from: q.start, to: q.end }))).code).toBe("forbidden");
+  });
+
+  it("a snapshot copies the open deals with their forecast value; the quarterly job takes one per tree and quarter", async () => {
+    snap = await mgrA("deal.snapshot.create", { note: "thử" });
+    expect(snap.row_count).toBeGreaterThanOrEqual(3);
+    expect(snap.forecast).toBeGreaterThanOrEqual(230_000_000);
+    expect((await mgrA("deal.snapshot.list")).map((x: { id: string }) => x.id)).toContain(snap.id);
+    expect(await snapshotAllTrees(t.c.db.db)).toBe(1);
+    expect(await snapshotAllTrees(t.c.db.db)).toBe(0);
+    expect((await mgrA("deal.snapshot.list")).filter((x: { auto: boolean }) => x.auto)).toHaveLength(1);
+    expect((await fails(mgrB("deal.snapshot.create", {}))).details.reason).toBe("payment_table_missing");
+    for (const who of [leaderA, userA1, guest]) expect((await fails(who("deal.snapshot.create", {}))).code).toBe("forbidden");
+  });
+
+  it("at the end of the quarter each deal is won in the quarter, slipped, lost or still open; accuracy is won revenue over the forecast", async () => {
+    await confirm(p5[0]!, today, 100_000_000);
+    await upd(mgrA, tables["Deals"]!, d6, { Status: "Lost" });
+    await drainOutbox(t);
+    const c = await mgrA("deal.snapshot.compare", { snapshot_id: snap.id });
+    const g = (name: string) => c.deals.find((x: { deal_id: string }) => x.deal_id === name);
+    expect(g(d5)).toMatchObject({ group: "won", forecast: 150_000_000, actual: 100_000_000 });
+    expect(g(d6)).toMatchObject({ group: "lost", forecast: 80_000_000, actual: 0 });
+    expect(g(d7)).toMatchObject({ group: "slipped", forecast: 0 });
+    expect(c.accuracy).toBeCloseTo(c.actual / c.forecast, 6);
+    expect(c.groups.find((x: { group: string }) => x.group === "won").count).toBeGreaterThanOrEqual(1);
+    expect(c.by_type.length).toBeGreaterThan(0);
+    expect((await fails(mgrB("deal.snapshot.compare", { snapshot_id: snap.id }))).code).toBe("not_found");
   });
 });

@@ -1,0 +1,19 @@
+meta {
+  name: deal.forecast
+  type: http
+  seq: 135
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deal/forecast?from=2026-10-01&to=2026-12-31
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Forecast hai phần (đã ký chờ tiền về, chưa ký) theo loại deal và tháng. Quyền: `deal:snapshot:create`.
+}

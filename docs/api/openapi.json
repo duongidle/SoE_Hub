@@ -54287,7 +54287,7 @@
         ],
         "x-command-name": "period.close",
         "x-ai-allowed": true,
-        "x-permission": "deal:payment:write",
+        "x-permission": "deal:period:lock",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -54489,7 +54489,7 @@
         ],
         "x-command-name": "period.reopen",
         "x-ai-allowed": true,
-        "x-permission": "deal:payment:write",
+        "x-permission": "deal:period:lock",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -54607,6 +54607,790 @@
           },
           "422": {
             "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deal/forecast": {
+      "get": {
+        "operationId": "deal.forecast",
+        "summary": "Forecast của cây theo loại deal và tháng, hai phần: đã ký chờ tiền về, chưa ký.",
+        "description": "Chỉ Manager của cây. `signed`: tổng `Số tiền dự kiến` của các đợt chưa về có hạn trong khoảng (deal mở hoặc Won). `unsigned`: `Doanh thu` của deal đang mở chưa có lịch thanh toán, có Ngày dự kiến chốt trong khoảng. Deal đã đóng (Lost, Disqualified, Convert, Huỷ) không tính.",
+        "tags": [
+          "deal"
+        ],
+        "x-command-name": "deal.forecast",
+        "x-ai-allowed": true,
+        "x-permission": "deal:snapshot:create",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "deal_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "type": "string"
+                        },
+                        "to": {
+                          "type": "string"
+                        },
+                        "signed": {
+                          "type": "number"
+                        },
+                        "unsigned": {
+                          "type": "number"
+                        },
+                        "by_type": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "signed": {
+                                "type": "number"
+                              },
+                              "unsigned": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "signed",
+                              "unsigned"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "by_month": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "month": {
+                                "type": "string"
+                              },
+                              "signed": {
+                                "type": "number"
+                              },
+                              "unsigned": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "month",
+                              "signed",
+                              "unsigned"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "parts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "month": {
+                                "type": "string"
+                              },
+                              "signed": {
+                                "type": "number"
+                              },
+                              "unsigned": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "month",
+                              "signed",
+                              "unsigned"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to",
+                        "signed",
+                        "unsigned",
+                        "by_type",
+                        "by_month",
+                        "parts"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deal/snapshots": {
+      "post": {
+        "operationId": "deal.snapshot.create",
+        "summary": "Chụp thêm snapshot dự báo: các deal đang mở của cây, kèm giá trị dự báo của quý hiện tại.",
+        "description": "Chỉ Manager của cây. Ngoài snapshot tự động 00:05 ngày đầu mỗi quý. Snapshot chỉ đọc, không sửa được. Cần `Idempotency-Key`.",
+        "tags": [
+          "deal"
+        ],
+        "x-command-name": "deal.snapshot.create",
+        "x-ai-allowed": true,
+        "x-permission": "deal:snapshot:create",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "quarter": {
+                          "type": "string"
+                        },
+                        "row_count": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "forecast": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "quarter",
+                        "row_count",
+                        "forecast"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "deal.snapshot.list",
+        "summary": "Các snapshot dự báo của cây (mới nhất trước).",
+        "tags": [
+          "deal"
+        ],
+        "x-command-name": "deal.snapshot.list",
+        "x-ai-allowed": true,
+        "x-permission": "deal:snapshot:create",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "taken_at": {
+                            "type": "string"
+                          },
+                          "row_count": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "auto": {
+                            "type": "boolean"
+                          },
+                          "quarter": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "note": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "taken_at",
+                          "row_count",
+                          "auto",
+                          "quarter",
+                          "note"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deal/snapshots/compare": {
+      "get": {
+        "operationId": "deal.snapshot.compare",
+        "summary": "So snapshot đầu quý với hiện tại: mỗi deal trong snapshot rơi vào Won trong quý, trượt sang quý sau, Lost/Disqualified, hay vẫn mở; độ chính xác.",
+        "description": "Chỉ Manager của cây. Won trong quý: Won và Closing date trong quý của snapshot. Trượt: vẫn mở với Ngày dự kiến chốt sau quý, hoặc Won sau quý. Lost/Disqualified: Lost, Disqualified, Convert to POD, Huỷ, hoặc deal đã bị xoá. Vẫn mở: còn lại. Độ chính xác = Doanh thu thực tế của deal Won trong quý ÷ forecast lúc chụp (tổng `value` của snapshot). Trả theo loại deal.",
+        "tags": [
+          "deal"
+        ],
+        "x-command-name": "deal.snapshot.compare",
+        "x-ai-allowed": true,
+        "x-permission": "deal:snapshot:create",
+        "parameters": [
+          {
+            "name": "snapshot_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "snapshot_id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "quarter": {
+                          "type": "string"
+                        },
+                        "forecast": {
+                          "type": "number"
+                        },
+                        "actual": {
+                          "type": "number"
+                        },
+                        "accuracy": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "groups": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "group": {
+                                "type": "string",
+                                "enum": [
+                                  "won",
+                                  "slipped",
+                                  "lost",
+                                  "open"
+                                ]
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "forecast": {
+                                "type": "number"
+                              },
+                              "actual": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "group",
+                              "count",
+                              "forecast",
+                              "actual"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "by_type": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string"
+                              },
+                              "forecast": {
+                                "type": "number"
+                              },
+                              "actual": {
+                                "type": "number"
+                              },
+                              "accuracy": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "forecast",
+                              "actual",
+                              "accuracy"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "deals": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "deal_id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "group": {
+                                "type": "string",
+                                "enum": [
+                                  "won",
+                                  "slipped",
+                                  "lost",
+                                  "open"
+                                ]
+                              },
+                              "forecast": {
+                                "type": "number"
+                              },
+                              "actual": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "deal_id",
+                              "name",
+                              "type",
+                              "group",
+                              "forecast",
+                              "actual"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "snapshot_id",
+                        "quarter",
+                        "forecast",
+                        "actual",
+                        "accuracy",
+                        "groups",
+                        "by_type",
+                        "deals"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
             "content": {
               "application/json": {
                 "schema": {

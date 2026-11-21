@@ -200,3 +200,5 @@ Test: `deal-defaults.test.ts` (13), `datahub-user-attrs.test.ts` (14), `datahub-
 - **`Tỉ lệ com sale` trống khi thiếu Nguồn lead / Level BC / Performance BC** (công thức POD thêm kiểm trống; trước đó SUMIFS trả 0).
 - **Công thức chưa tính xong** thì `period.close` lỗi `recalc_pending` (chờ tối đa 5 giây bằng `waitConsistent`).
 - **Xuất XLSX bảng com:** dùng lại `datahub.export.create`, không thêm lệnh riêng.
+- **Snapshot dự báo:** mỗi dòng snapshot giữ `value` = giá trị dự báo của quý lúc chụp (deal có lịch: tổng đợt chưa về có hạn trong quý; deal chưa có lịch: Doanh thu nếu Ngày dự kiến chốt trong quý). Độ chính xác = Doanh thu thực tế của deal Won trong quý ÷ tổng `value`. Deal đã bị xoá tính là `lost`. Won sau quý hoặc đang mở với Ngày dự kiến chốt sau quý là `slipped`.
+- **Forecast chỉ Manager** (quyền `deal:snapshot:create`). Leader và dashboard của Leader (4.6) cần phạm vi team: chưa làm, ghi ở bàn giao.

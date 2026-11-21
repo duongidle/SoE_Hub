@@ -1,0 +1,19 @@
+meta {
+  name: deal.snapshot.compare
+  type: http
+  seq: 138
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deal/snapshots/compare?snapshot_id={{snapshot_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  So snapshot với hiện tại: Won trong quý, trượt, Lost, vẫn mở; độ chính xác. Quyền: `deal:snapshot:create`.
+}

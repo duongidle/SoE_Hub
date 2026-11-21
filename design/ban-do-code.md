@@ -326,6 +326,10 @@ _Phần 4.1–4.5A. Mỗi bước con sau cập nhật phần của mình trong 
 - Tiền về muộn: cột Đợt `Kỳ ghi nhận` (vai trò `ky_ghi_nhan`), `Kỳ` là công thức đọc nó trước. Điều chỉnh com: cột Sổ com `Kỳ ghi nhận`; `Kỳ` = công thức, `Kỳ của đợt` (`ky_dot`) là lookup.
 - Xuất XLSX bảng com: dùng `datahub.export.create` trên bảng Sổ com (`period.com` trả `ledger_table_id`), lọc theo cột `Kỳ`.
 
+**Forecast và snapshot (4.5A)**
+- Số liệu forecast và snapshot tính một nơi: `apps/api/src/modules/deal/forecast.ts` `dealFacts` (đọc deal và đợt theo vai trò, quyền hệ thống), `forecastParts` (hai phần đã ký / chưa ký), `quarterOf`. Query `deal.forecast`, `deal.snapshot.list`, `deal.snapshot.compare`, lệnh `deal.snapshot.create`: `apps/api/src/modules/deal/forecast.ts` `forecastOperations`. Quyền `deal:snapshot:create` (Manager). Dashboard 4.6 đọc `deal.forecast`, không tự cộng.
+- Snapshot dùng `createSnapshot` (`packages/db/src/helpers/snapshots.ts`), `kind = deal_forecast`, `scope` = id Manager, ghi chú JSON (quý, auto). Job quý: `apps/api/src/modules/deal/forecast.ts` `snapshotAllTrees`, khai ở `apps/api/src/jobs/index.ts` (`deal-quarter-snapshot`, 00:05 ngày 1 tháng 1/4/7/10).
+
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.
 - Không đưa số chính sách com thật vào code, bộ mặc định hay test (bảng chính sách và tham số tạo rỗng; Manager điền).

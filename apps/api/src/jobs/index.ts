@@ -5,7 +5,7 @@ import type { Logger } from "pino";
 import type { Config } from "../config";
 import { purgeSessions } from "../auth/sessions";
 import { datahubJobs } from "../modules/datahub";
-import { addIndexMonths } from "../modules/deal";
+import { addIndexMonths, snapshotAllTrees } from "../modules/deal";
 import { scrubExpiredCodes } from "../modules/notification";
 
 /** The internal system account (a row of `users`, kind `system`, created by migration 0003). */
@@ -126,6 +126,16 @@ export const jobs: JobDef[] = [
     description: "Mỗi ngày thêm dòng tháng mới vào bảng Index của mọi người khi sang tháng (Module 4 mục 5).",
     async run({ db, logger }) {
       await addIndexMonths(db, new Date(), logger);
+    },
+  },
+  {
+    name: "deal-quarter-snapshot",
+    cron: "5 0 1 1,4,7,10 *",
+    tz: BUSINESS_TIMEZONE,
+    description: "00:05 ngày đầu mỗi quý: chụp snapshot dự báo các deal đang mở của mọi cây (Module 4 mục 11).",
+    async run({ db, logger }) {
+      const n = await snapshotAllTrees(db, new Date());
+      logger.info({ job: "deal-quarter-snapshot", trees: n }, "quarter snapshots taken");
     },
   },
 ];

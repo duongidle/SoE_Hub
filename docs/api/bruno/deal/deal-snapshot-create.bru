@@ -1,0 +1,26 @@
+meta {
+  name: deal.snapshot.create
+  type: http
+  seq: 136
+}
+
+post {
+  url: {{baseUrl}}/api/v1/deal/snapshots
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+body:json {
+  {
+    "note": "Chụp giữa quý"
+  }
+}
+
+docs {
+  Chụp thêm snapshot dự báo các deal đang mở. Quyền: `deal:snapshot:create`.
+}

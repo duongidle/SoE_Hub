@@ -247,7 +247,7 @@ export const periodOperations = [
       "Chỉ Manager của cây. Còn mục ở `period.review` thì lỗi `conflict` (`reason: period_pending_items`, kèm số mục theo loại) trừ khi gửi `close_anyway: true` (\"Chốt dù còn N mục\"). " +
       "Sau khi chốt: đợt thanh toán có tiền về trong tháng không sửa, không huỷ xác nhận (`period_locked`); Status, Ngày đóng sửa tay, Loại deal và % doanh thu của deal đóng trong tháng bị khoá (người tham gia, % com vẫn sửa); dòng Sổ com `Đã chốt` không sửa. " +
       "Tiền về có ngày thuộc tháng đã chốt vào kỳ đang mở (`Về muộn`); điều chỉnh com vào kỳ đang mở. Dòng AI/API nhập chưa `Đã kiểm` được đánh dấu đã kiểm khi chốt (ghi vào nhật ký kèm kênh gọi). Công thức chưa tính xong thì lỗi `conflict` (`recalc_pending`), thử lại sau. Cần `Idempotency-Key`.",
-    permission: "deal:payment:write",
+    permission: "deal:period:lock",
     aiAllowed: true,
     emits: ROW_EVENTS,
     input: z.object({ month, close_anyway: z.boolean().default(false), stale_days: z.number().int().min(1).max(365).default(30) }),
@@ -310,7 +310,7 @@ export const periodOperations = [
     name: "period.reopen",
     summary: "Mở lại kỳ (tháng) đã chốt, ghi nhật ký kèm lý do. Dòng Sổ com Đã chốt không tính lại.",
     description: "Chỉ Manager của cây, không cần người thứ hai duyệt. Dùng để sửa Status, Closing date hoặc chuyển vai trò cột. Dòng Sổ com `Đã chốt` vẫn đứng yên; chênh lệch đi qua `commission.adjust`. Cần `Idempotency-Key`.",
-    permission: "deal:payment:write",
+    permission: "deal:period:lock",
     aiAllowed: true,
     emits: ROW_EVENTS,
     input: z.object({ month, reason: z.string().trim().min(1, "Cần ghi lý do mở lại kỳ.").max(500) }),

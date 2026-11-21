@@ -1,0 +1,19 @@
+meta {
+  name: deal.snapshot.list
+  type: http
+  seq: 137
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deal/snapshots
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Các snapshot dự báo của cây. Quyền: `deal:snapshot:create`.
+}
