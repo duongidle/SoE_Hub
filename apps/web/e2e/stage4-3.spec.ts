@@ -226,7 +226,8 @@ test("cột tự điền chỉ đọc kèm lý do; cột riêng có nhãn Riêng
   expect(tags["Việc riêng của tôi"]).toBe("Riêng");
   await openFirstRow(pg);
   await expect(pg.getByRole("textbox", { name: "Vai trò của tôi" })).toHaveAttribute("aria-readonly", "true");
-  await expect(pg.getByText(/hệ thống điền từ cột Người tham gia/).first()).toBeVisible();
+  // "Vai trò của tôi" is a formula of the viewer functions since 4.6E (Dương 22/11/2026), no longer a column the system fills down.
+  await expect(pg.getByText(/Cột này do công thức tính/).first()).toBeVisible();
   // The `Status` option that means "won" is read by meaning: the column role is held by one column of the table.
   const detail = await mgrApi.call<{ roles: { key: string; column: string | null }[] }>("GET", `/datahub/templates/${dealsTemplateId}`);
   expect(detail.roles.find((r) => r.key === "trang_thai")?.column).toBeTruthy();
