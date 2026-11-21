@@ -79,7 +79,7 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`. Từ Stage 6: thao tác mới khai báo menu, `access`, nhóm cấm AI (Module 5 mục 3.5); việc hay làm qua AI có tool chọn lọc.
 4. Có giao diện tối thiểu dùng được mọi chức năng của stage.
 5. Đã qua kiểm thử cuối stage (`design/kiem-thu.md`): chỉ kiểm lỗi chức năng và số liệu; lỗi tìm thấy đã sửa; kết quả ghi vào `progress.md`.
-6. Mục của module trong `design/ban-do-code.md` đã viết hoặc cập nhật (do agent cuối của stage viết, lúc code còn trong ngữ cảnh).
+6. Mục của module trong `design/ban-do-code.md` đủ và đúng. Mỗi bước con cập nhật phần của mình trong cùng commit với code, lúc code còn trong ngữ cảnh, không dồn tới cuối stage.
 7. `progress.md` cập nhật; cột "Code" ghi "Đã xong" (Opus ghi sau khi rà đạt); đã commit.
 
 **Kiểm thử theo cấp** (Dương chốt 19/11/2026, sửa 20/11/2026; kiểm thử nặng chỉ chạy một lần mỗi stage):
