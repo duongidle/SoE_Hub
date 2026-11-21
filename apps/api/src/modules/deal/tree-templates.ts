@@ -123,7 +123,7 @@ export async function ensureAllTrees(db: Db, only?: string): Promise<number> {
       const emit = workerEmit(tx);
       await ensureTreeTemplates(tx, emit, r.id);
       await emit("org.member.changed", { aggregateType: "user", aggregateId: r.id, payload: { user_id: r.id, change: "default_templates" } });
-    });
+    }, { bulk: true });
     n++;
   }
   return n;
@@ -145,7 +145,7 @@ export async function ensureMissingTables(db: Db, only?: string): Promise<number
       const emit = workerEmit(tx);
       const made = await ensureTreeTemplates(tx, emit, r.manager_id);
       if (made.length) await emit("org.member.changed", { aggregateType: "user", aggregateId: r.manager_id, payload: { user_id: r.manager_id, change: "default_templates" } });
-    });
+    }, { bulk: true });
     n++;
   }
   return n;

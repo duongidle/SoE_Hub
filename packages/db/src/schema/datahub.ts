@@ -178,6 +178,8 @@ export const dhColumns = pgTable(
     /** When the stored values were last computed (catch-up of TODAY()/NOW() columns compares against it). */
     calcAt: timestamp("calc_at", { withTimezone: true, mode: "date" }),
     calcRequestedAt: timestamp("calc_requested_at", { withTimezone: true, mode: "date" }),
+    /** The pending request came only from background building (a tree of default tables, a template sync): the worker takes these after every request of a person. */
+    calcBulk: boolean("calc_bulk").notNull().default(false),
     /** `today` | `now` when the formula uses TODAY() / NOW(); null otherwise. */
     calcVolatile: text("calc_volatile"),
     /** Highest change sequence (`dh_change_seq`) this column has fully incorporated (design module2 section 6.7). */

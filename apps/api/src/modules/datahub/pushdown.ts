@@ -205,7 +205,7 @@ export async function processPendingRefills(db: Db): Promise<number> {
     await columnTx(db, async (tx) => {
       await refillRows(tx, row.id, "all");
       await tx.execute(sql`UPDATE dh_tables SET refill_pending_at = NULL WHERE /*scope:system*/ id = ${row.id}::uuid AND refill_pending_at = ${row.refill_pending_at instanceof Date ? row.refill_pending_at.toISOString() : row.refill_pending_at}::timestamptz`);
-    });
+ }, { bulk: true });
     n++;
   }
 }

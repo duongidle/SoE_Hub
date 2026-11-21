@@ -1,0 +1,1 @@
+ALTER TABLE "dh_columns" ADD COLUMN "calc_bulk" boolean DEFAULT false NOT NULL;

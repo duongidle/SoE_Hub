@@ -1,7 +1,9 @@
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { as, makeTable, unlimit } from "./dh-helpers";
 import { makeApp, type TestApp } from "./helpers";
 import { seedOrg, type Org } from "./fixtures";
+import { processPendingColumns, claimNext } from "../src/modules/datahub/recalc";
 import { columnTx, enqueue, lockColumnsAtFlush, nextChangeSeq, touchColumns } from "../src/modules/datahub/change-queue";
 
 /**
@@ -75,5 +77,23 @@ describe("touching columns from concurrent transactions", () => {
       await touchColumns(tx, [x]);
     });
     expect((await Promise.allSettled([finisher, writer])).map((r) => r.status)).toEqual(["fulfilled", "fulfilled"]);
+  });
+
+  it("what a person asked for is claimed before background building, even when the building asked first", async () => {
+    const tb = await makeTable(a, { columns: [{ name: "A", type: "number" }, { name: "B", type: "number" }] });
+    const f1 = await a("datahub.column.create", { table_id: tb.tableId, name: "F1", type: "formula", config: { formula: "=[A]+1" } });
+    const f2 = await a("datahub.column.create", { table_id: tb.tableId, name: "F2", type: "formula", config: { formula: "=[B]+1" } });
+    const db = t.c.db.db;
+    await processPendingColumns(db, { parallel: 1 });
+    await columnTx(db, (tx) => touchColumns(tx, [f1.id]), { bulk: true });
+    await columnTx(db, (tx) => touchColumns(tx, [f2.id]));
+    const first = await claimNext(db);
+    expect(first?.id).toBe(f2.id);
+    const second = await claimNext(db);
+    expect(second?.id).toBe(f1.id);
+    // A person's request on a column that building had queued turns it into a person's one.
+    await columnTx(db, (tx) => touchColumns(tx, [f1.id]), { bulk: true });
+    await columnTx(db, (tx) => touchColumns(tx, [f1.id]));
+    expect((await t.c.db.db.execute(sql`SELECT calc_bulk FROM dh_columns WHERE /*scope:system*/ id = ${f1.id}::uuid`)).rows[0]).toMatchObject({ calc_bulk: false });
   });
 });

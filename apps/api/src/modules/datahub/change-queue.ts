@@ -53,6 +53,8 @@ export async function currentChangeSeq(db: Executor): Promise<number> {
 interface TouchState {
   touch: Set<string>;
   lockOnly: Set<string>;
+  /** The touches come from background building: the worker takes these columns after the ones a person asked for (`calc_bulk`). */
+  bulk: boolean;
 }
 const touchStates = new WeakMap<object, TouchState>();
 
@@ -61,11 +63,11 @@ const touchStates = new WeakMap<object, TouchState>();
  * before the commit (`flushTouches`). Why: a transaction that touches columns in several calls (one per source table, one
  * per template table...) takes the locks in several rounds, and two such transactions in opposite orders deadlock (seen
  * for real: worker `datahub.formula` against the member-tree build). One sorted round at the end cannot form a cycle with
- * another sorted round. Every transaction that can reach `touchColumns` must be opened with this (see design/ban-do-code.md, Module 0).
+ * another sorted round. `bulk` marks background building (trees of default tables, template sync, refills): see `calc_bulk`. Every transaction that can reach `touchColumns` must be opened with this (see design/ban-do-code.md, Module 0).
  */
-export async function columnTx<T>(db: Db, fn: (tx: Executor) => Promise<T>): Promise<T> {
+export async function columnTx<T>(db: Db, fn: (tx: Executor) => Promise<T>, opts: { bulk?: boolean } = {}): Promise<T> {
   return db.transaction(async (tx) => {
-    touchStates.set(tx, { touch: new Set(), lockOnly: new Set() });
+    touchStates.set(tx, { touch: new Set(), lockOnly: new Set(), bulk: opts.bulk ?? false });
     try {
       const out = await fn(tx as Executor);
       await flushTouches(tx as Executor);
@@ -95,14 +97,15 @@ export async function flushTouches(db: Executor): Promise<void> {
   const all = [...new Set([...touch, ...st.lockOnly])].sort();
   st.touch.clear();
   st.lockOnly.clear();
-  await lockAndMark(db, touch, all);
+  await lockAndMark(db, touch, all, st.bulk);
 }
 
-async function lockAndMark(db: Executor, touchIds: string[], lockIds: string[]): Promise<void> {
+async function lockAndMark(db: Executor, touchIds: string[], lockIds: string[], bulk: boolean): Promise<void> {
   if (lockIds.length === 0) return;
   await db.execute(sql`SELECT id FROM dh_columns WHERE /*scope:system*/ id = ANY(${uuidArray(lockIds)}::uuid[]) ORDER BY id FOR NO KEY UPDATE`);
   if (touchIds.length === 0) return;
-  await db.execute(sql`UPDATE dh_columns SET calc_status = CASE WHEN calc_status = 'running' THEN calc_status ELSE 'pending' END, calc_requested_at = clock_timestamp()
+  await db.execute(sql`UPDATE dh_columns SET calc_status = CASE WHEN calc_status = 'running' THEN calc_status ELSE 'pending' END, calc_requested_at = clock_timestamp(),
+    calc_bulk = CASE WHEN calc_status = 'ready' THEN ${bulk} ELSE calc_bulk AND ${bulk} END
     WHERE /*scope:system*/ deleted_at IS NULL AND id = ANY(${uuidArray(touchIds)}::uuid[])`);
 }
 
@@ -120,7 +123,7 @@ export async function touchColumns(db: Executor, columnIds: string[]): Promise<v
     return;
   }
   const ids = [...new Set(columnIds)].sort();
-  await lockAndMark(db, ids, ids);
+  await lockAndMark(db, ids, ids, false);
 }
 
 /** Adds entries to the queue (accumulating: nothing is merged here, the worker merges a column's burst when it takes it) and marks their columns. */

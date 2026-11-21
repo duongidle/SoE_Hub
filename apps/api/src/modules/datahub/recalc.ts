@@ -793,15 +793,19 @@ export async function resolveScope(db: Executor, job: { col: DhColumn; tableId: 
 // queue processing
 // ================================================================================================
 
-/** Takes the next pending column whose own inputs are not themselves waiting (so a chain runs in dependency order). */
-async function claimNext(db: Db): Promise<{ id: string; claimedAt: string } | null> {
+/**
+ * Takes the next pending column whose own inputs are not themselves waiting (so a chain runs in dependency order).
+ * What a person asked for (`calc_bulk` false) goes before background building (a new member's tree: hundreds of columns that
+ * once kept a person's formula waiting 45 seconds); inside each kind, oldest request first.
+ */
+export async function claimNext(db: Db): Promise<{ id: string; claimedAt: string } | null> {
   const res = await db.execute(sql`UPDATE dh_columns c SET calc_status = 'running', calc_done = 0, calc_total = (SELECT row_count FROM dh_tables WHERE id = c.table_id)
     WHERE /*scope:system*/ c.id = (
       SELECT c2.id FROM dh_columns c2
       WHERE c2.calc_status = 'pending' AND c2.deleted_at IS NULL
         AND NOT EXISTS (SELECT 1 FROM dh_formula_deps f JOIN dh_columns y ON y.table_id = f.src_table_id AND y.key = f.src_key AND y.deleted_at IS NULL
                         WHERE f.column_id = c2.id AND y.id <> c2.id AND y.calc_status <> 'ready')
-      ORDER BY c2.calc_requested_at, c2.id LIMIT 1 FOR UPDATE SKIP LOCKED)
+      ORDER BY c2.calc_bulk, c2.calc_requested_at, c2.id LIMIT 1 FOR UPDATE SKIP LOCKED)
     RETURNING c.id, clock_timestamp()::text AS claimed_at`);
   const r = res.rows[0] as Raw | undefined;
   return r ? { id: r.id as string, claimedAt: r.claimed_at as string } : null;
@@ -855,6 +859,7 @@ export async function recalcColumn(db: Db, columnId: string, claimedAt: string, 
     await db.execute(sql`UPDATE dh_columns SET calc_status = 'ready', calc_at = now() WHERE /*scope:system*/ id = ${columnId}::uuid`);
     throw e;
   }
+  // The columns this one feeds inherit its kind: a chain started by a person stays a person's.
   await columnTx(db, async (tx) => {
     await deleteQueue(tx, entries.map((e) => e.id));
     if (job) {
@@ -877,7 +882,7 @@ export async function recalcColumn(db: Db, columnId: string, claimedAt: string, 
     await tx.execute(sql`UPDATE dh_columns SET calc_status = CASE WHEN calc_requested_at > ${claimedAt}::timestamptz THEN 'pending' ELSE 'ready' END,
         calc_done = ${result.total}::int, calc_total = ${result.total}::int, calc_at = ${now.toISOString()}::timestamptz, calc_seq = GREATEST(calc_seq, ${seq}::bigint)
       WHERE /*scope:system*/ id = ${columnId}::uuid`);
-  });
+  }, { bulk: job?.col.calcBulk === true });
   return result;
 }
 

@@ -134,6 +134,13 @@
       "when": 1795229478675,
       "tag": "0018_productive_stellaris",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795256896075,
+      "tag": "0019_calc_bulk",
+      "breakpoints": true
     }
   ]
 }

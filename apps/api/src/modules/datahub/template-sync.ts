@@ -334,7 +334,7 @@ export async function syncAllTemplates(db: Db, log?: { error: (o: object, m: str
     try {
       await columnTx(db, async (tx) => {
         await syncTemplate(systemCtx(tx as Executor, workerEmit(tx as Executor), SYSTEM_USER_ID), r.id);
-      });
+      }, { bulk: true });
       n++;
     } catch (e) {
       failed.push(r.id);

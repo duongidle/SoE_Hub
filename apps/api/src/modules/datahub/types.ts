@@ -51,6 +51,8 @@ export interface DhColumn {
   calcAt: Date | null;
   /** Highest change sequence the column has incorporated (design module2 section 6.7). */
   calcSeq: number;
+  /** The pending request came only from background building (`calc_bulk`). */
+  calcBulk: boolean;
 }
 
 /** Where an autofilled column takes its value: the attribute `attr` of each person in the user column `column` (by key). `sum`: the value of a Leader (`team`) or Manager (`tree`) is the total over the people they manage. */
