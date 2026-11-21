@@ -81,7 +81,7 @@ export async function seedPeople(base: string, admin: ApiClient, people: SeedPer
     const r = await publicPost(base, "/auth/codes", { email: p.email, purpose: "activate" });
     if (!r.ok) throw new Error(`Xin mã cho ${p.email} lỗi ${r.status}`);
     let code = "";
-    for (let i = 0; i < 20 && !code; i++) {
+    for (let i = 0; i < 60 && !code; i++) {
       const list = await admin.call<{ title?: string; body?: string; data?: unknown }[]>("GET", "/notifications?limit=100");
       for (const n of list) {
         const text = JSON.stringify(n);

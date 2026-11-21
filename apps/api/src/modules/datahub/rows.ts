@@ -8,7 +8,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { readableRows, type TableAccess } from "./access";
 import { resolveLinkTarget } from "./link-targets";
 import { sourceOf, type CellWrite, type LoadedRow } from "./column-source";
-import { isComputedType } from "./cell-values";
+import { isComputedType, sameStored } from "./cell-values";
 import { buildSearchText, columnTypeDef } from "./column-types";
 import { bulkCreateOff, columnNotEditable, pgError, rowNotEditable, rowOutsideScope } from "./errors";
 import { nextChangeSeq } from "./change-queue";
@@ -47,7 +47,7 @@ export interface OpResult {
 type Ctx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId">;
 
 const uuidArray = (ids: string[]) => `{${ids.join(",")}}`;
-const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+const same = sameStored;
 const ROW_COLS = sql.raw("id, row_no, version, data, created_at, created_by, updated_at, updated_by");
 
 /** Validates the cells of one op. Errors are collected so the caller sees every bad column at once. */

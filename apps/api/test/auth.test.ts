@@ -132,6 +132,9 @@ describe("registration with a 6-digit code (module1 6.2, 6.4)", () => {
     const r = await post("/auth/codes/verify", { email: u.email, purpose: "activate", code, password: PASSWORD });
     expect(r.statusCode).toBe(200);
     expect(r.json().data.user.status).toBe("active");
+    // Activation tells the org subscribers (an active Manager gets the default templates of the tree).
+    const ev = (await t.c.db.db.execute(sql`SELECT 1 FROM outbox WHERE event = 'org.member.changed' AND payload->>'user_id' = ${u.id} AND payload->>'change' = 'activated'`)).rows;
+    expect(ev.length).toBe(1);
     expect(JSON.stringify(r.json())).not.toContain(sessionFrom(r.headers["set-cookie"]).cookie.split("=")[1]!.split(";")[0]);
     const s = sessionFrom(r.headers["set-cookie"]);
     expect((await get("/auth/me", s.read)).json().data.user.email).toBe(u.email);

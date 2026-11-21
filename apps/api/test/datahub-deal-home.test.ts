@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { as, fails, unlimit } from "./dh-helpers";
-import { seedOrg, type Org } from "./fixtures";
+import { activeToken, seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
 
 /** Stage 4.3: the tables of the menu Quản lý Deal (`datahub.deal.home`) and the "Áp dụng cho N người" preview (`datahub.template.impact`). Tree A: MgrA > LeaderA > UserA1, MgrA > UserA2. Tree B: MgrB > LeaderB > UserB1. */
@@ -104,5 +104,17 @@ describe("datahub.template.get roles", () => {
     expect(got.roles).toEqual([expect.objectContaining({ key: "thang", required: true, column: col.key })]);
     const plain = await mgrA("datahub.template.create", { name: "Không vai trò", kind: "shared" });
     expect((await mgrA("datahub.template.get", { template_id: plain.id })).roles).toEqual([]);
+  });
+});
+
+describe("datahub.template.list include_archived over HTTP", () => {
+  it("accepts include_archived=true in the query string; archived tables show only to who edits them", async () => {
+    const tpl = await mgrA("datahub.template.create", { name: "Sẽ lưu trữ", kind: "shared" });
+    await mgrA("datahub.template.archive", { template_id: tpl.id });
+    const res = await t.app.inject({ method: "GET", url: "/api/v1/datahub/templates?include_archived=true", headers: (await activeToken(t, org.mgrA.id, ["datahub:datahub:use"])).headers });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.some((x: { id: string; archived: boolean }) => x.id === tpl.id && x.archived)).toBe(true);
+    const member = await t.app.inject({ method: "GET", url: "/api/v1/datahub/templates?include_archived=true", headers: (await activeToken(t, org.userA1.id, ["datahub:datahub:use"])).headers });
+    expect(member.json().data.some((x: { id: string }) => x.id === tpl.id)).toBe(false);
   });
 });

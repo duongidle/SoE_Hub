@@ -270,7 +270,7 @@ export const templateOperations = [
     description: "Manager thấy mọi template của cây (kể cả của các team); Leader thấy template của team mình và của cả cây; người khác thấy template của cây và team mình. `include_archived` chỉ cho người sửa được.",
     permission: "datahub:datahub:use",
     aiAllowed: true,
-    input: z.object({ include_archived: z.boolean().default(false) }),
+    input: z.object({ include_archived: z.enum(["true", "false"]).default("false").transform((v) => v === "true") }),
     output: z.array(TemplateOut),
     http: { method: "GET", path: "/datahub/templates" },
     handler: async (ctx, i) => {

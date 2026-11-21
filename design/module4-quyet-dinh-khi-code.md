@@ -125,3 +125,22 @@ Việc 17–19, 19a–19d (Module 4 mục 19a). Gần như toàn bộ là web; s
 **Chưa làm trong 4.2, ghi cho bước sau:** guard sửa Status ("Won chỉ do hệ thống đặt, Huỷ chỉ Manager": cần luật theo giá trị, làm ở 4.4 cùng đặt Won); Probation KPI "sau commit chỉ Manager sửa" (luật theo trạng thái dòng, 4.5); điền lại gửi xuống khi đổi cây; công thức theo người cho cột `person`; công thức đọc cột lớp role/team của bảng người khác.
 
 Test: `deal-defaults.test.ts` (13), `datahub-user-attrs.test.ts` (14), `datahub-template-formulas.test.ts` (5), `datahub-leftovers-42.test.ts` (3), `query-guard-rows.test.ts` (2). Lệnh: `pnpm exec vitest run apps/api/test/<file>`.
+
+## 4.3 Giao diện Quản lý Deal (nửa đầu)
+
+**Server thêm (nhỏ, theo yêu cầu của giao diện)**
+- `datahub.deal.home` (GET `/datahub/deal-home`): `{ datahub_id, tables[] }`. `datahub_id` là datahub "Quản lý Deal" của chính người gọi (null với Admin, Guest). `tables`: mọi bảng mở được trong các datahub `system_key='deal'` của mình và của người chia sẻ template cho mình; bảng template (`template_id`, `template_kind` shared|personal, `template_scope` tree|team) đứng trước theo thứ tự tạo template, rồi bảng tự tạo theo vị trí. Là nguồn của menu, của nhóm "Quản lý Deal" trong trình soạn công thức (`formula-scope.ts`) và ô chọn nguồn bảng gộp (`merge-dialog.tsx`).
+- `datahub.template.impact` (GET `/datahub/templates/:id/impact`): `{ count, names[≤8] }` cho lớp `basic` | `role` (+`layer_roles`) | `team` (+`team_leader_id`). Người sửa được template, hoặc Leader khi bảng bật "Leader được thêm cột team". `count` tính cả Manager (Manager cũng nhận bảng).
+- `datahub.template.get` thêm `roles[]`: `{ key, label, types, required, used_by, column }` của bộ vai trò của bảng (`column` = mã cột đang giữ vai trò).
+- `datahub.template.list` `include_archived` đổi sang `"true"|"false"` (như `include_total`): bản `z.boolean()` làm GET `?include_archived=true` trả 400.
+- Sửa lỗi gốc: `sameStored` (và `same` của `rows.ts`) so JSON **không phụ thuộc thứ tự khoá**. Cột Người dùng có thuộc tính đọc từ jsonb ra theo thứ tự khoá khác thứ tự parser viết, nên `base` client gửi lên bị coi là "người khác vừa sửa" (`cell_conflict`) với mọi lần sửa ô này. Test: `datahub-user-attrs.test.ts` ("editing the people of a cell with the value just read as the base").
+- Sửa lỗi gốc: `auth.code.verify` (kích hoạt) phát `org.member.changed` (`change: "activated"`). Trước đó Manager kích hoạt sau khi được thêm vào org chart không nhận bộ template mặc định cho tới khi worker khởi động lại (subscriber chỉ chạy với người `status = active`). Test: `auth.test.ts`.
+- `modules/index.ts` import `./deal` để tiến trình API cũng đăng ký setting `deal.default_templates` (trước đó chỉ worker, nên trang Cài đặt/`system.setting.set` của API không thấy khoá này).
+
+**Web**
+- Route `/quan-ly-deal[/ :tableId]` (`pages/deal/home.tsx`), `/quan-ly-deal/template?template=&column=` (`pages/deal/template.tsx`), `/quan-tri/template-deal` (`DealDefaultsPage` trong `admin.tsx`, JSON của bộ mặc định; khoá này bị ẩn khỏi danh sách cài đặt chung vì trình sửa chung ghép mảng bằng dấu phẩy). Menu "Quản lý Deal" chỉ cho Manager/Leader/User; Admin thấy "Template Quản lý Deal".
+- Ô Người dùng có thuộc tính: ô lưới kiểu mới `persons` (`grid-cells.tsx`, vẽ chữ, sửa bằng `PeopleAttrsEditor` trong `people-attrs.tsx`, dùng cả ở ngăn chi tiết dòng). Lỗi `sum_max`/`cap_param` là câu của server, hiện ngay trong hộp sửa. Không gõ/dán được vào cột này (báo lý do).
+- `readOnlyReason(col, level, row?)` nhận thêm dòng: `can_edit === false` và cột `autofill` có lý do riêng. Mọi nơi gọi (lưới, điền xuống, xoá nội dung, dán, ngăn chi tiết) truyền dòng.
+- Bảng template: ai thấy bảng cũng thêm được cột riêng; sửa/xoá chỉ với cột riêng của chính mình (`lib/datahub/template-ui.ts`). Menu tiêu đề cột có "Sửa trong template…" khi người dùng có `datahub:template:write`. Nhãn lớp vẽ trên tiêu đề (`drawHeader`), và có ở `data-layer-tags` của lưới để test.
+- Trang Template dùng lại `ColumnEditor` qua `ColumnAdapter` (lưu bằng lệnh template, có `confirmText` hỏi "Áp dụng cho N người" trước lần ghi đầu). "Team sửa" = cột lớp `team` gom theo Leader (server chưa có bản sửa công thức riêng của team).
+- Tạo bảng template: chỉ lớp cây (Manager) hoặc team của chính Leader; khoá phân chia bật sau khi có cột Người dùng đầu tiên (bảng chưa có cột thì chưa chọn được cột khoá). Cột Gửi xuống (`autofill`) chưa tạo được từ giao diện (chỉ bộ mặc định/API), hiện là chỉ đọc kèm lý do. Cấu hình `config.attrs` của cột Người dùng chưa có giao diện sửa.

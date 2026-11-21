@@ -216,3 +216,14 @@ describe("transfer: the source's entry in the list becomes the target's; closed 
     expect(await cellOf(leaderA, a, "Vai trò của tôi")).toBe("Leading");
   });
 });
+
+describe("editing the people of a cell with the value just read as the base", () => {
+  it("is not a conflict: the base the client read is the value stored (a Manager changes % of the one person)", async () => {
+    const made = await mgrA("datahub.row.create", { table_id: tpl.master_table_id, data: { Tên: "Base thử", "Người tham gia": [person(org.userA1.id, { vai_tro: "Leading" })] } });
+    const read = (await mgrA("datahub.row.get", { table_id: tpl.master_table_id, row_id: made.id })).data;
+    const before = read[key["Người tham gia"]!];
+    const next = [{ ...(before as { id: string; attrs: Record<string, unknown> }[])[0]!, attrs: { ...(before as { attrs: Record<string, unknown> }[])[0]!.attrs, ty_le_dt: 0.6 } }];
+    const res = await mgrA("datahub.row.update", { table_id: tpl.master_table_id, row_id: made.id, data: { "Người tham gia": next }, base: { [key["Người tham gia"]!]: before } });
+    expect(res.id).toBe(made.id);
+  });
+});

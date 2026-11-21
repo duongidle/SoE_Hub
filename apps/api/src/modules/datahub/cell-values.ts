@@ -155,8 +155,14 @@ export function resultTypeFor(t: FType): ResultType {
   }
 }
 
+/** JSON with the keys of every object in sorted order: the database (jsonb) hands objects back in its own key order, which is not the order a parser wrote them. */
+function stable(v: unknown): string {
+  return JSON.stringify(v ?? null, (_k, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : x));
+}
+
+/** Two stored cell values are the same value (object key order does not matter: a person's attributes read back from jsonb in another order). */
 export function sameStored(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  return stable(a) === stable(b);
 }
 
 /** Applies a stored outcome to a row's data (value key and error key). Returns true when the data changed. */

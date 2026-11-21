@@ -209,6 +209,7 @@ export function authOperations(cfg: Config) {
       description: "Sai 5 lần thì mã bị huỷ. Đặt lại mật khẩu đăng xuất mọi phiên cũ.",
       permission: null,
       aiAllowed: false,
+      emits: ["org.member.changed"],
       input: z.object({ email: emailSchema, purpose: z.enum(["activate", "reset"]), code: z.string().trim().regex(/^\d{6}$/, "Mã gồm 6 chữ số."), password: passwordSchema }),
       output: SessionOut,
       http: { method: "POST", path: "/auth/codes/verify", respond: respondSession },
@@ -264,6 +265,8 @@ export function authOperations(cfg: Config) {
           if (i.purpose === "reset") await revokeUserSessions(ctx.db, u.id, { by: null, reason: "Đặt lại mật khẩu" });
           await recordRowHistory(ctx.db, { tableId: "users", rowId: u.id, version: upd!.version, op: "update", changes: i.purpose === "activate" ? [{ field: "status", old: u.status, new: "active" }] : [{ field: "password", old: null, new: "(đã đổi)" }], actor: actorRefOf(ctx.actor) });
           u = upd!;
+          // An active Manager gets the default templates of the tree (module4 3.1); the event also lets the members of the tree follow.
+          if (i.purpose === "activate") await ctx.emit("org.member.changed", { aggregateType: "user", aggregateId: u.id, payload: { user_id: u.id, change: "activated" } });
         }
         await ctx.db.update(users).set({ lastLoginAt: sql`now()` }).where(eq(users.id, u.id));
         const session = await createSession(ctx.db, cfg, { userId: u.id, method: "code", ip: ctx.actor?.ip ?? null, userAgent: ctx.actor?.userAgent ?? null });

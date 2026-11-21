@@ -31161,8 +31161,12 @@
             "in": "query",
             "required": false,
             "schema": {
-              "default": false,
-              "type": "boolean"
+              "default": "false",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           }
         ],
@@ -32172,12 +32176,59 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "roles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "types": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "used_by": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "column": {
+                                "description": "Mã cột đang giữ vai trò (null = chưa có).",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "label",
+                              "types",
+                              "required",
+                              "used_by",
+                              "column"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "Bộ vai trò cột của bảng (rỗng khi bảng không dùng vai trò)."
                         }
                       },
                       "required": [
                         "template",
                         "columns",
-                        "members"
+                        "members",
+                        "roles"
                       ],
                       "additionalProperties": false
                     }
