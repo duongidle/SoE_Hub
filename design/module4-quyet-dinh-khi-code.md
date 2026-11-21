@@ -208,3 +208,12 @@ Test: `deal-defaults.test.ts` (13), `datahub-user-attrs.test.ts` (14), `datahub-
 - **Lịch sử chấm:** dùng lịch sử dòng của Datahub (đã ghi mọi lần sửa B/A/N/T, ai sửa, lúc nào), không thêm bảng. Màn xem lịch sử điểm là xem lịch sử dòng, lọc cột BANT (web 4.5B).
 - **Hàng chờ và view "Ưu tiên hôm nay":** không viết query riêng. Hàng chờ = lọc `Cần chấm lại` khác rỗng; "Ưu tiên hôm nay" = Status mở, sắp `Thứ tự ưu tiên` tăng rồi `Closing date`/`Ngày dự kiến chốt`. Web 4.5B tạo view từ hai mô tả này (engine chưa có view hệ thống khai trong bộ mặc định).
 - **Chưa làm (cây đang chạy):** `ensureMissingTables` chỉ dựng bảng thiếu, không thêm cột vào bảng đã có. Cây dev cũ không có các cột BANT, `Kỳ ghi nhận`, vai trò mới (`ngay_dong_tay`, `nguon_lead`...): dựng lại cây dev.
+
+## 4.5B Web chốt kỳ, so sánh chính sách, kỳ chung, BANT (21/11)
+
+- **Việc nhỏ ở server để web dùng:** vai trò mới `thu_tu_uu_tien` (Deals) và `nam` (Probation KPI), cùng khoá `own_period` trong cấu hình view. Cây dev cũ chưa có hai vai trò này: nút "Ưu tiên hôm nay" không hiện và Probation KPI không theo kỳ chung (dựng lại cây dev).
+- **BANT: nút lọc sẵn, không phải view hệ thống.** Template có bảng chủ và bản sao riêng từng người, view là của từng bảng; khai view trong bộ mặc định phải tạo view ở mọi bản sao, không nhỏ. Hai nút trên thanh công cụ Deals đặt lọc + sắp tạm lên query (không ghi vào view): "Ưu tiên hôm nay" = Status có `meaning` open, sắp `Thứ tự ưu tiên` rồi `Ngày dự kiến chốt`; "Cần chấm lại hôm nay" = `Cần chấm lại` khác rỗng. Bật cả hai thì lọc cộng lại.
+- **Kỳ chung** lưu ở localStorage của trình duyệt (tiện từng người, mặc định Quý này theo lịch của server), không lưu server. Kỳ luôn là kỳ cụ thể (tháng, quý, năm); Index lọc cột `thang` theo cả kỳ; Probation KPI lọc cột `nam` bằng năm của kỳ. Bảng tự tạo chưa theo kỳ chung (chưa có cách chọn cột ngày kỳ chung): để 4.6 hoặc Stage 12.
+- **Chốt kỳ:** luôn hỏi xác nhận (còn mục thì "Chốt dù còn N mục"); xong tự mở hộp xuất XLSX Sổ com của tháng (`datahub.export.create` trên bảng Sổ com, `time_filter` theo cột `Kỳ`). Lỗi server hiện nguyên thông điệp tiếng Việt qua `errorMessage`.
+- **Danh sách cần xử lý** có liên kết "Mở dòng" tới bảng gốc qua `?row=<id>`.
+- **Lỗi quan sát:** worker ghi một lần `deadlock detected` ở `touchColumns` (`change-queue.ts`) khi dựng cây trong e2e (subscriber `datahub.formula`, sự kiện `org.member.changed`); outbox thử lại, test vẫn pass. Opus nên theo dõi.

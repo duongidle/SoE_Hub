@@ -29,6 +29,8 @@ export interface ViewConfig {
   groups_collapsed?: boolean;
   /** Groups (JSON of their path) whose state is the opposite of the mode. */
   groups_toggled?: string[];
+  /** "Không theo kỳ chung" (Quản lý Deal): the view keeps its own time range instead of the shared period bar. */
+  own_period?: boolean;
 }
 
 export interface ViewDto {

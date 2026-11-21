@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { formatCount } from "@soe/shared";
-import { ChevronsDownUp, ChevronsUpDown, Columns3, Copy, Download, Maximize2, MoreHorizontal, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+import { GitCompare, ChevronsDownUp, ChevronsUpDown, Columns3, Copy, Download, Maximize2, MoreHorizontal, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, errorMessage, Field, Input, Modal, Select } from "@/components/ui/form";
@@ -10,13 +10,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { Tip } from "@/components/ui/tooltip";
-import { createView, dhKeys, getDatahub, getTable, lookupPeople, listViews, rememberView, updateView } from "@/lib/datahub/api";
+import { createView, dhKeys, fetchRowsByIds, getDatahub, getTable, lookupPeople, listViews, rememberView, updateView } from "@/lib/datahub/api";
 import { nameKey, optionsOf, parseCellText, readOnlyReason, type Parsed } from "@/lib/datahub/cells";
 import { TableSession } from "@/lib/datahub/session";
 import type { Column, Level, TableDetail } from "@/lib/datahub/types";
 import { ViewAutosave } from "@/lib/datahub/view-autosave";
 import { buildQuery, DEFAULT_ROW_HEIGHT, fullOrder, layoutColumns, moveColumn, normalizeConfig, pruneConfig, querySignature, ROW_HEIGHTS, type ColorRule, type SessionQuery, type ViewConfig, type ViewDto } from "@/lib/datahub/view-config";
 import { can, liveBus, useMe, type LiveSignal } from "@/lib/session";
+import { followsPeriod, overlayQuery, QUICK_LABEL, quickAvailable, useSharedPeriod, type QuickView } from "@/lib/datahub/deal-view";
+import { PolicyDiffDialog } from "@/pages/deal/policy-diff";
 import { canAddColumnHere, canEditColumnHere, isTemplateTable, layerLabel, templatePageUrl } from "@/lib/datahub/template-ui";
 import { TableGrid, type GridApi } from "./grid";
 import { PersonPicker, RatingPicker } from "./pickers";
@@ -137,6 +139,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   const [reloadKey, setReloadKey] = useState(0);
   const [trashOpen, setTrashOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [policyOpen, setPolicyOpen] = useState(false);
   const [colUI, setColUI] = useState<{ kind: "manage" } | { kind: "add" } | { kind: "edit"; col: Column } | null>(null);
   const deleteCol = useColumnDelete(table);
   const meQ = useMe();
@@ -144,7 +147,9 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   const [search, setSearch] = useState("");
   const debounced = useDebounced(search, 350);
   const { dead } = useMemo(() => pruneConfig(config, table.columns), [config, table.columns]);
-  const query = useMemo(() => buildQuery(config, table.columns, debounced), [config, table.columns, debounced]);
+  const shared = useSharedPeriod();
+  const [quick, setQuick] = useState<QuickView | null>(null);
+  const query = useMemo(() => overlayQuery(buildQuery(config, table.columns, debounced), table, config, shared, quick), [config, table, debounced, shared, quick]);
   const colLayout = useMemo(() => layoutColumns(config, table.columns), [config, table.columns]);
   const rowHeightName = config.row_height ?? DEFAULT_ROW_HEIGHT;
   const nav = useNavigate();
@@ -221,6 +226,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
     { key: "import", label: "Nhập", icon: <Upload size={16} aria-hidden />, run: () => setImportOpen(true), disabled: false, show: canEditData && canBulk },
     { key: "dup", label: "Tìm dòng trùng", icon: <Copy size={16} aria-hidden />, run: () => setDupOpen(true), disabled: false, show: canEditData },
     { key: "trash", label: "Thùng rác", icon: <Trash size={16} aria-hidden />, run: () => setTrashOpen(true), disabled: false, show: canEditData },
+    { key: "policy", label: "So sánh phiên bản", icon: <GitCompare size={16} aria-hidden />, run: () => setPolicyOpen(true), disabled: false, show: table.role_set === "com_policy" && can(me, "deal:policy:write") },
     { key: "add", label: "Thêm cột", icon: <Plus size={16} aria-hidden />, run: () => setColUI({ kind: "add" }), disabled: table.columns.length >= table.max_columns, show: canAddColumnHere(table) },
   ].filter((x) => x.show);
   const sig = `${table.id}:${columnsSignature(table)}:${querySignature(query)}:${reloadKey}`;
@@ -240,6 +246,15 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
         onCleanDead={cleanDead}
         extra={
           <>
+            {shared && followsPeriod(table) && (
+              <label className="flex min-h-9 items-center gap-1.5 text-sm" title="Bỏ chọn để view này giữ khoảng thời gian riêng (ô Thời gian)">
+                <input type="checkbox" className="h-4 w-4" data-testid="follow-period" checked={!config.own_period} onChange={(e) => change({ own_period: e.target.checked ? undefined : true })} />
+                Theo kỳ chung
+              </label>
+            )}
+            {quickAvailable(table) && (["priority", "recheck"] as const).map((k) => (
+              <Button key={k} variant="secondary" aria-pressed={quick === k} data-testid={`quick-${k}`} className={quick === k ? "!border-primary !bg-primary/10" : ""} onClick={() => setQuick(quick === k ? null : k)}>{QUICK_LABEL[k]}</Button>
+            ))}
             <span className="contents max-sm:hidden">{actions.map((a) => <Button key={a.key} variant="secondary" disabled={a.disabled} onClick={a.run}>{a.icon} {a.label}</Button>)}</span>
             <span className="sm:hidden">
               <Popover
@@ -261,6 +276,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
           </>
         }
       />
+      {policyOpen && <PolicyDiffDialog onClose={() => setPolicyOpen(false)} />}
       {trashOpen && <TableTrashDialog tableId={table.id} onClose={() => setTrashOpen(false)} onRestored={() => { void qc.invalidateQueries({ queryKey: dhKeys.table(table.id) }); }} />}
       {dupOpen && <DuplicatesDialog table={table} onClose={() => setDupOpen(false)} />}
       {exportOpen && <ExportDialog table={table} query={query} visible={colLayout.columns} filtered={!!(query.filter || query.search || query.timeFilter || colLayout.columns.length < table.columns.length)} onClose={() => setExportOpen(false)} />}
@@ -309,6 +325,16 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters }: { tab
   const apiRef = useRef<GridApi | null>(null);
   const [sel, setSel] = useState<{ ids: string[]; active: string | null }>({ ids: [], active: null });
   const [openRow, setOpenRow] = useState<string | null>(null);
+  // `?row=<id>` (links of the close-period screen): open that row once, whatever filter the view has.
+  const wantedRow = (useSearch({ strict: false }) as { row?: string }).row;
+  const openedWanted = useRef<string | null>(null);
+  useEffect(() => {
+    if (!wantedRow || openedWanted.current === wantedRow) return;
+    openedWanted.current = wantedRow;
+    void fetchRowsByIds(table.id, [wantedRow]).then((rows) => {
+      if (rows[0]) { session.store.adopt(rows[0]); setOpenRow(rows[0].id); }
+    }).catch(() => undefined);
+  }, [wantedRow, table.id, session]);
   const [bulk, setBulk] = useState(false);
 
   // Someone else changed rows, or the server finished recalculating: read the rows on screen again (not the whole table).

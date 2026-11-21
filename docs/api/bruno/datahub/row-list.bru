@@ -15,6 +15,7 @@ params:query {
   ~sort: sort
   ~fields: fields
   ~search: search
+  ~time_filter: {"columns":[],"range":{"kind":"period","unit":"quarter","year":2026,"index":4},"deal_rule":"related"}
   ~limit: 50
   ~cursor: cursor
   ~include_total: false
@@ -30,6 +31,7 @@ headers {
 docs {
   Danh sách dòng: lọc, sắp xếp nhiều cấp, tìm kiếm, chọn cột, phân trang keyset.
   Đợi tính xong: `consistent_after=<seq>` (seq lấy từ kết quả lệnh ghi) hoặc `consistent=true` (seq mới nhất lúc gọi). Thời gian chờ theo cài đặt `datahub.consistent_wait_ms` (mặc định 5000 ms); hết giờ thì giá trị hiện có kèm `consistency.stale = true` và danh sách `consistency.columns`.
+  Lọc theo thời gian (`time_filter`): `columns` là các cột ngày, `range` là khoảng. Với bảng Deals (bộ vai trò `deals`) có thể bỏ `columns` (để `[]`) và đặt `deal_rule` = `related` (liên quan đến kỳ, mặc định của Quản lý Deal) | `received` (nhận trong kỳ) | `closed` (đóng trong kỳ) | `expected` (dự kiến chốt trong kỳ, gồm đợt chưa về có hạn trong kỳ).
   Mỗi dòng có `pending` (mã cột đang tính) khi có ô đang chờ tính.
   Quyền: `datahub:datahub:use`.
 }

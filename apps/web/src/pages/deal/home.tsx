@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { MoreHorizontal, Pencil, Plus, Settings2, Trash2, Wallet } from "lucide-react";
+import { CalendarCheck, MoreHorizontal, Pencil, Plus, Settings2, Trash2, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Menu, MenuItem } from "@/components/ui/dropdown";
 import { Button, ConfirmDialog, ErrorText } from "@/components/ui/form";
@@ -13,6 +13,8 @@ import { can, useMe } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { TableNameDialog } from "../datahub/detail";
 import { TableView } from "../datahub/table-view";
+import { SharedPeriodContext, useSharedPeriodState } from "@/lib/datahub/deal-view";
+import { SharedPeriodBar } from "./period-bar";
 
 /** `/quan-ly-deal/:tableId`: the tables of the menu Quản lý Deal (template tables first, then your own) and the open one. Module 4 mục 1.1, 16. */
 export function DealHomePage() {
@@ -39,7 +41,9 @@ function DealBody({ home, tableId }: { home: { datahub_id: string | null; tables
   // "Cho phép leader sửa deal của tôi" matters to someone who has a Leader (a User, or a Leader with a Manager).
   const hasLeader = !!me?.user.leader_id || !!me?.user.manager_id;
   const isDealTable = (current?.template_kind ?? null) === "shared";
+  const period = useSharedPeriodState();
   return (
+    <SharedPeriodContext.Provider value={period.value}>
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1 className="min-w-0 text-xl font-semibold sm:text-2xl">Quản lý Deal</h1>
@@ -50,6 +54,11 @@ function DealBody({ home, tableId }: { home: { datahub_id: string | null; tables
               <Wallet size={16} aria-hidden /> Thanh toán và com
             </Link>
           )}
+          {can(me, "deal:payment:write") && (
+            <Link to="/quan-ly-deal/chot-ky" data-testid="open-period-page" className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">
+              <CalendarCheck size={16} aria-hidden /> Chốt kỳ
+            </Link>
+          )}
           {canTemplate && (
             <Link to="/quan-ly-deal/template" data-testid="open-template-page" className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">
               <Settings2 size={16} aria-hidden /> Template
@@ -57,15 +66,18 @@ function DealBody({ home, tableId }: { home: { datahub_id: string | null; tables
           )}
         </div>
       </div>
+      <SharedPeriodBar state={period} showRule={current?.role_set === "deals"} />
       <DealTabs home={home} currentId={tableId} />
       {home.tables.length === 0 ? (
         <EmptyState title="Chưa có bảng nào" hint="Bảng mặc định (Deals, Index...) do Manager của cây dựng ở trang Template. Bạn vẫn tạo được bảng riêng của mình." />
       ) : !current ? (
         tableId ? <NoAccessState title="Không mở được bảng" hint="Bảng này không tồn tại, đã bị lưu trữ, hoặc không còn trong phạm vi của bạn." /> : <Skeleton className="h-64 w-full" />
       ) : (
-        <TableView key={current.id} tableId={current.id} />
+        // Wait for the period so the table is read once, with the period already in its query.
+        period.loading ? <Skeleton className="h-64 w-full" /> : <TableView key={current.id} tableId={current.id} />
       )}
     </div>
+    </SharedPeriodContext.Provider>
   );
 }
 

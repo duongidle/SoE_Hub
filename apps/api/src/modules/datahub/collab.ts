@@ -36,6 +36,8 @@ const ViewConfigSchema = z
     /** Nhóm thu gọn (mục 5.1): true = nhóm mới mặc định đóng ("Thu gọn tất cả"); `groups_toggled` = các nhóm (khoá JSON của đường dẫn) ngược với mặc định. */
     groups_collapsed: z.boolean(),
     groups_toggled: z.array(z.string().max(500)).max(500),
+    /** "Không theo kỳ chung" (Module 4 mục 11a): bảng Quản lý Deal giữ khoảng thời gian riêng của view thay vì theo thanh chọn kỳ. */
+    own_period: z.boolean(),
   })
   .partial();
 

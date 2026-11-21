@@ -49,6 +49,7 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "bant_cham", label: "Chấm BANT lần cuối", types: ["field_modified", "date", "datetime"], required: false, usedBy: ["Hàng chờ chấm lại"] },
       { key: "muc_uu_tien", label: "Mức ưu tiên", types: ["text", "single_select"], required: false, usedBy: ["View Ưu tiên hôm nay"] },
       { key: "can_cham_lai", label: "Cần chấm lại", types: ["text"], required: false, usedBy: ["Hàng chờ chấm lại"] },
+      { key: "thu_tu_uu_tien", label: "Thứ tự ưu tiên", types: ["number"], required: false, usedBy: ["Nút lọc Ưu tiên hôm nay"] },
       { key: "ngay_dong_tay", label: "Ngày đóng (sửa tay)", types: ["date", "datetime"], required: false, usedBy: ["Khoá kỳ"] },
       { key: "dot_thanh_toan", label: "Đợt thanh toán (liên kết)", types: ["relation"], required: false, usedBy: ["Lệnh thanh toán (ghi hai chiều với bảng Đợt)"] },
     ],
@@ -119,6 +120,7 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
     roles: [
       { key: "trang_thai_commit", label: "Trạng thái commit", types: ["single_select"], required: true, usedBy: ["Khoá sửa sau commit"] },
       { key: "ly_do_sua", label: "Lý do sửa sau commit", types: ["text", "long_text"], required: false, usedBy: ["Khoá sửa sau commit"] },
+      { key: "nam", label: "Năm", types: ["number"], required: false, usedBy: ["Thanh chọn kỳ chung"] },
     ],
   },
   receipts: {

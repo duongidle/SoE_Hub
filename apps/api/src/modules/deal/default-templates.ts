@@ -133,7 +133,7 @@ const BANT_COLUMNS: DefaultColumn[] = [
   { name: "Mức ưu tiên tự tính", type: "formula", config: { formula: BANT_AUTO, result_type: "text" }, description: "Quy tắc H-002 (Module 4 mục 8). Sửa công thức khi có tiêu chí mới." },
   { name: "Mức ưu tiên ghi đè", type: "single_select", config: opts(PRIORITY), allow_edit: true, description: "Chọn để ghi đè mức tự tính." },
   { name: "Mức ưu tiên", type: "formula", config: { formula: '=IF([Mức ưu tiên ghi đè]<>"",[Mức ưu tiên ghi đè],[Mức ưu tiên tự tính])', result_type: "text" }, role: "muc_uu_tien" },
-  { name: "Thứ tự ưu tiên", type: "formula", config: { formula: BANT_ORDER, result_type: "number" }, hidden: true, description: "Để sắp view \"Ưu tiên hôm nay\": 1 = P1 ... 5 = còn lại." },
+  { name: "Thứ tự ưu tiên", type: "formula", config: { formula: BANT_ORDER, result_type: "number" }, role: "thu_tu_uu_tien", hidden: true, description: "Để sắp view \"Ưu tiên hôm nay\": 1 = P1 ... 5 = còn lại." },
   { name: "Cần chấm lại", type: "formula", config: { formula: BANT_RECHECK, result_type: "text" }, role: "can_cham_lai", description: "Hàng chờ \"Cần chấm lại hôm nay\": khác rỗng là deal cần chấm lại (lý do ghi trong ô)." },
 ];
 
@@ -261,7 +261,7 @@ const KPI: DefaultTable = {
   split: { columns: ["Người"], primary: "Người" },
   columns: [
     { name: "Người", type: "user" },
-    { name: "Năm", type: "number", required: true, allow_edit: true },
+    { name: "Năm", type: "number", role: "nam", required: true, allow_edit: true },
     { name: "KPI Software", type: "currency", allow_edit: true },
     { name: "KPI Non-software", type: "currency", allow_edit: true },
     { name: "KPI tổng", type: "formula", config: { formula: "=[KPI Software]+[KPI Non-software]", result_type: "number" } },

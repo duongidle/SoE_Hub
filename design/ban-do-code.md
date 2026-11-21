@@ -251,7 +251,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 
 ## Module 4: Quản lý Deal
 
-_Phần 4.1–4.5A. Mỗi bước con sau cập nhật phần của mình trong cùng commit với code._
+_Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong cùng commit với code._
 
 **Bảng template (mỗi template có bảng chủ và bản sao cho từng thành viên)**
 - Tạo template bằng code, không cần request: `apps/api/src/modules/datahub/template-ops.ts` `createTemplateCore`. Thêm cột: `apps/api/src/modules/datahub/template-ops.ts` `addTemplateColumn`. Bảng chủ nhìn như chủ sở hữu: `apps/api/src/modules/datahub/template-ops.ts` `masterAccess`.
@@ -336,6 +336,14 @@ _Phần 4.1–4.5A. Mỗi bước con sau cập nhật phần của mình trong 
 - Lọc "deal thuộc kỳ" (bốn cách hiểu, Module 4 mục 11a): tham số `deal_rule` của `time_filter` (`related` / `received` / `closed` / `expected`), kiểu `TimeFilterSchema` ở `packages/shared/src/time-filter.ts`, tính ở `apps/api/src/modules/datahub/time-filter.ts` `timeFilterNode` (cột tìm theo vai trò `ngay_bat_dau`, `ngay_chot`, `ngay_du_kien_chot`, `trang_thai`). `columns` được để `[]` khi có `deal_rule`. Dùng được ở `datahub.row.list`, nhóm, xuất file.
 
 - BANT: cột và quy tắc H-002 là công thức trong bộ mặc định, khai ở `apps/api/src/modules/deal/default-templates.ts` `BANT_COLUMNS` (không có code logic). Hàng chờ "Cần chấm lại hôm nay" là cột công thức `Cần chấm lại` (khác rỗng = cần chấm lại); view "Ưu tiên hôm nay" là filter + sort trên cột `Thứ tự ưu tiên`. Lịch sử mỗi lần chấm là lịch sử dòng (`row_history`) của Deals.
+
+**Web chốt kỳ, so sánh chính sách, kỳ chung, BANT (4.5B)**
+- Trang `/quan-ly-deal/chot-ky`: `apps/web/src/pages/deal/period.tsx` `PeriodPage` (tab Chốt kỳ tháng: `ClosePanel`, danh sách cần xử lý `ReviewList`, com theo người `ComByPerson`, xuất XLSX `ComExportDialog` dùng lại `datahub.export.create` lọc cột `Kỳ`, `ReopenDialog`; tab Snapshot dự báo: `SnapshotPanel`, `ComparePanel`). Chỉ Manager (`deal:payment:write`). Nút vào ở `apps/web/src/pages/deal/home.tsx`. Gọi lệnh: `apps/web/src/lib/datahub/period-api.ts`. Giao diện chỉ hiện kết quả server, không tính.
+- Liên kết "Mở dòng" của danh sách cần xử lý dùng `?row=<id>`: `apps/web/src/pages/datahub/table-view.tsx` `OpenTable` mở ngăn chi tiết dòng đó.
+- So sánh phiên bản chính sách com: `apps/web/src/pages/deal/policy-diff.tsx` `PolicyDiffDialog`, mở bằng nút "So sánh phiên bản" trong thanh thao tác của bảng có bộ vai trò `com_policy` (`table-view.tsx`, quyền `deal:policy:write`).
+- Thanh chọn kỳ chung: `apps/web/src/pages/deal/period-bar.tsx` `SharedPeriodBar`; trạng thái và luật nằm ở `apps/web/src/lib/datahub/deal-view.tsx` (`useSharedPeriodState` lưu localStorage, mặc định Quý này; `SharedPeriodContext` do `DealBody` cấp; `periodFilter` chọn bộ lọc theo bộ vai trò: Deals `time_filter.deal_rule`, Index cột `thang`, Probation KPI cột `nam`; `overlayQuery` đặt lên query của view, không ghi vào view). "Không theo kỳ chung" là khoá `own_period` của cấu hình view (`apps/api/src/modules/datahub/collab.ts` `ViewConfigSchema`). Chỉ bảng `deals`, `index`, `kpi` theo kỳ chung; bảng tự tạo chưa theo.
+- Nút "Ưu tiên hôm nay", "Cần chấm lại hôm nay": `deal-view.tsx` `quickAvailable`, `overlayQuery` (lọc + sắp, tạm, không lưu), cột tìm theo vai trò `thu_tu_uu_tien`, `can_cham_lai`, `trang_thai`, `ngay_du_kien_chot`. Không có logic chấm điểm ở web.
+- e2e: `apps/web/e2e/stage4-5.spec.ts`.
 
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.
