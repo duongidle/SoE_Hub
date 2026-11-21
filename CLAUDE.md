@@ -39,8 +39,8 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 
 1. **Chỉ code module đã có thiết kế `Đã chốt`**, theo thứ tự stage; không cần chờ lệnh riêng.
 2. **Engine trước, giao diện sau.** Giao diện mỗi stage đủ dùng, đủ xem; vẫn theo `design/chuan-giao-dien.md` (token, thành phần chung, wording) nhưng **không rà chuẩn giao diện** ở Stage 2–11: Stage 12 làm lại giao diện và rà toàn bộ. **Ngoại lệ: Dynamic Form (Stage 7, builder và form công khai) và Onboarding (Stage 9)** rà đủ chuẩn giao diện, bộ skill giao diện, `break-ui` và 375px ở kiểm thử cuối stage (Dương chốt 19/11/2026).
-3. **Tự quyết chi tiết nhỏ** (đặt tên, cấu trúc file, thư viện phụ, xử lý lỗi, giá trị mặc định) và ghi vào mục "Quyết định khi code" của module (file `moduleX-quyet-dinh-khi-code.md` khi dài quá khoảng 100 dòng). Chỉ hỏi Dương khi việc quyết định chức năng quan trọng, đổi quy định đã chốt, hoặc chạm dữ liệu thật / thao tác khó hoàn tác.
-4. **Làm liền từ đầu đến cuối.** Gặp chỗ cần Dương quyết thì ghi vào `progress.md` mục "Câu hỏi còn mở", chọn phương án an toàn tạm thời, làm tiếp, báo ở cuối.
+3. **Tự quyết chi tiết nhỏ** (đặt tên, cấu trúc file, thư viện phụ, xử lý lỗi, giá trị mặc định; Sonnet chỉ phần không đổi kết quả người dùng thấy, xem "Phân vai khi code" mục 3) và ghi vào mục "Quyết định khi code" của module (file `moduleX-quyet-dinh-khi-code.md` khi dài quá khoảng 100 dòng). Chỉ hỏi Dương khi việc quyết định chức năng quan trọng, đổi quy định đã chốt, hoặc chạm dữ liệu thật / thao tác khó hoàn tác.
+4. **Làm liền từ đầu đến cuối.** Sonnet gặp chỗ chưa có quyết định thì dừng báo Opus ("Phân vai khi code" mục 3). Opus gặp việc cần Dương quyết thì ghi vào `progress.md` mục "Câu hỏi còn mở", chọn phương án an toàn tạm thời nếu việc đó không chặn phần còn lại, làm tiếp, báo ở cuối.
 
 ### Tiến độ và commit
 
@@ -115,7 +115,17 @@ Stage 0–1 Opus đã code. Từ Stage 2: **Sonnet** code, test nhanh, kiểm th
    - Mọi agent đọc file theo đoạn cần thiết (grep, `sed -n`), không đọc cả file lớn; không đọc file sinh tự động (`packages/db/drizzle/meta/`, OpenAPI sinh ra).
    - **Bản đồ code** (Dương chốt 21/11/2026): prompt giao việc chỉ đúng mục của `design/ban-do-code.md` cần đọc, thay cho việc dò code. Quy định dùng và sửa bản đồ ghi ở đầu file đó.
 2. Opus rà theo "Kiểm thử theo cấp", phản biện và yêu cầu sửa khi chưa đạt; chỉ đánh dấu xong khi đạt "Định nghĩa xong".
-3. Sonnet không tự đổi quy định đã chốt; chỗ thiết kế chưa rõ thì hỏi Opus. Opus tự quyết chi tiết nhỏ, chỉ hỏi Dương việc quan trọng.
+3. **Sonnet dừng và báo Opus, Opus quyết** (Dương chốt 22/11/2026, học từ Kinh Bang). Lý do: Sonnet tự chọn ở chỗ thiết kế trống từng ra số sai, ví dụ "Com của tôi" của Leader cộng cả team (4.6A).
+   - **Sonnet tự quyết** chỉ chi tiết kỹ thuật không đổi kết quả người dùng thấy: đặt tên, cấu trúc file, helper nội bộ, thư viện phụ, câu chữ thông báo lỗi.
+   - **Sonnet dừng và báo Opus**, không tự chọn, khi gặp một trong các trường hợp:
+     - quyết định mà thiết kế, `progress.md`, file quyết định khi code và bản đồ chưa có, và nó đổi số liệu, quyền, luồng dùng, hay dữ liệu lưu;
+     - test hỏng mà nguyên nhân chưa rõ;
+     - muốn sửa test, ngưỡng hay thời gian chờ để test qua;
+     - phải đổi quy định đã chốt, hoặc đổi hành vi của phần dùng chung theo cách thiết kế chưa nói.
+   - **Cách dừng:** commit phần đã xong (nếu typecheck sạch), ghi câu hỏi vào báo lại. Câu hỏi kèm: các phương án, phương án Sonnet nghiêng về và vì sao, ảnh hưởng của từng phương án. Rồi kết thúc lượt. Còn việc độc lập với câu hỏi thì làm tiếp trước khi dừng.
+   - **Opus quyết** rồi trả lời bằng SendMessage cho chính agent đó (agent giữ ngữ cảnh). Quyết định ghi vào file quyết định khi code của module.
+   - **Opus chỉ hỏi Dương** việc quan trọng: chức năng hay cách tính tiền mà người dùng thấy và thiết kế chưa nói, đổi quy định đã chốt, chạm dữ liệu thật hay thao tác khó hoàn tác, chi phí và hạ tầng. Việc còn lại Opus tự quyết và ghi lại.
+   - Prompt giao việc chép nguyên mục này.
 4. **Sửa quá 5 vòng chưa xong thì dừng, báo Opus.** Một vòng là một lần sửa rồi chạy lại mà cùng lỗi vẫn còn (đổi dạng nhưng cùng chỗ vẫn tính). Báo: lỗi, cách tái hiện, lệnh fail; 5 cách đã thử và vì sao không ăn; giả thuyết nguyên nhân, file, hàm. Opus tìm nguyên nhân gốc và hướng dẫn sửa tận gốc; đòi đổi quy định đã chốt thì Opus hỏi Dương.
 5. **Sửa tận gốc, không chắp vá.** Một số liệu chỉ có một nơi tính (engine/command ở server); UI, export, API, MCP, dashboard chỉ đọc kết quả đó. Lỗi số liệu sửa ở nơi tính. Cấm: điều kiện riêng cho một màn hình/bảng/người; gán cứng, làm tròn hay định dạng lại để "khớp số"; sửa test cho khớp kết quả sai, bỏ qua hoặc tắt test; nuốt lỗi (`try/catch` im lặng, giá trị mặc định che lỗi). Sửa xong phải có test tái hiện đúng lỗi, và kiểm lại mọi nơi dùng chung giá trị ấy (grid, export, API, dashboard, MCP).
 
