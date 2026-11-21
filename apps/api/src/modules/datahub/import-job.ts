@@ -8,7 +8,7 @@ import { defineCommand } from "../../core/registry";
 import type { StorageDriver } from "../../storage/types";
 import { loadDatahubAccess, loadTableAccess } from "./access";
 import { newOptionId } from "./column-types";
-import { FormulaTranslator, type ReasonCode, type SheetMap } from "./excel-formula";
+import { FormulaTranslator, rewriteDateText, type ReasonCode, type SheetMap } from "./excel-formula";
 import { colIndex } from "./import-read";
 import { analyzeSheet, buildRow, ImportMappingSchema, MAX_ERRORS_KEPT, resolveSheet, VALIDATE_SAMPLE, type CellIssue, type ExistingColumn, type ImportMapping, type ResolvedCol, type ResolvedSheet, type SheetAnalysis } from "./import-plan";
 import { fetchGoogleSheet, openBook, type SourceBook } from "./import-read";
@@ -123,6 +123,7 @@ function decideFormulas(sheets: { rs: ResolvedSheet; scan: SheetScan }[], tableN
   sheets.forEach(({ rs, scan }, si) => {
     const dateByIndex = new Map(rs.columns.filter((c) => c.type === "date" || c.type === "datetime").map((c) => [c.index, c.name]));
     // Text functions on a date column: Excel works on the text the cell SHOWS ("09/2021"), the engine on the date value (see module2 quyết định 2B).
+    const dateFmts = new Map(rs.columns.filter((c) => (c.type === "date" || c.type === "datetime") && c.dateFmt).map((c) => [c.name.replace(/\s+/g, " ").trim().toLowerCase(), c.dateFmt]));
     const warn = (list: { formula: string }[]): string[] => {
       const found = new Map<string, string>();
       const re = /\b(LEFT|RIGHT|MID|LEN|FIND|SEARCH|SUBSTITUTE|REPLACE)\(\s*\$?([A-Z]{1,3})\$?\d+/g;
@@ -145,6 +146,7 @@ function decideFormulas(sheets: { rs: ResolvedSheet; scan: SheetScan }[], tableN
         continue;
       }
       let first: string | null = null;
+      const rewrites = new Set<string>();
       let firstRaw = "";
       let verdict: FormulaDecision | null = null;
       for (const f of list) {
@@ -153,15 +155,17 @@ function decideFormulas(sheets: { rs: ResolvedSheet; scan: SheetScan }[], tableN
           verdict = valueOf(t.code, t.reason);
           break;
         }
+        const rw = rewriteDateText(t.text, dateFmts);
+        rw.rewritten.forEach((x) => rewrites.add(x));
         if (first === null) {
-          first = t.text;
+          first = rw.text;
           firstRaw = `dòng ${f.row}: =${f.formula}`;
-        } else if (t.text !== first) {
+        } else if (rw.text !== first) {
           verdict = valueOf("differs", `Công thức khác nhau giữa các dòng (${firstRaw.slice(0, 80)}; dòng ${f.row}: =${f.formula.slice(0, 80)}).`);
           break;
         }
       }
-      out.set(key, verdict ?? { status: "formula", text: first ?? "", warnings });
+      out.set(key, verdict ?? { status: "formula", text: first ?? "", warnings: [...warnings, ...[...rewrites].slice(0, 3).map((x) => `Đã tự đổi sang TEXT cho khớp chữ Excel hiển thị: ${x}.`)] });
     }
   });
   return out;

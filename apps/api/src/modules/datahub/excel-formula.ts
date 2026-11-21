@@ -244,3 +244,48 @@ export function displayWarnings(text: string, dateColumns: Set<string>): string[
   }
   return [...new Set(out)];
 }
+
+/** Where the tokens of a fixed-width date display format sit: `mm/yyyy`, `dd/mm/yyyy`, `yyyy-mm-dd`... Anything else (`d/m/yyyy`, `mmm`, `yy`) has no fixed positions: `null`. */
+function dateLayout(fmt: string): { norm: string; tokens: { start: number; end: number }[] } | null {
+  const norm = fmt.toLowerCase().replace(/\\/g, "").replace(/"/g, "").trim();
+  const m = /^(dd|mm|yyyy)([/.-])(dd|mm|yyyy)(?:\2(dd|mm|yyyy))?$/.exec(norm);
+  if (!m) return null;
+  const toks = [m[1]!, m[3]!, ...(m[4] ? [m[4]] : [])];
+  if (new Set(toks).size !== toks.length) return null;
+  const out: { start: number; end: number }[] = [];
+  let at = 0;
+  for (const t of toks) {
+    out.push({ start: at, end: at + t.length });
+    at += t.length + 1;
+  }
+  return { norm, tokens: out };
+}
+
+/**
+ * Rewrites `LEFT/RIGHT/MID([ngày], số...)` on a date column into `TEXT([ngày], "định dạng")` when the numbers pick out whole parts of the format the file shows
+ * (`mm/yyyy`: LEFT(x,2) is the month, RIGHT(x,4) the year). Excel works on the shown text, the engine on the date value; TEXT gives the same text from the value.
+ * Left alone, with the warning of `displayWarnings` still shown: a format without fixed positions (`d/m/yyyy`), a span that cuts a part, variable numbers, other functions.
+ */
+export function rewriteDateText(text: string, formats: Map<string, string | undefined>): { text: string; rewritten: string[] } {
+  const rewritten: string[] = [];
+  const out = text.replace(/\b(LEFT|RIGHT|MID)\(\s*\[([^\]]+)\]\s*,\s*(\d+)\s*(?:,\s*(\d+)\s*)?\)/g, (whole, fn: string, col: string, a: string, b: string | undefined) => {
+    const fmt = formats.get(norm(col));
+    const layout = fmt ? dateLayout(fmt) : null;
+    if (!layout) return whole;
+    const total = layout.norm.length;
+    let from: number;
+    let len: number;
+    if (fn === "LEFT" && b === undefined) [from, len] = [0, Number(a)];
+    else if (fn === "RIGHT" && b === undefined) [from, len] = [total - Number(a), Number(a)];
+    else if (fn === "MID" && b !== undefined) [from, len] = [Number(a) - 1, Number(b)];
+    else return whole;
+    const to = from + len;
+    const first = layout.tokens.findIndex((t) => t.start === from);
+    const last = layout.tokens.findIndex((t) => t.end === to);
+    if (from < 0 || first < 0 || last < first) return whole;
+    const res = `TEXT([${col}], "${layout.norm.slice(from, to)}")`;
+    rewritten.push(`${whole} -> ${res}`);
+    return res;
+  });
+  return { text: out, rewritten: [...new Set(rewritten)] };
+}

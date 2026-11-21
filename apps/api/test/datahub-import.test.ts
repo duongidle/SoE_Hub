@@ -269,6 +269,7 @@ describe("import: formulas", () => {
     expect(dc["Tháng"]).toMatchObject({ status: "formula" });
     expect(dc["Tháng"].warnings[0]).toContain("LEFT()");
     expect(dc["Tháng"].warnings[0]).toContain("TEXT(ngày");
+    expect(dc["Tháng"].warnings.some((w: string) => w.includes("Đã tự đổi"))).toBe(true);
     expect(pv.sheets[1].columns[1].formula).toMatchObject({ status: "formula" });
 
     await a("datahub.import.start", { job_id: an.job.id, mapping });
@@ -278,6 +279,8 @@ describe("import: formulas", () => {
     const dtbl = await a("datahub.table.get", { table_id: deals.table_id });
     const types = Object.fromEntries(dtbl.columns.map((c: { name: string; type: string }) => [c.name, c.type]));
     expect(types).toMatchObject({ "Gấp đôi": "formula", "Khác nhau": "number", "Thám số": "number", "Hàm lạ": "number", "Tháng": "formula", "Doanh thu": "number" });
+    // LEFT(ngày, 2) on a column shown as mm/yyyy became TEXT(ngày, "mm"): the same text Excel shows, computed from the date.
+    expect(dtbl.columns.find((c: { name: string }) => c.name === "Tháng").config.formula).toBe('=TEXT([Ngày], "mm")');
     const dcol = dtbl.columns.find((c: { name: string }) => c.name === "Gấp đôi");
     expect(dcol.config.formula).toBe("=[Doanh thu]*2");
     const rows = await rowsOf(a, deals.table_id);

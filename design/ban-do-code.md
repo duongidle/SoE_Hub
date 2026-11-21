@@ -187,6 +187,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 - View (chia sẻ/cá nhân): `apps/api/src/modules/datahub/collab.ts` `viewOperations`; bộ lọc thời gian `apps/api/src/modules/datahub/time-filter.ts` `timeFilterNode`.
 - Việc nền chạy lâu (nhập, xuất): `apps/api/src/modules/datahub/jobs.ts` `registerJobRunner`, `patchJob`, `cancelRequested`; bảng `dh_jobs`. Mẫu thêm job: `apps/api/src/modules/datahub/export-job.ts` (`registerJobRunner("export", ...)`) và `apps/api/src/modules/datahub/import-job.ts`. Job chạy với quyền người yêu cầu (`jobActor`, `callAs`).
 - Nhập file: `apps/api/src/modules/datahub/import-read.ts` `openBook`, `apps/api/src/modules/datahub/import-plan.ts` `analyzeSheet`, `buildRow`. Chuyển công thức Excel: `apps/api/src/modules/datahub/excel-formula.ts` `FormulaTranslator`.
+- Công thức `LEFT/RIGHT/MID` trên cột ngày được đổi sang `TEXT(ngày, "định dạng")` khi import, theo định dạng hiển thị của ô (`mm/yyyy`, `dd/mm/yyyy`...): `apps/api/src/modules/datahub/excel-formula.ts` `rewriteDateText`, gọi ở `apps/api/src/modules/datahub/import-job.ts` `decideFormulas`; cảnh báo `displayWarnings` vẫn hiện.
 - Thùng rác: `apps/api/src/modules/datahub/trash.ts` `registerDatahubTrash` (bảng thêm vào thùng rác thì đăng ký ở đây, `registerTrashTable` của `@soe/db`).
 - Lịch sử dòng: bảng `row_history`, ghi trong `apps/api/src/modules/datahub/rows.ts` `applyRowOps`; đọc `apps/api/src/modules/datahub/rows-read.ts` `rowHistory`.
 - Hạn mức: `apps/api/src/modules/datahub/limits.ts` `getLimits`, `quotaExceeded`.

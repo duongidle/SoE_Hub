@@ -60,6 +60,8 @@ export interface ColumnGuess {
   non_empty: number;
   formula_count: number;
   sample: string[];
+  /** Display format of the date cells, as the file shows them (for rewriting LEFT/RIGHT/MID on a date). */
+  date_fmt?: string;
 }
 
 export interface SheetAnalysis {
@@ -119,12 +121,14 @@ interface Stat {
   maxLen: number;
   percentFmt: number;
   moneyFmt: number;
+  /** Display format of the first date cell (module2: LEFT(ngày) is rewritten with it). */
+  dateFmt: string | null;
   formulas: number;
   distinct: Set<string>;
   sample: string[];
 }
 
-const newStat = (): Stat => ({ nonEmpty: 0, nums: 0, ints: 0, bools: 0, strs: 0, dates: 0, dateTimes: 0, isoDates: 0, dmyDates: 0, isoDts: 0, emails: 0, urls: 0, numStrs: 0, intStrs: 0, boolStrs: 0, maxLen: 0, percentFmt: 0, moneyFmt: 0, formulas: 0, distinct: new Set(), sample: [] });
+const newStat = (): Stat => ({ nonEmpty: 0, nums: 0, ints: 0, bools: 0, strs: 0, dates: 0, dateTimes: 0, isoDates: 0, dmyDates: 0, isoDts: 0, emails: 0, urls: 0, numStrs: 0, intStrs: 0, boolStrs: 0, maxLen: 0, percentFmt: 0, moneyFmt: 0, dateFmt: null, formulas: 0, distinct: new Set(), sample: [] });
 
 function observe(s: Stat, c: SrcCell | undefined): void {
   if (!c) return;
@@ -142,6 +146,7 @@ function observe(s: Stat, c: SrcCell | undefined): void {
   if (typeof c.v === "boolean") s.bools++;
   else if (typeof c.v === "number") {
     if (c.date) {
+      if (c.fmt && s.dateFmt === null) s.dateFmt = c.fmt;
       if (Number.isInteger(c.v)) s.dates++;
       else s.dateTimes++;
     } else {
@@ -229,7 +234,7 @@ export function analyzeSheet(book: SourceBook, sheetIndex: number, headerRow: nu
     const st = stats.get(i);
     if (!header && (!st || st.nonEmpty === 0)) continue;
     const g = guessType(st ?? newStat(), rowCount);
-    columns.push({ index: i, letter: colLetters(i), header, name: cleanName(header, i, used), type: g.type, config: g.config, non_empty: st?.nonEmpty ?? 0, formula_count: st?.formulas ?? 0, sample: st?.sample ?? [] });
+    columns.push({ index: i, letter: colLetters(i), header, name: cleanName(header, i, used), type: g.type, config: g.config, non_empty: st?.nonEmpty ?? 0, formula_count: st?.formulas ?? 0, sample: st?.sample ?? [], ...(st?.dateFmt ? { date_fmt: st.dateFmt } : {}) });
   }
   return { name: sheet.name, hidden: sheet.hidden, header_row: headerRow, row_count: rowCount, col_count: maxCol, has_formulas: hasFormulas, columns, preview };
 }
@@ -259,6 +264,7 @@ export interface ResolvedCol {
   wantsFormula: boolean;
   formulaCount: number;
   nonEmpty: number;
+  dateFmt?: string;
 }
 
 export interface ResolvedSheet {
@@ -297,7 +303,7 @@ export function resolveSheet(
       if (!ex) throw new AppError("validation_error", `${loc(cm)}: không có cột "${cm.target}" trong bảng.`);
       if (!ex.writable || !isImportType(ex.type)) throw new AppError("validation_error", `${loc(cm)}: cột "${ex.name}" (kiểu ${columnTypeDef(ex.type).label}) không nhập được từ file.`);
       if (out.some((o) => o.existing?.key === ex.key)) throw new AppError("validation_error", `Cột "${ex.name}" được ghép từ hai cột của file.`);
-      out.push({ index: cm.index, header, name: ex.name, type: ex.type as ImportType, config: ex.config, existing: ex, wantsFormula: false, formulaCount: g?.formula_count ?? 0, nonEmpty: g?.non_empty ?? 0 });
+      out.push({ index: cm.index, header, name: ex.name, type: ex.type as ImportType, config: ex.config, existing: ex, wantsFormula: false, formulaCount: g?.formula_count ?? 0, nonEmpty: g?.non_empty ?? 0, dateFmt: g?.date_fmt });
       continue;
     }
     const name = cm.name ? cm.name.normalize("NFC").trim() : cleanName(header, cm.index, used);
@@ -305,7 +311,7 @@ export function resolveSheet(
       if (used.has(name.toLowerCase())) throw new AppError("validation_error", `${loc(cm)}: tên cột "${name}" bị trùng (không phân biệt hoa thường).`);
       used.add(name.toLowerCase());
     }
-    out.push({ index: cm.index, header, name, type: cm.type ?? g?.type ?? "text", config: cm.config ?? g?.config ?? {}, existing: null, wantsFormula, formulaCount: g?.formula_count ?? 0, nonEmpty: g?.non_empty ?? 0 });
+    out.push({ index: cm.index, header, name, type: cm.type ?? g?.type ?? "text", config: cm.config ?? g?.config ?? {}, existing: null, wantsFormula, formulaCount: g?.formula_count ?? 0, nonEmpty: g?.non_empty ?? 0, dateFmt: g?.date_fmt });
   }
   if (out.length === 0) throw new AppError("validation_error", `Sheet "${m.sheet}": chưa chọn cột nào để nhập.`);
   if (m.write === "upsert") {
