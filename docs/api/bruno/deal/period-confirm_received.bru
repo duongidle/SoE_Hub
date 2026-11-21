@@ -1,0 +1,26 @@
+meta {
+  name: period.confirm_received
+  type: http
+  seq: 133
+}
+
+post {
+  url: {{baseUrl}}/api/v1/deal/periods/confirm-received
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+body:json {
+  {
+    "month": "2026-03"
+  }
+}
+
+docs {
+  Xác nhận theo lô các đợt đã có ngày tiền về nhưng chưa xác nhận (dữ liệu import) trước khi chốt kỳ. Đợt đã có dòng Sổ com thì không sinh thêm dòng. Quyền: `deal:payment:write`.
+}

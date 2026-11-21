@@ -36,7 +36,7 @@ Chi tiết quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.7A"
 
 **Việc web cho 4.7B:** (1) màn Chốt kỳ: hiện loại `received_unconfirmed`, nút "Xác nhận rồi chốt" = `period.confirm_received`, chờ công thức, rồi `period.close` (thử lại khi `recalc_pending`); (2) màn import: ghép cột Người/Liên kết vào cột có sẵn (cột đích kiểu Người dùng/Liên kết giờ chọn được), ô `link_by` cho cột Liên kết, hiện lỗi mới ở bước xem trước; (3) màn cấp dữ liệu Guest: loại "Bảng Datahub", chọn bảng + cột + phạm vi + kênh; Guest xem bảng được cấp (`guest.grant.mine` có `options`), lưới chỉ có cột được cấp, không có ô tìm kiếm; (4) trang Template: ô chọn vai trò hiện mọi cột giữ vai trò đa cột (Opus quyết ở 4.6E); (5) e2e cho các màn trên; (6) cột `Mã ngoài` chỉ có ở cây mới (cây cũ: 4.8 bù cột).
 
-**Mốc test 4.7A:** xem dòng dưới (cập nhật sau lần chạy cả bộ).
+**Mốc test 4.7A (mã cca0f3b, sau đó chỉ thêm tài liệu và Bruno):** `pnpm exec vitest run apps packages` 1233 pass, 9 skip, 1 fail (`openapi.test.ts` thiếu Bruno cho `period.confirm_received`; đã thêm `docs/api/bruno/deal/period-confirm_received.bru`, chạy lại `openapi` + `ban-do-code` 8/8 pass), 101 file pass, 2 skip, khoảng 10 phút. Không chạy e2e (4.7B làm). `typecheck`: chỉ còn lỗi có sẵn (`apps/api` 15 lỗi ở `http/app.ts`, `auth/google.ts`; `apps/web` 31 lỗi) ; `lint` sạch.
 
 ## Còn nợ / ghi nhận để sau
 
