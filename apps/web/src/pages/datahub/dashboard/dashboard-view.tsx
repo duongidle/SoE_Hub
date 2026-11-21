@@ -298,7 +298,7 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature 
           />
         ),
       })),
-    [q.data, datahubId, filtersFor, mature, picks, owner, dup, pickChart],
+    [q.data, datahubId, filtersFor, viewFilters, mature, picks, owner, dup, pickChart],
   );
 
   if (q.isLoading) return <Skeleton className="h-64 w-full" aria-busy="true" aria-label="Đang tải dashboard" />;
