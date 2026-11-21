@@ -25295,7 +25295,7 @@
                               },
                               "group": {
                                 "type": "string",
-                                "description": "Logic, Toán, Thống kê, Chuỗi, Ngày, Tra cứu hoặc Thông tin dòng."
+                                "description": "Logic, Toán, Thống kê, Chuỗi, Ngày, Tra cứu, Thông tin dòng hoặc Người xem."
                               },
                               "syntax": {
                                 "type": "string",
