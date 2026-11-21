@@ -5,6 +5,22 @@ Thiết kế nằm trong `design/`, quy ước làm việc trong `CLAUDE.md`, ti
 
 Trạng thái code: **Stage 1 (tài khoản và phân quyền)** đã xong: đăng nhập, org chart, phân quyền, token, nhật ký, chuyển giao dữ liệu. Chưa có chức năng nghiệp vụ (Datahub, Deal... từ Stage 2).
 
+## Cài máy mới từ đầu
+
+Dành cho máy chưa có công cụ lập trình nào, làm bằng tab **Code** của Claude Desktop (Claude Code). Người dùng chỉ cần bảo Claude: *"Clone https://github.com/duongidle/SoE_Hub, nhánh dev, vào thư mục này rồi cài máy theo README mục Cài máy mới từ đầu"*. Claude làm lần lượt, báo lại bước nào lỗi:
+
+1. **Công cụ:**
+   - macOS: Git (`xcode-select --install` nếu chưa có), Homebrew (https://brew.sh), rồi `brew install node pnpm postgresql@17 && brew services start postgresql@17`.
+   - Windows: `winget install Git.Git OpenJS.NodeJS pnpm.pnpm PostgreSQL.PostgreSQL.17`. Nên dùng Mac nếu có, Windows hay lỗi vặt với Postgres và đường dẫn.
+   - Các lệnh cài hỏi mật khẩu máy thì **người dùng tự gõ**, không đưa mật khẩu cho Claude.
+2. **Code:** `git clone https://github.com/duongidle/SoE_Hub.git . && git checkout dev`. Làm trên `dev`, không làm trên `main`.
+3. **Cài và dựng:** làm đúng mục "Chạy trên máy dev" bên dưới (`pnpm install`, `cp .env.example .env`, sửa URL Postgres theo user máy, `pnpm db:setup`). Máy dev **không cần secret nào**: `.env.example` đủ chạy, `AUTH_SECRET` chỉ bắt buộc ở production.
+4. **Trình duyệt cho e2e:** `pnpm --filter @soe/web exec playwright install chromium`.
+5. **Kiểm tra:** `pnpm typecheck` và `pnpm exec vitest run apps packages`. Golden test tự bỏ qua khi máy không có thư mục `examples/` (dữ liệu thật, không nằm trong repo); xin Dương nếu cần so số với Excel.
+6. **Đẩy code lên:** Dương thêm tài khoản GitHub của người đó làm collaborator, rồi đăng nhập bằng `gh auth login` (`brew install gh`). Chỉ push khi Dương yêu cầu (CLAUDE.md).
+
+Xong thì đọc `progress.md` để làm tiếp.
+
 ## Yêu cầu
 
 - Node.js 22 trở lên (đã thử trên Node 24).

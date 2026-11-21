@@ -23,6 +23,8 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 
 ### Bắt đầu mỗi phiên
 
+**Máy mới, chưa cài gì** (không có `node_modules`, `pnpm` hay Postgres): cài theo `README.md` mục "Cài máy mới từ đầu" trước, rồi mới làm việc.
+
 `CLAUDE.md` được nạp sẵn vào mọi phiên, kể cả agent con: không Read lại, trừ khi hội thoại đã bị tóm tắt hoặc không thấy nó trong ngữ cảnh. Việc đầu tiên của mọi agent là đọc `progress.md`; không dựa vào trí nhớ hay bản tóm tắt. Khi code một stage, đọc thêm file thiết kế của module đó. Không cần đọc lại phiên cũ.
 
 ### Thiết kế
