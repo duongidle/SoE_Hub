@@ -25,6 +25,7 @@ export const DEAL_DASHBOARD_CHARTS: Record<string, unknown>[] = [
   kpi("Com đã nhận của tôi", "Com đã nhận của tôi"),
   kpi("Com tạm tính của tôi", "Com tạm tính của tôi"),
   kpi("Com chờ nhận của tôi", "Com chờ nhận của tôi"),
+  kpi("Com dự kiến của tôi", "Com dự kiến của tôi"),
   // Forecast of two parts (module4 11) for the current quarter, the viewer's own share: signed = unpaid instalments due in the quarter, unsigned = open deals without a schedule expected to close in it.
   {
     type: "kpi",

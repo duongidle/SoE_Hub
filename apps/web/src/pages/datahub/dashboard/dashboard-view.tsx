@@ -160,8 +160,10 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature 
   const viewFilters: ViewFilters = useMemo(() => ({ ...(range ? { range } : {}), ...(filters?.conditions?.length ? { conditions: filters.conditions } : {}), ...(cross.length ? { cross } : {}) }), [filters, cross, range]);
   // A cohort chart that cuts at the mature month: the range of the period, ended at the cut-off the server gave (dates only compared, nothing computed).
   const filtersFor = useCallback(
-    (chart: ChartRecord["chart"]): ViewFilters => {
+    (chart: ChartRecord["chart"]): ViewFilters | null => {
       if (!mature?.cut || !mature.through || !chart.options?.mature_cohort) return viewFilters;
+      // The whole period is after the cut-off: no cohort of it is mature, so there is nothing to ask for.
+      if (period?.from && period.from > mature.through) return null;
       const to = period?.to && period.to < mature.through ? period.to : mature.through;
       return { ...viewFilters, range: { kind: "between", ...(period?.from ? { from: period.from } : {}), to } };
     },
@@ -269,7 +271,7 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature 
             record={r}
             index={i}
             datahubId={datahubId}
-            filters={filtersFor(r.chart)}
+            filters={filtersFor(r.chart) ?? viewFilters}
             pick={picks[r.id]}
             owner={owner}
             exportRef={refOf(r.id)}
@@ -280,13 +282,15 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature 
             onClearPick={() => setPicks((p) => { const { [r.id]: _g, ...rest } = p; void _g; return rest; })}
           />
         ),
-        body: (
+        body: filtersFor(r.chart) === null ? (
+          <p className="px-1 text-sm text-muted-foreground" data-testid="no-mature-cohort">Chưa có cohort nào của kỳ này đã chín theo mốc đang chọn. Bỏ chọn "Chỉ tính cohort đã chín" để xem số tạm tính.</p>
+        ) : (
           <ChartBody
             chart={r.chart}
             datahubId={datahubId}
             chartId={r.id}
             version={r.version}
-            filters={filtersFor(r.chart)}
+            filters={filtersFor(r.chart) ?? undefined}
             matureThrough={mature?.through ?? null}
             onPick={r.chart.options?.ignore_cross === true ? undefined : pickChart(r.id)}
             exportRef={refOf(r.id)}

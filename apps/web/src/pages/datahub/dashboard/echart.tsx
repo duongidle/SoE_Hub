@@ -1,12 +1,12 @@
 import { BarChart, BoxplotChart, CustomChart, FunnelChart, GaugeChart, HeatmapChart, LineChart, PieChart, ScatterChart } from "echarts/charts";
-import { GridComponent, LegendComponent, MarkLineComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
+import { GridComponent, LegendComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent, VisualMapComponent } from "echarts/components";
 import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
 import { token } from "@/lib/theme";
 import type { PickInfo } from "@/lib/dashboard/types";
 
-echarts.use([BarChart, BoxplotChart, CustomChart, FunnelChart, GaugeChart, HeatmapChart, LineChart, PieChart, ScatterChart, GridComponent, LegendComponent, MarkLineComponent, TooltipComponent, VisualMapComponent, CanvasRenderer]);
+echarts.use([BarChart, BoxplotChart, CustomChart, FunnelChart, GaugeChart, HeatmapChart, LineChart, PieChart, ScatterChart, GridComponent, LegendComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent, VisualMapComponent, CanvasRenderer]);
 
 export type EChartsOption = echarts.EChartsCoreOption;
 
