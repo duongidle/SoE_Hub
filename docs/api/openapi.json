@@ -11670,6 +11670,21 @@
                               "null"
                             ]
                           },
+                          "options": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Loại `datahub_table`: `{ table_id, columns: [mã cột Guest được thấy] }`."
+                          },
                           "revoked_at": {
                             "anyOf": [
                               {
@@ -11711,6 +11726,7 @@
                           "columns",
                           "expires_at",
                           "note",
+                          "options",
                           "revoked_at",
                           "created_at",
                           "version"
@@ -11863,6 +11879,14 @@
                   "note": {
                     "type": "string",
                     "maxLength": 500
+                  },
+                  "options": {
+                    "description": "Tuỳ loại dữ liệu. `datahub_table`: `{ table_id, columns: [mã hoặc tên cột] }`, bắt buộc.",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
                   }
                 },
                 "required": [
@@ -11958,6 +11982,21 @@
                             "null"
                           ]
                         },
+                        "options": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Loại `datahub_table`: `{ table_id, columns: [mã cột Guest được thấy] }`."
+                        },
                         "revoked_at": {
                           "anyOf": [
                             {
@@ -11999,6 +12038,7 @@
                         "columns",
                         "expires_at",
                         "note",
+                        "options",
                         "revoked_at",
                         "created_at",
                         "version"
@@ -12188,6 +12228,21 @@
                               "null"
                             ]
                           },
+                          "options": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Loại `datahub_table`: `{ table_id, columns: [mã cột Guest được thấy] }`."
+                          },
                           "revoked_at": {
                             "anyOf": [
                               {
@@ -12229,6 +12284,7 @@
                           "columns",
                           "expires_at",
                           "note",
+                          "options",
                           "revoked_at",
                           "created_at",
                           "version"
@@ -12440,6 +12496,21 @@
                             "null"
                           ]
                         },
+                        "options": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Loại `datahub_table`: `{ table_id, columns: [mã cột Guest được thấy] }`."
+                        },
                         "revoked_at": {
                           "anyOf": [
                             {
@@ -12481,6 +12552,7 @@
                         "columns",
                         "expires_at",
                         "note",
+                        "options",
                         "revoked_at",
                         "created_at",
                         "version"
@@ -39694,6 +39766,11 @@
                                       "value",
                                       "formula"
                                     ]
+                                  },
+                                  "link_by": {
+                                    "description": "Chỉ cho cột Liên kết có sẵn: cột của bảng đích để khớp giá trị trong file (tên hoặc mã). Bỏ trống = cột Duy nhất duy nhất của bảng đích.",
+                                    "type": "string",
+                                    "maxLength": 100
                                   }
                                 },
                                 "required": [
@@ -40232,6 +40309,11 @@
                                       "value",
                                       "formula"
                                     ]
+                                  },
+                                  "link_by": {
+                                    "description": "Chỉ cho cột Liên kết có sẵn: cột của bảng đích để khớp giá trị trong file (tên hoặc mã). Bỏ trống = cột Duy nhất duy nhất của bảng đích.",
+                                    "type": "string",
+                                    "maxLength": 100
                                   }
                                 },
                                 "required": [
@@ -52661,6 +52743,18 @@
                             ]
                           },
                           "description": "Chia com đợt này: mỗi người một tỉ lệ trên com sale (0..1, ví dụ 0.15 là 15%). Tổng không vượt `Tỉ lệ SoE` của chính sách."
+                        },
+                        "source": {
+                          "description": "Hệ thống ngoài đặt mã (ví dụ `bpm`). Đi cùng `external_id`.",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 40
+                        },
+                        "external_id": {
+                          "description": "Mã đợt của hệ thống ngoài. Đã có đợt mang mã này (của deal này) thì sửa đợt đó, chưa có thì tạo đợt mới mang mã: gọi lại không sinh đợt trùng. Cần cột `Mã ngoài` ở bảng Đợt thanh toán.",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
                         }
                       },
                       "required": [
@@ -52736,6 +52830,12 @@
                               },
                               "created": {
                                 "type": "boolean"
+                              },
+                              "external_id": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
                               }
                             },
                             "required": [
@@ -52743,7 +52843,8 @@
                               "seq",
                               "amount",
                               "due",
-                              "created"
+                              "created",
+                              "external_id"
                             ],
                             "additionalProperties": false
                           }
@@ -52928,9 +53029,21 @@
                       "type": "object",
                       "properties": {
                         "payment_id": {
+                          "description": "Đợt cần xác nhận. Hoặc dùng `external_id` (kèm `source`).",
                           "type": "string",
                           "format": "uuid",
                           "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "source": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 40
+                        },
+                        "external_id": {
+                          "description": "Mã ngoài của đợt (đặt lúc `payment.schedule`), thay cho `payment_id`.",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
                         },
                         "amount": {
                           "type": "number",
@@ -52978,7 +53091,6 @@
                         }
                       },
                       "required": [
-                        "payment_id",
                         "amount"
                       ]
                     }
@@ -53760,8 +53872,8 @@
     "/api/v1/deal/periods/review": {
       "get": {
         "operationId": "period.review",
-        "summary": "Màn Chốt kỳ: danh sách \"Cần xử lý trước khi chốt\" của một tháng (6 loại), kỳ đã chốt chưa.",
-        "description": "Chỉ Manager của cây. Sáu loại: `overdue_payment` (đợt quá hạn chưa xác nhận), `unmatched_receipt` (Tiền về chưa ghép), `com_cap_mismatch` (đợt đã về, tổng % com khác `Tỉ lệ SoE`), `com_blank` (dòng Sổ com tạm tính còn trống com: thiếu Level BC / Performance BC), `unchecked_source` (dòng AI/API nhập chưa `Đã kiểm`), `stale_processing` (deal đang mở có đợt quá hạn quá `stale_days` ngày). Chờ công thức tính xong tối đa 5 giây; `stale: true` là số liệu có thể còn cũ.",
+        "summary": "Màn Chốt kỳ: danh sách \"Cần xử lý trước khi chốt\" của một tháng (7 loại), kỳ đã chốt chưa.",
+        "description": "Chỉ Manager của cây. Bảy loại: `overdue_payment` (đợt quá hạn chưa xác nhận), `received_unconfirmed` (đợt có ngày tiền về hoặc số tiền về nhưng chưa xác nhận, ví dụ dữ liệu import; `period.confirm_received` xác nhận hàng loạt trước khi chốt), `unmatched_receipt` (Tiền về chưa ghép), `com_cap_mismatch` (đợt đã về, tổng % com khác `Tỉ lệ SoE`), `com_blank` (dòng Sổ com tạm tính còn trống com: thiếu Level BC / Performance BC), `unchecked_source` (dòng AI/API nhập chưa `Đã kiểm`), `stale_processing` (deal đang mở có đợt quá hạn quá `stale_days` ngày). Chờ công thức tính xong tối đa 5 giây; `stale: true` là số liệu có thể còn cũ.",
         "tags": [
           "period"
         ],
@@ -53848,6 +53960,7 @@
                                 "type": "string",
                                 "enum": [
                                   "overdue_payment",
+                                  "received_unconfirmed",
                                   "unmatched_receipt",
                                   "com_cap_mismatch",
                                   "com_blank",
@@ -54305,6 +54418,190 @@
           },
           "403": {
             "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deal/periods/confirm-received": {
+      "post": {
+        "operationId": "period.confirm_received",
+        "summary": "Xác nhận hàng loạt các đợt của một tháng đã có ngày tiền về nhưng chưa xác nhận (dữ liệu import), rồi mới chốt kỳ.",
+        "description": "Chỉ Manager của cây. Mỗi đợt tìm được (có ngày hoặc số tiền về, chưa có dòng Tiền về) được tạo dòng Tiền về và liên kết, deal đang mở thành Won, sinh dòng Sổ com Tạm tính theo `Người tham gia` của deal và dòng Doanh thu theo người. Đợt đã có dòng Sổ com (com cũ import dạng `Com cố định`, `Đã chốt`) thì KHÔNG sinh thêm dòng Sổ com, chỉ chuyển deal sang Won và sinh Doanh thu theo người. Chạy theo lô: mỗi bảng ghi một lần, công thức tính lại một lần ở cuối. Gọi lại không làm gì thêm (đợt đã xác nhận có liên kết Tiền về). Sau lệnh này chờ vài giây cho công thức tính xong rồi gọi `period.close` (lỗi `recalc_pending` thì thử lại). Kỳ đã chốt thì lỗi. Cần `Idempotency-Key`.",
+        "tags": [
+          "period"
+        ],
+        "x-command-name": "period.confirm_received",
+        "x-ai-allowed": true,
+        "x-permission": "deal:payment:write",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "month": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+                  }
+                },
+                "required": [
+                  "month"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "month": {
+                          "type": "string"
+                        },
+                        "payments": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "won_deal_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "ledger_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        },
+                        "skipped_ledger": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Số đợt đã có dòng Sổ com nên không sinh thêm."
+                        }
+                      },
+                      "required": [
+                        "month",
+                        "payments",
+                        "won_deal_ids",
+                        "ledger_ids",
+                        "skipped_ledger"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
             "content": {
               "application/json": {
                 "schema": {

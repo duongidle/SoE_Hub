@@ -289,6 +289,96 @@ async function paymentsByExternal(ctx: Ctx, tree: Tree, keys: string[]): Promise
   return new Map((res.rows as { id: string; k: string }[]).map((r) => [r.k, r.id]));
 }
 
+/** Instalments with a received date (or amount) but no Tiền về linked: money recorded by an import, never confirmed by `payment.confirm`. */
+export function receivedUnconfirmed(tree: Tree, rows: RowData[]): RowData[] {
+  const linkable = roleCol(tree.dots, "tien_ve", false);
+  if (!linkable) return [];
+  return rows.filter((r) => (!empty(cellOf(tree.dots, r, "ngay_tien_ve")) || numOf(cellOf(tree.dots, r, "so_tien_ve")) > 0) && empty(cellOf(tree.dots, r, "tien_ve")));
+}
+
+/**
+ * Confirms, in one batch, the instalments that an import brought in as already received (design module4 14, 12): each gets a Tiền về row and the link, its
+ * deal becomes Won (when open), and the commission and revenue lines are made, EXCEPT where the instalment already has a ledger line (old commission imported
+ * as `Com cố định`, `Đã chốt`): those lines are kept as they are and none is added. One write per table, so the recalculation is queued once at the end.
+ * Idempotent: a confirmed instalment has its link and is not found again. Returns what was done, for the audit.
+ */
+export async function confirmReceivedBatch(ctx: Ctx, tree: Tree, rows: RowData[]): Promise<{ payments: number; won_deal_ids: string[]; ledger_ids: string[]; skipped_ledger: number }> {
+  const todo = receivedUnconfirmed(tree, rows);
+  if (todo.length === 0) return { payments: 0, won_deal_ids: [], ledger_ids: [], skipped_ledger: 0 };
+  const dealOf = (r: RowData) => idsOf(cellOf(tree.dots, r, "deal"))[0] ?? null;
+  const dealIds = [...new Set(todo.flatMap((r) => (dealOf(r) ? [dealOf(r)!] : [])))];
+  const deals = await readRows(ctx, tree.deals, dealIds);
+  // The ledger lines these instalments already have.
+  const dotCol = roleCol(tree.ledger, "dot")!;
+  const link = sourceOf(dotCol).cellExpr(dotCol, "data", "json");
+  const have = await ctx.db.execute(sql`SELECT id, ${link} AS dots FROM dh_rows WHERE ${tree.ledger.acc.rows()} AND deleted_at IS NULL AND ${link} ?| ${`{${todo.map((r) => r.id).join(",")}}`}::text[]`);
+  const withLedger = new Set((have.rows as { dots: string[] }[]).flatMap((r) => r.dots));
+  const partsOf = new Map<string, Participant[]>();
+  for (const d of dealIds) if (deals.get(d)) partsOf.set(d, await participantsOf(ctx, tree.deals, deals.get(d)!));
+  const dotSrc = sourceValue(tree.dots, ctx);
+  const recSrc = sourceValue(tree.receipts, ctx);
+  // 1. a Tiền về row per instalment
+  const amountOf = (r: RowData) => numOf(cellOf(tree.dots, r, "so_tien_nhan")) || numOf(cellOf(tree.dots, r, "so_tien_ve")) || numOf(cellOf(tree.dots, r, "so_tien_du_kien"));
+  const made = await write(ctx, tree.receipts, todo.map((r) => ({ op: "create" as const, data: cells(tree.receipts, [["ngay_nhan", dateOf(cellOf(tree.dots, r, "ngay_tien_ve")) ?? undefined], ["so_tien", amountOf(r)], ["nguon_nhap", recSrc], ["dot", [r.id] as Stored]]) })));
+  // 2. the instalments: link, amounts, people (from the deal when the import left them out)
+  await write(
+    ctx,
+    tree.dots,
+    todo.map((r, n) => {
+      const d = dealOf(r);
+      const people = empty(cellOf(tree.dots, r, "nguoi_tham_gia")) && d ? (peopleCell(tree.dots, partsOf.get(d) ?? []) as unknown as Stored) : undefined;
+      const split = empty(cellOf(tree.dots, r, "chia_com_dot")) && d ? (splitFromParts(partsOf.get(d) ?? []) as unknown as Stored) : undefined;
+      return {
+        op: "update" as const,
+        id: r.id,
+        data: cells(tree.dots, [
+          ["tien_ve", [made[n]!.id] as Stored],
+          ["so_tien_ve", numOf(cellOf(tree.dots, r, "so_tien_ve")) > 0 ? undefined : amountOf(r)],
+          ["so_tien_nhan", numOf(cellOf(tree.dots, r, "so_tien_nhan")) > 0 ? undefined : amountOf(r)],
+          ["nguoi_tham_gia", people],
+          ["chia_com_dot", split],
+          ["nguon_nhap", dotSrc && empty(cellOf(tree.dots, r, "nguon_nhap")) ? dotSrc : undefined],
+        ]),
+      };
+    }),
+    true,
+  );
+  // 3. deals become Won (system write: only the payment commands do it)
+  const won = optionByMeaning(tree.deals, "trang_thai", "won");
+  const wonIds: string[] = [];
+  for (const d of dealIds) {
+    const deal = deals.get(d);
+    if (deal && statusMeaning(tree.deals, deal) === "open") wonIds.push(d);
+  }
+  if (wonIds.length) {
+    if (!won) throw new AppError("conflict", "Cột Trạng thái của Deals chưa có lựa chọn mang nghĩa Won.", { reason: "status_option_missing", meaning: "won" });
+    await write(ctx, tree.deals, wonIds.map((id) => ({ op: "update" as const, id, data: cells(tree.deals, [["trang_thai", won]]) })), true);
+  }
+  // 4. commission lines (Tạm tính) and revenue lines, only for instalments without a ledger line
+  const fresh = todo.filter((r) => !withLedger.has(r.id));
+  const ledgerOps: RowOp[] = [];
+  const ledgerDeal: string[] = [];
+  const temp = fresh.length ? optionNamed(tree.ledger, "trang_thai_com", "Tạm tính") : null;
+  for (const r of fresh) {
+    const d = dealOf(r);
+    if (!d) continue;
+    for (const e of splitFromParts(partsOf.get(d) ?? [])) {
+      ledgerOps.push({ op: "create", data: cells(tree.ledger, [["nguoi", e.id], ["dot", [r.id] as Stored], ["deal", [d] as Stored], ["ty_le_com", Number(e.attrs[COM_ATTR])], ["trang_thai_com", temp!]]) });
+      ledgerDeal.push(d);
+    }
+  }
+  const ledgerIds = ledgerOps.length ? (await write(ctx, tree.ledger, ledgerOps)).map((x) => x.id) : [];
+  const byDeal = new Map<string, string[]>();
+  ledgerIds.forEach((id, n) => byDeal.set(ledgerDeal[n]!, [...(byDeal.get(ledgerDeal[n]!) ?? []), id]));
+  await linkLedger(ctx, tree, byDeal);
+  // Revenue by person for EVERY confirmed instalment, those with old ledger lines too (the revenue table is only written by the payment commands).
+  for (const r of todo) {
+    const d = dealOf(r);
+    if (d) await addRevenueLines(ctx, tree, r.id, d, peopleCell(tree.dots, partsOf.get(d) ?? []) as unknown as Stored);
+  }
+  return { payments: todo.length, won_deal_ids: wonIds, ledger_ids: ledgerIds, skipped_ledger: todo.length - fresh.length };
+}
+
 export const paymentOperations = [
   defineCommand({
     name: "payment.schedule",

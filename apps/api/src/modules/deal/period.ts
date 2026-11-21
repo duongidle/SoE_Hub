@@ -12,7 +12,7 @@ import { rowFromDb } from "../datahub/table-schema";
 import { userIdsOf } from "../datahub/user-values";
 import { ROW_EVENTS, Id } from "../datahub/shared";
 import type { PersonEntry, SelectOption, Stored } from "../datahub/types";
-import { COM_ATTR, cellOf, cells, confirmed, idsOf, loadTree, numOf, optionByMeaning, readRows, roleCol, statusMeaning, write, type Ctx, type RowData, type T, type Tree } from "./payments";
+import { COM_ATTR, cellOf, cells, confirmReceivedBatch, confirmed, idsOf, receivedUnconfirmed, loadTree, numOf, optionByMeaning, readRows, roleCol, statusMeaning, write, type Ctx, type RowData, type T, type Tree } from "./payments";
 
 /**
  * Period closing (design module4 12): `period.close`, `period.reopen`, and the queries of the closing screen `period.review`, `period.com`, `period.list`.
@@ -55,7 +55,7 @@ const optionName = (t: T, role: string, v: Stored): string | null => {
 };
 
 export interface ReviewItem {
-  kind: "overdue_payment" | "unmatched_receipt" | "com_cap_mismatch" | "com_blank" | "unchecked_source" | "stale_processing";
+  kind: "overdue_payment" | "received_unconfirmed" | "unmatched_receipt" | "com_cap_mismatch" | "com_blank" | "unchecked_source" | "stale_processing";
   row_id: string;
   table: "payments" | "receipts" | "ledger" | "deals";
   deal_id: string | null;
@@ -92,6 +92,8 @@ async function review(ctx: Ctx, tree: Tree, ym: string, staleDays: number): Prom
   const base = (kind: ReviewItem["kind"], table: ReviewItem["table"], row_id: string, deal_id: string | null, detail: Record<string, unknown>): ReviewItem => ({ kind, table, row_id, deal_id, deal_name: null, detail });
   for (const r of overdue) items.push(base("overdue_payment", "payments", r.id, dealOfDot(r), { due: dateStr(cellOf(tree.dots, r, "han")), planned: numOf(cellOf(tree.dots, r, "so_tien_du_kien")) }));
 
+  // 1'. instalments with a received date but no confirmation (an import brought them in): `period.close` can confirm them (`confirm_received`)
+  for (const r of receivedUnconfirmed(tree, inPeriod)) items.push(base("received_unconfirmed", "payments", r.id, dealOfDot(r), { received_on: dateStr(cellOf(tree.dots, r, "ngay_tien_ve")), amount: numOf(cellOf(tree.dots, r, "so_tien_ve")) }));
   // 2'. receipts not matched to any instalment
   const rl = roleCol(tree.receipts, "dot")!;
   const rlink = sourceOf(rl).cellExpr(rl, "data", "json");
@@ -146,7 +148,7 @@ function optionNamedSafe(t: T, name: string): string | null {
 }
 
 const ReviewItemOut = z.object({
-  kind: z.enum(["overdue_payment", "unmatched_receipt", "com_cap_mismatch", "com_blank", "unchecked_source", "stale_processing"]),
+  kind: z.enum(["overdue_payment", "received_unconfirmed", "unmatched_receipt", "com_cap_mismatch", "com_blank", "unchecked_source", "stale_processing"]),
   table: z.enum(["payments", "receipts", "ledger", "deals"]),
   row_id: Id,
   deal_id: Id.nullable(),
@@ -162,9 +164,9 @@ async function lockOf(ctx: Ctx, tree: Tree, ym: string) {
 export const periodOperations = [
   defineQuery({
     name: "period.review",
-    summary: "Màn Chốt kỳ: danh sách \"Cần xử lý trước khi chốt\" của một tháng (6 loại), kỳ đã chốt chưa.",
+    summary: "Màn Chốt kỳ: danh sách \"Cần xử lý trước khi chốt\" của một tháng (7 loại), kỳ đã chốt chưa.",
     description:
-      "Chỉ Manager của cây. Sáu loại: `overdue_payment` (đợt quá hạn chưa xác nhận), `unmatched_receipt` (Tiền về chưa ghép), `com_cap_mismatch` (đợt đã về, tổng % com khác `Tỉ lệ SoE`), `com_blank` (dòng Sổ com tạm tính còn trống com: thiếu Level BC / Performance BC), " +
+      "Chỉ Manager của cây. Bảy loại: `overdue_payment` (đợt quá hạn chưa xác nhận), `received_unconfirmed` (đợt có ngày tiền về hoặc số tiền về nhưng chưa xác nhận, ví dụ dữ liệu import; `period.confirm_received` xác nhận hàng loạt trước khi chốt), `unmatched_receipt` (Tiền về chưa ghép), `com_cap_mismatch` (đợt đã về, tổng % com khác `Tỉ lệ SoE`), `com_blank` (dòng Sổ com tạm tính còn trống com: thiếu Level BC / Performance BC), " +
       "`unchecked_source` (dòng AI/API nhập chưa `Đã kiểm`), `stale_processing` (deal đang mở có đợt quá hạn quá `stale_days` ngày). Chờ công thức tính xong tối đa 5 giây; `stale: true` là số liệu có thể còn cũ.",
     permission: "deal:payment:write",
     aiAllowed: true,
@@ -237,6 +239,29 @@ export const periodOperations = [
       const tree = await loadTree(ctx);
       const r = await ctx.db.execute(sql`SELECT id, substr(period_start::text, 1, 7) AS month, locked_at::text AS locked_at, locked_by FROM period_locks WHERE table_id = ${tree.dots.acc.tableId} AND scope = ${tree.managerId} AND unlocked_at IS NULL ORDER BY period_start DESC`);
       return (r.rows as { id: string; month: string; locked_at: string; locked_by: string | null }[]).map((x) => ({ month: x.month, lock_id: x.id, locked_at: x.locked_at, locked_by: x.locked_by }));
+    },
+  }),
+
+  defineCommand({
+    name: "period.confirm_received",
+    summary: "Xác nhận hàng loạt các đợt của một tháng đã có ngày tiền về nhưng chưa xác nhận (dữ liệu import), rồi mới chốt kỳ.",
+    description:
+      "Chỉ Manager của cây. Mỗi đợt tìm được (có ngày hoặc số tiền về, chưa có dòng Tiền về) được tạo dòng Tiền về và liên kết, deal đang mở thành Won, sinh dòng Sổ com Tạm tính theo `Người tham gia` của deal và dòng Doanh thu theo người. " +
+      "Đợt đã có dòng Sổ com (com cũ import dạng `Com cố định`, `Đã chốt`) thì KHÔNG sinh thêm dòng Sổ com, chỉ chuyển deal sang Won và sinh Doanh thu theo người. Chạy theo lô: mỗi bảng ghi một lần, công thức tính lại một lần ở cuối. " +
+      "Gọi lại không làm gì thêm (đợt đã xác nhận có liên kết Tiền về). Sau lệnh này chờ vài giây cho công thức tính xong rồi gọi `period.close` (lỗi `recalc_pending` thì thử lại). Kỳ đã chốt thì lỗi. Cần `Idempotency-Key`.",
+    permission: "deal:payment:write",
+    aiAllowed: true,
+    emits: ROW_EVENTS,
+    input: z.object({ month }),
+    output: z.object({ month: z.string(), payments: z.number().int(), won_deal_ids: z.array(Id), ledger_ids: z.array(Id), skipped_ledger: z.number().int().describe("Số đợt đã có dòng Sổ com nên không sinh thêm.") }),
+    http: { method: "POST", path: "/deal/periods/confirm-received", status: 200 },
+    handler: async (ctx, i) => {
+      const tree = await loadTree(ctx);
+      if (await lockOf(ctx, tree, i.month)) throw new AppError("conflict", `${label(i.month)} đã chốt.`, { reason: "period_already_closed" });
+      const rows = await selectRows(ctx, tree.dots, inMonth(tree.dots, "ky", i.month));
+      const r = await confirmReceivedBatch(ctx, tree, rows);
+      ctx.audit({ type: "deal_period", id: tree.managerId, details: { operation: "confirm_received", month: i.month, payments: r.payments, won: r.won_deal_ids.length, skipped_ledger: r.skipped_ledger } });
+      return { month: i.month, ...r };
     },
   }),
 
