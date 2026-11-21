@@ -54,6 +54,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 - Dispatcher xử lý từng sự kiện nối tiếp nhau. **Việc nặng (dựng nhiều bảng, quét nhiều dòng) không chạy trong subscriber.** Đã có lỗi thật: dựng template trong dispatcher làm trễ mọi sự kiện sau, kể cả thông báo mã kích hoạt.
 - Việc nặng làm một trong hai cách. Vòng riêng, truy vấn chính là hàng đợi, bỏ nhịp nếu lần trước chưa xong: mẫu `startDealDefaultsLoop` ở `apps/api/src/modules/deal/tree-templates.ts`, gắn vào `apps/api/src/worker.ts`. Hoặc job định kỳ: thêm vào `jobs` ở `apps/api/src/jobs/index.ts` (cron, mẫu `system-heartbeat`).
 - Vòng thứ hai theo mẫu này: `startRefillLoop` (điền lại cột gửi xuống khi đổi cây; hàng đợi là cột `dh_tables.refill_pending_at`, subscriber chỉ đánh dấu).
+- Sự kiện chỉ nói "cái này đã đổi, đọc lại" (`datahub.structure.changed`) khai `coalesce: true` ở `EventDef`: `enqueueOutbox` không ghi lần hai khi đã có sự kiện y hệt đang chờ (không bị dispatcher khoá). Dựng một cây mặc định ghi ~450-890 sự kiện, 90% trùng nhau; dispatcher nối tiếp mất 5-7 giây, sự kiện sau đó (mã kích hoạt, tính lại công thức) chờ theo. Sự kiện mang dữ liệu đổi (`row.*`, `formula.recalculated`) không bao giờ gộp.
 - Vòng mới phải có `stop()` và được gọi trong `shutdown` của `apps/api/src/worker.ts`.
 - Job và worker chạy với `systemActor` (`apps/api/src/jobs/index.ts`), không có người dùng.
 - Muốn ghi cài đặt hệ thống từ job → `systemSettings`, đọc → `getSetting` (`packages/db/src/helpers/settings.ts`).

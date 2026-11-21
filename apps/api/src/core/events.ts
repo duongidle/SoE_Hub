@@ -25,6 +25,8 @@ export interface EventDef {
   version: number;
   schema: z.ZodType;
   description: string;
+  /** Identical events still waiting in the outbox are written once (see `OutboxEntry.coalesce`). Only for events that mean "look again", never for ones that carry a change. */
+  coalesce?: boolean;
   /** Computes the SSE audience from the payload. Runs in the worker (may read the database). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   audience?: (payload: any, db: Db) => Audience | null | Promise<Audience | null>;

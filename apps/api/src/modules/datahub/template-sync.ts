@@ -8,6 +8,7 @@ import { createColumn, deleteColumn, restoreColumn, type ColumnExtra } from "./c
 import { columnFromDb } from "./table-schema";
 import { displayConfig, OwnerIndex } from "./computed";
 import { isComputedType } from "./cell-values";
+import { STRUCTURE_EVENT } from "./shared";
 
 type Raw = Record<string, unknown>;
 
@@ -56,7 +57,7 @@ export async function loadTemplate(db: Executor, id: string, opts: { withDeleted
 }
 
 export const workerEmit = (db: Executor): Emit => async (event, input) => {
-  await enqueueOutbox(db as never, { event, aggregateType: input.aggregateType ?? null, aggregateId: input.aggregateId ?? null, payload: input.payload, requestId: null });
+  await enqueueOutbox(db as never, { event, aggregateType: input.aggregateType ?? null, aggregateId: input.aggregateId ?? null, payload: input.payload, requestId: null, coalesce: event === STRUCTURE_EVENT });
 };
 
 /** A context that acts as the system (the worker, the template commands writing on behalf of an owner): `userId` is the person whose rights the table access is built with. */

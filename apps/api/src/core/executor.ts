@@ -133,6 +133,7 @@ export class OperationExecutor {
           payload,
           actor: opts.actor ? toActorRef(opts.actor) : null,
           requestId: opts.requestId,
+          coalesce: def.coalesce,
         });
       },
     };

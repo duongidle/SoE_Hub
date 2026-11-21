@@ -36,6 +36,7 @@ export const datahubEvents: EventDef[] = [
   {
     name: "datahub.structure.changed",
     version: 1,
+    coalesce: true,
     description: "Cấu trúc đổi: datahub, bảng, cột (thêm, sửa, xoá, khôi phục, đổi chủ). Worker dựng lại view SQL xuất.",
     schema: z.object({
       datahub_id: z.uuid(),
