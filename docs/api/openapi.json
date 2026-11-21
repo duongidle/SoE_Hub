@@ -30921,6 +30921,7 @@
                       "deals",
                       "payments",
                       "index",
+                      "com_policy",
                       "com_params",
                       "ledger",
                       "kpi",
@@ -55361,6 +55362,242 @@
                         "groups",
                         "by_type",
                         "deals"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/deal/commission/policy-diff": {
+      "get": {
+        "operationId": "commission.policy.diff",
+        "summary": "So sánh bản chính sách com mới với bản hiệu lực ngay trước nó: dòng thêm, đổi, bỏ; tỉ lệ cũ → mới; số deal mở bị ảnh hưởng.",
+        "description": "Chỉ Manager của cây. Bản = các dòng có cùng `Hiệu lực từ`. `new_from` bỏ trống thì lấy bản mới nhất; bản cũ là bản có `Hiệu lực từ` lớn nhất nhỏ hơn `new_from`. Khoá so dòng: Nguồn lead + Level + Performance. Deal mở bị ảnh hưởng: deal đang mở có (Nguồn lead, Level BC, Performance BC) trùng một dòng thêm/đổi/bỏ và ngày tra chính sách (Ngày dự kiến chốt, bỏ trống thì hôm nay) từ `new_from` trở đi. Kèm khác biệt của bảng Tham số com.",
+        "tags": [
+          "commission"
+        ],
+        "x-command-name": "commission.policy.diff",
+        "x-ai-allowed": true,
+        "x-permission": "deal:policy:write",
+        "parameters": [
+          {
+            "name": "new_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "old_from": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "new_from": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "versions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "added",
+                                  "changed",
+                                  "removed"
+                                ]
+                              },
+                              "lead": {
+                                "type": "string"
+                              },
+                              "level": {
+                                "type": "string"
+                              },
+                              "performance": {
+                                "type": "string"
+                              },
+                              "old_rate": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "new_rate": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "lead",
+                              "level",
+                              "performance",
+                              "old_rate",
+                              "new_rate"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "unchanged": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "params": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "added",
+                                  "changed",
+                                  "removed"
+                                ]
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "old_value": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "new_value": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "name",
+                              "old_value",
+                              "new_value"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "affected_open_deals": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "affected_deal_ids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        }
+                      },
+                      "required": [
+                        "old_from",
+                        "new_from",
+                        "versions",
+                        "rows",
+                        "unchanged",
+                        "params",
+                        "affected_open_deals",
+                        "affected_deal_ids"
                       ],
                       "additionalProperties": false
                     }

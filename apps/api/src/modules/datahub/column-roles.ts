@@ -39,6 +39,9 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "doanh_thu_duoc_tinh", label: "Doanh thu được tính", types: MONEY, required: false, usedBy: ["Dashboard hệ thống", "Index", "KPI"] },
       { key: "gia_tri_hop_dong", label: "Giá trị hợp đồng", types: MONEY, required: false, usedBy: ["Thanh toán", "Forecast"] },
       { key: "da_thu", label: "Đã thu", types: MONEY, required: false, usedBy: ["Thanh toán", "Forecast"] },
+      { key: "nguon_lead", label: "Nguồn lead", types: ["single_select", "text"], required: false, usedBy: ["So sánh phiên bản chính sách com"] },
+      { key: "level_bc", label: "Level BC", types: ["single_select", "text"], required: false, usedBy: ["So sánh phiên bản chính sách com"] },
+      { key: "performance_bc", label: "Performance BC", types: ["single_select", "text"], required: false, usedBy: ["So sánh phiên bản chính sách com"] },
       { key: "ngay_dong_tay", label: "Ngày đóng (sửa tay)", types: ["date", "datetime"], required: false, usedBy: ["Khoá kỳ"] },
       { key: "dot_thanh_toan", label: "Đợt thanh toán (liên kết)", types: ["relation"], required: false, usedBy: ["Lệnh thanh toán (ghi hai chiều với bảng Đợt)"] },
     ],
@@ -68,6 +71,17 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
   index: {
     label: "Index",
     roles: [{ key: "thang", label: "Tháng", types: ["date"], required: true, usedBy: ["Worker thêm dòng tháng mới", "Dashboard Deals"] }],
+  },
+  com_policy: {
+    label: "Chính sách com",
+    roles: [
+      { key: "hieu_luc_tu", label: "Hiệu lực từ", types: ["date", "datetime"], required: true, usedBy: ["Phiên bản chính sách", "So sánh phiên bản"] },
+      { key: "nguon_lead", label: "Nguồn lead", types: ["text", "single_select"], required: true, usedBy: ["So sánh phiên bản"] },
+      { key: "level", label: "Level", types: ["text", "single_select"], required: true, usedBy: ["So sánh phiên bản"] },
+      { key: "performance", label: "Performance", types: ["text", "single_select"], required: true, usedBy: ["So sánh phiên bản"] },
+      { key: "ti_le", label: "Tỉ lệ", types: ["percent", "number"], required: true, usedBy: ["So sánh phiên bản"] },
+      { key: "doanh_thu_toi_thieu", label: "Doanh thu tối thiểu", types: MONEY, required: false, usedBy: ["So sánh phiên bản"] },
+    ],
   },
   com_params: {
     label: "Tham số com",

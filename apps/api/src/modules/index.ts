@@ -11,7 +11,7 @@ import { datahubEvents, datahubOperations, exportOperations, importOperations, j
 import { attachmentOperations } from "./datahub/attachment-ops";
 // Registers the Admin setting `deal.default_templates` in the API process too (the settings page and `system.setting.set` read the catalog here).
 import "./deal";
-import { forecastOperations, paymentOperations, periodOperations } from "./deal";
+import { policyDiffOperations, forecastOperations, paymentOperations, periodOperations } from "./deal";
 import { authOperations } from "./auth/operations";
 import { tokenOperations } from "./auth/tokens";
 import { guestEvents, guestOperations } from "./guest";
@@ -49,6 +49,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...paymentOperations,
     ...periodOperations,
     ...forecastOperations,
+    ...policyDiffOperations,
   );
   return { registry, events };
 }

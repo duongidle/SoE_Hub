@@ -331,6 +331,8 @@ _Phần 4.1–4.5A. Mỗi bước con sau cập nhật phần của mình trong 
 - Số liệu forecast và snapshot tính một nơi: `apps/api/src/modules/deal/forecast.ts` `dealFacts` (đọc deal và đợt theo vai trò, quyền hệ thống), `forecastParts` (hai phần đã ký / chưa ký), `quarterOf`. Query `deal.forecast`, `deal.snapshot.list`, `deal.snapshot.compare`, lệnh `deal.snapshot.create`: `apps/api/src/modules/deal/forecast.ts` `forecastOperations`. Quyền `deal:snapshot:create` (Manager). Dashboard 4.6 đọc `deal.forecast`, không tự cộng.
 - Snapshot dùng `createSnapshot` (`packages/db/src/helpers/snapshots.ts`), `kind = deal_forecast`, `scope` = id Manager, ghi chú JSON (quý, auto). Job quý: `apps/api/src/modules/deal/forecast.ts` `snapshotAllTrees`, khai ở `apps/api/src/jobs/index.ts` (`deal-quarter-snapshot`, 00:05 ngày 1 tháng 1/4/7/10).
 
+- So sánh phiên bản chính sách com: query `commission.policy.diff` ở `apps/api/src/modules/deal/policy-diff.ts` `policyDiffOperations` (quyền `deal:policy:write`). Bảng `Chính sách com` có bộ vai trò `com_policy`, Deals có vai trò `nguon_lead`, `level_bc`, `performance_bc` (`apps/api/src/modules/datahub/column-roles.ts` `ROLE_SETS`).
+
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.
 - Không đưa số chính sách com thật vào code, bộ mặc định hay test (bảng chính sách và tham số tạo rỗng; Manager điền).

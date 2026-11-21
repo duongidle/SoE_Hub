@@ -20,12 +20,12 @@ interface Opt {
   name: string;
   meaning?: string;
 }
-interface RoleTable {
+export interface RoleTable {
   tableId: string;
   key: (role: string) => string | null;
   options: (role: string) => Map<string, Opt>;
 }
-async function roleTable(db: Executor, managerId: string, roleSet: string): Promise<RoleTable | null> {
+export async function roleTable(db: Executor, managerId: string, roleSet: string): Promise<RoleTable | null> {
   const t = await db.execute(sql`SELECT master_table_id FROM dh_templates WHERE /*scope:system*/ manager_id = ${managerId}::uuid AND scope = 'tree' AND role_set = ${roleSet} AND deleted_at IS NULL ORDER BY created_at LIMIT 1`);
   const tableId = (t.rows[0] as { master_table_id: string | null } | undefined)?.master_table_id;
   if (!tableId) return null;
@@ -51,6 +51,9 @@ export interface DealFact {
   /** Instalments not yet paid: planned amount and due date. */
   openDots: { amount: number; due: string | null }[];
   hasSchedule: boolean;
+  lead: string | null;
+  level: string | null;
+  perf: string | null;
 }
 
 export async function dealFacts(db: Executor, managerId: string): Promise<DealFact[]> {
@@ -62,6 +65,15 @@ export async function dealFacts(db: Executor, managerId: string): Promise<DealFa
   const types = deals.options("loai_deal");
   const statuses = deals.options("trang_thai");
   const rows = (await db.execute(sql`SELECT id, data FROM dh_rows WHERE /*scope:system*/ table_id = ${deals.tableId}::uuid AND deleted_at IS NULL`)).rows as { id: string; data: Record<string, unknown> }[];
+  const pick = (role: string) => {
+    const key = deals.key(role);
+    const opts = deals.options(role);
+    return (data: Record<string, unknown>): string | null => {
+      const v = key ? data[key] : null;
+      return typeof v === "string" ? (opts.get(v)?.name ?? v) : null;
+    };
+  };
+  const [lead, level, perf] = [pick("nguon_lead"), pick("level_bc"), pick("performance_bc")];
   const byDeal = new Map<string, { amount: number; due: string | null }[]>();
   const scheduled = new Set<string>();
   if (dots) {
@@ -87,6 +99,9 @@ export async function dealFacts(db: Executor, managerId: string): Promise<DealFa
     revenue: kRev ? numOf(r.data[kRev]) : 0,
     openDots: byDeal.get(r.id) ?? [],
     hasSchedule: scheduled.has(r.id),
+    lead: lead(r.data),
+    level: level(r.data),
+    perf: perf(r.data),
   }));
 }
 
@@ -165,7 +180,7 @@ export async function snapshotAllTrees(db: Db, now: Date = new Date()): Promise<
   return n;
 }
 
-function managerOf(ctx: Pick<HandlerCtx, "access">) {
+export function managerOf(ctx: Pick<HandlerCtx, "access">) {
   return ctx.access.requirePrincipal().then((p) => {
     if (!p.roles.includes("manager")) throw new AppError("forbidden", "Chỉ Manager của cây xem và chụp dự báo.", { reason: "manager_only" });
     return p.userId;

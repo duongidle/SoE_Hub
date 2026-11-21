@@ -1,0 +1,19 @@
+meta {
+  name: commission.policy.diff
+  type: http
+  seq: 139
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deal/commission/policy-diff?new_from=2026-12-01
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  So sánh bản chính sách com mới với bản ngay trước: dòng thêm, đổi, bỏ; tỉ lệ cũ → mới; số deal mở bị ảnh hưởng. Quyền: `deal:policy:write`.
+}

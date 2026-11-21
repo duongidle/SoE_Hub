@@ -222,3 +222,32 @@ describe("forecast and snapshot", () => {
     expect((await fails(mgrB("deal.snapshot.compare", { snapshot_id: snap.id }))).code).toBe("not_found");
   });
 });
+
+describe("commission.policy.diff", () => {
+  it("lists added, changed and removed lines with old and new rates, the parameters, and the open deals the change reaches", async () => {
+    const pol = tables["Chính sách com"]!;
+    const mk = (from: string, lead: string, level: string, perf: string, rate: number) => mgrA("datahub.row.create", { table_id: pol, data: { "Hiệu lực từ": from, "Nguồn lead": lead, Level: level, Performance: perf, "Tỉ lệ": rate } });
+    await mk("2026-01-01", "ML", "Level 2", "Goal", 0.3); // only in the old version: removed
+    await mk("2026-12-01", "ML", "Level 1", "KPI", 0.25); // changed 0.2 -> 0.25
+    await mk("2026-12-01", "SH", "Level 2", "KPI", 0.18); // added
+    await mgrA("datahub.row.create", { table_id: tables["Tham số com"]!, data: { "Hiệu lực từ": "2026-12-01", "Tên tham số": "Tỉ lệ SoE", "Giá trị": 0.25 } });
+    const reached = await newDeal({ "Ngày dự kiến chốt": "2027-01-10" });
+    const before = await newDeal({ "Ngày dự kiến chốt": "2026-11-01" });
+    const other = await newDeal({ "Ngày dự kiến chốt": "2027-01-10", "Nguồn lead": "SH", "Level BC": "Level 9" });
+    await drainOutbox(t);
+    const r = await mgrA("commission.policy.diff", {});
+    expect(r).toMatchObject({ old_from: "2026-01-01", new_from: "2026-12-01", unchanged: 0 });
+    expect(r.versions).toEqual(["2026-01-01", "2026-12-01"]);
+    const by = (kind: string) => r.rows.filter((x: { kind: string }) => x.kind === kind);
+    expect(by("changed")).toEqual([{ kind: "changed", lead: "ML", level: "Level 1", performance: "KPI", old_rate: 0.2, new_rate: 0.25 }]);
+    expect(by("added")).toHaveLength(1);
+    expect(by("removed")[0]).toMatchObject({ level: "Level 2", performance: "Goal", old_rate: 0.3, new_rate: null });
+    expect(r.params).toEqual([{ kind: "changed", name: "Tỉ lệ SoE", old_value: 0.2, new_value: 0.25 }]);
+    expect(r.affected_deal_ids).toContain(reached);
+    expect(r.affected_deal_ids).not.toContain(before);
+    expect(r.affected_deal_ids).not.toContain(other);
+    // an earlier version as the "new" one: nothing before it
+    expect((await mgrA("commission.policy.diff", { new_from: "2026-01-01" })).old_from).toBeNull();
+    for (const who of [leaderA, userA1, guest]) expect((await fails(who("commission.policy.diff", {}))).code).toBe("forbidden");
+  });
+});

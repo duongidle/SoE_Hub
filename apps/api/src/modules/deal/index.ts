@@ -9,3 +9,4 @@ export { DEAL_SETTINGS, startDealDefaultsLoop, ensureAllTrees, ensureMissingTabl
 export { paymentOperations } from "./payments";
 export { periodOperations } from "./period";
 export { forecastOperations, snapshotAllTrees, snapshotTree, quarterOf } from "./forecast";
+export { policyDiffOperations } from "./policy-diff";
