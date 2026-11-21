@@ -191,7 +191,7 @@ export const dhColumns = pgTable(
     uniqueIndex("dh_columns_key_uq").on(t.tableId, t.key),
     uniqueIndex("dh_columns_name_uq").on(t.tableId, t.nameNorm).where(sql`${t.deletedAt} IS NULL AND ${t.layer} IS DISTINCT FROM 'custom'`),
     uniqueIndex("dh_columns_custom_name_uq").on(t.tableId, t.layerRef, t.nameNorm).where(sql`${t.deletedAt} IS NULL AND ${t.layer} = 'custom'`),
-    uniqueIndex("dh_columns_role_uq").on(t.tableId, t.role).where(sql`${t.deletedAt} IS NULL AND ${t.role} IS NOT NULL`),
+    uniqueIndex("dh_columns_role_uq").on(t.tableId, t.role).where(sql`${t.deletedAt} IS NULL AND ${t.role} IS NOT NULL AND ${t.role} <> 'nguoi_tham_gia'`),
     check("dh_columns_layer_chk", sql`${t.layer} IS NULL OR ${t.layer} IN ('basic', 'role', 'team', 'custom')`),
     check("dh_columns_storage_chk", sql`${t.storage} IN ('shared', 'person')`),
     index("dh_columns_table_idx").on(t.tableId),

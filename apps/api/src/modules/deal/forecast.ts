@@ -26,6 +26,8 @@ export interface RoleTable {
   tableId: string;
   key: (role: string) => string | null;
   options: (role: string) => Map<string, Opt>;
+  /** Every column holding a role (a `multi` role such as `nguoi_tham_gia` can have several). */
+  keys: (role: string) => string[];
 }
 export async function roleTable(db: Executor, managerId: string, roleSet: string): Promise<RoleTable | null> {
   const t = await db.execute(sql`SELECT master_table_id FROM dh_templates WHERE /*scope:system*/ manager_id = ${managerId}::uuid AND scope = 'tree' AND role_set = ${roleSet} AND deleted_at IS NULL ORDER BY created_at LIMIT 1`);
@@ -36,6 +38,7 @@ export async function roleTable(db: Executor, managerId: string, roleSet: string
   return {
     tableId,
     key: (role) => cols.get(role)?.key ?? null,
+    keys: (role) => (c.rows as { role: string; key: string }[]).filter((r) => r.role === role).map((r) => r.key),
     options: (role) => new Map(((cols.get(role)?.config?.options as (SelectOption & { meaning?: string })[] | undefined) ?? []).map((o) => [o.id, { name: o.name, meaning: o.meaning }])),
   };
 }
@@ -79,7 +82,7 @@ export async function dealFacts(db: Executor, managerId: string): Promise<DealFa
       return typeof v === "string" ? (opts.get(v)?.name ?? v) : null;
     };
   };
-  const kPeople = deals.key("nguoi_tham_gia");
+  const kPeople = deals.keys("nguoi_tham_gia");
   const [lead, level, perf] = [pick("nguon_lead"), pick("level_bc"), pick("performance_bc")];
   const byDeal = new Map<string, { amount: number; due: string | null }[]>();
   const scheduled = new Set<string>();
@@ -110,7 +113,7 @@ export async function dealFacts(db: Executor, managerId: string): Promise<DealFa
     lead: lead(r.data),
     level: level(r.data),
     perf: perf(r.data),
-    people: kPeople ? userIdsOf(r.data[kPeople]) : [],
+    people: [...new Set(kPeople.flatMap((k) => userIdsOf(r.data[k])))],
   }));
 }
 

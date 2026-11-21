@@ -192,11 +192,12 @@ const DEALS: DefaultTable = {
         ],
       },
     },
-    // "Gửi xuống": the system fills these from the people above, one value per reader (module4 4.5).
-    { name: "Vai trò của tôi", type: "text", storage: "person", autofill: { column: PEOPLE, attr: "vai_tro" }, hidden: true },
-    { name: "% doanh thu của tôi", type: "percent", storage: "person", autofill: { column: PEOPLE, attr: "ty_le_dt" }, hidden: true },
-    { name: "% Com cá nhân", type: "percent", storage: "person", autofill: { column: PEOPLE, attr: "ty_le_com" }, hidden: true },
-    { name: "Tính vào số deal của tôi", type: "checkbox", storage: "person", autofill: { column: PEOPLE, attr: "tinh_deal" }, hidden: true },
+    // "Của tôi" = formulas of the viewer functions (Dương 22/11/2026, module2 6.2): the Manager changes the layout of the people columns by editing these.
+    // The commands read the values through the roles `vai_tro_cua_toi`, `pct_doanh_thu_cua_toi`, `pct_com_cua_toi`, `tinh_deal_cua_toi` (module4 4.1).
+    { name: "Vai trò của tôi", type: "formula", config: { formula: `=ATTR([${PEOPLE}], ME(), "Vai trò")`, result_type: "text" }, role: "vai_tro_cua_toi", hidden: true, description: "Vai trò của người xem trong Người tham gia (công thức dùng ME và ATTR; sửa khi đổi cách bố trí cột người)." },
+    { name: "% doanh thu của tôi", type: "formula", config: { formula: `=ATTR([${PEOPLE}], ME(), "% doanh thu")`, result_type: "percent" }, role: "pct_doanh_thu_cua_toi", hidden: true, description: "% doanh thu của người xem (công thức dùng ME và ATTR)." },
+    { name: "% Com cá nhân", type: "formula", config: { formula: `=ATTR([${PEOPLE}], ME(), "% com")`, result_type: "percent" }, role: "pct_com_cua_toi", hidden: true, description: "% com của người xem (công thức dùng ME và ATTR)." },
+    { name: "Tính vào số deal của tôi", type: "formula", config: { formula: `=IF(ATTR([${PEOPLE}], ME(), "Tính vào số deal")=TRUE,TRUE,FALSE)`, result_type: "checkbox" }, role: "tinh_deal_cua_toi", hidden: true, description: "Deal tính vào số deal của người xem (công thức dùng ME và ATTR)." },
     { name: "Tổng % com đã chia", type: "percent", storage: "person", autofill: { column: PEOPLE, attr: "ty_le_com", sum: "tree" }, layer: "role", layer_roles: ["manager"] },
     { name: "% com của team", type: "percent", storage: "person", autofill: { column: PEOPLE, attr: "ty_le_com", sum: "team" }, layer: "role", layer_roles: ["leader"] },
     { name: "% doanh thu của team", type: "percent", storage: "person", autofill: { column: PEOPLE, attr: "ty_le_dt", sum: "team" }, layer: "role", layer_roles: ["leader"] },
@@ -411,7 +412,7 @@ const PAYMENTS: DefaultTable = {
     { name: "Nguồn nhập", type: "single_select", config: SOURCE, role: "nguon_nhap", default_value: "Tay" },
     { name: "Đã kiểm", type: "checkbox", role: "da_kiem" },
     // One value per reader: the person's share of the instalment, for the revenue and forecast of their Index (module4 5, 10.3).
-    { name: "% doanh thu của tôi", type: "percent", storage: "person", autofill: { column: PEOPLE, attr: "ty_le_dt" }, hidden: true },
+    { name: "% doanh thu của tôi", type: "formula", config: { formula: `=ATTR([${PEOPLE}], ME(), "% doanh thu")`, result_type: "percent" }, hidden: true, description: "% doanh thu của người xem trong đợt (công thức dùng ME và ATTR)." },
     { name: "Doanh thu tính cho tôi", type: "formula", config: { formula: "=[Số tiền về (chưa VAT)]*[% doanh thu của tôi]", result_type: "number" }, description: "Số tiền về (chưa VAT) × % doanh thu của mình. Mỗi người một giá trị." },
     { name: "Chờ về tính cho tôi", type: "formula", config: { formula: '=IF([Ngày tiền về]="",[Số tiền dự kiến (chưa VAT)]*[% doanh thu của tôi],0)', result_type: "number" }, description: "Phần của mình trong đợt chưa về (forecast đã ký, chờ tiền về)." },
   ],
@@ -431,7 +432,7 @@ const LEDGER: DefaultTable = {
   columns: [
     { name: "Người", type: "user", role: "nguoi", required: true },
     // One value per reader: true on the line of the person named in `Người`, so "của tôi" sums only the reader's own lines.
-    { name: "Của tôi", type: "checkbox", storage: "person", autofill: { column: "Người", present: true }, hidden: true },
+    { name: "Của tôi", type: "formula", config: { formula: "=ISME([Người])", result_type: "checkbox" }, hidden: true },
     { name: "Đợt", type: "relation", config: { target_table: DOT_TABLE, multiple: false }, role: "dot", required: true },
     { name: "Deal", type: "relation", config: { target_table: "Deals", multiple: false }, role: "deal" },
     { name: "Kỳ của đợt", type: "lookup", config: { relation: "Đợt", target_column: "Kỳ" }, role: "ky_dot" },

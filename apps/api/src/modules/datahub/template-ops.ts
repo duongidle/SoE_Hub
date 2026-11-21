@@ -601,7 +601,8 @@ export const templateOperations = [
       const usage = await usageOf(ctx, acc, col);
       if (col.role) {
         const def = assertRoleOfSet(acc.table.roleSet, col.role);
-        if (def.required) throw new AppError("conflict", `Cột "${col.name}" đang giữ vai trò "${def.label}" (${def.usedBy.join(", ")} dùng). Chuyển vai trò sang cột khác trước khi bỏ cột.`, { reason: "role_required", role: col.role });
+        const others = def.multi ? await ctx.db.execute(sql`SELECT 1 FROM dh_columns WHERE /*scope:system*/ table_id = ${acc.tableId}::uuid AND role = ${col.role} AND deleted_at IS NULL AND id <> ${col.id}::uuid LIMIT 1`) : null;
+        if (def.required && !others?.rows[0]) throw new AppError("conflict", `Cột "${col.name}" đang giữ vai trò "${def.label}" (${def.usedBy.join(", ")} dùng). Chuyển vai trò sang cột khác trước khi bỏ cột.`, { reason: "role_required", role: col.role });
         await ctx.db.execute(sql`UPDATE dh_columns SET role = NULL WHERE /*scope:system*/ id = ${col.id}::uuid`);
       }
       const r = await deleteColumn(ctx, acc, col);
@@ -647,12 +648,15 @@ export const templateOperations = [
       if (i.role === null) {
         if (!col.role) return { column: columnOut(col, null), previous: null, usage: await usageOf(ctx, acc, col) };
         const def = assertRoleOfSet(acc.table.roleSet, col.role);
-        if (def.required) throw new AppError("conflict", `Vai trò "${def.label}" luôn phải có một cột. Gắn nó vào cột khác thay vì bỏ.`, { reason: "role_required", role: col.role });
+        if (def.required) {
+          const others = def.multi ? await ctx.db.execute(sql`SELECT 1 FROM dh_columns WHERE /*scope:system*/ table_id = ${acc.tableId}::uuid AND role = ${col.role} AND deleted_at IS NULL AND id <> ${col.id}::uuid LIMIT 1`) : null;
+          if (!others?.rows[0]) throw new AppError("conflict", `Vai trò "${def.label}" luôn phải có một cột. Gắn nó vào cột khác thay vì bỏ.`, { reason: "role_required", role: col.role });
+        }
         await ctx.db.execute(sql`UPDATE dh_columns SET role = NULL, version = version + 1, updated_at = now() WHERE /*scope:system*/ id = ${col.id}::uuid`);
       } else {
         const def = assertRoleOfSet(acc.table.roleSet, i.role);
         if (!fitsRole(col, def)) throw new AppError("validation_error", `Cột "${col.name}" không đúng kiểu của vai trò "${def.label}" (${def.types.join(" / ")}).`, { reason: "role_type" });
-        const holder = await ctx.db.execute(sql`SELECT * FROM dh_columns WHERE /*scope:system*/ table_id = ${acc.tableId}::uuid AND role = ${i.role} AND deleted_at IS NULL AND id <> ${col.id}::uuid`);
+        const holder = def.multi ? { rows: [] } : await ctx.db.execute(sql`SELECT * FROM dh_columns WHERE /*scope:system*/ table_id = ${acc.tableId}::uuid AND role = ${i.role} AND deleted_at IS NULL AND id <> ${col.id}::uuid`);
         if (holder.rows[0]) {
           previous = columnFromDb(holder.rows[0] as Raw);
           await ctx.db.execute(sql`UPDATE dh_columns SET role = NULL, version = version + 1, updated_at = now() WHERE /*scope:system*/ id = ${previous.id}::uuid`);

@@ -70,7 +70,7 @@ export async function guardPeriod(db: Executor, access: TableAccess, schema: Tab
   }
   if (closeCol) {
     const frozen = ["trang_thai", "loai_deal", "ngay_dong_tay"].map(role).filter((c): c is NonNullable<typeof c> => !!c);
-    const people = role("nguoi_tham_gia");
+    const peopleCols = schema.alive.filter((c) => c.role === "nguoi_tham_gia");
     const share = (v: unknown) => JSON.stringify(((Array.isArray(v) ? v : []) as { id?: string; attrs?: Record<string, unknown> }[]).map((e) => [e.id, e.attrs?.ty_le_dt ?? null]).sort());
     for (const p of plans) {
       if (p.kind === "create") continue;
@@ -82,7 +82,8 @@ export async function guardPeriod(db: Executor, access: TableAccess, schema: Tab
       if (p.kind === "delete") throw refuse(lock, "deal_in_closed_period", { row_id: p.id });
       const hit = frozen.find((c) => changed(p, c.key));
       if (hit) throw refuse(lock, "deal_in_closed_period", { row_id: p.id, column: hit.name });
-      if (people && changed(p, people.key) && share(p.cells.get(people.key)) !== share(row?.data[people.key])) throw refuse(lock, "deal_revenue_share_in_closed_period", { row_id: p.id, column: people.name });
+      const movedShare = peopleCols.find((c) => changed(p, c.key) && share(p.cells.get(c.key)) !== share(row?.data[c.key]));
+      if (movedShare) throw refuse(lock, "deal_revenue_share_in_closed_period", { row_id: p.id, column: movedShare.name });
     }
   }
 }

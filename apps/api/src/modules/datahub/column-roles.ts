@@ -8,7 +8,7 @@ import type { DhColumn } from "./types";
  * Column roles (design module4 3.7, 7.6). A function of the system (lock a period, forecast, snapshot, Index, the external API) finds a column by
  * ROLE, never by name or key, so a Manager renames, re-formats or re-writes a column without touching code. The set of roles is fixed here: a
  * role means something only when code reads it, so people cannot create one. A table declares which set it uses (`role_set`); a role is held by at
- * most one live column of the table, and a role of the set always has a column (`required`): it moves to another column, it is never left empty.
+ * most one live column of the table (except a `multi` role), and a role of the set always has a column (`required`): it moves to another column, it is never left empty.
  */
 export interface RoleDef {
   key: string;
@@ -17,6 +17,8 @@ export interface RoleDef {
   types: string[];
   /** The role cannot be left without a column. */
   required: boolean;
+  /** Several columns may hold the role (the people of a deal can sit in one column with attributes, in Leading/Associate columns, ...). The commands read all of them. */
+  multi?: boolean;
   /** Who uses the role, for the "đang dùng" warning (module4 3.7). */
   usedBy: string[];
 }
@@ -32,7 +34,11 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "doanh_thu", label: "Doanh thu", types: MONEY, required: true, usedBy: ["Index", "Forecast", "Com"] },
       { key: "trang_thai", label: "Trạng thái (Status)", types: ["single_select"], required: true, usedBy: ["Khoá kỳ", "Forecast", "BANT", "Index"] },
       { key: "loai_deal", label: "Loại deal", types: ["single_select"], required: true, usedBy: ["Com", "Index"] },
-      { key: "nguoi_tham_gia", label: "Người tham gia", types: ["user"], required: true, usedBy: ["Phạm vi xem", "Chia doanh thu và com"] },
+      { key: "nguoi_tham_gia", label: "Người tham gia", types: ["user"], required: true, multi: true, usedBy: ["Phạm vi xem", "Chia doanh thu và com"] },
+      { key: "vai_tro_cua_toi", label: "Vai trò của tôi", types: ["text", "single_select"], required: false, usedBy: ["Lệnh thanh toán (vai trò của từng người)"] },
+      { key: "pct_doanh_thu_cua_toi", label: "% doanh thu của tôi", types: ["percent", "number"], required: false, usedBy: ["Lệnh thanh toán (Doanh thu theo người)", "Index"] },
+      { key: "pct_com_cua_toi", label: "% com của tôi", types: ["percent", "number"], required: false, usedBy: ["Lệnh thanh toán (Sổ com)", "Ràng buộc tổng % com"] },
+      { key: "tinh_deal_cua_toi", label: "Tính vào số deal của tôi", types: ["checkbox"], required: false, usedBy: ["Lệnh thanh toán", "Chỉ số số deal"] },
       { key: "ma_deal", label: "Mã deal", types: ["text"], required: true, usedBy: ["API ngoài", "Liên kết"] },
       { key: "ten_cong_ty", label: "Tên công ty", types: ["text"], required: false, usedBy: ["Ghép tiền về"] },
       { key: "ngay_du_kien_chot", label: "Ngày dự kiến chốt", types: ["date", "datetime"], required: false, usedBy: ["Forecast", "Snapshot"] },

@@ -1,3 +1,4 @@
+import { peopleCell, participantsOf, waitParticipantValues, type Participant } from "./participants";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError, businessDate } from "@soe/shared";
@@ -251,12 +252,8 @@ export async function lockedMonth(ctx: Ctx, tree: Tree, date: string): Promise<b
 
 export const confirmed = (t: T, row: RowData): boolean => !empty(cellOf(t, row, "ngay_tien_ve"));
 
-/** People of the deal with a commission share, as the cell of `Chia com đợt này`. */
-function splitFromDeal(deals: T, dealRow: RowData): PersonEntry[] {
-  const v = cellOf(deals, dealRow, "nguoi_tham_gia");
-  if (!Array.isArray(v)) return [];
-  return (v as unknown as PersonEntry[]).filter((e) => e && typeof e.id === "string" && Number(e.attrs?.[COM_ATTR] ?? 0) > 0).map((e) => ({ id: e.id, attrs: { [COM_ATTR]: Number(e.attrs[COM_ATTR]) } }));
-}
+/** People of the deal with a commission share, as the cell of `Chia com đợt này` (each person's % as that person's own column holds it: participants.ts). */
+const splitFromParts = (parts: Participant[]): PersonEntry[] => parts.filter((p) => p.com > 0).map((p) => ({ id: p.id, attrs: { [COM_ATTR]: p.com } }));
 const splitCell = (split: { user_id: string; pct: number }[]): PersonEntry[] => split.map((s) => ({ id: s.user_id, attrs: { [COM_ATTR]: s.pct } }));
 
 const SplitIn = z.array(z.object({ user_id: Id, pct })).max(20).describe("Chia com đợt này: mỗi người một tỉ lệ trên com sale (0..1, ví dụ 0.15 là 15%). Tổng không vượt `Tỉ lệ SoE` của chính sách.");
@@ -306,7 +303,10 @@ export const paymentOperations = [
         if (touched.has(id)) throw new AppError("validation_error", "Một đợt chỉ xuất hiện một lần trong một lần gọi.", { payment_id: id });
         touched.add(id);
       }
-      const people = cellOf(tree.deals, deal, "nguoi_tham_gia");
+      // The people of the instalment come from the deal, as each of them holds their share (read before anything is written: participants.ts).
+      const needPeople = i.payments.some((p) => !p.id);
+      if (needPeople) await waitParticipantValues(ctx, tree.deals, [i.deal_id]);
+      const people = (needPeople ? peopleCell(tree.dots, await participantsOf(ctx, tree.deals, deal)) : []) as unknown as Stored;
       const nextSeq = Math.max(0, ...[...have.values()].map((r) => numOf(cellOf(tree.dots, r, "dot_so"))));
       let seq = nextSeq;
       const src = sourceValue(tree.dots, ctx);
@@ -416,6 +416,11 @@ export const paymentOperations = [
         if (m && m !== "open" && m !== "won") throw new AppError("conflict", "Deal đã đóng, không xác nhận tiền về. Đưa deal về trạng thái mở trước.", { reason: "deal_closed", deal_id: d });
       }
       const total = i.allocations.reduce((s, a) => s + (a.amount_received ?? a.amount), 0);
+      // The commission split of a deal is read before anything is written (participants.ts): from the people of the deal, each with their own share.
+      const needSplit = [...new Set(i.allocations.filter((a) => !a.com_split && empty(cellOf(tree.dots, dots.get(a.payment_id)!, "chia_com_dot"))).map((a) => dealOf.get(a.payment_id)!))];
+      if (needSplit.length) await waitParticipantValues(ctx, tree.deals, needSplit);
+      const partsOf = new Map<string, Participant[]>();
+      for (const d of needSplit) partsOf.set(d, await participantsOf(ctx, tree.deals, deals.get(d)!));
       // ---- the receipt (Tiền về)
       let receiptId = i.receipt.id ?? null;
       let receiptRow: RowData | undefined;
@@ -466,7 +471,7 @@ export const paymentOperations = [
         const dealId = dealOf.get(a.payment_id)!;
         const deal = deals.get(dealId)!;
         const planned = numOf(cellOf(tree.dots, row, "so_tien_du_kien"));
-        const split = a.com_split ? splitCell(a.com_split) : !empty(cellOf(tree.dots, row, "chia_com_dot")) ? (cellOf(tree.dots, row, "chia_com_dot") as unknown as PersonEntry[]) : splitFromDeal(tree.deals, deal);
+        const split = a.com_split ? splitCell(a.com_split) : !empty(cellOf(tree.dots, row, "chia_com_dot")) ? (cellOf(tree.dots, row, "chia_com_dot") as unknown as PersonEntry[]) : splitFromParts(partsOf.get(dealId) ?? []);
         const shortfall = a.amount < planned - 0.5;
         const splitOff = shortfall && a.shortfall === "split";
         await write(ctx, tree.dots, [

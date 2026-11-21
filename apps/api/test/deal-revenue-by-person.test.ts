@@ -71,7 +71,10 @@ beforeAll(async () => {
   // Deal A: userA1 alone (Leading takes 100%). Deal B: the Leader 60%, userA1 40%.
   dealA = (await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: dealData("Công ty Một", [person(org.userA1.id, { vai_tro: "Leading", ty_le_com: 0.1 })]) })).id;
   dealB = (await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: dealData("Công ty Hai", [person(org.leaderA.id, { vai_tro: "Leading", ty_le_dt: 0.6, ty_le_com: 0.1 }), person(org.userA1.id, { vai_tro: "Associate", ty_le_dt: 0.4, ty_le_com: 0.1 })]) })).id;
+  await drainOutbox(t); // the worker computes each person's own columns that the money commands read (design module4 4.1)
+  await drainOutbox(t); // each person's own columns are computed by the worker before the money commands read them (module4 4.1)
   payA = (await mgrA("payment.schedule", { deal_id: dealA, payments: [{ legal_entity: "CT A", amount: 100_000_000, due: "2026-07-01" }] })).payments[0].id;
+  await drainOutbox(t); // each person's own columns are computed by the worker before the money commands read them (module4 4.1)
   payB = (await mgrA("payment.schedule", { deal_id: dealB, payments: [{ legal_entity: "CT B", amount: 50_000_000, due: "2026-08-01" }] })).payments[0].id;
   kpiA1 = await kpiRow(org.userA1.id);
   kpiLeader = await kpiRow(org.leaderA.id);
@@ -157,6 +160,7 @@ describe("Index: Winrate of the quarter", () => {
     const c = await mk("Công ty Q3 Một");
     await mk("Công ty Q3 Hai");
     await mk("Công ty Q3 Ba");
+    await drainOutbox(t); // each person's own columns are computed by the worker before the money commands read them (module4 4.1)
     const payC = (await mgrA("payment.schedule", { deal_id: c, payments: [{ legal_entity: "CT C", amount: 10_000_000, due: "2026-07-20" }] })).payments[0].id;
     await mgrA("payment.confirm", { received_on: "2026-07-20", receipt: { amount: 10_000_000 }, allocations: [{ payment_id: payC, amount: 10_000_000 }] });
     await settle();

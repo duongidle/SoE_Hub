@@ -46,6 +46,7 @@ async function newDeal(extra: Record<string, unknown> = {}, split = [0.15, 0.05]
       ...extra,
     },
   });
+  await drainOutbox(t); // the worker computes each person's own columns that the money commands read (design module4 4.1)
   return r.id as string;
 }
 const schedule = (deal: string, payments: Record<string, unknown>[]) => mgrA("payment.schedule", { deal_id: deal, payments });
@@ -146,6 +147,7 @@ describe("period.close and what it freezes", () => {
 
   it("money that arrives dated in the closed month goes to the open period as Về muộn; an adjustment too", async () => {
     const open = `${businessDate(new Date()).slice(0, 7)}-01`;
+    await drainOutbox(t);
     await confirm(p1[1]!, "2026-07-20", 100_000_000);
     await drainOutbox(t);
     const dot = await row(mgrA, tables["Đợt thanh toán"]!, p1[1]!);
@@ -201,6 +203,7 @@ describe("forecast and snapshot", () => {
       "Tên công ty": "Công ty Ngoài Team", "Loại deal": "POD bán mới", "Start date": "2026-06-10", "Nguồn lead": "ML", "Level BC": "Level 1", "Performance BC": "KPI",
       "Người tham gia": [person(org.userA2.id, { vai_tro: "Leading", ty_le_com: 0.1, ty_le_dt: 1 })],
     } })).id as string;
+    await drainOutbox(t);
     await schedule(other, [{ amount: 77_000_000, due: q.end }]);
     await drainOutbox(t);
     const m = await mgrA("deal.forecast", { from: q.start, to: q.end });

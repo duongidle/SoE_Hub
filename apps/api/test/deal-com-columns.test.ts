@@ -74,6 +74,7 @@ beforeAll(async () => {
     },
   });
   deal = d.id;
+  await drainOutbox(t); // each person's own columns are computed by the worker before the money commands read them (module4 4.1)
   payment = (await mgrA("payment.schedule", { deal_id: deal, payments: [{ legal_entity: "CT Beta", amount: 100_000_000, due: "2026-07-01" }] })).payments[0].id;
   await settle();
 });
@@ -180,6 +181,7 @@ describe("default Deals dashboard", () => {
     const q = quarterOf(businessDate(new Date()));
     await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: { ...dealData("Công ty Forecast"), "Ngày dự kiến chốt": q.end, "Doanh thu dự kiến": 30_000_000 } });
     const d2 = await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: { ...dealData("Công ty Forecast Hai"), "Ngày dự kiến chốt": q.end } });
+    await drainOutbox(t); // each person's own columns are computed by the worker before the money commands read them (module4 4.1)
     await mgrA("payment.schedule", { deal_id: d2.id, payments: [{ legal_entity: "CT F", amount: 40_000_000, due: q.end }] });
     await settle();
     const dh = (await mgrA("datahub.table.get", { table_id: tables["Deals"]! })).datahub_id as string;
@@ -222,6 +224,7 @@ describe("Com của tôi vs Com của team (Leader and Manager count only their 
         "Người tham gia": [person(org.leaderA.id, { vai_tro: "Associate", ty_le_com: 0.2 }), person(org.userA1.id, { vai_tro: "Associate", ty_le_com: 0.3 })],
       },
     });
+    await drainOutbox(t); // each person's own columns are computed by the worker before the money commands read them (module4 4.1)
     const pay = (await mgrA("payment.schedule", { deal_id: d.id, payments: [{ legal_entity: "CT Gamma", amount: 100_000_000, due: "2026-07-01" }] })).payments[0].id;
     await mgrA("payment.confirm", { received_on: "2026-07-04", receipt: { amount: 100_000_000 }, allocations: [{ payment_id: pay, amount: 100_000_000 }] });
     await settle();
