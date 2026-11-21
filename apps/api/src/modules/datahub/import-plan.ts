@@ -4,6 +4,7 @@ import { serialToIso, serialToIsoDateTime } from "@soe/formula";
 import { columnTypeDef } from "./column-types";
 import { colLetters, type SourceBook, type SrcCell, type SrcRow } from "./import-read";
 import { CellError } from "./types";
+import { isRefType, splitTokens, type RefCell } from "./import-refs";
 
 /** Column types an import can create or fill (no people, files, links or computed columns). */
 export const IMPORT_TYPES = ["text", "long_text", "number", "currency", "percent", "date", "datetime", "checkbox", "rating", "single_select", "multi_select", "email", "phone", "url"] as const;
@@ -26,6 +27,7 @@ const ColMapSchema = z.object({
   type: z.enum(IMPORT_TYPES).optional().describe("Kiểu cột mới (mặc định: hệ thống đoán)."),
   config: z.record(z.string(), z.unknown()).optional().describe("Cấu hình cột mới (ví dụ `{max: 5}` cho đánh giá sao). Lựa chọn của cột Một/Nhiều lựa chọn tự lấy từ các giá trị trong file."),
   formula: z.enum(["value", "formula"]).optional().describe("Cột có công thức trong file: `formula` = lấy công thức (nếu dịch được), `value` = chỉ lấy giá trị. Mặc định theo `import_formulas`."),
+  link_by: z.string().max(100).optional().describe("Chỉ cho cột Liên kết có sẵn: cột của bảng đích để khớp giá trị trong file (tên hoặc mã). Bỏ trống = cột Duy nhất duy nhất của bảng đích."),
 });
 
 export const SheetMappingSchema = z.object({
@@ -256,7 +258,10 @@ export interface ResolvedCol {
   header: string;
   /** Final column name (new column) or the existing column's name. */
   name: string;
-  type: ImportType;
+  /** A column of the file becomes a new column of an import type, or fills an existing column (which may also be a Người dùng or Liên kết column: ids are found from emails, names or key values). */
+  type: ImportType | "user" | "relation";
+  /** `link_by` of the mapping (relation columns). */
+  linkBy?: string;
   config: Record<string, unknown>;
   /** Key of the existing column the values go to (null = a new column). */
   existing: ExistingColumn | null;
@@ -301,9 +306,10 @@ export function resolveSheet(
     if (cm.target) {
       const ex = existingColumns.find((c) => c.key === cm.target || c.name.toLowerCase() === cm.target!.trim().toLowerCase());
       if (!ex) throw new AppError("validation_error", `${loc(cm)}: không có cột "${cm.target}" trong bảng.`);
-      if (!ex.writable || !isImportType(ex.type)) throw new AppError("validation_error", `${loc(cm)}: cột "${ex.name}" (kiểu ${columnTypeDef(ex.type).label}) không nhập được từ file.`);
+      if (["formula", "lookup", "rollup"].includes(ex.type)) throw new AppError("validation_error", `${loc(cm)}: cột "${ex.name}" là cột ${ex.type === "formula" ? "công thức" : ex.type === "lookup" ? "Lookup" : "Rollup"}, không nhập được (giá trị do hệ thống tính).`);
+      if (!ex.writable || !(isImportType(ex.type) || isRefType(ex.type))) throw new AppError("validation_error", `${loc(cm)}: cột "${ex.name}" (kiểu ${columnTypeDef(ex.type).label}) không nhập được từ file.`);
       if (out.some((o) => o.existing?.key === ex.key)) throw new AppError("validation_error", `Cột "${ex.name}" được ghép từ hai cột của file.`);
-      out.push({ index: cm.index, header, name: ex.name, type: ex.type as ImportType, config: ex.config, existing: ex, wantsFormula: false, formulaCount: g?.formula_count ?? 0, nonEmpty: g?.non_empty ?? 0, dateFmt: g?.date_fmt });
+      out.push({ index: cm.index, header, name: ex.name, type: ex.type as ResolvedCol["type"], ...(cm.link_by ? { linkBy: cm.link_by } : {}), config: ex.config, existing: ex, wantsFormula: false, formulaCount: g?.formula_count ?? 0, nonEmpty: g?.non_empty ?? 0, dateFmt: g?.date_fmt });
       continue;
     }
     const name = cm.name ? cm.name.normalize("NFC").trim() : cleanName(header, cm.index, used);
@@ -326,7 +332,7 @@ export function resolveSheet(
 // ------------------------------------------------------------------------------------------------
 
 /** The input the column type's own parser takes, from one source cell. Never throws. */
-export function toInput(c: SrcCell | undefined, type: ImportType): unknown {
+export function toInput(c: SrcCell | undefined, type: ResolvedCol["type"]): unknown {
   if (!c || c.error || c.v === null || c.v === "") return null;
   const v = c.v;
   switch (type) {
@@ -362,14 +368,23 @@ export interface CellIssue {
   message: string;
 }
 
-/** Converts and checks one row with the real column parsers. Returns the values by column name and the problems found. */
-export function buildRow(r: SrcRow, cols: ResolvedCol[], onError: "skip_row" | "blank_cell"): { data: Record<string, unknown>; issues: CellIssue[]; empty: boolean } {
+/**
+ * Converts and checks one row with the real column parsers. Cells of people and links are not converted here (they need the database): they come back in
+ * `refs` as the texts the file holds, for `RefResolver.resolve`.
+ */
+export function buildRow(r: SrcRow, cols: ResolvedCol[], onError: "skip_row" | "blank_cell"): { data: Record<string, unknown>; issues: CellIssue[]; empty: boolean; refs: RefCell[] } {
   const data: Record<string, unknown> = {};
   const issues: CellIssue[] = [];
+  const refs: RefCell[] = [];
   for (const col of cols) {
     const cell = r.cells[col.index];
     const input = toInput(cell, col.type);
     if (input === null) continue;
+    if (col.type === "user" || col.type === "relation") {
+      const tokens = splitTokens(String(input));
+      if (tokens.length) refs.push({ col, tokens });
+      continue;
+    }
     try {
       const parsed = columnTypeDef(col.type).parse(input, { key: col.existing?.key ?? "c_import", name: col.name, config: col.config });
       if (parsed !== null) data[col.existing?.key ?? col.name] = parsed;
@@ -379,5 +394,5 @@ export function buildRow(r: SrcRow, cols: ResolvedCol[], onError: "skip_row" | "
       if (onError === "blank_cell") continue;
     }
   }
-  return { data, issues, empty: Object.keys(data).length === 0 && issues.length === 0 };
+  return { data, issues, empty: Object.keys(data).length === 0 && issues.length === 0 && refs.length === 0, refs };
 }

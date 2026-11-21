@@ -10,6 +10,7 @@ import { loadDatahubAccess, loadTableAccess } from "./access";
 import { newOptionId } from "./column-types";
 import { FormulaTranslator, rewriteDateText, type ReasonCode, type SheetMap } from "./excel-formula";
 import { colIndex } from "./import-read";
+import { RefResolver } from "./import-refs";
 import { analyzeSheet, buildRow, ImportMappingSchema, MAX_ERRORS_KEPT, resolveSheet, VALIDATE_SAMPLE, type CellIssue, type ExistingColumn, type ImportMapping, type ResolvedCol, type ResolvedSheet, type SheetAnalysis } from "./import-plan";
 import { fetchGoogleSheet, openBook, type SourceBook } from "./import-read";
 import { bulkCreateOff } from "./errors";
@@ -179,7 +180,7 @@ async function existingColumnsOf(ctx: Ctx, tableId: string, need: "view" | "edit
   const acc = await loadTableAccess(ctx, tableId, need);
   const schema = await TableSchema.load(ctx.db, acc);
   return {
-    cols: schema.alive.map((c) => ({ key: c.key, name: c.name, type: c.type, config: c.config, writable: !["auto_number", "formula", "lookup", "rollup", "relation", "row_id", "created_time", "created_by", "modified_time", "modified_by", "field_modified", "user", "attachment"].includes(c.type) })),
+    cols: schema.alive.map((c) => ({ key: c.key, name: c.name, type: c.type, config: c.config, writable: !["auto_number", "formula", "lookup", "rollup", "row_id", "created_time", "created_by", "modified_time", "modified_by", "field_modified", "attachment"].includes(c.type) })),
     level: acc.level,
     name: acc.table.name,
     datahubId: acc.datahub.id,
@@ -305,6 +306,16 @@ function colReports(rs: ResolvedSheet, si: number, decisions: Map<string, Formul
       formula: d ? { status: d.status, reason: d.reason ?? null, code: d.code ?? null, warnings: d.warnings } : null,
     };
   });
+}
+
+/** Finds the ids named by the people and link cells of a built row; what cannot be found is an issue of the row, handled like a bad cell (`on_error`). */
+async function resolveRefs(resolver: RefResolver, rowNo: number, b: ReturnType<typeof buildRow>, onError: "skip_row" | "blank_cell"): Promise<void> {
+  if (b.refs.length === 0) return;
+  const r = await resolver.resolve(rowNo, b.refs);
+  Object.assign(b.data, r.values);
+  b.issues.push(...r.issues);
+  b.empty = Object.keys(b.data).length === 0 && b.issues.length === 0;
+  void onError;
 }
 
 /** Value columns of a sheet: those whose values are read from the file (a column that became a formula column is not). */
@@ -437,6 +448,7 @@ async function runImport(env: JobEnv, job: JobRow): Promise<void> {
       }
     }
 
+    const refs = new RefResolver(ctx, owner);
     let ops: { op: string; key?: string; data: Record<string, unknown> }[] = [];
     let srcRows: number[] = [];
     const note = (row: number, column: string | null, message: string) => {
@@ -475,6 +487,7 @@ async function runImport(env: JobEnv, job: JobRow): Promise<void> {
     for (const row of await rowsOf(prep.book, rs.sheetIndex)) {
       if (row.n <= rs.mapping.header_row || !row.cells.some((c) => c)) continue;
       const b = buildRow(row, keyed, rs.mapping.on_error);
+      await resolveRefs(refs, row.n, b, rs.mapping.on_error);
       done++;
       for (const issue of b.issues) note(issue.row, issue.column, issue.message);
       if (b.issues.length && rs.mapping.on_error === "skip_row") {
@@ -629,6 +642,7 @@ export function importOperations(cfg: Config, storage: StorageDriver) {
           const { rs, scan } = prep.sheets[si]!;
           const cols = valueCols(rs, si, prep.decisions);
           const errors: CellIssue[] = [];
+          const refs = new RefResolver(ctx, ctx.actor.userId);
           let checked = 0;
           let invalid = 0;
           let errorCount = 0;
@@ -637,6 +651,7 @@ export function importOperations(cfg: Config, storage: StorageDriver) {
             if (checked >= VALIDATE_SAMPLE) break;
             checked++;
             const b = buildRow(row, cols, rs.mapping.on_error);
+            await resolveRefs(refs, row.n, b, rs.mapping.on_error);
             if (b.issues.length) {
               errorCount += b.issues.length;
               if (rs.mapping.on_error === "skip_row") invalid++;

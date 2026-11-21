@@ -85,6 +85,50 @@ function parseCells(schema: TableSchema, input: Record<string, unknown>, issues:
   return out;
 }
 
+/**
+ * People can be named by email in a user cell (an external system does not know the ids): `"a@b.vn"`, `["a@b.vn", ...]` or `[{ email, attrs }]` become ids
+ * before the cells are validated. An unknown email is an issue on its row; whether the person may be in the cell (a member of the table) is checked after, as for ids.
+ */
+async function resolveEmails(db: Executor, schema: TableSchema, ops: RowOp[], issues: { row: number; column: string; message: string }[]): Promise<RowOp[]> {
+  const isMail = (x: unknown): x is string => typeof x === "string" && x.includes("@");
+  const wanted = new Set<string>();
+  const userRefs = (o: RowOp) => (o.op === "delete" ? [] : Object.entries(o.data).filter(([ref]) => schema.tryResolve(ref)?.type === "user"));
+  for (const o of ops) {
+    for (const [, v] of userRefs(o)) {
+      for (const e of Array.isArray(v) ? v : [v]) {
+        if (isMail(e)) wanted.add(e.trim().toLowerCase());
+        else if (e && typeof e === "object" && !("id" in e) && isMail((e as { email?: unknown }).email)) wanted.add(((e as { email: string }).email).trim().toLowerCase());
+      }
+    }
+  }
+  if (wanted.size === 0) return ops;
+  const res = await db.execute(sql`SELECT id, lower(email) AS email FROM users WHERE kind = 'person' AND lower(email) = ANY(${`{${[...wanted].map((x) => `"${x.replace(/(["\\])/g, "\\$1")}"`).join(",")}}`}::text[])`);
+  const idOf = new Map((res.rows as { id: string; email: string }[]).map((r) => [r.email, r.id]));
+  return ops.map((o, i) => {
+    if (o.op === "delete") return o;
+    const data: Record<string, unknown> = { ...o.data };
+    for (const [ref, v] of userRefs(o)) {
+      const col = schema.resolve(ref);
+      let unresolved = false;
+      const swap = (e: unknown): unknown => {
+        const mail = isMail(e) ? e : e && typeof e === "object" && !("id" in e) && isMail((e as { email?: unknown }).email) ? (e as { email: string }).email : null;
+        if (mail === null) return e;
+        const id = idOf.get(mail.trim().toLowerCase());
+        if (!id) {
+          issues.push({ row: i, column: col.name, message: `Email "${mail}" ở cột "${col.name}" không có trong hệ thống.` });
+          unresolved = true;
+          return e;
+        }
+        return typeof e === "string" ? id : { id, attrs: (e as { attrs?: unknown }).attrs ?? {} };
+      };
+      data[ref] = Array.isArray(v) ? v.map(swap) : swap(v);
+      // The issue is already reported: do not let the cell parser report the same cell a second time.
+      if (unresolved) delete data[ref];
+    }
+    return { ...o, data } as RowOp;
+  });
+}
+
 /** Users and linked rows named by a cell must exist. (Files are checked by `checkFiles`, once the rows being changed are known.) */
 async function checkRefs(ctx: Ctx, db: Executor, actorId: string, ownerId: string, cells: Map<string, Stored>[], schema: TableSchema, issues: { row: number; column: string; message: string }[]): Promise<void> {
   const users = new Set<string>();
@@ -235,6 +279,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
 
   // ---- 1. validate cells --------------------------------------------------------------------------
   const issues: { row: number; column: string; message: string }[] = [];
+  ops = await resolveEmails(db, schema, ops, issues);
   const cellsOf = ops.map((o, i) => (o.op === "delete" ? new Map<string, Stored>() : parseCells(schema, o.data, issues, i, access)));
   await checkRefs(ctx, db, actorId, access.datahub.ownerId, cellsOf, schema, issues);
   const formulas = RowFormulas.for(schema);
