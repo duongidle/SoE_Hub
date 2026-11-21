@@ -29,6 +29,7 @@ Cập nhật: 21/11/2026
 - Có: menu + màn Quản lý Deal, trang Template (bảng, cột, lớp, xem trước "Áp dụng cho N người", vai trò cột, khoá phân chia, Manager tạo bảng cây hoặc team), ô Người dùng có thuộc tính, cột gửi xuống, khoá ô theo `can_edit`/autofill, nhãn lớp cột, trang Admin bộ mặc định.
 - **Lỗi gốc đã sửa:** `seedPeople` chập chờn do dispatcher outbox chạy tuần tự, subscriber dựng bộ template mặc định (nhiều giây) chặn thông báo mã kích hoạt sau nó. Giờ là vòng riêng `startDealDefaultsLoop` (worker), seed về 20 lần thử. Opus đọc kỹ: `modules/deal/tree-templates.ts`, `worker.ts`, `core/subscribers.ts`, test trong `deal-defaults.test.ts`.
 - **Dời:** nhóm "Quản lý Deal" ở ô chọn nguồn chỉ số (4.6); mục Quản lý của Manager (4.4/4.5); khôi phục cột template chỉ qua nút Hoàn tác. Ô lưới `persons` chưa thử 375px (Stage 12).
+- Sau rà Opus: `startDealDefaultsLoop` bỏ nhịp khi lượt trước chưa xong (cờ, không nối chuỗi), có test không chạy chồng/không xếp hàng; `deal-defaults.test.ts` 14 pass (typecheck, lint sạch).
 - **Chỗ dở:** không có.
 
 **Còn nợ của 4.2, **làm ở 4.4**: guard Status (Won/Huỷ), Probation KPI sau commit, điền lại gửi xuống khi đổi cây, công thức theo người cho cột `person`, tháng Index đầu tiên.

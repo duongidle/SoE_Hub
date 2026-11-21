@@ -4,7 +4,7 @@ import { businessDate } from "@soe/shared";
 import { as, drainOutbox, fails, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
-import { addIndexMonths, BUILTIN_DEFAULT_SET, DEAL_SETTINGS, ensureAllTrees, ensureTreeTemplates } from "../src/modules/deal";
+import { addIndexMonths, BUILTIN_DEFAULT_SET, DEAL_SETTINGS, ensureAllTrees, ensureTreeTemplates, startDealDefaultsLoop } from "../src/modules/deal";
 import { workerEmit } from "../src/modules/datahub/template-sync";
 import { splitLockTransferHandler } from "../src/modules/datahub/transfer";
 
@@ -255,3 +255,29 @@ describe("transfer keeps the person on closed deals", () => {
 });
 
 void sql;
+
+describe("the default-templates loop", () => {
+  it("a build slower than the interval neither overlaps nor queues up; stop waits for the running one", async () => {
+    let started = 0;
+    let active = 0;
+    let maxActive = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const loop = startDealDefaultsLoop(t.c.db.db, t.c.logger, 10, async () => {
+      started++;
+      active++;
+      maxActive = Math.max(maxActive, active);
+      await gate;
+      active--;
+    });
+    await new Promise((r) => setTimeout(r, 120));
+    expect(started).toBe(1);
+    const stopping = loop.stop();
+    release();
+    await stopping;
+    expect(active).toBe(0);
+    expect(maxActive).toBe(1);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(started).toBe(1);
+  });
+});

@@ -94,18 +94,24 @@ export async function ensureAllTrees(db: Db, only?: string): Promise<number> {
  * a build inside it delayed every later event (the activation code notification among them). A loop of its own picks up the Managers without a tree
  * (the query is the queue, so a crash loses nothing) and `ensureAllTrees` emits `org.member.changed` for each, so the template sync shares the new tables with the members.
  */
-export function startDealDefaultsLoop(db: Db, log: Logger, intervalMs: number): { stop(): Promise<void> } {
+export function startDealDefaultsLoop(db: Db, log: Logger, intervalMs: number, run: (db: Db) => Promise<unknown> = (d) => ensureAllTrees(d)): { stop(): Promise<void> } {
   let stopped = false;
-  let busy: Promise<unknown> = Promise.resolve();
+  let current: Promise<void> | null = null;
   const timer = setInterval(() => {
-    if (stopped) return;
-    busy = busy.then(() => ensureAllTrees(db)).catch((err) => log.error({ err }, "deal default templates loop error"));
+    // A build slower than the interval is not queued behind itself: the beat is skipped.
+    if (stopped || current) return;
+    current = run(db)
+      .then(() => undefined)
+      .catch((err) => log.error({ err }, "deal default templates loop error"))
+      .finally(() => {
+        current = null;
+      });
   }, intervalMs);
   return {
     async stop() {
       stopped = true;
       clearInterval(timer);
-      await busy;
+      await current;
     },
   };
 }
