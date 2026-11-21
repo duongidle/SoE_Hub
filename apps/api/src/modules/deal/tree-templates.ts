@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { AppError } from "@soe/shared";
 import type { Db, Executor } from "@soe/db";
-import type { Subscriber } from "../../core/outbox-dispatcher";
+import type { Logger } from "pino";
 import { assertRoleOfSet } from "../datahub/column-roles";
 import { setShareOptions } from "../datahub/split-ops";
 import { addTemplateColumn, createTemplateCore, masterAccess } from "../datahub/template-ops";
@@ -72,27 +72,40 @@ export async function ensureTreeTemplates(db: Executor, emit: Emit, managerId: s
   return made;
 }
 
-/** Every active Manager that has no tree templates yet gets the set; `only` limits it to one person (the one an org event is about). */
+/** Every active Manager that has no tree templates yet gets the set; `only` limits it to one person. */
 export async function ensureAllTrees(db: Db, only?: string): Promise<number> {
   const res = await db.execute(sql`SELECT u.id FROM users u WHERE /*scope:system*/ u.kind = 'person' AND u.status = 'active' AND 'manager' = ANY(u.roles) ${only ? sql`AND u.id = ${only}::uuid` : sql``}
     AND NOT EXISTS (SELECT 1 FROM dh_templates t WHERE t.manager_id = u.id AND t.scope = 'tree')`);
   let n = 0;
   for (const r of res.rows as { id: string }[]) {
     await db.transaction(async (tx) => {
-      await ensureTreeTemplates(tx, workerEmit(tx), r.id);
+      const emit = workerEmit(tx);
+      await ensureTreeTemplates(tx, emit, r.id);
+      await emit("org.member.changed", { aggregateType: "user", aggregateId: r.id, payload: { user_id: r.id, change: "default_templates" } });
     });
     n++;
   }
   return n;
 }
 
-/** A new Manager in the org chart gets the default set (module4 3.1); an existing tree keeps what it has. Runs before the template sync of the same event, so the members are shared at once. */
-export const dealDefaultsSubscriber: Subscriber = {
-  name: "deal.default_templates",
-  match: (e) => e === "org.member.changed",
-  async handle(ev, db) {
-    // Only the person the event is about: an event for anyone else must not rebuild the whole organisation.
-    const who = (ev.payload as { user_id?: string } | null)?.user_id;
-    if (who) await ensureAllTrees(db, who);
-  },
-};
+/**
+ * A new Manager in the org chart gets the default set (module4 3.1); an existing tree keeps what it has.
+ * Building the set is heavy (several tables in one transaction), so it is NOT an outbox subscriber: the dispatcher handles events one after another, and
+ * a build inside it delayed every later event (the activation code notification among them). A loop of its own picks up the Managers without a tree
+ * (the query is the queue, so a crash loses nothing) and `ensureAllTrees` emits `org.member.changed` for each, so the template sync shares the new tables with the members.
+ */
+export function startDealDefaultsLoop(db: Db, log: Logger, intervalMs: number): { stop(): Promise<void> } {
+  let stopped = false;
+  let busy: Promise<unknown> = Promise.resolve();
+  const timer = setInterval(() => {
+    if (stopped) return;
+    busy = busy.then(() => ensureAllTrees(db)).catch((err) => log.error({ err }, "deal default templates loop error"));
+  }, intervalMs);
+  return {
+    async stop() {
+      stopped = true;
+      clearInterval(timer);
+      await busy;
+    },
+  };
+}

@@ -3,7 +3,6 @@ import type { Subscriber } from "./outbox-dispatcher";
 import type { EventRegistry } from "./events";
 import { SSE_CHANNEL, type SseSignal } from "../http/sse";
 import { formulaSubscriber, mergeSubscriber, sqlViewSubscriber, templateSubscriber } from "../modules/datahub";
-import { dealDefaultsSubscriber } from "../modules/deal";
 import { metricCacheSubscriber } from "../modules/metrics";
 import { createNotificationSubscriber } from "../modules/notification";
 
@@ -34,5 +33,5 @@ export function createSseFanout(events: EventRegistry): Subscriber {
 
 /** Subscribers of the worker. Later modules append theirs (formula recalculation, Automation, webhooks). */
 export function defaultSubscribers(events: EventRegistry, authSecret: string): Subscriber[] {
-  return [createNotificationSubscriber(authSecret), createSseFanout(events), sqlViewSubscriber, formulaSubscriber, mergeSubscriber, dealDefaultsSubscriber, templateSubscriber, metricCacheSubscriber];
+  return [createNotificationSubscriber(authSecret), createSseFanout(events), sqlViewSubscriber, formulaSubscriber, mergeSubscriber, templateSubscriber, metricCacheSubscriber];
 }

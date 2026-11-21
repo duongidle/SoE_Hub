@@ -205,7 +205,15 @@ describe("Index: the worker adds the new month", () => {
 describe("trees, and the Admin's default set", () => {
   it("a Manager of another tree gets the set when the org says so; a person who is not a Manager gets nothing", async () => {
     expect(await ensureAllTrees(t.c.db.db, org.userB1.id)).toBe(0);
+    // The org event alone builds nothing: the build is not in the dispatcher (it would hold up every event after it, e.g. the activation code).
+    await workerEmit(t.c.db.db)("org.member.changed", { aggregateType: "user", aggregateId: org.mgrB.id, payload: { user_id: org.mgrB.id, change: "created" } });
+    await drainOutbox(t);
+    const countOf = async () => Number((await t.c.db.db.execute(sql`SELECT count(*) AS n FROM dh_templates WHERE /*scope:system*/ manager_id = ${org.mgrB.id}::uuid AND scope = 'tree'`)).rows[0]!.n);
+    expect(await countOf()).toBe(0);
     expect(await ensureAllTrees(t.c.db.db, org.mgrB.id)).toBe(1);
+    // The build asks for a template sync, so the members are shared at once.
+    const ev = await t.c.db.db.execute(sql`SELECT 1 FROM outbox WHERE event = 'org.member.changed' AND status = 'pending' AND payload->>'change' = 'default_templates' AND payload->>'user_id' = ${org.mgrB.id}`);
+    expect(ev.rows.length).toBe(1);
     await drainOutbox(t);
     const b = as(t, org.mgrB.id);
     expect((await b("datahub.template.list")).length).toBe(BUILTIN_DEFAULT_SET.length);

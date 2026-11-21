@@ -162,6 +162,11 @@ function stable(v: unknown): string {
 
 /** Two stored cell values are the same value (object key order does not matter: a person's attributes read back from jsonb in another order). */
 export function sameStored(a: unknown, b: unknown): boolean {
+  // Hot path (every cell write, a recalculation of 100,000 rows): plain values compare directly; only objects and arrays need the key sort.
+  const x = a ?? null;
+  const y = b ?? null;
+  if (typeof x !== "object" && typeof y !== "object") return x === y;
+  if (x === null || y === null) return x === y;
   return stable(a) === stable(b);
 }
 
