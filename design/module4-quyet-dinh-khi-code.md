@@ -188,3 +188,15 @@ Test: `deal-defaults.test.ts` (13), `datahub-user-attrs.test.ts` (14), `datahub-
 - **Sổ com:** "Com của tôi" lọc theo người đang đăng nhập trên dữ liệu thành viên đã được khoá phân chia giới hạn; chọn kỳ theo tháng của cột kỳ. Không cộng tổng trên giao diện (số liệu chỉ tính ở server).
 - **Ngăn chi tiết deal** hiện đợt qua cột liên kết có vai trò `dot_thanh_toan` của Deals; "Com của tôi" của một đợt là tổng các dòng Sổ com của người đó cho đợt (dòng tạm tính và điều chỉnh).
 - **Chưa làm (đã biết):** Chốt kỳ (4.5); phân trang các danh sách; 375px (Stage 12).
+
+## 4.5A Chốt kỳ, BANT, snapshot, forecast (server, 21/11)
+
+- **Chốt kỳ = hai khoá kỳ + đổi dòng Sổ com.** `period.close` gọi `lockPeriod` cho bảng Đợt thanh toán và bảng Deals (scope = id Manager), rồi ghi `Com cố định` và đổi trạng thái `Đã chốt` cho dòng Sổ com Tạm tính của tháng (ghi hệ thống). Chốt chặn ghi theo vai trò ở `apps/api/src/modules/datahub/period-guard.ts`, gọi trong `applyRowOps`, nên mọi đường ghi (REST, MCP, import) đều gặp.
+- **Meaning mới cho Trạng thái com:** `ledger_temp`, `ledger_closed`, `ledger_adjust` (Admin đổi tên được, code không đọc theo tên; lệnh vẫn lùi về tên khi cây cũ chưa có meaning).
+- **Về muộn:** thêm cột `Kỳ ghi nhận` (vai trò `ky_ghi_nhan`) ở Đợt và Sổ com; `Kỳ` của hai bảng thành công thức đọc cột đó trước. Cây dev cũ không có cột này: `payment.confirm` vào tháng đã chốt và `commission.adjust` báo lỗi `role_missing` (dựng lại cây hoặc thêm cột ở trang Template), không lặng lẽ ghi vào tháng đã chốt.
+- **Deal đóng trong tháng bị khoá:** Status, `Ngày đóng (sửa tay)` (vai trò mới `ngay_dong_tay`), Loại deal, `% doanh thu` từng người. Người tham gia và % com vẫn sửa. Chuyển deal vào tháng đã chốt bằng Ngày đóng tay cũng bị chặn.
+- **Chốt dù còn mục:** `close_anyway: true`. Dòng AI/API chưa `Đã kiểm` được đánh dấu đã kiểm lúc chốt (ghi nhật ký kèm kênh và `connection_id`); tên kết nối đầy đủ chờ Module 5.
+- **Com trống khi chốt** (thiếu đầu vào): `Com cố định` = 0, trả `blank_com_ids`; sửa sau bằng `commission.adjust`.
+- **`Tỉ lệ com sale` trống khi thiếu Nguồn lead / Level BC / Performance BC** (công thức POD thêm kiểm trống; trước đó SUMIFS trả 0).
+- **Công thức chưa tính xong** thì `period.close` lỗi `recalc_pending` (chờ tối đa 5 giây bằng `waitConsistent`).
+- **Xuất XLSX bảng com:** dùng lại `datahub.export.create`, không thêm lệnh riêng.

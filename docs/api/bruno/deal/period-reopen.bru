@@ -1,0 +1,27 @@
+meta {
+  name: period.reopen
+  type: http
+  seq: 134
+}
+
+post {
+  url: {{baseUrl}}/api/v1/deal/periods/reopen
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+body:json {
+  {
+    "month": "2026-07",
+    "reason": "Sửa Closing date"
+  }
+}
+
+docs {
+  Mở lại kỳ đã chốt, kèm lý do. Quyền: `deal:payment:write`.
+}

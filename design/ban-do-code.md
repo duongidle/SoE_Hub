@@ -250,7 +250,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 
 ## Module 4: Quản lý Deal
 
-_Phần 4.1–4.4B. Mỗi bước con sau cập nhật phần của mình trong cùng commit với code._
+_Phần 4.1–4.5A. Mỗi bước con sau cập nhật phần của mình trong cùng commit với code._
 
 **Bảng template (mỗi template có bảng chủ và bản sao cho từng thành viên)**
 - Tạo template bằng code, không cần request: `apps/api/src/modules/datahub/template-ops.ts` `createTemplateCore`. Thêm cột: `apps/api/src/modules/datahub/template-ops.ts` `addTemplateColumn`. Bảng chủ nhìn như chủ sở hữu: `apps/api/src/modules/datahub/template-ops.ts` `masterAccess`.
@@ -318,6 +318,13 @@ _Phần 4.1–4.4B. Mỗi bước con sau cập nhật phần của mình trong 
 - Lỗi server hiện bằng `ErrorText`/`errorMessage`, không bắt mã lỗi riêng ở web.
 - Hàng đợi điền lại cột gửi xuống khi đổi cây (server): `apps/api/src/modules/datahub/pushdown.ts` `refillSubscriber` (chỉ đánh dấu `dh_tables.refill_pending_at`), `processPendingRefills`, `startRefillLoop` (nối ở `apps/api/src/worker.ts`).
 - e2e: `apps/web/e2e/stage4-4.spec.ts`.
+
+**Chốt kỳ (4.5A)**
+- Lệnh `period.close`, `period.reopen`, query `period.review`, `period.com`, `period.list`: `apps/api/src/modules/deal/period.ts` `periodOperations`. Dùng chung `loadTree`, `write`, `cellOf` của `apps/api/src/modules/deal/payments.ts`; `openMonthFrom` (kỳ đang mở) và `lockedMonth` cũng ở đó.
+- Chốt = hai khoá kỳ (`lockPeriod`: bảng Đợt và bảng Deals, `scope` = id Manager) cộng đổi dòng Sổ com Tạm tính của tháng thành `Com cố định` + `Đã chốt`.
+- Chốt chặn ghi, theo vai trò cột, gọi trong `applyRowOps`: `apps/api/src/modules/datahub/period-guard.ts` `guardPeriod` (đợt có ngày tiền về trong kỳ khoá; deal đóng trong kỳ khoá; dòng Sổ com `ledger_closed` / `ledger_adjust`). Lệnh hệ thống (`opts.system`) được miễn.
+- Tiền về muộn: cột Đợt `Kỳ ghi nhận` (vai trò `ky_ghi_nhan`), `Kỳ` là công thức đọc nó trước. Điều chỉnh com: cột Sổ com `Kỳ ghi nhận`; `Kỳ` = công thức, `Kỳ của đợt` (`ky_dot`) là lookup.
+- Xuất XLSX bảng com: dùng `datahub.export.create` trên bảng Sổ com (`period.com` trả `ledger_table_id`), lọc theo cột `Kỳ`.
 
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.

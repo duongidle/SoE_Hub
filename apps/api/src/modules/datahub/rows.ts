@@ -21,6 +21,7 @@ import { CellError, type DhColumn, type Stored } from "./types";
 import { hasAttrs, userIdsOf } from "./user-values";
 import { checkPeopleCaps, type PeopleCell } from "./people-caps";
 import { guardCommitted, guardStatusMeaning } from "./status-guard";
+import { guardPeriod } from "./period-guard";
 import { autofillColumns, dependentsOf, pushDownRows } from "./pushdown";
 
 /** A merged table is read-only for everyone, its owner included: its rows are written only by the worker (design module3 section 4.3). */
@@ -313,6 +314,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
 
   guardStatusMeaning(access, schema, plans, loaded, opts.system === true);
   guardCommitted(access, schema, plans, loaded, opts.system === true);
+  await guardPeriod(db, access, schema, plans, loaded, opts.system === true);
 
   // The actor's own values of the person-stored columns (module4 3.4): where an update compares with what they had, and what is written back.
   const ownBefore = new Map<string, Record<string, Stored>>();

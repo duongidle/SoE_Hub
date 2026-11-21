@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { AppError } from "@soe/shared";
+import { AppError, businessDate } from "@soe/shared";
 import { assertPeriodOpen } from "@soe/db";
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { HandlerCtx } from "../../core/types";
@@ -8,6 +8,7 @@ import type { TableAccess } from "../datahub/access";
 import { sourceOf } from "../datahub/column-source";
 import { applyRowOps, type RowOp } from "../datahub/rows";
 import { Id, ROW_EVENTS } from "../datahub/shared";
+import { activeLocks } from "../datahub/period-guard";
 import { masterAccess } from "../datahub/template-ops";
 import { loadTemplate, type Template } from "../datahub/template-sync";
 import { rowFromDb, TableSchema } from "../datahub/table-schema";
@@ -27,20 +28,20 @@ const pct = z.number().min(0).max(1);
 export const COM_ATTR = "ty_le_com";
 
 /** One table of the tree as the commands use it: its access (as owner), schema and the columns by role. */
-interface T {
+export interface T {
   tpl: Template;
   acc: TableAccess;
   schema: TableSchema;
   name: string;
 }
-interface Tree {
+export interface Tree {
   managerId: string;
   deals: T;
   dots: T;
   receipts: T;
   ledger: T;
 }
-type Ctx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId" | "access">;
+export type Ctx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId" | "access">;
 
 const ROLE_OF_TABLE = { deals: "deals", dots: "payments", receipts: "receipts", ledger: "ledger" } as const;
 
@@ -54,7 +55,7 @@ async function loadT(ctx: Ctx, managerId: string, roleSet: string, label: string
   return { tpl, acc, schema, name: tpl.name };
 }
 
-async function loadTree(ctx: Ctx): Promise<Tree> {
+export async function loadTree(ctx: Ctx): Promise<Tree> {
   const p = await ctx.access.requirePrincipal();
   if (!p.roles.includes("manager")) throw new AppError("forbidden", "Chỉ Manager của cây ghi thanh toán và com.", { reason: "manager_only" });
   const m = p.userId;
@@ -68,21 +69,21 @@ async function loadTree(ctx: Ctx): Promise<Tree> {
 }
 
 /** The live column that holds a role; a missing required role is a clear error, a missing optional one is `null`. */
-function roleCol(t: T, role: string, required = true): DhColumn | null {
+export function roleCol(t: T, role: string, required = true): DhColumn | null {
   const c = t.schema.alive.find((x) => x.role === role);
   if (!c && required) throw new AppError("conflict", `Bảng "${t.name}" chưa có cột giữ vai trò "${role}". Gán vai trò cho một cột ở trang Template.`, { reason: "role_missing", role, table: t.name });
   return c ?? null;
 }
 
-type Cells = Record<string, Stored>;
-interface RowData {
+export type Cells = Record<string, Stored>;
+export interface RowData {
   id: string;
   version: number;
   data: Cells;
 }
 
 /** Rows by id, as the owner of the table sees them. */
-async function readRows(ctx: Ctx, t: T, ids: string[]): Promise<Map<string, RowData>> {
+export async function readRows(ctx: Ctx, t: T, ids: string[]): Promise<Map<string, RowData>> {
   const out = new Map<string, RowData>();
   if (!ids.length) return out;
   const res = await ctx.db.execute(sql`SELECT id, row_no, version, data, created_at, created_by, updated_at, updated_by FROM dh_rows WHERE ${t.acc.rows()} AND deleted_at IS NULL AND id = ANY(${`{${ids.join(",")}}`}::uuid[])`);
@@ -93,17 +94,17 @@ async function readRows(ctx: Ctx, t: T, ids: string[]): Promise<Map<string, RowD
   return out;
 }
 
-const cellOf = (t: T, row: RowData, role: string): Stored => {
+export const cellOf = (t: T, row: RowData, role: string): Stored => {
   const c = roleCol(t, role, false);
   return c ? (sourceOf(c).readCell({ data: row.data } as never, c) ?? null) : null;
 };
-const empty = (v: Stored | undefined): boolean => v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
-const idsOf = (v: Stored): string[] => (Array.isArray(v) ? (v as unknown[]).filter((x): x is string => typeof x === "string") : []);
-const numOf = (v: Stored): number => (typeof v === "number" ? v : 0);
-const dateOf = (v: Stored): string | null => (typeof v === "string" && v ? v.slice(0, 10) : null);
+export const empty = (v: Stored | undefined): boolean => v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
+export const idsOf = (v: Stored): string[] => (Array.isArray(v) ? (v as unknown[]).filter((x): x is string => typeof x === "string") : []);
+export const numOf = (v: Stored): number => (typeof v === "number" ? v : 0);
+export const dateOf = (v: Stored): string | null => (typeof v === "string" && v ? v.slice(0, 10) : null);
 
 /** Cells by role; an optional role the table does not have is skipped. */
-function cells(t: T, pairs: [string, Stored | undefined][]): Cells {
+export function cells(t: T, pairs: [string, Stored | undefined][]): Cells {
   const out: Cells = {};
   for (const [role, v] of pairs) {
     if (v === undefined) continue;
@@ -114,7 +115,7 @@ function cells(t: T, pairs: [string, Stored | undefined][]): Cells {
 }
 
 /** The one way these commands write: through `applyRowOps`. An update that names no version gets the current one (the command read the row in this transaction). */
-async function write(ctx: Ctx, t: T, ops: RowOp[], system = false) {
+export async function write(ctx: Ctx, t: T, ops: RowOp[], system = false) {
   const need = ops.filter((o): o is Extract<RowOp, { op: "update" }> => o.op === "update" && o.version === undefined && o.base === undefined);
   if (need.length) {
     const cur = await readRows(ctx, t, need.map((o) => o.id));
@@ -124,8 +125,8 @@ async function write(ctx: Ctx, t: T, ops: RowOp[], system = false) {
 }
 
 /** The Manager's reason of the source column (module4 7.2): typed by hand, by an AI connection or by the API. */
-const sourceName = (ctx: Ctx): string => (ctx.actor.via === "web" ? "Tay" : ctx.actor.via === "mcp" ? "AI" : "API");
-function sourceValue(t: T, ctx: Ctx): Stored | undefined {
+export const sourceName = (ctx: Ctx): string => (ctx.actor.via === "web" ? "Tay" : ctx.actor.via === "mcp" ? "AI" : "API");
+export function sourceValue(t: T, ctx: Ctx): Stored | undefined {
   const c = roleCol(t, "nguon_nhap", false);
   if (!c) return undefined;
   const name = sourceName(ctx);
@@ -133,18 +134,18 @@ function sourceValue(t: T, ctx: Ctx): Stored | undefined {
   return c.type === "single_select" ? (opts.find((o) => o.name === name)?.id ?? undefined) : name;
 }
 
-function optionByMeaning(t: T, role: string, meaning: string): string | null {
+export function optionByMeaning(t: T, role: string, meaning: string): string | null {
   const c = roleCol(t, role, false);
   const opts = (c?.config.options as SelectOption[] | undefined) ?? [];
   return opts.find((o) => o.meaning === meaning)?.id ?? null;
 }
-function statusMeaning(t: T, row: RowData): string | undefined {
+export function statusMeaning(t: T, row: RowData): string | undefined {
   const c = roleCol(t, "trang_thai", false);
   const opts = (c?.config.options as SelectOption[] | undefined) ?? [];
   const v = c ? sourceOf(c).readCell({ data: row.data } as never, c) : null;
   return opts.find((o) => o.id === v)?.meaning;
 }
-function optionNamed(t: T, role: string, name: string): string {
+export function optionNamed(t: T, role: string, name: string): string {
   const c = roleCol(t, role)!;
   const o = ((c.config.options as SelectOption[] | undefined) ?? []).find((x) => x.name === name);
   if (!o) throw new AppError("conflict", `Cột "${c.name}" thiếu lựa chọn "${name}".`, { reason: "option_missing", role, name });
@@ -159,7 +160,28 @@ async function paymentsOfDeal(ctx: Ctx, tree: Tree, dealId: string): Promise<Map
   return readRows(ctx, tree.dots, (res.rows as { id: string }[]).map((r) => r.id));
 }
 
-const confirmed = (t: T, row: RowData): boolean => !empty(cellOf(t, row, "ngay_tien_ve"));
+
+const addMonth = (ym: string): string => {
+  const [y, m] = [Number(ym.slice(0, 4)), Number(ym.slice(5, 7))];
+  return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
+};
+/** The first month (`YYYY-MM-01`) from `from` on that no active lock of the Đợt thanh toán table covers: the OPEN period (design module4 12, "Về muộn"). */
+export async function openMonthFrom(ctx: Ctx, tree: Tree, from: string): Promise<string> {
+  const locks = await activeLocks(ctx.db, tree.dots.acc.tableId);
+  let m = `${from.slice(0, 7)}-01`;
+  for (let n = 0; n < 240; n++) {
+    if (!locks.some((l) => l.start <= m && m <= l.end)) return m;
+    m = addMonth(m);
+  }
+  throw new AppError("conflict", "Mọi tháng gần đây đều đã chốt.", { reason: "no_open_period" });
+}
+/** The month (`YYYY-MM-01`) of a date is locked: the money arrived late and is recorded in the open period. */
+export async function lockedMonth(ctx: Ctx, tree: Tree, date: string): Promise<boolean> {
+  const d = date.slice(0, 7) + "-01";
+  return (await activeLocks(ctx.db, tree.dots.acc.tableId)).some((l) => l.start <= d && d <= l.end);
+}
+
+export const confirmed = (t: T, row: RowData): boolean => !empty(cellOf(t, row, "ngay_tien_ve"));
 
 /** People of the deal with a commission share, as the cell of `Chia com đợt này`. */
 function splitFromDeal(deals: T, dealRow: RowData): PersonEntry[] {
@@ -365,6 +387,9 @@ export const paymentOperations = [
       const dealPayments = new Map<string, Map<string, RowData>>();
       for (const d of new Set(dealOf.values())) dealPayments.set(d, await paymentsOfDeal(ctx, tree, d));
       const firstOf = new Set<string>();
+      // Money that arrives with a date in a closed month is recorded in the open period, labelled "Về muộn" (design module4 12).
+      const late = (await lockedMonth(ctx, tree, i.received_on)) ? await openMonthFrom(ctx, tree, businessDate(new Date())) : null;
+      if (late) roleCol(tree.dots, "ky_ghi_nhan");
       const dealNew = new Map<string, string[]>();
       const dotSrc = sourceValue(tree.dots, ctx);
       for (const a of i.allocations) {
@@ -385,6 +410,7 @@ export const paymentOperations = [
               ["so_tien_nhan", a.amount_received ?? a.amount],
               ["tien_ve", [receiptId!] as Stored],
               ["chia_com_dot", split as unknown as Stored],
+              ...(late ? ([["ky_ghi_nhan", late]] as [string, Stored][]) : []),
               ...(splitOff ? ([["so_tien_du_kien", a.amount]] as [string, Stored][]) : []),
             ]),
           },
@@ -489,7 +515,7 @@ export const paymentOperations = [
       await write(
         ctx,
         tree.dots,
-        i.payment_ids.map((id) => ({ op: "update" as const, id, data: cells(tree.dots, [["ngay_tien_ve", null], ["so_tien_ve", null], ["so_tien_nhan", null], ["tien_ve", null]]) })),
+        i.payment_ids.map((id) => ({ op: "update" as const, id, data: cells(tree.dots, [["ngay_tien_ve", null], ["so_tien_ve", null], ["so_tien_nhan", null], ["tien_ve", null], ["ky_ghi_nhan", null]]) })),
       );
       for (const [rid, pids] of receipts) {
         const row = (await readRows(ctx, tree.receipts, [rid])).get(rid);
@@ -530,14 +556,17 @@ export const paymentOperations = [
       person_id: Id,
       amount: z.number().finite().min(-1e13).max(1e13).describe("Số tiền com điều chỉnh, có thể âm."),
       reason: z.string().trim().min(1, "Cần ghi lý do.").max(500),
+      period: ymd.optional().describe("Tháng ghi nhận (ngày bất kỳ của tháng). Mặc định: kỳ đang mở (tháng hiện tại, hoặc tháng gần nhất chưa chốt)."),
     }),
-    output: z.object({ ledger_id: Id }),
+    output: z.object({ ledger_id: Id, period: z.string() }),
     http: { method: "POST", path: "/deal/commission/adjust", status: 201 },
     handler: async (ctx, i) => {
       const tree = await loadTree(ctx);
       const row = (await readRows(ctx, tree.dots, [i.payment_id])).get(i.payment_id);
       if (!row) throw new AppError("not_found", "Không tìm thấy đợt thanh toán.", { reason: "payment_not_found" });
       const dealId = idsOf(cellOf(tree.dots, row, "deal"))[0];
+      roleCol(tree.ledger, "ky_ghi_nhan");
+      const period = await openMonthFrom(ctx, tree, i.period ?? businessDate(new Date()));
       const [r] = await write(ctx, tree.ledger, [
         {
           op: "create",
@@ -545,6 +574,7 @@ export const paymentOperations = [
             ["nguoi", i.person_id],
             ["dot", [i.payment_id] as Stored],
             ["deal", dealId ? ([dealId] as Stored) : undefined],
+            ["ky_ghi_nhan", period],
             ["com_co_dinh", i.amount],
             ["trang_thai_com", optionNamed(tree.ledger, "trang_thai_com", "Điều chỉnh")],
             ["ly_do", i.reason],
@@ -552,7 +582,7 @@ export const paymentOperations = [
         },
       ]);
       ctx.audit({ type: "deal_payment", id: i.payment_id, details: { operation: "adjust" } });
-      return { ledger_id: r!.id };
+      return { ledger_id: r!.id, period };
     },
   }),
 

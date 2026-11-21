@@ -1,0 +1,27 @@
+meta {
+  name: period.close
+  type: http
+  seq: 133
+}
+
+post {
+  url: {{baseUrl}}/api/v1/deal/periods/close
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+body:json {
+  {
+    "month": "2026-07",
+    "close_anyway": false
+  }
+}
+
+docs {
+  Chốt kỳ (tháng). Còn mục cần xử lý thì gửi `close_anyway: true`. Quyền: `deal:payment:write`.
+}

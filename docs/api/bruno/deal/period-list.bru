@@ -1,0 +1,19 @@
+meta {
+  name: period.list
+  type: http
+  seq: 132
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deal/periods
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Các tháng đã chốt của cây. Quyền: `deal:payment:write`.
+}

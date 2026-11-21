@@ -1,0 +1,19 @@
+meta {
+  name: period.review
+  type: http
+  seq: 130
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deal/periods/review?month=2026-07
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh sách cần xử lý trước khi chốt kỳ của một tháng. Quyền: `deal:payment:write`.
+}

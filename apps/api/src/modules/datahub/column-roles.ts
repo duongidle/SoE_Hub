@@ -39,6 +39,7 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "doanh_thu_duoc_tinh", label: "Doanh thu được tính", types: MONEY, required: false, usedBy: ["Dashboard hệ thống", "Index", "KPI"] },
       { key: "gia_tri_hop_dong", label: "Giá trị hợp đồng", types: MONEY, required: false, usedBy: ["Thanh toán", "Forecast"] },
       { key: "da_thu", label: "Đã thu", types: MONEY, required: false, usedBy: ["Thanh toán", "Forecast"] },
+      { key: "ngay_dong_tay", label: "Ngày đóng (sửa tay)", types: ["date", "datetime"], required: false, usedBy: ["Khoá kỳ"] },
       { key: "dot_thanh_toan", label: "Đợt thanh toán (liên kết)", types: ["relation"], required: false, usedBy: ["Lệnh thanh toán (ghi hai chiều với bảng Đợt)"] },
     ],
   },
@@ -61,6 +62,7 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "nguoi_tham_gia", label: "Người tham gia", types: ["user"], required: false, usedBy: ["Phạm vi xem"] },
       { key: "nguon_nhap", label: "Nguồn nhập", types: ["single_select", "text"], required: false, usedBy: ["Lệnh thanh toán"] },
       { key: "da_kiem", label: "Đã kiểm", types: ["checkbox"], required: false, usedBy: ["Chốt kỳ"] },
+      { key: "ky_ghi_nhan", label: "Kỳ ghi nhận (Về muộn)", types: ["date", "datetime"], required: false, usedBy: ["Lệnh thanh toán (tiền về muộn vào kỳ đang mở)"] },
     ],
   },
   index: {
@@ -87,6 +89,8 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "ty_le_com", label: "% com", types: ["percent", "number"], required: false, usedBy: ["Lệnh thanh toán"] },
       { key: "com_co_dinh", label: "Com cố định (đã chốt / điều chỉnh)", types: MONEY, required: false, usedBy: ["Chốt kỳ", "Điều chỉnh com"] },
       { key: "ly_do", label: "Lý do", types: ["text", "long_text"], required: false, usedBy: ["Điều chỉnh com"] },
+      { key: "ky_dot", label: "Kỳ của đợt", types: ["text", "date", "number"], required: false, usedBy: ["Chốt kỳ"] },
+      { key: "ky_ghi_nhan", label: "Kỳ ghi nhận (điều chỉnh vào kỳ đang mở)", types: ["date", "datetime"], required: false, usedBy: ["Chốt kỳ", "Điều chỉnh com"] },
     ],
   },
   kpi: {

@@ -97,8 +97,8 @@ const POLICY: DefaultTable = {
 const POLICY_DATE = 'IF([Closing date]="",[Ngày dự kiến chốt],[Closing date])';
 const latest = (table: string, extra = "") => `MAXIFS([${table}].[Hiệu lực từ],${extra}[${table}].[Hiệu lực từ],"<="&${POLICY_DATE})`;
 const TI_LE_COM_SALE =
-  `=IF(OR([Loại deal]="POD bán mới",[Loại deal]="POD CSM"),` +
-  `SUMIFS([Chính sách com].[Tỉ lệ],[Chính sách com].[Hiệu lực từ],${latest("Chính sách com")},[Chính sách com].[Nguồn lead],[Nguồn lead],[Chính sách com].[Level],[Level BC],[Chính sách com].[Performance],[Performance BC]),` +
+  `=IF(OR([Loại deal]="POD bán mới",[Loại deal]="POD CSM"),IF(OR([Nguồn lead]="",[Level BC]="",[Performance BC]=""),"",` +
+  `SUMIFS([Chính sách com].[Tỉ lệ],[Chính sách com].[Hiệu lực từ],${latest("Chính sách com")},[Chính sách com].[Nguồn lead],[Nguồn lead],[Chính sách com].[Level],[Level BC],[Chính sách com].[Performance],[Performance BC])),` +
   `IF([Nhóm dịch vụ]="PS",SUMIFS([Tham số com].[Giá trị],[Tham số com].[Tên tham số],"Tỉ lệ PS POD",[Tham số com].[Hiệu lực từ],${latest("Tham số com", '[Tham số com].[Tên tham số],"Tỉ lệ PS POD",')}),""))`;
 
 const PEOPLE = "Người tham gia";
@@ -117,7 +117,7 @@ const DEALS: DefaultTable = {
     { name: "Ngày dự kiến chốt", type: "date", role: "ngay_du_kien_chot", allow_edit: true },
     { name: "Status", type: "single_select", config: opts(STATUS, STATUS_MEANING), role: "trang_thai", default_value: "Processing", allow_edit: true, description: "Won chỉ do hệ thống đặt khi tiền về đợt đầu; Huỷ chỉ Manager." },
     { name: "Ngày đổi Status", type: "field_modified", config: { watch: ["Status"] }, hidden: true },
-    { name: "Ngày đóng (sửa tay)", type: "date", description: "Manager nhập khi biết ngày chính xác hơn ngày tự tính." },
+    { name: "Ngày đóng (sửa tay)", type: "date", role: "ngay_dong_tay", description: "Manager nhập khi biết ngày chính xác hơn ngày tự tính." },
     { name: DOT_LINK, type: "relation", config: { target_table: DOT_TABLE, multiple: true }, role: "dot_thanh_toan", hidden: true, description: "Ghi bởi lệnh lập lịch thanh toán." },
     { name: "Ngày tiền về đầu tiên", type: "rollup", config: { relation: DOT_LINK, target_column: "Ngày tiền về", fn: "min" }, hidden: true, description: "Ngày tiền về sớm nhất trong các đợt của deal (bảng Đợt thanh toán)." },
     {
@@ -309,7 +309,9 @@ const PAYMENTS: DefaultTable = {
       type: "formula",
       config: { formula: '=IF([Ngày tiền về]<>"",IF([Số tiền về (chưa VAT)]<[Số tiền dự kiến (chưa VAT)],"Về thiếu","Đã về"),IF([Hạn]="","Chưa đến hạn",IF([Hạn]<TODAY(),"Quá hạn",IF([Hạn]-TODAY()<=7,"Sắp đến hạn","Chưa đến hạn"))))', result_type: "text" },
     },
-    { name: "Kỳ", type: "formula", config: { formula: '=IF([Ngày tiền về]="","",DATE(YEAR([Ngày tiền về]),MONTH([Ngày tiền về]),1))', result_type: "date" }, role: "ky" },
+    { name: "Kỳ ghi nhận", type: "date", role: "ky_ghi_nhan", hidden: true, description: "Chỉ có khi tiền về có ngày thuộc tháng đã chốt (Về muộn): tháng đang mở mà đợt được ghi nhận. Hệ thống đặt." },
+    { name: "Kỳ", type: "formula", config: { formula: '=IF([Kỳ ghi nhận]<>"",[Kỳ ghi nhận],IF([Ngày tiền về]="","",DATE(YEAR([Ngày tiền về]),MONTH([Ngày tiền về]),1)))', result_type: "date" }, role: "ky" },
+    { name: "Về muộn", type: "formula", config: { formula: '=IF([Kỳ ghi nhận]<>"","Về muộn","")', result_type: "text" } },
     { name: PEOPLE, type: "user", config: PEOPLE_ATTRS, role: "nguoi_tham_gia" },
     { name: "Nguồn nhập", type: "single_select", config: SOURCE, role: "nguon_nhap", default_value: "Tay" },
     { name: "Đã kiểm", type: "checkbox", role: "da_kiem" },
@@ -328,13 +330,15 @@ const LEDGER: DefaultTable = {
     { name: "Người", type: "user", role: "nguoi", required: true },
     { name: "Đợt", type: "relation", config: { target_table: DOT_TABLE, multiple: false }, role: "dot", required: true },
     { name: "Deal", type: "relation", config: { target_table: "Deals", multiple: false }, role: "deal" },
-    { name: "Kỳ", type: "lookup", config: { relation: "Đợt", target_column: "Kỳ" }, role: "ky" },
+    { name: "Kỳ của đợt", type: "lookup", config: { relation: "Đợt", target_column: "Kỳ" }, role: "ky_dot" },
+    { name: "Kỳ ghi nhận", type: "date", role: "ky_ghi_nhan", hidden: true, description: "Dòng Điều chỉnh: tháng đang mở mà khoản điều chỉnh được ghi vào. Bỏ trống thì theo kỳ của đợt." },
+    { name: "Kỳ", type: "formula", config: { formula: '=IF([Kỳ ghi nhận]<>"",[Kỳ ghi nhận],[Kỳ của đợt])', result_type: "date" }, role: "ky" },
     { name: "Số tiền về", type: "lookup", config: { relation: "Đợt", target_column: "Số tiền về (chưa VAT)" } },
     { name: "Tỉ lệ com sale", type: "lookup", config: { relation: "Deal", target_column: "Tỉ lệ com sale" } },
     { name: "Com sale", type: "formula", config: { formula: '=IF([Tỉ lệ com sale]="","",[Số tiền về]*[Tỉ lệ com sale])', result_type: "number" } },
     { name: "% com", type: "percent", role: "ty_le_com" },
     { name: "Com cố định", type: "currency", role: "com_co_dinh", description: "Số cứng của dòng Đã chốt / Điều chỉnh." },
-    { name: "Trạng thái", type: "single_select", config: opts(["Tạm tính", "Đã chốt", "Điều chỉnh"]), role: "trang_thai_com", default_value: "Tạm tính" },
+    { name: "Trạng thái", type: "single_select", config: opts(["Tạm tính", "Đã chốt", "Điều chỉnh"], { "Tạm tính": "ledger_temp", "Đã chốt": "ledger_closed", "Điều chỉnh": "ledger_adjust" }), role: "trang_thai_com", default_value: "Tạm tính" },
     { name: "Com", type: "formula", config: { formula: '=IF([Trạng thái]="Tạm tính",IF([Com sale]="","",[Com sale]*[% com]),[Com cố định])', result_type: "number" }, role: "com" },
     { name: "Lý do", type: "text", role: "ly_do" },
   ],

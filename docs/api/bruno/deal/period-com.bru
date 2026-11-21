@@ -1,0 +1,19 @@
+meta {
+  name: period.com
+  type: http
+  seq: 131
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deal/periods/com?month=2026-07
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Com của tháng theo người; thêm `person_id` để xem từng dòng. Quyền: `deal:payment:write`.
+}
