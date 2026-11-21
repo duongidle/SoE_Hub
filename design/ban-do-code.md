@@ -111,7 +111,8 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 - Mọi truy vấn bảng có chủ phải kèm điều kiện phạm vi: `scopeSql(cột chủ, scope)` hoặc `ownedBy(cột chủ, userId)`. Truy vấn có chủ ý trên toàn hệ thống (job, công cụ Admin đã kiểm quyền riêng) → `systemScope()`. Tất cả ở `apps/api/src/auth/access.ts`.
 - Một cột `owner` cho một dòng thì kiểm một dòng bằng `scopeIncludes(scope, ownerId)`.
 - Muốn đăng ký bảng có chủ mới → `registerOwnedTable("tên_bảng")` ở `apps/api/src/auth/query-guard.ts` (mẫu: `apps/api/src/modules/metrics/index.ts`). Bảng mà quyền phụ thuộc người đọc (khoá phân chia của `dh_rows`) → `registerOwnedTable(tên, { rows: true })`.
-- Chốt chặn `checkScopedQuery` (`apps/api/src/auth/query-guard.ts`) chạy ở mọi môi trường ngoài production, nên cả bộ test chứng minh luật. Dấu `/*scope*/` do `scopeSql` và `ownedBy` đặt; `/*scope:system*/` do `systemScope()`; `/*scope:rows*/` chỉ do `TableAccess.rows()` của Datahub đặt. Bảng `rows: true` chỉ chấp nhận `scope:rows` hoặc `scope:system`.
+- Chốt chặn `checkScopedQuery` (`apps/api/src/auth/query-guard.ts`) chạy ở mọi môi trường ngoài production, nên cả bộ test chứng minh luật. Dấu `/*scope*/` do `scopeSql` và `ownedBy` đặt; `/*scope:system*/` do `systemScope()`; `/*scope:rows*/` do `TableAccess.rows()` của Datahub đặt, ngoài ra có vài truy vấn viết tay mang dấu này. Bảng `rows: true` chỉ chấp nhận `scope:rows` hoặc `scope:system`.
+- **Chốt chặn chỉ kiểm dấu, không kiểm điều kiện.** Truy vấn viết tay mang `/*scope:rows*/` vẫn qua chốt dù thiếu điều kiện. Vì vậy truy vấn đó phải tự có điều kiện chủ (`d.owner_id = …`) hoặc `readableRows` (mẫu `apps/api/src/modules/datahub/lookup-ops.ts`). Opus rà kỹ mọi chỗ như vậy.
 - Insert không bị chốt chặn (chủ do code gán). Lỗi ném ra là `UnscopedQueryError`.
 - Admin không đọc dữ liệu Datahub riêng và nhật ký Admin không ghi giá trị dòng: `registerPrivateAuditTarget` (xem Module 0).
 
@@ -130,11 +131,11 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 
 ### Luật cấm về phân quyền
 - Không SELECT, UPDATE, DELETE thẳng bảng có chủ mà thiếu `scopeSql`, `ownedBy` hoặc `systemScope()`. Chốt chặn `apps/api/src/auth/query-guard.ts` `checkScopedQuery` báo lỗi ngay trong dev và test.
-- Không dùng `scope()` thường cho `dh_rows`: bỏ qua khoá phân chia. Phải qua `TableAccess.rows()`. Chốt chặn cũng chặn.
+- Không dùng `scope()` thường cho `dh_rows`: bỏ qua khoá phân chia. Phải qua `TableAccess.rows()` (`apps/api/src/modules/datahub/access.ts` `TableAccess`). Chốt chặn cũng chặn.
 - Không dùng `systemScope()` trong lệnh người dùng để "cho chạy". Chỉ cho job, worker, công cụ Admin đã kiểm quyền riêng.
 - Không tự tính cây hay team bằng query `org_memberships` rải rác. Một nơi tính: `computeScope`.
 - Không kiểm quyền chỉ ở web. `can` ở web chỉ ẩn nút; server kiểm ở `permission` của lệnh và scope trong handler.
-- Admin không có quyền nghiệp vụ. Không thêm quyền `deal:*`, `datahub:*`, `form:*` cho vai trò admin trong `ROLE_PERMISSIONS`.
+- Admin không có quyền nghiệp vụ ghi: tạo deal, tạo datahub, tạo form, khoá kỳ, snapshot. Hiện Admin chỉ có `deal:deal:read`, `deal:template:manage` và `datahub:datahub:use` (dùng chung của mọi thành viên). Thêm quyền nghiệp vụ khác cho admin trong `ROLE_PERMISSIONS` là đổi quy định chung, phải hỏi Dương.
 - Hai Manager không thấy dữ liệu của nhau; Admin đọc Deal mọi cây chỉ-đọc, không đọc Datahub riêng.
 - Token và tài khoản hệ thống không được mang quyền ngoài `SERVICE_ACCOUNT_PERMISSIONS` (service) hay `auth:`/`onboarding:` (token cá nhân).
 - Lệnh về mật khẩu, phiên, token, kết nối AI đặt `aiAllowed: false` (kênh mcp bị chặn ở executor).
@@ -195,13 +196,20 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 **Bảng chính**: `dh_datahubs`, `dh_tables`, `dh_columns`, `dh_rows` (ô trong `data` jsonb), `dh_views`, `dh_shares`, `dh_personal_rows`, `dh_person_cells`, `dh_change_queue`, `dh_formula_deps`, `dh_jobs`, `dh_templates`, `dh_merges`, `dh_merge_rows`, `row_history`.
 
 **Luật cấm**
-- Truy vấn `dh_rows` thiếu `acc.rows()` / `acc.rel()` hoặc dấu `/*scope:system*/` (worker, reconcile, dọn thùng rác) bị chặn bởi `apps/api/src/auth/query-guard.ts` `checkScopedQuery`. Bảng mới cần chốt tương tự thì `registerOwnedTable`.
+- Truy vấn `dh_rows` thiếu `acc.rows()` / `acc.rel()` hoặc dấu `/*scope:system*/` (worker, reconcile, dọn thùng rác) bị chặn bởi `apps/api/src/auth/query-guard.ts` `checkScopedQuery`. Chốt chỉ kiểm dấu: truy vấn viết tay mang `/*scope:rows*/` phải tự có điều kiện chủ hoặc `readableRows` (xem Module 1). Bảng mới cần chốt tương tự thì `registerOwnedTable`.
 - Cache hoặc khoá phụ thuộc người đọc phải qua `scopeKey`, không tự ghép.
 - Chỉ đọc id người qua `userIdsOf`, không đọc `data[k]` như một chuỗi uuid.
 - Chỉ đọc/ghi cột qua `sourceOf`; không viết SQL riêng lên `data->`.
 - Lỗi số liệu công thức sửa ở nơi tính (`apps/api/src/modules/datahub/recalc.ts`, `apps/api/src/modules/datahub/computed.ts`, `packages/formula`), không vá ở lưới, xuất file, API hay dashboard.
 - Không tính lại theo từng màn hình hay từng lần đọc; ghi dòng đi qua `recordChanges` rồi worker tính.
-- Không ghi `dh_rows` ngoài `applyRowOps` (mất lịch sử, hàng đợi tính lại, sự kiện, kiểm quyền).
+- Dữ liệu người dùng nhập (tạo, sửa, xoá dòng) chỉ ghi qua `apps/api/src/modules/datahub/rows.ts` `applyRowOps`, vì nó lo lịch sử, hàng đợi tính lại, sự kiện và kiểm quyền. Các đường ghi `dh_rows` khác là việc của hệ thống:
+  - giá trị công thức: `apps/api/src/modules/datahub/recalc.ts`;
+  - bảng gộp: `apps/api/src/modules/datahub/merge-sync.ts`;
+  - thùng rác, chuyển giao, đổi cột: `apps/api/src/modules/datahub/trash.ts`, `apps/api/src/modules/datahub/transfer.ts`, `apps/api/src/modules/datahub/columns.ts`;
+  - Ngày sửa của cột: `apps/api/src/modules/datahub/field-modified.ts`;
+  - tháng Index: `apps/api/src/modules/deal/index-months.ts`.
+
+  Không mở thêm đường ghi riêng cho dữ liệu người dùng.
 - Không dùng `scope()` thay `rows()` cho dòng (bỏ qua khoá phân chia).
 - Không ghi thẳng vào bảng gộp (chỉ worker).
 
@@ -220,7 +228,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 - Ai xem được dashboard và số tính bằng quyền ai → `apps/api/src/modules/metrics/dashboard-access.ts` `viewDash` (vai trò `owner`/`shared`/`guest`); số luôn tính bằng quyền chủ (`computeCtx`), còn dòng đằng sau con số đọc bằng quyền người xem (`chartRowsOf`).
 - Chạy dữ liệu một biểu đồ: `apps/api/src/modules/metrics/chart-run.ts` `runChart` (phân nhánh theo `chart.type`); dữ liệu biểu đồ cho người xem kèm bộ lọc: `apps/api/src/modules/metrics/dashboard-access.ts` `viewChart`, `viewerChart`, `checkViewerFilters`.
 - Lưu/sửa dashboard, biểu đồ, bố cục, hạn mức: `apps/api/src/modules/metrics/dashboard-ops.ts` `dashboardOperations`, `parseChart`, `checkChart`; xuất/nhập/CSV: `apps/api/src/modules/metrics/chart-ops.ts` `chartOperations`.
-- Guest xem dashboard qua quyền dữ liệu loại `dashboard`, kênh `web`: đăng ký ở `apps/api/src/modules/metrics/index.ts` `registerGrantDataType`, kiểm ở `apps/api/src/modules/guest/index.ts` `guestCanAccess`. Guest không có đường nào tới bảng Datahub gốc.
+- Guest xem dashboard qua quyền dữ liệu loại `dashboard`, kênh `web`: đăng ký ở `apps/api/src/modules/metrics/index.ts` `registerGrantDataType`, kiểm ở `apps/api/src/modules/guest/index.ts` `guestCanAccess`. Thêm đường đọc nào cho Guest thì phải qua `data_grants` và `guestCanAccess`.
 - Lệnh chỉ số/nguồn/cache: `apps/api/src/modules/metrics/ops.ts` `metricOperations`.
 
 **Mẫu làm theo**
