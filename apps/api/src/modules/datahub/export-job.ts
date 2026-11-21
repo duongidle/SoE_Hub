@@ -342,7 +342,7 @@ async function runExport(env: JobEnv, job: JobRow): Promise<void> {
   let tableIds: string[];
   let datahubName: string;
   if (p.table_id) {
-    const acc = await loadTableAccess(ctx, p.table_id);
+    const acc = await loadTableAccess(ctx, p.table_id, "view", { guest: true });
     tableIds = [acc.tableId];
     datahubName = acc.datahub.name;
   } else {
@@ -374,7 +374,7 @@ async function runExport(env: JobEnv, job: JobRow): Promise<void> {
     let groupsTruncated = false;
 
     for (const t of tables) {
-      const acc = await loadTableAccess(ctx, t.id);
+      const acc = await loadTableAccess(ctx, t.id, "view", { guest: true });
       const schema = await TableSchema.load(env.db, acc);
       let cols: Col[] = t.columns.map((c) => ({ key: c.key, name: c.name, type: c.type, config: c.config }));
       if (p.columns?.length) {
@@ -548,9 +548,10 @@ export const exportOperations = [
       let datahubId: string;
       let tableId: string | null = null;
       if (i.table_id) {
-        const acc = await loadTableAccess(ctx, i.table_id);
+        const acc = await loadTableAccess(ctx, i.table_id, "view", { guest: "export" });
         datahubId = acc.datahub.id;
         tableId = acc.tableId;
+        if (acc.guest && i.search) throw new AppError("validation_error", "Guest không dùng được ô tìm kiếm. Lọc theo cột được cấp.", { reason: "guest_search" });
         // Validate filter/sort/columns now so a mistake is an immediate 400, not a failed job.
         const schema = await TableSchema.load(ctx.db, acc);
         schema.normalizeFilter(i.filter);

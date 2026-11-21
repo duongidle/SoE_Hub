@@ -54,6 +54,11 @@ export async function loadPrincipal(db: Executor, userId: string): Promise<Princ
       .from(userPermissions)
       .where(and(eq(userPermissions.userId, userId), isNull(userPermissions.revokedAt)));
     permissions = permissionsFor(u.roles, u.guestPreset, extra.map((e) => e.p));
+    // A Guest with a table grant may call the Datahub read commands; what they reach is decided per table by the grant (modules/datahub/guest-access.ts).
+    if (u.roles.includes("guest")) {
+      const g = await db.execute(sql`SELECT 1 FROM data_grants g WHERE g.guest_user_id = ${u.id}::uuid AND g.data_type = 'datahub_table' AND g.revoked_at IS NULL AND g.deleted_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > now()) LIMIT 1`);
+      if (g.rows.length > 0) permissions.add("datahub:datahub:use");
+    }
   }
   return {
     userId: u.id,

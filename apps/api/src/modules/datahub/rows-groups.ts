@@ -55,6 +55,8 @@ export async function listGroups(db: Executor, access: TableAccess, schema: Tabl
   const fields = schema.fieldMap();
   const filter = schema.normalizeFilter(andFilter(q.filter, q.timeFilter ? await timeFilterNode(db, schema, q.timeFilter) : undefined));
   const where: SQL[] = [access.rows(), sql`deleted_at IS NULL`];
+  // The search text holds every column, the ones a Guest may not read too: a Guest cannot search.
+  if (access.guest && q.search) throw new AppError("validation_error", "Guest không dùng được ô tìm kiếm. Lọc theo cột được cấp.", { reason: "guest_search" });
   for (const tok of (q.search ?? "").split(/\s+/).filter(Boolean).slice(0, 8)) {
     where.push(sql`soe_unaccent(lower(search)) LIKE soe_unaccent(lower(${`%${escapeLike(tok)}%`})) ESCAPE '\\'`);
   }

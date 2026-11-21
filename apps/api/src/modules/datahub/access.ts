@@ -6,6 +6,8 @@ import type { HandlerCtx } from "../../core/types";
 import { assertColumnKey, type DhColumn } from "./types";
 import { overlayRel } from "./reader-scope";
 import { userIdsOf } from "./user-values";
+import { guestTableView, JOB_AGENT } from "./guest-access";
+import type { GrantChannel } from "../guest";
 
 /**
  * Who may do what with a datahub (design module2 section 10, module1 section 4.2). Datahubs are private to their owner:
@@ -37,6 +39,13 @@ export interface TableInfo {
   protected: boolean;
   templateId: string | null;
   roleSet: string | null;
+}
+
+/** A Guest reading this table through a data grant (module1 section 5.2): only these columns, and (team scope) the rows of that Leader's team as that Leader sees them. */
+export interface GuestView {
+  columns: Set<string>;
+  /** The Leader whose values of the reader-scoped columns are shown (team scope). Null = the owner's values (whole tree). */
+  asUser: string | null;
 }
 
 /** What decides which template columns a person sees: their roles and their Leader (design module4 3.1). Loaded only for template tables. */
@@ -84,13 +93,17 @@ export class TableAccess {
     readonly hasPersonCells: boolean = false,
     /** Set for a template table. Null = every column of the table is seen by everyone who sees the table. */
     readonly viewer: Viewer | null = null,
+    /** Set only for a Guest. Everything a Guest may do with a table is read. */
+    readonly guest: GuestView | null = null,
   ) {}
 
   /**
    * Does this person see this column? An ordinary table: every column. A template table (module4 3.1): `basic` everyone; `role` those who hold one of
    * the roles; `team` the Leader and the members of that team (and the table's owner); `custom` ONLY the person who made it, the owner included.
    */
-  canSeeColumn(c: Pick<DhColumn, "layer" | "layerRef" | "layerRoles">): boolean {
+  canSeeColumn(c: Pick<DhColumn, "key" | "layer" | "layerRef" | "layerRoles">): boolean {
+    // A Guest sees exactly the columns of the grant (never a personal one: the grant refuses those, and `custom` stays out here too).
+    if (this.guest) return this.guest.columns.has(c.key) && c.layer !== "custom";
     if (c.layer === null || c.layer === "basic") return true;
     if (c.layer === "custom") return c.layerRef === this.actorId;
     if (c.layer === "role") return this.level === "owner" || (c.layerRoles ?? []).some((r) => this.viewer?.roles.includes(r));
@@ -105,7 +118,7 @@ export class TableAccess {
    */
   rel(): SQL {
     if (!this.hasPersonCells && (this.level === "owner" || this.scopedKeys.length === 0)) return sql`dh_rows`;
-    return overlayRel(this.table.id, this.actorId, this.scopedKeys, this.reader ? keyMatch(this.table.split.keys, this.reader.ids, "r") : null, this.hasPersonCells);
+    return overlayRel(this.table.id, this.guest?.asUser ?? this.actorId, this.scopedKeys, this.reader ? keyMatch(this.table.split.keys, this.reader.ids, "r") : null, this.hasPersonCells);
   }
 
   /** The table is split-locked for this reader: their rows depend on who they are. */
@@ -172,6 +185,8 @@ export class TableAccess {
 export function scopeKey(a: TableAccess): string {
   // A member's own values of the reader-scoped columns (design module2 section 10), or anyone's values of the person-stored columns (module4 3.4),
   // make the answer personal, even without the split lock.
+  // A Guest's answer depends on the grant (columns, team), which is theirs alone.
+  if (a.guest) return `${a.tableId}:guest:${a.actorId}`;
   const personal = a.hasPersonCells || (a.scopedKeys.length > 0 && a.level !== "owner");
   if (personal && !a.reader) return `${a.tableId}:${a.level}:u:${a.actorId}`;
   if (!a.reader) return `${a.tableId}:${a.level}`;
@@ -194,7 +209,15 @@ export function readableRows(a: TableAccess, alias?: string): SQL {
 export interface LoadOptions {
   /** `alive` (default): table and datahub both live. `trashed`: the table itself is in the trash (restore flows). */
   state?: "alive" | "trashed";
+  /**
+   * A Guest with a data grant of this table may read it here (only the commands that read rows and the table's shape set this: table, rows, groups, export).
+   * `"export"` = the grant must allow export; `true` = the channel follows how the call came (web, API or token, a background job is the export).
+   */
+  guest?: boolean | "export";
 }
+
+const channelOf = (actor: { via: string; userAgent?: string | null }, guest: boolean | "export"): GrantChannel =>
+  guest === "export" || actor.userAgent === JOB_AGENT ? "export" : actor.via === "web" ? "web" : actor.via === "api" || actor.via === "mcp" ? "api" : "export";
 
 export const LEVEL_SQL = (u: string) => sql`CASE
   WHEN d.owner_id = ${u}::uuid THEN 'owner'
@@ -219,11 +242,24 @@ export async function loadTableAccess(ctx: Ctx, tableId: string, need: Level = "
   const r = res.rows[0] as Record<string, unknown> | undefined;
   const state = opts.state ?? "alive";
   // A merged table is read-only for everyone it is shared with (only the owner may configure it; no one writes its rows through the row API).
-  const level = (r?.kind === "merged" && r.level === "edit_data" ? "view" : r?.level) as Level | null | undefined;
+  let level = (r?.kind === "merged" && r.level === "edit_data" ? "view" : r?.level) as Level | null | undefined;
+  // A Guest has no share: they read through a data grant (module1 section 5.2), at the level `view`, with their columns and (team scope) their rows.
+  let guest: GuestView | null = null;
+  let guestIds: string[] | null = null;
+  if (r && !level && opts.guest && state === "alive") {
+    const g = await guestTableView(ctx.db, u, tableId, channelOf(ctx.actor, opts.guest));
+    if (g) {
+      level = "view";
+      // Several teams: no Leader's values fit all of them, so the reader-scoped columns stay blank for this Guest (their own personal rows: none).
+      guest = { columns: g.columns, asUser: g.leaderIds ? (g.leaderIds.length === 1 ? g.leaderIds[0]! : u) : null };
+      if (g.leaderIds) guestIds = [...new Set((await Promise.all(g.leaderIds.map((l) => loadReader(ctx.db, l)))).flatMap((x) => x.ids))];
+    }
+  }
   const ok = r && level && (state === "alive" ? !r.t_deleted && !r.d_deleted : !!r.t_deleted && !r.d_deleted);
   if (!r || !level || !ok) throw new AppError("not_found", "Không tìm thấy bảng.");
   const split = { enabled: !!r.key_split, keys: (r.key_columns as string[] | null) ?? [], primary: (r.key_primary as string | null) ?? null };
-  const reader = split.enabled && level !== "owner" ? await loadReader(ctx.db, u) : null;
+  // A Guest under a team scope sees the rows of that team (when the table has the split lock); under a whole-tree scope every row.
+  const reader = guest ? (split.enabled && guestIds ? { self: u, ids: guestIds, editIds: new Set<string>() } : null) : split.enabled && level !== "owner" ? await loadReader(ctx.db, u) : null;
   const viewer = r.template_id ? await loadViewer(ctx.db, u) : null;
   const acc = new TableAccess(
     { id: r.id as string, datahubId: r.datahub_id as string, name: r.name as string, nextRowNo: r.next_row_no as number, rowCount: r.row_count as number, version: r.version as number, deleted: !!r.t_deleted, kind: r.kind === "merged" ? "merged" : "normal", split, membersBulkCreate: !!r.members_bulk_create, protected: !!r.protected, templateId: (r.template_id as string | null) ?? null, roleSet: (r.role_set as string | null) ?? null },
@@ -231,9 +267,10 @@ export async function loadTableAccess(ctx: Ctx, tableId: string, need: Level = "
     level,
     u,
     reader,
-    level === "owner" ? [] : ((r.scoped_keys as string[] | null) ?? []),
-    !!r.has_person,
+    level === "owner" || (guest && !guest.asUser) ? [] : ((r.scoped_keys as string[] | null) ?? []),
+    guest ? false : !!r.has_person,
     viewer,
+    guest,
   );
   acc.require(need);
   return acc;

@@ -90,7 +90,7 @@ export const rowOperations = [
     listExtra: z.object({ consistency: ConsistencyOut.optional().describe("Có khi gửi `consistent_after` hoặc `consistent`.") }),
     http: { method: "GET", path: "/tables/:table_id/rows" },
     handler: async (ctx, i): Promise<ListOutput> => {
-      const acc = await loadTableAccess(ctx, i.table_id);
+      const acc = await loadTableAccess(ctx, i.table_id, "view", { guest: true });
       const schema = await TableSchema.load(ctx.db, acc);
       return listRows(ctx.db, acc, schema, { filter: i.filter, sort: i.sort, fields: i.fields, search: i.search, limit: i.limit, cursor: i.cursor, includeTotal: i.include_total, timeFilter: i.time_filter, marks: i.marks, offset: i.offset, reverse: i.reverse, labels: i.labels, consistentAfter: i.consistent_after, consistent: i.consistent });
     },
@@ -127,7 +127,7 @@ export const rowOperations = [
     http: { method: "GET", path: "/tables/:table_id/row-groups" },
     handler: async (ctx, i) => {
       if (!i.group) throw new AppError("validation_error", "Thiếu `group`: cột để nhóm.");
-      const acc = await loadTableAccess(ctx, i.table_id);
+      const acc = await loadTableAccess(ctx, i.table_id, "view", { guest: true });
       const schema = await TableSchema.load(ctx.db, acc);
       return listGroups(ctx.db, acc, schema, { filter: i.filter, timeFilter: i.time_filter, search: i.search, group: i.group, aggs: i.aggs });
     },
@@ -166,7 +166,7 @@ export const rowOperations = [
     output: RowOut.extend({ consistency: ConsistencyOut.optional() }),
     http: { method: "GET", path: "/tables/:table_id/rows/:row_id" },
     handler: async (ctx, i) => {
-      const acc = await loadTableAccess(ctx, i.table_id);
+      const acc = await loadTableAccess(ctx, i.table_id, "view", { guest: true });
       return getRow(ctx.db, acc, await TableSchema.load(ctx.db, acc), i.row_id, { fields: i.fields, labels: i.labels, consistentAfter: i.consistent_after, consistent: i.consistent });
     },
   }),

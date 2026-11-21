@@ -19,6 +19,8 @@ export interface GrantDataType {
   label: string;
   /** Channels that make sense for this data. */
   channels: GrantChannel[];
+  /** A data type that needs more than the scope (which table, which columns): checks the options and returns them normalized. Without it a grant takes no options. */
+  validateOptions?: (ctx: { db: Executor }, managerId: string, options: Record<string, unknown> | undefined) => Promise<Record<string, unknown>>;
 }
 
 const dataTypes = new Map<string, GrantDataType>();
@@ -71,6 +73,7 @@ const GrantOut = z.object({
   columns: z.literal("system_and_shared"),
   expires_at: z.date().or(z.string()).nullable(),
   note: z.string().nullable(),
+  options: z.record(z.string(), z.unknown()).nullable().describe("Loại `datahub_table`: `{ table_id, columns: [mã cột Guest được thấy] }`."),
   revoked_at: z.date().or(z.string()).nullable(),
   created_at: z.date().or(z.string()),
   version: z.number().int(),
@@ -90,6 +93,7 @@ async function toOut(ex: Executor, rows: (typeof dataGrants.$inferSelect)[]) {
     columns: "system_and_shared" as const,
     expires_at: g.expiresAt,
     note: g.note,
+    options: g.options ?? null,
     revoked_at: g.revokedAt,
     created_at: g.createdAt,
     version: g.version,
@@ -176,6 +180,7 @@ export const guestOperations = [
       channels: z.array(z.enum(GRANT_CHANNELS)).min(1).transform((c) => [...new Set(c)]),
       expires_at: z.iso.datetime({ offset: true }).nullish(),
       note: z.string().trim().max(500).optional(),
+      options: z.record(z.string(), z.unknown()).optional().describe("Tuỳ loại dữ liệu. `datahub_table`: `{ table_id, columns: [mã hoặc tên cột] }`, bắt buộc."),
     }),
     output: GrantOut,
     http: { method: "POST", path: "/guest/grants", status: 201 },
@@ -185,6 +190,9 @@ export const guestOperations = [
       if (!type) throw new AppError("validation_error", `Loại dữ liệu "${i.data_type}" chưa có.`, { available: listGrantDataTypes().map((t) => t.key) });
       const badChannel = i.channels.filter((c) => !type.channels.includes(c));
       if (badChannel.length) throw new AppError("validation_error", "Kênh không dùng được với loại dữ liệu này.", { not_allowed: badChannel });
+      let options: Record<string, unknown> | null = null;
+      if (type.validateOptions) options = await type.validateOptions(ctx, tree, i.options);
+      else if (i.options) throw new AppError("validation_error", "Loại dữ liệu này không có tuỳ chọn.", { reason: "grant_options" });
       const [g] = await ctx.db.select().from(users).where(eq(users.id, i.guest_user_id)).limit(1);
       if (!g || g.kind !== "person" || !g.roles.includes("guest")) throw new AppError("validation_error", "Người nhận phải là Guest.");
       if (g.status === "locked") throw new AppError("validation_error", "Guest này đã bị khoá.");
@@ -204,11 +212,12 @@ export const guestOperations = [
           channels: i.channels,
           expiresAt: i.expires_at ? new Date(i.expires_at) : null,
           note: i.note ?? null,
+          options,
           createdBy: actorRef(ctx.actor),
           updatedBy: actorRef(ctx.actor),
         })
         .returning();
-      ctx.audit({ type: "data_grant", id: row!.id, details: { guest: i.guest_user_id, data_type: i.data_type, scope_leader_id: i.scope_leader_id ?? null, channels: i.channels, expires_at: i.expires_at ?? null } });
+      ctx.audit({ type: "data_grant", id: row!.id, details: { guest: i.guest_user_id, data_type: i.data_type, scope_leader_id: i.scope_leader_id ?? null, channels: i.channels, expires_at: i.expires_at ?? null, ...(options ? { table_id: options.table_id, columns: (options.columns as string[]).length } : {}) } });
       await ctx.emit("guest.grant.changed", { aggregateType: "data_grant", aggregateId: row!.id, payload: { grant_id: row!.id, guest_user_id: i.guest_user_id, scope_manager_id: tree, change: "created" } });
       return (await toOut(ctx.db, [row!]))[0]!;
     },

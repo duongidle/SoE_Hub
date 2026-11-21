@@ -9,6 +9,7 @@ import type { OperationExecutor } from "../../core/executor";
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { StorageDriver } from "../../storage/types";
 import { Id, Ts } from "./shared";
+import { JOB_AGENT } from "./guest-access";
 
 export type JobRow = typeof dhJobs.$inferSelect;
 
@@ -23,7 +24,7 @@ export interface JobEnv {
 
 /** The person who asked, as an actor for the executor and for access checks. */
 export function jobActor(ownerId: string): Actor {
-  return { userId: ownerId, via: "api", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: "soe-worker-job" };
+  return { userId: ownerId, via: "api", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: JOB_AGENT };
 }
 
 export async function callAs<T = unknown>(env: JobEnv, ownerId: string, name: string, input: Record<string, unknown>): Promise<T> {

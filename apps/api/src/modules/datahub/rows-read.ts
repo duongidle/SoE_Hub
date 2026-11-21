@@ -58,7 +58,12 @@ const DEFAULT_META = ["id", "row_no", "version", "created_at", "created_by", "up
 
 /** Builds the `data` select for the chosen columns (`fields=`), or the whole JSONB when none is chosen. */
 function dataSelect(schema: TableSchema, sel: ReturnType<TableSchema["parseSelect"]>): SQL {
-  if (!sel) return sql`data AS cells`;
+  if (!sel) {
+    // Columns this person does not see (another team's, a Guest's ungranted ones) stay out of the cells, not only out of the schema.
+    if (schema.hiddenKeys.size === 0) return sql`data AS cells`;
+    const strip = [...schema.hiddenKeys].flatMap((k) => [`'${assertColumnKey(k)}'`, `'!${assertColumnKey(k)}'`]).join(",");
+    return sql`(data - ${sql.raw(`ARRAY[${strip}]::text[]`)}) AS cells`;
+  }
   if (sel.columns.length === 0) return sql`'{}'::jsonb AS cells`;
   const parts = sel.columns.map((c) => sql`${sql.raw(`'${assertColumnKey(c.key)}'`)}, ${sourceOf(c).readExpr(c)}`);
   void schema;
@@ -103,6 +108,8 @@ export async function listRows(db: Executor, access: TableAccess, schema: TableS
   const sortItems = schema.normalizeSort(q.sort);
   const sel = schema.parseSelect(q.fields);
   const where: SQL[] = [access.rows(), sql`deleted_at IS NULL`];
+  // The search text holds every column, the ones a Guest may not read too: a Guest cannot search.
+  if (access.guest && q.search) throw new AppError("validation_error", "Guest không dùng được ô tìm kiếm. Lọc theo cột được cấp.", { reason: "guest_search" });
   for (const tok of (q.search ?? "").split(/\s+/).filter(Boolean).slice(0, 8)) {
     where.push(sql`soe_unaccent(lower(search)) LIKE soe_unaccent(lower(${`%${escapeLike(tok)}%`})) ESCAPE '\\'`);
   }

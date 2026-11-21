@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { standardColumns } from "./columns";
 import { users } from "./users";
 
@@ -28,6 +28,8 @@ export const dataGrants = pgTable(
       .default(sql`'{}'::text[]`),
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
     note: text("note"),
+    /** What the data type needs besides the scope: for `datahub_table`, `{ table_id, columns: [column keys the Guest may read] }` (module1 section 5.2, Stage 4.7). */
+    options: jsonb("options").$type<Record<string, unknown>>(),
     revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
     revokedBy: uuid("revoked_by").references(() => users.id),
   },

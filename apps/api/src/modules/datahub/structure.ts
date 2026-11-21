@@ -343,7 +343,7 @@ export const structureOperations = [
     output: TableOut.extend({ datahub_name: z.string(), owner_id: Id, columns: z.array(ColumnOut), max_columns: z.number().int() }),
     http: { method: "GET", path: "/tables/:table_id" },
     handler: async (ctx, i) => {
-      const acc = await loadTableAccess(ctx, i.table_id);
+      const acc = await loadTableAccess(ctx, i.table_id, "view", { guest: true });
       const cols = await ctx.db.execute(sql`SELECT * FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NULL ORDER BY position, created_at, id`);
       const limits = await getLimits(ctx.db, acc.datahub.ownerId);
       return { ...(await tableOut(ctx.db, acc)), datahub_name: acc.datahub.name, owner_id: acc.datahub.ownerId, columns: await (async () => {
