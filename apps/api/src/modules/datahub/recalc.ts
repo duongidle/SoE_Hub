@@ -632,9 +632,9 @@ async function* rowBatches(db: Executor, tableId: string, scope: Scope, view: { 
 
 const patchOf = (col: DhColumn, out: StoreOutcome): Record<string, unknown> => (out.kind === "value" ? { [col.key]: out.value } : out.kind === "error" ? { [errKey(col.key)]: out.code } : {});
 
-async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes, reader: Reader | null = null): Promise<number> {
+async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes, reader: Reader | null = null, index?: OwnerIndex): Promise<number> {
   const col = job.col;
-  const ix = await OwnerIndex.load(db, job.ownerId);
+  const ix = index ?? (await OwnerIndex.load(db, job.ownerId));
   const parsed = typeof col.config.expr === "string" ? parseFormula(col.config.expr) : null;
   const resultType = resultTypeOf(col);
   const ast: Node | null = parsed && parsed.ok ? parsed.ast : null;
@@ -685,9 +685,9 @@ function rollup(fn: string, values: Scalar[]): Scalar {
   }
 }
 
-async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes, reader: Reader | null = null): Promise<number> {
+async function recalcLink(db: Db, job: Job, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes, reader: Reader | null = null, index?: OwnerIndex): Promise<number> {
   const col = job.col;
-  const ix = await OwnerIndex.load(db, job.ownerId);
+  const ix = index ?? (await OwnerIndex.load(db, job.ownerId));
   const relKey = col.config.relation_key as string;
   const targetTable = col.config.target_table_id as string;
   const targetKey = col.config.target_key as string;
@@ -834,8 +834,11 @@ export async function recalcColumn(db: Db, columnId: string, claimedAt: string, 
         await db.execute(sql`UPDATE dh_columns SET calc_done = ${done}::int WHERE /*scope:system*/ id = ${columnId}::uuid`);
       };
       const changes = new Changes(job, seq);
+      // The catalog of the owner (every table and column) is read ONCE per column and shared by the owner's pass and each member's pass: a reader-scoped
+      // column used to reload it for every reader, which was most of the time a recalculation took (3.4 loads per column in the Deals tree).
+      const ix = await OwnerIndex.load(db, job.ownerId);
       const run = (reader: Reader | null, c: Changes, p: (done: number) => Promise<void>) =>
-        job.col.type === "formula" ? recalcFormula(db, job, now, p, scope, c, reader) : recalcLink(db, job, p, scope, c, reader);
+        job.col.type === "formula" ? recalcFormula(db, job, now, p, scope, c, reader, ix) : recalcLink(db, job, p, scope, c, reader, ix);
       const total = await run(null, changes, progress);
       result = { changedRows: changes.count, total, partial: scope.ids !== null, rows: changes.changes };
       if (job.col.readerScoped) {

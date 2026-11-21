@@ -7,6 +7,9 @@ import { makeApp, type TestApp } from "./helpers";
 import { addIndexMonths, BUILTIN_DEFAULT_SET, DEAL_SETTINGS, ensureAllTrees, ensureTreeTemplates, startDealDefaultsLoop } from "../src/modules/deal";
 import { workerEmit } from "../src/modules/datahub/template-sync";
 import { splitLockTransferHandler } from "../src/modules/datahub/transfer";
+import { OwnerIndex } from "../src/modules/datahub/computed";
+import { recalcColumn } from "../src/modules/datahub/recalc";
+import { vi } from "vitest";
 
 /**
  * Stage 4.2 part 3: the default set of template tables, generated per tree (design module4 1.2, 3.1, 4, 5, 6, 9). Tree A: MgrA > LeaderA > UserA1, MgrA > UserA2.
@@ -251,6 +254,23 @@ describe("transfer keeps the person on closed deals", () => {
     const who = async (n: string) => ((await cell(mgrA, tables["Deals"]!, rid[n]!, "Người tham gia")) as { id: string }[]).map((e) => e.id);
     expect(await who("new")).toEqual([org.userA2.id]);
     expect(await who("old")).toEqual([org.userA1.id]);
+  });
+});
+
+describe("a reader-scoped column is recalculated with one read of the catalog", () => {
+  it("the owner's catalog loads once per column, not once per reader (this was most of the time a transfer or a tree change took)", async () => {
+    const res = await t.c.db.db.execute(sql`SELECT c.id FROM dh_columns c JOIN dh_tables tb ON tb.id = c.table_id WHERE /*scope:system*/ c.reader_scoped AND c.type = 'formula' AND c.deleted_at IS NULL AND tb.id = ${tables["Deals"]!}::uuid LIMIT 1`);
+    const id = (res.rows[0] as { id: string } | undefined)?.id;
+    expect(id).toBeTruthy();
+    const members = (await t.c.db.db.execute(sql`SELECT count(DISTINCT s.grantee_id)::int AS n FROM dh_tables tb JOIN dh_shares s ON s.datahub_id = tb.datahub_id WHERE /*scope:system*/ tb.id = ${tables["Deals"]!}::uuid`)).rows[0] as { n: number };
+    expect(members.n).toBeGreaterThan(1); // several readers: the old code loaded 1 + members times
+    const spy = vi.spyOn(OwnerIndex, "load");
+    try {
+      await recalcColumn(t.c.db.db, id!, new Date().toISOString());
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
