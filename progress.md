@@ -78,6 +78,8 @@ Không chặn bước con (CLAUDE.md, "Điện thoại là ưu tiên thấp"); g
 - **Grid (2C-1):** cột Mã dòng hiện `#<số dòng>`, còn export/API trả uuid; hoàn tác chỉ trong phiên mở bảng.
 - **Đối soát công thức (2B+):** ngân sách 1.000.000 dòng/đêm và chờ mặc định 5 s là giá trị tự chọn.
 - **Import (2B):** công thức `LEFT(ngày,2)` chỉ được cảnh báo, không tự đổi sang `TEXT(ngày,"mm")`. Có muốn tự đổi không?
+- **Module 4 (Opus đề xuất ở 4.6):** công thức theo người cho cột lưu theo người (`Doanh thu tính cho tôi`, `Com dự kiến của tôi`) và các cột Index/Probation đọc Đợt thanh toán: engine Module 2 chưa hỗ trợ, cần thiết kế.
+- **Module 4 (4.4A):** cây đã tạo trước 4.4 giữ `Đã thu` là cột thường (engine không đổi cột thường thành rollup); dev dựng lại cây. Bảng Tiền về "chỉ Manager" làm bằng khoá phân chia theo cột `Người xem` luôn trống.
 - **Module 4:** màn so sánh phiên bản chính sách com khi AI cập nhật (đề xuất, chưa chốt).
 - **Module 6:** vòng 2 chờ Dương chốt; chốt xong cập nhật CLAUDE.md (cột "Cần" Stage 6) theo mục 12 "Thay đổi so với quy định đã chốt".
 - **Stage 9 Onboarding:** lúc bắt đầu stage hỏi Dương có kiểm giao diện kỹ như ngoại lệ không; tới lúc đó giữ quy định cũ (kiểm kỹ).
