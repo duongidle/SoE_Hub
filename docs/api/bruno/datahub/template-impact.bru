@@ -1,0 +1,26 @@
+meta {
+  name: datahub.template.impact
+  type: http
+  seq: 91
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/templates/{{template_id}}/impact
+  body: none
+  auth: none
+}
+
+params:query {
+  ~layer: basic
+  ~layer_roles: manager
+  ~team_leader_id: {{team_leader_id}}
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Một cột (hoặc một thay đổi) của template áp dụng cho bao nhiêu người: dùng cho màn xem trước "Áp dụng cho N người".
+  Quyền: `datahub:datahub:use`.
+}

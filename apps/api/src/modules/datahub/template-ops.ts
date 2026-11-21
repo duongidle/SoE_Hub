@@ -14,7 +14,7 @@ import { assertRoleOfSet, columnUsage, fitsRole, ROLE_SETS, type ColumnUsage } f
 import { rethrowNameConflict } from "./errors";
 import { DH_SETTINGS, quotaExceeded } from "./limits";
 import { Id, STRUCTURE_EVENT } from "./shared";
-import { columnOut, ColumnOut, indexFor } from "./structure";
+import { columnOut, ColumnOut, indexFor, tablesOf } from "./structure";
 import { columnFromDb, TableSchema } from "./table-schema";
 import { ensureDealDatahub, insertTemplateTable, loadTemplate, templateFromDb, renameCustomColumnsTaking, renameOwnTablesTaking, scopeMembers, syncAllTemplates, syncCopyColumns, syncTemplate, systemCtx, TEMPLATE_CONFLICT_EVENT, type Emit, type Template } from "./template-sync";
 import { readSetting } from "../system/settings-catalog";
@@ -286,6 +286,74 @@ export const templateOperations = [
         out.push(await templateOut(ctx, p, t));
       }
       return out;
+    },
+  }),
+
+  defineQuery({
+    name: "datahub.deal.home",
+    summary: "Các bảng của menu Quản lý Deal: bảng template bạn thấy (Deals, Index...) và bảng tự tạo trong datahub \"Quản lý Deal\" của bạn.",
+    description:
+      "Datahub \"Quản lý Deal\" không nằm trong `datahub.datahub.list`. Lệnh này trả datahub của chính bạn (`datahub_id`, null với Admin và Guest) và mọi bảng bạn mở được trong các datahub \"Quản lý Deal\" (của bạn và của người chia sẻ template cho bạn). " +
+      "Bảng template (có `template_id`) đứng trước, theo thứ tự tạo template; bảng tự tạo theo vị trí.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({}),
+    output: z.object({
+      datahub_id: Id.nullable(),
+      tables: z.array(z.object({ id: Id, datahub_id: Id, name: z.string(), row_count: z.number().int(), access: z.enum(["owner", "edit_data", "view"]), kind: z.enum(["normal", "merged"]), template_id: Id.nullable(), template_kind: z.enum(["shared", "personal"]).nullable(), template_scope: z.enum(["tree", "team"]).nullable() })),
+    }),
+    http: { method: "GET", path: "/datahub/deal-home" },
+    handler: async (ctx) => {
+      const me = ctx.actor.userId;
+      const mine = await ctx.db.execute(sql`SELECT id FROM dh_datahubs WHERE /*scope*/ owner_id = ${me}::uuid AND system_key = 'deal' AND deleted_at IS NULL`);
+      const myId = (mine.rows[0] as { id: string } | undefined)?.id ?? null;
+      const shared = await ctx.db.execute(sql`SELECT d.id FROM dh_datahubs d WHERE /*scope*/ d.system_key = 'deal' AND d.deleted_at IS NULL AND d.owner_id <> ${me}::uuid
+        AND EXISTS (SELECT 1 FROM dh_shares s WHERE s.datahub_id = d.id AND s.grantee_id = ${me}::uuid)`);
+      const dhIds = [...(myId ? [myId] : []), ...(shared.rows as { id: string }[]).map((r) => r.id)];
+      const byDh = await tablesOf(ctx.db, me, dhIds);
+      const all = dhIds.flatMap((d) => (byDh.get(d) ?? []).map((t) => ({ ...t, datahub_id: d })));
+      if (!all.length) return { datahub_id: myId, tables: [] };
+      const meta = await ctx.db.execute(sql`SELECT t.id, t.template_id, tp.kind AS tkind, tp.scope AS tscope, tp.created_at AS tcreated
+        FROM dh_tables t LEFT JOIN dh_templates tp ON tp.id = t.template_id WHERE /*scope*/ t.id = ANY(${`{${all.map((t) => t.id).join(",")}}`}::uuid[])`);
+      const info = new Map((meta.rows as Raw[]).map((r) => [r.id as string, r]));
+      const rows = all.map((t) => {
+        const m = info.get(t.id);
+        return { t, tpl: (m?.template_id as string | null) ?? null, kind: (m?.tkind as "shared" | "personal" | null) ?? null, scope: (m?.tscope as "tree" | "team" | null) ?? null, created: m?.tcreated ? new Date(m.tcreated as string).getTime() : 0 };
+      });
+      rows.sort((a, b) => (a.tpl && !b.tpl ? -1 : !a.tpl && b.tpl ? 1 : a.tpl ? a.created - b.created : a.t.position - b.t.position));
+      return {
+        datahub_id: myId,
+        tables: rows.map(({ t, tpl, kind, scope }) => ({ id: t.id, datahub_id: t.datahub_id, name: t.name, row_count: t.row_count, access: t.access, kind: t.kind, template_id: tpl, template_kind: kind, template_scope: scope })),
+      };
+    },
+  }),
+
+  defineQuery({
+    name: "datahub.template.impact",
+    summary: "Một cột (hoặc một thay đổi) của template áp dụng cho bao nhiêu người: dùng cho màn xem trước \"Áp dụng cho N người\".",
+    description: "`layer`: `basic` (mọi thành viên), `role` (thành viên có một trong `layer_roles`), `team` (Leader `team_leader_id` và team của họ). Không đưa `layer` thì tính mọi thành viên của template. Chỉ người sửa được template.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({ template_id: Id, layer: z.enum(["basic", "role", "team"]).optional(), layer_roles: z.array(z.enum(["manager", "leader", "user"])).optional(), team_leader_id: Id.optional() }),
+    output: z.object({ count: z.number().int(), names: z.array(z.string()).describe("Tối đa 8 tên đầu, theo thứ tự chữ cái.") }),
+    http: { method: "GET", path: "/datahub/templates/:template_id/impact" },
+    handler: async (ctx, i) => {
+      const { tpl, p } = await loadEditable(ctx, i.template_id);
+      if (!canEditTemplate(p, tpl) && !(has(p, "leader") && tpl.leaderCanAddColumns)) notAllowed("xem ảnh hưởng của template này");
+      const members = await scopeMembers(ctx.db, tpl);
+      if (!members.length) return { count: 0, names: [] };
+      const res = await ctx.db.execute(sql`SELECT u.id, u.full_name, u.roles, m.leader_id FROM users u LEFT JOIN org_memberships m ON m.user_id = u.id AND m.valid_to IS NULL
+        WHERE /*scope:system*/ u.id = ANY(${`{${members.map((m) => m.id).join(",")}}`}::uuid[]) ORDER BY u.full_name`);
+      let list = res.rows as { id: string; full_name: string; roles: string[]; leader_id: string | null }[];
+      if (i.layer === "role") {
+        if (!i.layer_roles?.length) throw new AppError("validation_error", "Lớp `role` cần `layer_roles`.");
+        list = list.filter((u) => u.roles.some((r) => i.layer_roles!.includes(r as never)));
+      } else if (i.layer === "team") {
+        const leader = i.team_leader_id ?? (has(p, "leader") ? p.userId : null);
+        if (!leader) throw new AppError("validation_error", "Lớp `team` cần `team_leader_id`.");
+        list = list.filter((u) => u.id === leader || u.leader_id === leader);
+      }
+      return { count: list.length, names: list.slice(0, 8).map((u) => u.full_name) };
     },
   }),
 

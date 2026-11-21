@@ -25,6 +25,8 @@ Cập nhật: 21/11/2026
 
 **Kế hoạch (20/11):** 4.2 server bảng mặc định **xong, Opus rà đạt 21/11** (a2543ed chốt chặn `dh_rows`; 16bb103 kiểu Người dùng có thuộc tính + gửi xuống; 5d6e5db công thức sang bảng template khác chủ; e5d04fa bộ mặc định theo cây + Index tháng + việc để lại từ 4.1; chi tiết `design/module4-quyet-dinh-khi-code.md` mục 4.2); 4.3 giao diện (trang Template, menu Quản lý Deal, màn Deals); 4.4 thanh toán và com; 4.5 chốt kỳ/BANT/forecast/snapshot; 4.6 chỉ số + dashboard Deals; 4.7 API ngoài, nhập lịch sử, Guest; 4.8 kiểm thử cuối.
 
+**4.3 tiến độ:** (1) server bổ sung xong: `datahub.deal.home` (bảng của menu Quản lý Deal), `datahub.template.impact` (xem trước N người); test `datahub-deal-home.test.ts` 5 pass. Tiếp: (2) web menu + màn Deals, (3) trang Template, (4) Admin + e2e `stage4-3.spec.ts`.
+
 **Đang làm (4.3, Sonnet, 21/11):** menu Quản lý Deal, trang Template (Module 4 mục 3.8), màn Deals, bước kiểm thử e2e riêng ở cuối. Ghi chú gốc: web đọc `can_edit` theo dòng (`datahub.row.list/get`) để khoá ô; `datahub.prefs.set` cho "Cho phép leader sửa"; trang Template dùng `datahub.template.*` (cột có `autofill`, `meaning` của lựa chọn Status); menu Quản lý Deal (`datahub.datahub.list` đã loại datahub `deal`). Còn nợ của 4.2, **làm ở 4.4** (ghi ở quyết định 4.2): guard Status (Won/Huỷ), Probation KPI sau commit, điền lại gửi xuống khi đổi cây, công thức theo người cho cột `person`, tháng Index đầu tiên.
 
 Mục tiêu Deals hạ xuống **20.000 deal** (Dương chốt 20/11): load test Stage 4 dùng 20.000 deal, 20 người phạm vi khác nhau, mọi biểu đồ ≤ 3 s; Datahub thường giữ 100.000 dòng.

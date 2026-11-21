@@ -1,0 +1,20 @@
+meta {
+  name: datahub.deal.home
+  type: http
+  seq: 90
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/deal-home
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Các bảng của menu Quản lý Deal: bảng template bạn thấy (Deals, Index...) và bảng tự tạo trong datahub "Quản lý Deal" của bạn.
+  Quyền: `datahub:datahub:use`.
+}

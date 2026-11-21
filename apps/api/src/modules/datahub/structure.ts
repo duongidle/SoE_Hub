@@ -41,7 +41,7 @@ export const DatahubOut = z.object({
 
 type Raw = Record<string, unknown>;
 
-async function tablesOf(db: Executor, userId: string, datahubIds: string[]): Promise<Map<string, z.infer<typeof TableBrief>[]>> {
+export async function tablesOf(db: Executor, userId: string, datahubIds: string[]): Promise<Map<string, z.infer<typeof TableBrief>[]>> {
   const out = new Map<string, z.infer<typeof TableBrief>[]>();
   if (datahubIds.length === 0) return out;
   const res = await db.execute(sql`SELECT * FROM (
