@@ -303,3 +303,11 @@ Việc 1-3 là phần còn của 4.6E (Opus quyết ở mục trên), 4-7 là ph
 - **Mã ngoài của đợt:** vai trò `ma_ngoai` (cột `Mã ngoài`, ẩn, trong bảng Đợt thanh toán mặc định; cây cũ cần bù cột, việc 4.8). `payment.schedule` nhận `source` + `external_id` mỗi đợt: đã có đợt mang mã (khoá `nguồn:mã`) thì sửa đợt đó (gọi lại không sinh trùng), chưa có thì tạo; mã của deal khác là `payment_not_of_deal`, mã trùng trong một lần gọi `duplicate_external_id`, bảng thiếu cột `external_id_unsupported`. `payment.confirm` nhận `external_id` (+ `source`) thay `payment_id` (đúng một trong hai: `payment_ref_required`; không thấy: `payment_not_found`). Kết quả `payments[].external_id`.
 - **Chốt kỳ với đợt import:** `period.review` thêm loại `received_unconfirmed` (đợt có ngày hoặc số tiền về, chưa có Tiền về liên kết). Lệnh mới `period.confirm_received {month}` (quyền `deal:payment:write`): theo lô (mỗi bảng ghi một lần) tạo dòng Tiền về + liên kết, điền người tham gia và chia com của đợt từ deal nếu import để trống, deal đang mở thành Won (hệ thống), dòng Sổ com Tạm tính theo người tham gia, Doanh thu theo người; đợt đã có dòng Sổ com thì không sinh Sổ com (`skipped_ledger`), vẫn sinh Doanh thu theo người; không kiểm trần % com (mục `com_cap_mismatch` của review báo). Gọi lại không làm gì thêm. **Tự chọn: lệnh riêng, không phải tuỳ chọn của `period.close`:** lệnh ghi xong thì công thức (Kỳ, Com) chỉ tính sau khi commit, mà `period.close` chờ tính xong trong cùng giao dịch nên không đợi nổi; web gọi `period.confirm_received`, chờ, rồi `period.close` (thử lại khi `recalc_pending`).
 
+
+### 4.7A: Opus trả lời câu hỏi (22/11/2026)
+
+1. `com_split` gửi tay ở `payment.schedule` và `payment.confirm` **cũng kiểm trần `Tỉ lệ SoE`**. Thiết kế mục 4.5 yêu cầu kiểm ở mọi kênh.
+2. Guest **không** thấy `created_by` và `updated_by`: ẩn khỏi dòng trả cho Guest.
+3. Upsert theo **một cột Duy nhất** là đủ (`nguồn:mã`). Không làm khoá ghép nhiều cột.
+4. `period.confirm_received` không kiểm trần %. Mục `com_cap_mismatch` của màn chốt kỳ báo là đủ (dữ liệu lịch sử).
+5. Migration 0021 và 0022 viết tay: ghi vào việc của 4.8 là "sinh lại snapshot drizzle khi `drizzle-kit` chạy được, kiểm `db:generate` không sinh diff thừa".
