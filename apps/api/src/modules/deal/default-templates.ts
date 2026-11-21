@@ -140,6 +140,10 @@ const BANT_COLUMNS: DefaultColumn[] = [
 const PEOPLE = "Người tham gia";
 const DOT_TABLE = "Đợt thanh toán";
 const DOT_LINK = "Đợt thanh toán";
+/** `Com dự kiến` = value of the deal (contract value, or Doanh thu when no schedule) × commission rate × the person's share. */
+const COM_DU_KIEN = (pct: string): string => `=IF([Tỉ lệ com sale]="",0,IF([Giá trị hợp đồng]>0,[Giá trị hợp đồng],[Doanh thu])*[Tỉ lệ com sale]*[${pct}])`;
+/** `Com chờ nhận` = the part of the contract not yet paid × commission rate × the person's share. */
+const COM_CHO_NHAN = (pct: string): string => `=IF([Tỉ lệ com sale]="",0,MAX(0,[Giá trị hợp đồng]-[Đã thu])*[Tỉ lệ com sale]*[${pct}])`;
 const DEALS: DefaultTable = {
   name: "Deals",
   kind: "shared",
@@ -196,6 +200,21 @@ const DEALS: DefaultTable = {
     { name: "Tổng % com đã chia", type: "percent", storage: "person", autofill: { column: PEOPLE, attr: "ty_le_com", sum: "tree" }, layer: "role", layer_roles: ["manager"] },
     { name: "% com của team", type: "percent", storage: "person", autofill: { column: PEOPLE, attr: "ty_le_com", sum: "team" }, layer: "role", layer_roles: ["leader"] },
     { name: "% doanh thu của team", type: "percent", storage: "person", autofill: { column: PEOPLE, attr: "ty_le_dt", sum: "team" }, layer: "role", layer_roles: ["leader"] },
+    { name: "Giá trị hợp đồng", type: "rollup", config: { relation: DOT_LINK, target_column: "Số tiền dự kiến (chưa VAT)", fn: "sum" }, role: "gia_tri_hop_dong", description: "Tổng số tiền dự kiến (chưa VAT) của các đợt. Deal chưa có lịch thì 0." },
+    // One value per reader (the formulas read person-stored columns, module4 3.4): each person sees their own figure.
+    { name: "Doanh thu tính cho tôi", type: "formula", config: { formula: "=[Doanh thu]*[% doanh thu của tôi]", result_type: "number" }, role: "doanh_thu_duoc_tinh", description: "Doanh thu của deal × % doanh thu của mình. Mỗi người một giá trị." },
+    { name: "Com dự kiến của tôi", type: "formula", config: { formula: COM_DU_KIEN("% Com cá nhân"), result_type: "number" }, description: "Tạm tính: giá trị hợp đồng (deal chưa có lịch thì Doanh thu) × Tỉ lệ com sale × % Com cá nhân. Mỗi người một giá trị." },
+    { name: "Com chờ nhận của tôi", type: "formula", config: { formula: COM_CHO_NHAN("% Com cá nhân"), result_type: "number" }, description: "Các đợt chưa về × Tỉ lệ com sale × % Com cá nhân." },
+    { name: "Doanh thu của team", type: "formula", config: { formula: "=[Doanh thu]*[% doanh thu của team]", result_type: "number" }, layer: "role", layer_roles: ["leader"] },
+    { name: "Com dự kiến của team", type: "formula", config: { formula: COM_DU_KIEN("% com của team"), result_type: "number" }, layer: "role", layer_roles: ["leader"] },
+    { name: "Com chờ nhận của team", type: "formula", config: { formula: COM_CHO_NHAN("% com của team"), result_type: "number" }, layer: "role", layer_roles: ["leader"] },
+  ],
+  // Columns that read the ledger, a table made after Deals.
+  late_columns: [
+    { name: "Sổ com", type: "relation", config: { target_table: "Sổ com", multiple: true }, role: "so_com", hidden: true, description: "Ghi bởi lệnh xác nhận tiền về và điều chỉnh com." },
+    { name: "Com đã nhận của tôi", type: "rollup", config: { relation: "Sổ com", target_column: "Com đã nhận", fn: "sum" }, description: "Dòng Sổ com đã chốt hoặc điều chỉnh mà bạn đọc được (Sổ com theo khoá phân chia)." },
+    { name: "Com tạm tính của tôi", type: "rollup", config: { relation: "Sổ com", target_column: "Com tạm tính", fn: "sum" }, description: "Dòng Sổ com Tạm tính mà bạn đọc được." },
+    { name: "Com của deal", type: "rollup", config: { relation: "Sổ com", target_column: "Com", fn: "sum" }, layer: "role", layer_roles: ["manager"], description: "Mọi dòng Sổ com của deal (chỉ Manager thấy)." },
   ],
 };
 
@@ -378,6 +397,8 @@ const LEDGER: DefaultTable = {
     { name: "Trạng thái", type: "single_select", config: opts(["Tạm tính", "Đã chốt", "Điều chỉnh"], { "Tạm tính": "ledger_temp", "Đã chốt": "ledger_closed", "Điều chỉnh": "ledger_adjust" }), role: "trang_thai_com", default_value: "Tạm tính" },
     { name: "Com", type: "formula", config: { formula: '=IF([Trạng thái]="Tạm tính",IF([Com sale]="","",[Com sale]*[% com]),[Com cố định])', result_type: "number" }, role: "com" },
     { name: "Lý do", type: "text", role: "ly_do" },
+    { name: "Com đã nhận", type: "formula", config: { formula: '=IF(OR([Trạng thái]="Đã chốt",[Trạng thái]="Điều chỉnh"),IF([Com]="",0,[Com]),0)', result_type: "number" }, description: "Com của dòng đã chốt hoặc điều chỉnh (Deals cộng cột này)." },
+    { name: "Com tạm tính", type: "formula", config: { formula: '=IF([Trạng thái]="Tạm tính",IF([Com]="",0,[Com]),0)', result_type: "number" }, description: "Com của dòng Tạm tính (Deals cộng cột này)." },
   ],
 };
 

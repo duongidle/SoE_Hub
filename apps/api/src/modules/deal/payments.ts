@@ -152,6 +152,20 @@ export function optionNamed(t: T, role: string, name: string): string {
   return o.id;
 }
 
+/** Adds ledger lines to the deal's `so_com` link (the roll-ups "Com đã nhận / tạm tính của tôi" read the ledger through it). A system write: the link is bookkeeping. */
+async function linkLedger(ctx: Ctx, tree: Tree, byDeal: Map<string, string[]>): Promise<void> {
+  const col = roleCol(tree.deals, "so_com", false);
+  if (!col || byDeal.size === 0) return;
+  const cur = await readRows(ctx, tree.deals, [...byDeal.keys()]);
+  const ops: RowOp[] = [];
+  for (const [dealId, added] of byDeal) {
+    const row = cur.get(dealId);
+    if (!row) continue;
+    ops.push({ op: "update", id: dealId, data: { [col.key]: [...new Set([...idsOf(row.data[col.key] ?? null), ...added])] } });
+  }
+  if (ops.length) await write(ctx, tree.deals, ops, true);
+}
+
 /** The payments of a deal: rows of Đợt thanh toán whose link column holds the deal. */
 async function paymentsOfDeal(ctx: Ctx, tree: Tree, dealId: string): Promise<Map<string, RowData>> {
   const c = roleCol(tree.dots, "deal")!;
@@ -383,6 +397,7 @@ export const paymentOperations = [
       // ---- the payments
       const outPayments: { id: string; split_off_id: string | null }[] = [];
       const ledgerIds: string[] = [];
+      const ledgerByDeal = new Map<string, string[]>();
       const wonDeals: string[] = [];
       const dealPayments = new Map<string, Map<string, RowData>>();
       for (const d of new Set(dealOf.values())) dealPayments.set(d, await paymentsOfDeal(ctx, tree, d));
@@ -459,7 +474,11 @@ export const paymentOperations = [
               ["trang_thai_com", optionNamed(tree.ledger, "trang_thai_com", "Tạm tính")],
             ]),
           }));
-        if (ops.length) ledgerIds.push(...(await write(ctx, tree.ledger, ops)).map((r) => r.id));
+        if (ops.length) {
+          const made = (await write(ctx, tree.ledger, ops)).map((r) => r.id);
+          ledgerIds.push(...made);
+          ledgerByDeal.set(dealId, [...(ledgerByDeal.get(dealId) ?? []), ...made]);
+        }
       }
       const linkCol = roleCol(tree.deals, "dot_thanh_toan", false);
       if (linkCol) {
@@ -468,6 +487,7 @@ export const paymentOperations = [
           await write(ctx, tree.deals, [{ op: "update", id: dealId, data: { [linkCol.key]: [...keep, ...added] } }]);
         }
       }
+      await linkLedger(ctx, tree, ledgerByDeal);
       ctx.audit({ type: "deal_payment", id: receiptId!, details: { operation: "confirm", payments: ids.length, won: wonDeals.length } });
       return { receipt_id: receiptId!, payments: outPayments, won_deal_ids: wonDeals, ledger_ids: ledgerIds };
     },
@@ -581,6 +601,7 @@ export const paymentOperations = [
           ]),
         },
       ]);
+      if (dealId) await linkLedger(ctx, tree, new Map([[dealId, [r!.id]]]));
       ctx.audit({ type: "deal_payment", id: i.payment_id, details: { operation: "adjust" } });
       return { ledger_id: r!.id, period };
     },

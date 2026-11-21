@@ -52,6 +52,7 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "thu_tu_uu_tien", label: "Thứ tự ưu tiên", types: ["number"], required: false, usedBy: ["Nút lọc Ưu tiên hôm nay"] },
       { key: "ngay_dong_tay", label: "Ngày đóng (sửa tay)", types: ["date", "datetime"], required: false, usedBy: ["Khoá kỳ"] },
       { key: "dot_thanh_toan", label: "Đợt thanh toán (liên kết)", types: ["relation"], required: false, usedBy: ["Lệnh thanh toán (ghi hai chiều với bảng Đợt)"] },
+      { key: "so_com", label: "Sổ com (liên kết)", types: ["relation"], required: false, usedBy: ["Lệnh thanh toán và điều chỉnh com (ghi dòng Sổ com vào đây)", "Cột com của tôi"] },
     ],
   },
   payments: {
