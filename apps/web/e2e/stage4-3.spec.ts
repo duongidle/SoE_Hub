@@ -107,11 +107,11 @@ test.afterAll(async () => {
 test("menu theo vai trò: User, Leader, Manager có Quản lý Deal; Admin không (có Template Quản lý Deal); Datahub không lộ datahub Quản lý Deal", async () => {
   for (const s of [u1S, leadS, mgrS]) {
     await s.page.goto("/");
-    expect(await s.hasMenu("Quản lý Deal"), s.name).toBe(true);
+    await expect.poll(() => s.hasMenu("Quản lý Deal"), { message: s.name }).toBe(true); // the menu appears when the page has loaded the deal home
   }
   await adminS.page.goto("/");
   expect(await adminS.hasMenu("Quản lý Deal")).toBe(false);
-  expect(await adminS.hasMenu("Template Quản lý Deal")).toBe(true);
+  await expect.poll(() => adminS.hasMenu("Template Quản lý Deal")).toBe(true);
   expect(await u1S.hasMenu("Template Quản lý Deal")).toBe(false);
 
   const pg = u1S.page;
