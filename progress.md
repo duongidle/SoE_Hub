@@ -22,7 +22,7 @@ Cập nhật: 22/11/2026
 
 ### 4.7 BÀN GIAO (4.7A server xong 22/11; 4.7B làm web + e2e)
 
-Chi tiết quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.7A". Bản đồ cập nhật. Commit: 8e0a8d4..(commit cuối của 4.7A, xem `git log`); OpenAPI đã sinh lại.
+Chi tiết quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.7A". Bản đồ cập nhật. Commit: 4a7c0f5 (INSCOPE, ATTRSUM), 01d74cd (lệnh tiền tính ngay, trần %), 8bb30be (email, import Người/Liên kết), f24ccf6 (mã ngoài), 0d9b6df (Guest cấp bảng), cca0f3b (chốt kỳ import); OpenAPI đã sinh lại.
 
 | Việc | Lệnh / hàm mới | Lỗi chính |
 | --- | --- | --- |
