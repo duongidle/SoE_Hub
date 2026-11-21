@@ -26,7 +26,6 @@ const today = businessDate(new Date());
 async function wonDeal(type: string, cycle: number, daysAgo: number, tag: string) {
   const closing = addDays(today, -daysAgo);
   const d = await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: { "Tên công ty": `Công ty ${tag}`, "Loại deal": type, "Start date": addDays(closing, -cycle), "Người tham gia": [person(org.userA1.id)] } });
-  await drainOutbox(t); // each person's own columns are computed by the worker before the money commands read them (module4 4.1)
   const s = await mgrA("payment.schedule", { deal_id: d.id, payments: [{ amount: 1_000_000, due: closing }] });
   await mgrA("payment.confirm", { received_on: closing, receipt: { amount: 1_000_000 }, allocations: [{ payment_id: s.payments[0].id, amount: 1_000_000 }] });
 }

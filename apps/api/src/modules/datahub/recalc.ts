@@ -665,6 +665,36 @@ async function* rowBatches(db: Executor, tableId: string, scope: Scope, view: { 
   }
 }
 
+/**
+ * Computes formula columns for ONE row as a reader sees it, in memory: nothing is written. `cols` must be in dependency order (a formula after the formulas
+ * of this row it reads). The row is read with the reader's own values laid over (their person cells, their personal values of reader-scoped columns) and each
+ * formula's value replaces the stored one before the next formula runs, so the answer does not depend on the recalculation queue. `reader` null = the owner.
+ * Used by the money commands, which must read each person's share now (design module4 4.6E, Opus decision 22/11/2026). Returns the values by column key.
+ */
+export async function computeFormulasForRow(db: Executor, ix: OwnerIndex, tableId: string, cols: DhColumn[], rowId: string, reader: Reader | null, now: Date = new Date()): Promise<Record<string, Stored>> {
+  const t = ix.tableById.get(tableId);
+  const userId = reader ? reader.userId : ix.ownerId;
+  const scoped = reader && t ? t.columns.filter((c) => c.readerScoped).map((c) => c.key) : [];
+  const withPerson = !!t?.columns.some((c) => c.storage === "person");
+  const from = userId && (scoped.length || withPerson) ? overlayRel(tableId, userId, scoped, null, withPerson) : sql`dh_rows`;
+  const res = await db.execute(sql`SELECT ${ROW_SELECT} FROM ${from} dh_rows WHERE /*scope:system*/ table_id = ${tableId}::uuid AND id = ${rowId}::uuid AND deleted_at IS NULL`);
+  const raw = (res.rows as Raw[])[0];
+  if (!raw) return {};
+  const row = rowFromDb(raw);
+  const data = { ...row.data };
+  const out: Record<string, Stored> = {};
+  for (const col of cols) {
+    const parsed = typeof col.config.expr === "string" ? parseFormula(col.config.expr) : null;
+    const ast: Node | null = parsed && parsed.ok ? parsed.ast : null;
+    const env = await buildFormulaEnv(db, ix, tableId, ast, now, [{ ...row, data }], reader);
+    env.setRow({ ...row, data });
+    const o: StoreOutcome = !ast ? { kind: "error", code: "#NAME?" } : valueToStored(resultTypeOf(col), evaluate(ast, env.ctx));
+    applyOutcome(data, col, o);
+    out[col.key] = (data[col.key] ?? null) as Stored;
+  }
+  return out;
+}
+
 const patchOf = (col: DhColumn, out: StoreOutcome): Record<string, unknown> => (out.kind === "value" ? { [col.key]: out.value } : out.kind === "error" ? { [errKey(col.key)]: out.code } : {});
 
 async function recalcFormula(db: Db, job: Job, now: Date, progress: (done: number) => Promise<void>, scope: Scope, changes: Changes, reader: Reader | null = null, index?: OwnerIndex): Promise<number> {

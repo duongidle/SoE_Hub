@@ -52,8 +52,6 @@ async function newDeal(extra: Record<string, unknown> = {}): Promise<string> {
       ...extra,
     },
   });
-  // The worker computes each person's own columns (`% com của tôi`...) that the money commands read (design module4 4.1).
-  await drainOutbox(t);
   return r.id as string;
 }
 const schedule = (deal: string, payments: Record<string, unknown>[], extra: Record<string, unknown> = {}) => mgrA("payment.schedule", { deal_id: deal, payments, ...extra });

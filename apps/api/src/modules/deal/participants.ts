@@ -1,7 +1,11 @@
 import { sql } from "drizzle-orm";
-import { AppError } from "@soe/shared";
-import { pendingCells } from "../datahub/consistency";
-import { membersOfDatahub } from "../datahub/reader-scope";
+import { AppError, businessDate } from "@soe/shared";
+import { collectDeps } from "@soe/formula";
+import { capFor } from "../datahub/people-caps";
+import { OwnerIndex } from "../datahub/computed";
+import { computeFormulasForRow } from "../datahub/recalc";
+import { idsOf as readerIdsOf, membersOfDatahub } from "../datahub/reader-scope";
+import { parsedExpr } from "../datahub/row-formulas";
 import { userAttrs, userIdsOf } from "../datahub/user-values";
 import type { DhColumn, PersonEntry, Stored } from "../datahub/types";
 import { roleCol, type Ctx, type RowData, type T } from "./payments";
@@ -26,9 +30,6 @@ export interface Participant {
 
 const ROLES = { role: "vai_tro_cua_toi", rev: "pct_doanh_thu_cua_toi", com: "pct_com_cua_toi", deal: "tinh_deal_cua_toi" } as const;
 const LEGACY = { role: "vai_tro", rev: "ty_le_dt", com: "ty_le_com", deal: "tinh_deal" } as const;
-const WAIT_MS = 5000;
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
 /** People columns of a table, in table order. */
@@ -39,20 +40,35 @@ export function peopleIds(deals: T, row: RowData): string[] {
   return [...new Set(peopleColumns(deals).flatMap((c) => userIdsOf(row.data[c.key])))];
 }
 
-/**
- * Waits (at most 5 s) until the person-dependent columns of these deals have no pending recalculation, so the values read are those of the people now in
- * the deal. Call it BEFORE the command writes anything: the queue entries of the command's own writes cannot be processed until it commits.
- */
-export async function waitParticipantValues(ctx: Ctx, deals: T, dealIds: string[]): Promise<void> {
-  const keys = new Set(Object.values(ROLES).flatMap((r) => { const c = roleCol(deals, r, false); return c ? [c.key] : []; }));
-  if (keys.size === 0 || dealIds.length === 0) return;
-  const deadline = Date.now() + WAIT_MS;
-  for (;;) {
-    const pending = await pendingCells(ctx.db, deals.acc.tableId, dealIds, keys);
-    if (Object.keys(pending).length === 0) return;
-    if (Date.now() >= deadline) throw new AppError("conflict", "Hệ thống đang tính lại phần chia của người tham gia. Thử lại sau vài giây.", { reason: "participants_recalculating" });
-    await sleep(100);
+const indexCache = new WeakMap<object, Promise<OwnerIndex>>();
+/** The owner's index of tables and columns, loaded once per command. */
+const indexOf = (ctx: Ctx, ownerId: string): Promise<OwnerIndex> => {
+  let p = indexCache.get(ctx);
+  if (!p) {
+    p = OwnerIndex.load(ctx.db, ownerId);
+    indexCache.set(ctx, p);
   }
+  return p;
+};
+
+/** The formula columns to run for a person, in dependency order: the formula role columns and the formulas of the same table they read. */
+function formulaOrder(deals: T, roleCols: DhColumn[]): DhColumn[] {
+  const byKey = new Map(deals.schema.alive.map((c) => [c.key, c]));
+  const out: DhColumn[] = [];
+  const done = new Set<string>();
+  const visit = (c: DhColumn, path: Set<string>) => {
+    if (done.has(c.key) || path.has(c.key) || c.type !== "formula" || typeof c.config.expr !== "string") return;
+    path.add(c.key);
+    const ast = parsedExpr(c.config.expr);
+    for (const k of ast ? collectDeps(ast).cells : []) {
+      const dep = byKey.get(k);
+      if (dep) visit(dep, path);
+    }
+    done.add(c.key);
+    out.push(c);
+  };
+  roleCols.forEach((c) => visit(c, new Set()));
+  return out;
 }
 
 /** The value of a column as each of the given people hold it: their own cell (`dh_person_cells`), their computed value (`dh_personal_rows`) or the shared cell. */
@@ -93,9 +109,18 @@ export async function participantsOf(ctx: Ctx, deals: T, row: RowData): Promise<
     const v = row.data[c.key];
     if (Array.isArray(v)) for (const e of v as PersonEntry[]) if (e && typeof e.id === "string") legacy.set(e.id, { ...(legacy.get(e.id) ?? {}), ...e.attrs });
   }
+  // The formula role columns are computed now, for each person, from the row as it is (not from the recalculation queue): the command reads what the person would see.
+  const roleCols = (Object.values(ROLES) as string[]).flatMap((r) => { const c = roleCol(deals, r, false); return c ? [c] : []; });
+  const order = formulaOrder(deals, roleCols);
+  const live = new Map<string, Record<string, Stored>>();
+  if (order.length) {
+    const ix = await indexOf(ctx, owner);
+    for (const id of ids) live.set(id, await computeFormulasForRow(ctx.db, ix, deals.acc.tableId, order, row.id, id === owner ? null : { userId: id, ids: await readerIdsOf(ctx.db, id) }));
+  }
   const read = async (role: keyof typeof ROLES): Promise<(id: string) => unknown> => {
     const c = roleCol(deals, ROLES[role], false);
     if (!c) return (id) => legacy.get(id)?.[LEGACY[role]];
+    if (c.type === "formula") return (id) => live.get(id)?.[c.key] ?? null;
     const m = await valuesAsPeople(ctx, deals, row, c, ids);
     return (id) => m.get(id) ?? null;
   };
@@ -104,6 +129,23 @@ export async function participantsOf(ctx: Ctx, deals: T, row: RowData): Promise<
     const r = role(id);
     return { id, role: typeof r === "string" && r ? r : null, com: num(com(id)), rev: num(rev(id)), countsDeal: deal(id) === true };
   });
+}
+
+/** The parameter (table `Tham số com`) that the total of the commission shares of a deal may not exceed. */
+export const COM_CAP_PARAM = "Tỉ lệ SoE";
+
+/**
+ * The total `% com` of the people of a deal may not exceed `Tỉ lệ SoE` (the value in force today). Checked here, on the shares each person holds, so it
+ * holds for any layout of the people columns (design module4 4.6E, Opus decision 22/11/2026); the cap of the attribute (`cap_param`) stays for the
+ * one-column layout. No parameter yet: no limit.
+ */
+export async function assertComCap(ctx: Ctx, deals: T, parts: Participant[], dealId: string): Promise<void> {
+  if (parts.length === 0) return;
+  const cap = await capFor(ctx.db, deals.acc.datahub.id, COM_CAP_PARAM, businessDate(new Date()));
+  const total = parts.reduce((a, p) => a + p.com, 0);
+  if (cap !== null && total > cap + 1e-9) {
+    throw new AppError("validation_error", `Tổng % com của người tham gia deal là ${Math.round(total * 10000) / 100}%, vượt "${COM_CAP_PARAM}" (${Math.round(cap * 10000) / 100}%). Sửa % com của deal trước.`, { reason: "com_over_cap", deal_id: dealId, total, cap });
+  }
 }
 
 /** The people of a deal as the cell of an instalment (`Người tham gia` of Đợt thanh toán), with the attributes that cell has. */

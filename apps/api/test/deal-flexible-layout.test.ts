@@ -206,4 +206,20 @@ describe("(c) four columns: Leading, Leading %, Associate, Associate %", () => {
     const lines = (await ledgerOf(deal)).filter((r) => r["Người"] === org.userA1.id).map((r) => Math.round((r["% com"] as number) * 10000) / 10000).sort();
     expect(lines).toEqual([0.25, 0.3]);
   });
+  it("the total % com may not exceed Tỉ lệ SoE (0.5), checked by the commands on the four-column layout", async () => {
+    const over = (await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: dealData("Quá trần", { L4: org.userA1.id, "L4 %": 0.35, A4: org.userA2.id, "A4 %": 0.2 }) })).id;
+    await settle();
+    const e = await fails(mgrA("payment.schedule", { deal_id: over, payments: [{ legal_entity: "CT quá", amount: 10_000_000, due: "2026-09-01" }] }));
+    expect(e.code).toBe("validation_error");
+    expect(e.details?.reason).toBe("com_over_cap");
+    // Exactly at the cap passes, and confirm checks it too.
+    const cur = await mgrA("datahub.row.get", { table_id: tables["Deals"]!, row_id: over });
+    const k = await names(mgrA, tables["Deals"]!);
+    await mgrA("datahub.row.update", { table_id: tables["Deals"]!, row_id: over, version: cur.version, data: { [k["A4 %"]!]: 0.15 } });
+    const s = await mgrA("payment.schedule", { deal_id: over, payments: [{ legal_entity: "CT vừa", amount: 10_000_000, due: "2026-09-01" }] });
+    const cur2 = await mgrA("datahub.row.get", { table_id: tables["Deals"]!, row_id: over });
+    await mgrA("datahub.row.update", { table_id: tables["Deals"]!, row_id: over, version: cur2.version, data: { [k["A4 %"]!]: 0.3 } });
+    const e2 = await fails(mgrA("payment.confirm", { received_on: "2026-09-02", receipt: { amount: 10_000_000 }, allocations: [{ payment_id: s.payments[0].id, amount: 10_000_000 }] }));
+    expect(e2.details?.reason).toBe("com_over_cap");
+  });
 });

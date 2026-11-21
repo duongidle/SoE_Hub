@@ -1,4 +1,4 @@
-import { peopleCell, participantsOf, waitParticipantValues, type Participant } from "./participants";
+import { assertComCap, peopleCell, participantsOf, type Participant } from "./participants";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError, businessDate } from "@soe/shared";
@@ -305,8 +305,9 @@ export const paymentOperations = [
       }
       // The people of the instalment come from the deal, as each of them holds their share (read before anything is written: participants.ts).
       const needPeople = i.payments.some((p) => !p.id);
-      if (needPeople) await waitParticipantValues(ctx, tree.deals, [i.deal_id]);
-      const people = (needPeople ? peopleCell(tree.dots, await participantsOf(ctx, tree.deals, deal)) : []) as unknown as Stored;
+      const parts = needPeople ? await participantsOf(ctx, tree.deals, deal) : [];
+      if (needPeople) await assertComCap(ctx, tree.deals, parts, i.deal_id);
+      const people = (needPeople ? peopleCell(tree.dots, parts) : []) as unknown as Stored;
       const nextSeq = Math.max(0, ...[...have.values()].map((r) => numOf(cellOf(tree.dots, r, "dot_so"))));
       let seq = nextSeq;
       const src = sourceValue(tree.dots, ctx);
@@ -418,9 +419,12 @@ export const paymentOperations = [
       const total = i.allocations.reduce((s, a) => s + (a.amount_received ?? a.amount), 0);
       // The commission split of a deal is read before anything is written (participants.ts): from the people of the deal, each with their own share.
       const needSplit = [...new Set(i.allocations.filter((a) => !a.com_split && empty(cellOf(tree.dots, dots.get(a.payment_id)!, "chia_com_dot"))).map((a) => dealOf.get(a.payment_id)!))];
-      if (needSplit.length) await waitParticipantValues(ctx, tree.deals, needSplit);
       const partsOf = new Map<string, Participant[]>();
-      for (const d of needSplit) partsOf.set(d, await participantsOf(ctx, tree.deals, deals.get(d)!));
+      for (const d of needSplit) {
+        const parts = await participantsOf(ctx, tree.deals, deals.get(d)!);
+        await assertComCap(ctx, tree.deals, parts, d);
+        partsOf.set(d, parts);
+      }
       // ---- the receipt (Tiền về)
       let receiptId = i.receipt.id ?? null;
       let receiptRow: RowData | undefined;
