@@ -61,7 +61,7 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 | 1 | M1 `module1-tai-khoan-phan-quyen.md` | 0 | Tài khoản, vai trò, cây tổ chức, đăng nhập, phiên, token, phân quyền, thông báo tối thiểu, nhật ký Admin, chuyển giao | Đã chốt | Đã xong |
 | 2 | M2 `module2-datahub.md` | 1 | Datahub, kiểu cột, công thức, view, grid ảo hoá, import/export, thùng rác, lịch sử dòng | Đã chốt | Đã xong |
 | 3 | M3 `module3-metric-dashboard.md` | 2 | Engine metric, biểu đồ, dashboard, bảng gộp | Đã chốt | Đã xong |
-| 4 | M4 `module4-quan-ly-deal.md` | 2, 3 | 4.1 sửa Stage 2 (mục 19a); template Deals, người tham gia, thanh toán và com theo đợt, chốt kỳ, snapshot, forecast, BANT, dashboard Deals, API ngoài. **Mốc Engine v1** | Đã chốt | Đang làm (4.1–4.3 xong; tiếp 4.4) |
+| 4 | M4 `module4-quan-ly-deal.md` | 2, 3 | 4.1 sửa Stage 2 (mục 19a); template Deals, người tham gia, thanh toán và com theo đợt, chốt kỳ, snapshot, forecast, BANT, dashboard Deals, API ngoài. **Mốc Engine v1** | Đã chốt | Đang làm (4.1–4.4 xong; tiếp 4.5) |
 | 5 | M5 `module5-ket-noi-ai.md` | 1, 4 | MCP, OAuth + DCR, token, key API của cây, kết nối AI chờ duyệt, nhóm cấm AI, thao tác lớn, Bruno đầy đủ | Đã chốt | |
 | 6 | M6 `module6-thong-bao.md` | 1, 2, 4 | Thông báo đầy đủ (một cửa vào `notify`), Web Push, nhắc hẹn, nhắc hạn Deal, bản tin buổi sáng, thông báo chung | Đã chốt | |
 | 7 | M7 `module7-dynamic-form.md` | 2, 3, 5, 6 | Builder kéo thả, form công khai, nháp, chấm điểm, nguồn dữ liệu, JSON | Đã chốt | |
