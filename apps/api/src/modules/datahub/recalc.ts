@@ -19,7 +19,7 @@ import { DH_AUTO_INDEX_MIN_ROWS } from "@soe/shared";
 import { enqueueOutbox, newId, type Db, type Executor } from "@soe/db";
 import { readSetting } from "../system/settings-catalog";
 import { DH_SETTINGS } from "./limits";
-import { deleteQueue, enqueue, linkedRows, nextChangeSeq, readQueue, type KeyTuples, type QueuedRow } from "./change-queue";
+import { columnTx, deleteQueue, enqueue, flushTouches, lockColumnsAtFlush, linkedRows, nextChangeSeq, readQueue, type KeyTuples, type QueuedRow } from "./change-queue";
 import { recordChanges, requestDependentsFull, CHAIN_LIMIT, keyFamily, type RowChange } from "./partial";
 import type { Logger } from "pino";
 import type { Subscriber } from "../../core/outbox-dispatcher";
@@ -147,16 +147,17 @@ export const lastHourBoundary = (now: Date): Date => new Date(Math.floor(now.get
 /** Marks TODAY()/NOW() columns whose values are older than their last due time. Used by the schedule and when the worker starts (catch-up). */
 export async function markVolatilePending(db: Db, now: Date = new Date()): Promise<number> {
   const res = await db.execute(sql`UPDATE dh_columns SET calc_status = 'pending', calc_requested_at = clock_timestamp()
-    WHERE /*scope:system*/ deleted_at IS NULL AND calc_status = 'ready' AND (
+    WHERE /*scope:system*/ id IN (SELECT id FROM dh_columns WHERE deleted_at IS NULL AND calc_status = 'ready' AND (
       (calc_volatile = 'today' AND (calc_at IS NULL OR calc_at < ${lastDailyBoundary(now).toISOString()}::timestamptz)) OR
-      (calc_volatile = 'now' AND (calc_at IS NULL OR calc_at < ${lastHourBoundary(now).toISOString()}::timestamptz)))
+      (calc_volatile = 'now' AND (calc_at IS NULL OR calc_at < ${lastHourBoundary(now).toISOString()}::timestamptz))) ORDER BY id FOR UPDATE)
     RETURNING id`);
   return res.rows.length;
 }
 
 /** After a crash a column can stay `running`: put them back in the queue (worker start). */
 export async function resetRunningColumns(db: Db): Promise<number> {
-  const res = await db.execute(sql`UPDATE dh_columns SET calc_status = 'pending', calc_requested_at = clock_timestamp() WHERE /*scope:system*/ calc_status = 'running' RETURNING id`);
+  const res = await db.execute(sql`UPDATE dh_columns SET calc_status = 'pending', calc_requested_at = clock_timestamp()
+    WHERE /*scope:system*/ id IN (SELECT id FROM dh_columns WHERE calc_status = 'running' ORDER BY id FOR UPDATE) RETURNING id`);
   return res.rows.length;
 }
 
@@ -854,23 +855,28 @@ export async function recalcColumn(db: Db, columnId: string, claimedAt: string, 
     await db.execute(sql`UPDATE dh_columns SET calc_status = 'ready', calc_at = now() WHERE /*scope:system*/ id = ${columnId}::uuid`);
     throw e;
   }
-  await db.transaction(async (tx) => {
+  await columnTx(db, async (tx) => {
     await deleteQueue(tx, entries.map((e) => e.id));
+    if (job) {
+      // The chain: the columns that read this one get exactly the rows that changed (old and new values), in this same transaction.
+      if (result.changedRows > 0) {
+        if (result.rows) await recordChanges(tx, job.tableId, result.rows, seq, { includeApiFormulas: true, scopedSource: result.scoped });
+        else await requestDependentsFull(tx, job.tableId, [job.col.key], seq, { includeApiFormulas: true });
+      }
+      await enqueueOutbox(tx, {
+        event: FORMULA_EVENT,
+        aggregateType: "datahub_table",
+        aggregateId: job.tableId,
+        payload: { table_id: job.tableId, columns: [job.col.key], state: "done", changes: [], changed_rows: result.changedRows, seq },
+      });
+    }
+    // The own column is locked LAST and in the same sorted round as the columns the chain touched (columnTx): taking it first,
+    // then the dependants, was half of a deadlock cycle with a writer that touches them in the other order.
+    lockColumnsAtFlush(tx, [columnId]);
+    await flushTouches(tx);
     await tx.execute(sql`UPDATE dh_columns SET calc_status = CASE WHEN calc_requested_at > ${claimedAt}::timestamptz THEN 'pending' ELSE 'ready' END,
         calc_done = ${result.total}::int, calc_total = ${result.total}::int, calc_at = ${now.toISOString()}::timestamptz, calc_seq = GREATEST(calc_seq, ${seq}::bigint)
       WHERE /*scope:system*/ id = ${columnId}::uuid`);
-    if (!job) return;
-    // The chain: the columns that read this one get exactly the rows that changed (old and new values), in this same transaction.
-    if (result.changedRows > 0) {
-      if (result.rows) await recordChanges(tx, job.tableId, result.rows, seq, { includeApiFormulas: true, scopedSource: result.scoped });
-      else await requestDependentsFull(tx, job.tableId, [job.col.key], seq, { includeApiFormulas: true });
-    }
-    await enqueueOutbox(tx, {
-      event: FORMULA_EVENT,
-      aggregateType: "datahub_table",
-      aggregateId: job.tableId,
-      payload: { table_id: job.tableId, columns: [job.col.key], state: "done", changes: [], changed_rows: result.changedRows, seq },
-    });
   });
   return result;
 }

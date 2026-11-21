@@ -9,6 +9,7 @@ import { columnFromDb } from "./table-schema";
 import { displayConfig, OwnerIndex } from "./computed";
 import { isComputedType } from "./cell-values";
 import { STRUCTURE_EVENT } from "./shared";
+import { columnTx } from "./change-queue";
 
 type Raw = Record<string, unknown>;
 
@@ -331,7 +332,7 @@ export async function syncAllTemplates(db: Db, log?: { error: (o: object, m: str
   let n = 0;
   for (const r of ids.rows as { id: string }[]) {
     try {
-      await db.transaction(async (tx) => {
+      await columnTx(db, async (tx) => {
         await syncTemplate(systemCtx(tx as Executor, workerEmit(tx as Executor), SYSTEM_USER_ID), r.id);
       });
       n++;

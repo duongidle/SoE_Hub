@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { Executor } from "@soe/db";
+import type { Db, Executor } from "@soe/db";
 
 /**
  * The shared change queue of the Datahub (design module2 section 6.7). One table (`dh_change_queue`) for the whole system.
@@ -50,18 +50,77 @@ export async function currentChangeSeq(db: Executor): Promise<number> {
   return Number((res.rows[0] as { seq: string }).seq);
 }
 
+interface TouchState {
+  touch: Set<string>;
+  lockOnly: Set<string>;
+}
+const touchStates = new WeakMap<object, TouchState>();
+
 /**
- * Marks the columns as waiting for the worker. The columns are locked in id order first (two writers touching the same
- * columns in different orders cannot deadlock). The update is unconditional on purpose: it makes the worker's claim wait
- * until this transaction commits, and moves `calc_requested_at` past a run that is already going, so an entry added
- * while a column is being computed is never lost (the run ends `pending` again).
+ * Runs `fn` in a transaction in which `touchColumns` only collects: the column rows are locked ONCE, in id order, just
+ * before the commit (`flushTouches`). Why: a transaction that touches columns in several calls (one per source table, one
+ * per template table...) takes the locks in several rounds, and two such transactions in opposite orders deadlock (seen
+ * for real: worker `datahub.formula` against the member-tree build). One sorted round at the end cannot form a cycle with
+ * another sorted round. Every transaction that can reach `touchColumns` must be opened with this (see design/ban-do-code.md, Module 0).
+ */
+export async function columnTx<T>(db: Db, fn: (tx: Executor) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    touchStates.set(tx, { touch: new Set(), lockOnly: new Set() });
+    try {
+      const out = await fn(tx as Executor);
+      await flushTouches(tx as Executor);
+      return out;
+    } finally {
+      touchStates.delete(tx);
+    }
+  });
+}
+
+/** Locks (no status change) columns together with the touched ones at the flush, so a transaction that updates its own column also takes that lock in the sorted round. */
+export function lockColumnsAtFlush(db: Executor, columnIds: string[]): void {
+  const st = touchStates.get(db);
+  if (!st) throw new Error("lockColumnsAtFlush needs a transaction opened with columnTx");
+  for (const id of columnIds) st.lockOnly.add(id);
+}
+
+/**
+ * Locks the collected columns in id order. `FOR NO KEY UPDATE`, not `FOR UPDATE`: inserting into `dh_change_queue` takes `FOR KEY SHARE` on the column (foreign key), which
+ * `FOR UPDATE` conflicts with, so a writer that had queued an entry would block the lock round of another one (a second deadlock cycle). The UPDATE below takes the same weaker lock.
+ *
+ * Then marks the touched ones. Called by `columnTx` before the commit; a transaction not opened with it touches at once (single sorted round per call). */
+export async function flushTouches(db: Executor): Promise<void> {
+  const st = touchStates.get(db);
+  if (!st) return;
+  const touch = [...st.touch].sort();
+  const all = [...new Set([...touch, ...st.lockOnly])].sort();
+  st.touch.clear();
+  st.lockOnly.clear();
+  await lockAndMark(db, touch, all);
+}
+
+async function lockAndMark(db: Executor, touchIds: string[], lockIds: string[]): Promise<void> {
+  if (lockIds.length === 0) return;
+  await db.execute(sql`SELECT id FROM dh_columns WHERE /*scope:system*/ id = ANY(${uuidArray(lockIds)}::uuid[]) ORDER BY id FOR NO KEY UPDATE`);
+  if (touchIds.length === 0) return;
+  await db.execute(sql`UPDATE dh_columns SET calc_status = CASE WHEN calc_status = 'running' THEN calc_status ELSE 'pending' END, calc_requested_at = clock_timestamp()
+    WHERE /*scope:system*/ deleted_at IS NULL AND id = ANY(${uuidArray(touchIds)}::uuid[])`);
+}
+
+/**
+ * Marks the columns as waiting for the worker. In a transaction opened with `columnTx` it only collects (see there);
+ * otherwise the columns are locked in id order and updated at once. The update is unconditional on purpose: it makes the
+ * worker's claim wait until this transaction commits, and moves `calc_requested_at` past a run that is already going, so an
+ * entry added while a column is being computed is never lost (the run ends `pending` again).
  */
 export async function touchColumns(db: Executor, columnIds: string[]): Promise<void> {
   if (columnIds.length === 0) return;
+  const st = touchStates.get(db);
+  if (st) {
+    for (const id of columnIds) st.touch.add(id);
+    return;
+  }
   const ids = [...new Set(columnIds)].sort();
-  await db.execute(sql`SELECT id FROM dh_columns WHERE /*scope:system*/ id = ANY(${uuidArray(ids)}::uuid[]) ORDER BY id FOR UPDATE`);
-  await db.execute(sql`UPDATE dh_columns SET calc_status = CASE WHEN calc_status = 'running' THEN calc_status ELSE 'pending' END, calc_requested_at = clock_timestamp()
-    WHERE /*scope:system*/ deleted_at IS NULL AND id = ANY(${uuidArray(ids)}::uuid[])`);
+  await lockAndMark(db, ids, ids);
 }
 
 /** Adds entries to the queue (accumulating: nothing is merged here, the worker merges a column's burst when it takes it) and marks their columns. */

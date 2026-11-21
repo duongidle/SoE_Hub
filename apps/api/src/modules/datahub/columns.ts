@@ -17,6 +17,7 @@ import { backfillTracker, releaseWatchedColumn, resolveWatch } from "./field-mod
 import { findAffectedFormulas, optionRenames } from "./option-rename";
 import { OwnerIndex, prepareComputed, type DepRow, type PreparedComputed } from "./computed";
 import { markPending } from "./recalc";
+import { flushTouches } from "./change-queue";
 import { columnFromDb, rowFromDb, TableSchema } from "./table-schema";
 import { CellError, type DhColumn, type SelectOption, type Stored } from "./types";
 import { hasAttrs } from "./user-values";
@@ -37,6 +38,8 @@ async function loadColumn(db: Executor, access: TableAccess, ref: string, state:
 }
 
 async function reload(db: Executor, access: TableAccess, id: string): Promise<DhColumn> {
+  // The answer shows `calc.status`: the touches the transaction collected (columnTx) must be applied before it reads.
+  await flushTouches(db);
   const res = await db.execute(sql`SELECT * FROM dh_columns WHERE ${access.scope()} AND id = ${id}::uuid`);
   return columnFromDb(res.rows[0] as Raw);
 }

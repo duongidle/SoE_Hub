@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { businessDate } from "@soe/shared";
 import { SYSTEM_USER_ID, newId, type Db } from "@soe/db";
 import type { Logger } from "pino";
-import { nextChangeSeq } from "../datahub/change-queue";
+import { columnTx, nextChangeSeq } from "../datahub/change-queue";
 import { recordChanges, type RowChange } from "../datahub/partial";
 
 /**
@@ -53,7 +53,7 @@ export async function addIndexMonths(db: Db, now: Date = new Date(), log?: Logge
     const from = lastMonth ? nextMonth(lastMonth.slice(0, 7)) : (await firstMonth(db, tb.id, current)).slice(0, 7);
     for (let m = from; `${m}-01` <= current; m = nextMonth(m)) months.push(`${m}-01`);
     if (months.length === 0) continue;
-    await db.transaction(async (tx) => {
+    await columnTx(db, async (tx) => {
       const r = await tx.execute(sql`UPDATE dh_tables SET next_row_no = next_row_no + ${months.length}::int, row_count = row_count + ${months.length}::int WHERE /*scope:system*/ id = ${tb.id}::uuid RETURNING next_row_no - ${months.length}::int AS first_no`);
       const first = (r.rows[0] as { first_no: number }).first_no;
       const rows = months.map((m, i) => ({ id: newId(), row_no: first + i, data: { [tb.month_key]: m }, search: m }));

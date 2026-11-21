@@ -5,6 +5,7 @@ import type { Subscriber } from "../../core/outbox-dispatcher";
 import { entriesOf } from "./user-values";
 import { columnFromDb } from "./table-schema";
 import { markPending } from "./recalc";
+import { columnTx } from "./change-queue";
 import type { DhColumn, Stored } from "./types";
 
 /**
@@ -201,7 +202,7 @@ export async function processPendingRefills(db: Db): Promise<number> {
     const next = await db.execute(sql`SELECT id, refill_pending_at FROM dh_tables WHERE /*scope:system*/ refill_pending_at IS NOT NULL ORDER BY refill_pending_at LIMIT 1`);
     const row = next.rows[0] as { id: string; refill_pending_at: Date | string } | undefined;
     if (!row) return n;
-    await db.transaction(async (tx) => {
+    await columnTx(db, async (tx) => {
       await refillRows(tx, row.id, "all");
       await tx.execute(sql`UPDATE dh_tables SET refill_pending_at = NULL WHERE /*scope:system*/ id = ${row.id}::uuid AND refill_pending_at = ${row.refill_pending_at instanceof Date ? row.refill_pending_at.toISOString() : row.refill_pending_at}::timestamptz`);
     });

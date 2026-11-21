@@ -5,7 +5,7 @@ import { enqueueOutbox, newId, type Db, type Executor, type OutboxRow } from "@s
 import type { Subscriber } from "../../core/outbox-dispatcher";
 import { loadTableAccess, readableRows, type TableAccess } from "./access";
 import { effectiveType } from "./cell-values";
-import { nextChangeSeq } from "./change-queue";
+import { columnTx, nextChangeSeq } from "./change-queue";
 import { buildSearchText } from "./column-types";
 import {
   familyOf, mergedType, MergeConfigSchema, ORIGIN_COLUMN_KEY, planMerge, SOURCE_COLUMN_KEY,
@@ -240,7 +240,7 @@ async function finish(db: Executor, tableId: string, patch: { status: "ok" | "er
 
 /** Copies the rows the owner may read from the sources into the merged table. One transaction; the row of `dh_merges` says what was synced. */
 export async function syncMergedTable(db: Db, tableId: string, log?: Logger): Promise<SyncResult> {
-  return db.transaction(async (tx) => {
+  return columnTx(db, async (tx) => {
     const lock = await tx.execute(sql`SELECT pg_try_advisory_xact_lock(hashtextextended(${tableId}, 7)) AS ok`);
     if (!(lock.rows[0] as { ok: boolean }).ok) return "busy";
     const res = await tx.execute(sql`SELECT m.config, m.request_seq::text AS seq, m.synced_seq::text AS synced, t.deleted_at AS t_deleted, d.deleted_at AS d_deleted, d.owner_id, t.datahub_id

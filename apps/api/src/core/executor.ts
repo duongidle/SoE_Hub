@@ -10,6 +10,7 @@ import {
   type Db,
   type Executor,
 } from "@soe/db";
+import { columnTx } from "../modules/datahub/change-queue";
 import type { Logger } from "pino";
 import { AccessContext, type PrincipalLoader } from "../auth/access";
 import { maskAuditDetails } from "./audit-privacy";
@@ -162,7 +163,7 @@ export class OperationExecutor {
   }
 
   private async runCommand(op: Operation, input: unknown, opts: ExecuteOptions, key: string | null, log: Logger, state: { target: AuditTarget | null }): Promise<ExecuteResult> {
-    return this.deps.db.transaction(async (tx) => {
+    return columnTx(this.deps.db, async (tx) => {
       let idemId: string | null = null;
       if (key !== null) {
         const s = await beginIdempotent(tx, {

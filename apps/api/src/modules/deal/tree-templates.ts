@@ -3,6 +3,7 @@ import { AppError } from "@soe/shared";
 import type { Db, Executor } from "@soe/db";
 import type { Logger } from "pino";
 import { assertRoleOfSet } from "../datahub/column-roles";
+import { columnTx } from "../datahub/change-queue";
 import { setShareOptions } from "../datahub/split-ops";
 import { addTemplateColumn, createTemplateCore, masterAccess } from "../datahub/template-ops";
 import { loadTemplate, systemCtx, workerEmit, type Emit } from "../datahub/template-sync";
@@ -118,7 +119,7 @@ export async function ensureAllTrees(db: Db, only?: string): Promise<number> {
     AND NOT EXISTS (SELECT 1 FROM dh_templates t WHERE t.manager_id = u.id AND t.scope = 'tree')`);
   let n = 0;
   for (const r of res.rows as { id: string }[]) {
-    await db.transaction(async (tx) => {
+    await columnTx(db, async (tx) => {
       const emit = workerEmit(tx);
       await ensureTreeTemplates(tx, emit, r.id);
       await emit("org.member.changed", { aggregateType: "user", aggregateId: r.id, payload: { user_id: r.id, change: "default_templates" } });
@@ -140,7 +141,7 @@ export async function ensureMissingTables(db: Db, only?: string): Promise<number
   let n = 0;
   for (const r of res.rows as { manager_id: string; have: string[] }[]) {
     if (names.every((x) => r.have.includes(x))) continue;
-    await db.transaction(async (tx) => {
+    await columnTx(db, async (tx) => {
       const emit = workerEmit(tx);
       const made = await ensureTreeTemplates(tx, emit, r.manager_id);
       if (made.length) await emit("org.member.changed", { aggregateType: "user", aggregateId: r.manager_id, payload: { user_id: r.manager_id, change: "default_templates" } });
