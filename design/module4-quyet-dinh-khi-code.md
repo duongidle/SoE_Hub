@@ -276,3 +276,15 @@ Theo Dương chốt 22/11 (Module 2 mục 6.2, Module 4 mục 4.1 "Sửa 22/11/2
 - **Lệnh tiền đọc theo vai trò cột:** `participants.ts`. Giá trị theo người của người chưa có bản tính: `waitParticipantValues` chờ hàng đợi tối đa 5 s, quá thì lỗi `participants_recalculating` (an toàn: không ghi tiền bằng số cũ). Hệ quả: lệnh tiền ngay sau khi sửa người tham gia phải chờ worker; test gọi `drainOutbox` trước lệnh (đã thêm ở `deal-payments`, `deal-period`, `deal-com-columns`, `deal-cycle`, `deal-revenue-by-person`). Người tham gia chưa là thành viên bảng Deals: lỗi `participant_not_member` (không có phần chia riêng).
 - **Ô `Người tham gia` của đợt** vẫn là cột có thuộc tính cố định (hệ thống ghi): `peopleCell` dựng từ phần chia từng người (`ty_le_dt`, `ty_le_com`, `tinh_deal`, `vai_tro` nếu là lựa chọn có sẵn).
 - **Chưa làm / ghi nhận:** ràng buộc tổng % com và % doanh thu (`sum_max`, `cap_param`) vẫn theo thuộc tính của MỘT cột người; bố trí nhiều cột hay cột % rời chưa có ràng buộc tổng. Cây dev cũ cần dựng lại (cột "của tôi" cũ là cột gửi xuống).
+
+### 4.6E: Opus quyết (22/11/2026), làm ở đầu 4.7A
+
+1. **Cột theo team và tổng % không còn gửi xuống: thêm hai hàm người xem.**
+   - `INSCOPE(ô Người dùng)`: có/không, ô có người nằm trong phạm vi của người xem không. Phạm vi gồm chính người xem và cấp dưới: team của Leader, cây của Manager.
+   - `ATTRSUM(ô Người dùng có thuộc tính, "thuộc tính", [phạm vi])`: cộng thuộc tính của những người trong ô.
+     - `phạm vi` bỏ trống là mọi người trong ô. Kết quả không phụ thuộc người xem. Dùng cho `Tổng % com đã chia`.
+     - `phạm vi` là `"của tôi"` thì chỉ cộng người trong phạm vi của người xem. Cột thành cột theo người xem. Dùng cho `% com của team`, `% doanh thu của team`.
+   - Bố trí bốn cột viết: `IF(INSCOPE([Leading]), [Leading %], 0) + IF(INSCOPE([Associate]), [Associate %], 0)`.
+2. **Lệnh tiền không chờ worker.** Lệnh tự tính ngay giá trị theo người của đúng dòng và đúng những người tham gia cần dùng, bằng engine công thức, trong lúc chạy lệnh. Bỏ `waitParticipantValues` và lỗi `participants_recalculating`. Bỏ luôn các `drainOutbox` đã thêm vào test cũ chỉ để chờ cột "của tôi", nếu không còn cần.
+3. **Ràng buộc tổng % com ≤ `Tỉ lệ SoE` kiểm thêm ở lệnh tiền** (`payment.schedule`, `payment.confirm`), dựa trên `participantsOf`. Cách này đúng với mọi bố trí cột. Ràng buộc `sum_max` và `cap_param` trên ô có thuộc tính giữ nguyên cho bố trí một cột.
+4. **Ô chọn vai trò ở trang Template hiện mọi cột giữ vai trò đa cột:** làm ở 4.7B. Cây dev cũ dựng lại.
