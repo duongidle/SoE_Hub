@@ -16,6 +16,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 | `design/chuan-giao-dien.md` | Chuẩn giao diện. Đọc khi code hoặc rà giao diện; việc chỉ đụng server thì không cần |
 | `design/ha-tang.md` | Hạ tầng triển khai |
 | `docs/` | OpenAPI, bộ Bruno (`docs/api/bruno/`), hướng dẫn kết nối AI (`docs/ket-noi-ai.md`) |
+| `design/ban-do-code.md` | Bản đồ code từng module: chỗ gọi vào, mẫu làm theo, luật cấm. Agent đọc đúng mục module cần, thay cho dò code |
 | `progress.md` | Trạng thái và tiến độ hiện tại |
 
 ## Quy trình làm việc
@@ -78,7 +79,8 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 3. Mọi endpoint mới có trong OpenAPI và có request mẫu trong `docs/api/bruno/`. Từ Stage 6: thao tác mới khai báo menu, `access`, nhóm cấm AI (Module 5 mục 3.5); việc hay làm qua AI có tool chọn lọc.
 4. Có giao diện tối thiểu dùng được mọi chức năng của stage.
 5. Đã qua kiểm thử cuối stage (`design/kiem-thu.md`): chỉ kiểm lỗi chức năng và số liệu; lỗi tìm thấy đã sửa; kết quả ghi vào `progress.md`.
-6. `progress.md` cập nhật; cột "Code" ghi "Đã xong" (Opus ghi sau khi rà đạt); đã commit.
+6. Mục của module trong `design/ban-do-code.md` đã viết hoặc cập nhật (do agent cuối của stage viết, lúc code còn trong ngữ cảnh).
+7. `progress.md` cập nhật; cột "Code" ghi "Đã xong" (Opus ghi sau khi rà đạt); đã commit.
 
 **Kiểm thử theo cấp** (Dương chốt 19/11/2026, sửa 20/11/2026; kiểm thử nặng chỉ chạy một lần mỗi stage):
 
@@ -109,6 +111,7 @@ Stage 0–1 Opus đã code. Từ Stage 2: **Sonnet** code, test nhanh, kiểm th
    - Trong một nửa, Opus giữ cùng agent và chỉnh hướng hay yêu cầu sửa bằng SendMessage.
    - Hết quota giữa chừng thì phiên sau tạo agent mới làm tiếp từ `progress.md`, không cố chạy tiếp agent cũ.
    - Mọi agent đọc file theo đoạn cần thiết (grep, `sed -n`), không đọc cả file lớn; không đọc file sinh tự động (`packages/db/drizzle/meta/`, OpenAPI sinh ra).
+   - **Bản đồ code** (Dương chốt 21/11/2026): prompt giao việc chỉ đúng mục của `design/ban-do-code.md` cần đọc, thay cho việc dò code. Quy định dùng và sửa bản đồ ghi ở đầu file đó.
 2. Opus rà theo "Kiểm thử theo cấp", phản biện và yêu cầu sửa khi chưa đạt; chỉ đánh dấu xong khi đạt "Định nghĩa xong".
 3. Sonnet không tự đổi quy định đã chốt; chỗ thiết kế chưa rõ thì hỏi Opus. Opus tự quyết chi tiết nhỏ, chỉ hỏi Dương việc quan trọng.
 4. **Sửa quá 5 vòng chưa xong thì dừng, báo Opus.** Một vòng là một lần sửa rồi chạy lại mà cùng lỗi vẫn còn (đổi dạng nhưng cùng chỗ vẫn tính). Báo: lỗi, cách tái hiện, lệnh fail; 5 cách đã thử và vì sao không ăn; giả thuyết nguyên nhân, file, hàm. Opus tìm nguyên nhân gốc và hướng dẫn sửa tận gốc; đòi đổi quy định đã chốt thì Opus hỏi Dương.
