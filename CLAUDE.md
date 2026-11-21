@@ -12,6 +12,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 | `examples/` | **Dữ liệu thật của Base** (deal, com, onboarding, chính sách). Mọi agent đọc tự do (Dương cho phép 18/11/2026). Không sửa. **Không bao giờ commit** file hay dữ liệu lấy từ đây (kể cả fixture, snapshot test), không đưa ra dịch vụ ngoài |
 | `design/moduleX-<ten>.md` | Thiết kế đã chốt của từng module; `moduleX-quyet-dinh-khi-code.md`: quyết định khi code (tra khi cần) |
 | `design/quy-dinh-chung.md` | Quy định đã chốt ảnh hưởng nhiều module (kiến trúc, phân quyền, Datahub, Deal, AI). Đọc khi thiết kế, hoặc khi code/rà việc chạm phân quyền, chia sẻ, công thức, Deal, AI |
+| `design/kiem-tra-thiet-ke.md` | Bảng kiểm rà thiết kế và phạm vi bước con trước khi code (tối ưu, không viết cứng, linh hoạt) |
 | `design/kiem-thu.md` | Chi tiết kiểm thử cuối stage, test chập chờn, điện thoại |
 | `design/chuan-giao-dien.md` | Chuẩn giao diện. Đọc khi code hoặc rà giao diện; việc chỉ đụng server thì không cần |
 | `design/ha-tang.md` | Hạ tầng triển khai |
@@ -34,6 +35,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 2. **Phản biện thật.** Ý tưởng hay giả định yếu thì nói thẳng, kèm lý do và phương án tốt hơn.
 3. Quyết định mới chốt trong chat thì ghi vào file thiết kế của module đó, và vào `design/quy-dinh-chung.md` nếu ảnh hưởng nhiều module.
 4. **Mặc định lấy từ file mẫu, không tự chế.** Template, cột, danh sách lựa chọn, lộ trình mẫu… mặc định bắt đầu từ file mẫu trong `examples/`, giữ nguyên tên và giá trị, ghi rõ nguồn (file, sheet, cột). Cái hệ thống cần thêm để ở danh sách riêng "Thêm vì hệ thống cần", kèm lý do. Không có file mẫu thì hỏi Dương. _Lý do:_ 18/11/2026 Dương gạt bản nháp Module 4 vì template Deals tự chế.
+5. **Rà thiết kế trước khi code** (Dương chốt 22/11/2026): trước khi chốt thiết kế module và trước khi giao mỗi bước con, Opus chạy bảng kiểm `design/kiem-tra-thiet-ke.md`. Bảng kiểm hỏi: Datahub chung đã làm được chưa, có viết cứng cột không, có luật đặc thù thừa không, việc cần ngay hay dời được, đã nói giá phải trả chưa. Kết quả là đề xuất cắt, gộp hay dời kèm ước token, Dương chốt rồi mới giao.
 
 ### Code
 
