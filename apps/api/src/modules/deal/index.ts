@@ -10,4 +10,4 @@ export { paymentOperations } from "./payments";
 export { periodOperations } from "./period";
 export { forecastOperations, snapshotAllTrees, snapshotTree, quarterOf } from "./forecast";
 export { policyDiffOperations } from "./policy-diff";
-export { ensureDealDashboard, DEAL_DASHBOARD_NAME, DEAL_DASHBOARD_CHARTS } from "./default-dashboard";
+export { ensureDealDashboard, ensureDealDashboardForTree, DEAL_DASHBOARD_NAME, DEAL_DASHBOARD_CHARTS, DEAL_DASHBOARD_METRICS } from "./default-dashboard";

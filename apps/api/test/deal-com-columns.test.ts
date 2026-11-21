@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { as, drainOutbox, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
-import { BUILTIN_DEFAULT_SET, DEAL_DASHBOARD_NAME, ensureDealDashboard, ensureTreeTemplates } from "../src/modules/deal";
+import { businessDate } from "@soe/shared";
+import { BUILTIN_DEFAULT_SET, DEAL_DASHBOARD_NAME, ensureDealDashboard, ensureTreeTemplates, quarterOf } from "../src/modules/deal";
 import { workerEmit } from "../src/modules/datahub/template-sync";
 import { processPendingColumns } from "../src/modules/datahub";
 
@@ -18,6 +19,16 @@ let userA1: ReturnType<typeof as>;
 let userA2: ReturnType<typeof as>;
 const tables: Record<string, string> = {};
 const person = (id: string, attrs: Record<string, unknown> = {}) => ({ id, attrs });
+const dealData = (name: string): Record<string, unknown> => ({
+  "Tên công ty": name,
+  "Loại deal": "POD bán mới",
+  "Start date": "2026-06-10",
+  "Doanh thu dự kiến": 1_000,
+  "Nguồn lead": "ML",
+  "Level BC": "Level 1",
+  "Performance BC": "KPI",
+  "Người tham gia": [person(org.userA1.id, { vai_tro: "Leading", ty_le_com: 0.1 })],
+});
 const settle = async () => {
   await drainOutbox(t);
   await processPendingColumns(t.c.db.db);
@@ -145,10 +156,14 @@ describe("metrics point at a column by role", () => {
 });
 
 describe("default Deals dashboard", () => {
-  it("is made once by data; each viewer's numbers are their own; people outside the tree do not see it", async () => {
+  it("a new tree has it (made by the loop that builds the tree); each viewer's numbers are their own; people outside the tree do not see it", async () => {
     const dh = (await mgrA("datahub.table.get", { table_id: tables["Deals"]! })).datahub_id as string;
-    const id = await ensureDealDashboard((op, input) => mgrA(op, input), t.c.db.db, dh);
+    const listed = (await mgrA("metrics.dashboard.list", { datahub_id: dh })) as { id: string; name: string }[] | { items: { id: string; name: string }[] };
+    const found = (Array.isArray(listed) ? listed : listed.items).find((d) => d.name === DEAL_DASHBOARD_NAME);
+    expect(found).toBeTruthy();
+    const id = found!.id;
     expect(await ensureDealDashboard((op, input) => mgrA(op, input), t.c.db.db, dh)).toBe(id);
+    expect((Array.isArray(listed) ? listed : listed.items).filter((d) => d.name === DEAL_DASHBOARD_NAME)).toHaveLength(1);
     const kpiOf = async (call: ReturnType<typeof as>, title: string) => {
       const d = await call("metrics.dashboard.view", { dashboard_id: id });
       const chart = (d.charts as { id: string; chart: { title?: string } }[]).find((c) => c.chart.title === title)!;
@@ -159,6 +174,35 @@ describe("default Deals dashboard", () => {
     expect(((Array.isArray(shared) ? shared : shared.items) as { name: string }[]).map((x) => x.name)).toContain(DEAL_DASHBOARD_NAME);
     expect(await kpiOf(userA1, "Doanh thu tính cho tôi")).toContain("100000000");
     expect(await kpiOf(userA2, "Doanh thu tính cho tôi")).not.toContain("100000000");
+  });
+
+  it("forecast of two parts: the signed part is the viewer's share of the unpaid instalments due this quarter, the unsigned part of open deals without a schedule", async () => {
+    const q = quarterOf(businessDate(new Date()));
+    await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: { ...dealData("Công ty Forecast"), "Ngày dự kiến chốt": q.end, "Doanh thu dự kiến": 30_000_000 } });
+    const d2 = await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: { ...dealData("Công ty Forecast Hai"), "Ngày dự kiến chốt": q.end } });
+    await mgrA("payment.schedule", { deal_id: d2.id, payments: [{ legal_entity: "CT F", amount: 40_000_000, due: q.end }] });
+    await settle();
+    const dh = (await mgrA("datahub.table.get", { table_id: tables["Deals"]! })).datahub_id as string;
+    const lst = (await mgrA("metrics.dashboard.list", { datahub_id: dh })) as { id: string; name: string }[] | { items: { id: string; name: string }[] };
+    const id = (Array.isArray(lst) ? lst : lst.items).find((x) => x.name === DEAL_DASHBOARD_NAME)!.id;
+    const value = async (call: ReturnType<typeof as>, title: string): Promise<unknown> => {
+      const dv = await call("metrics.dashboard.view", { dashboard_id: id });
+      const chart = (dv.charts as { id: string; chart: { title?: string } }[]).find((c) => c.chart.title === title)!;
+      return JSON.parse(JSON.stringify(await call("metrics.chart.data", { chart_id: chart.id })));
+    };
+    const num = (r: unknown): number => (r as { series: { rows: { value: number | null }[] }[] }).series[0]!.rows[0]?.value ?? 0;
+    expect(num(await value(userA1, "Forecast đã ký (quý này)"))).toBe(40_000_000);
+    expect(num(await value(userA1, "Forecast chưa ký (quý này)"))).toBe(30_000_000);
+    expect(num(await value(userA2, "Forecast đã ký (quý này)"))).toBe(0);
+    // Cohort of June 2026 (Start date): Com Thử is Won, the two forecast deals are open, one more is Disqualified: 4 received, 3 met a customer, 1 won.
+    await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: { ...dealData("Công ty Loại"), Status: "Disqualified" } });
+    await settle();
+    const cohort = async (title: string) => {
+      const r = (await value(mgrA, title)) as { series: { rows: { groups: { label: string }[]; value: number }[] }[] };
+      return r.series[0]!.rows.find((x) => x.groups[0]!.label === "2026-06")!.value;
+    };
+    expect(await cohort("CR1 theo cohort (tháng nhận)")).toBeCloseTo(3 / 4, 9);
+    expect(await cohort("CR2 (Winrate) theo cohort (tháng nhận)")).toBeCloseTo(1 / 3, 9);
   });
 });
 

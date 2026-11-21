@@ -223,6 +223,8 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 ## Module 3: Chỉ số, dashboard
 
 **Chỗ gọi vào**
+- Chỉ số trỏ cột theo vai trò (`role:<key>` trong `field`, `group_by`, `time.field`, filter) → `packages/metrics/src/columns.ts` `findColumn`; vai trò của bảng do `loadMTable` (`apps/api/src/modules/metrics/context.ts`) điền vào `MTable.roles`.
+- Dashboard tính theo quyền người xem (`as_viewer`, mở cho mọi người có chia sẻ datahub) → `DashboardConfigSchema` (`packages/metrics/src/chart.ts`), `viewDash` và `computeCtx` (`apps/api/src/modules/metrics/dashboard-access.ts`); liệt kê qua `metrics.dashboard.shared`.
 - Chạy một chỉ số (định nghĩa JSON, tham số so sánh, mục tiêu...) → `apps/api/src/modules/metrics/engine.ts` `runMetric` (`runDefinition` cho chỉ số đã lưu; `runHistogram`, `runBoxplot`, `runRowIds` cho biểu đồ riêng). Kiểm hợp lệ trước: `validateSpec`, `validateDefinition`.
 - Nguồn dữ liệu của chỉ số (một bảng, hoặc nối nhiều bảng) → `apps/api/src/modules/metrics/context.ts` `resolveSource`; cột Datahub thành cột chỉ số: `toMColumn`. Đọc cột luôn qua `apps/api/src/modules/datahub/column-source.ts` `sourceOf` (`cellExpr`), engine không biết cột nằm ở đâu.
 - Câu SQL chỉ số do thư viện thuần dựng: `packages/metrics/src/build.ts` `buildMetricQuery`; hậu xử lý (chỉ số suy ra, tích luỹ, so kỳ, mục tiêu): `packages/metrics/src/post.ts` `combineDerived`, `cumulate`, `compareTables`, `attachTarget`; khoảng thời gian: `packages/metrics/src/time.ts` `resolveRange`.
@@ -350,7 +352,13 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 **Cột "của tôi", Index, dashboard Deals (4.6A)**
 - Cột Deals/Đợt/Sổ com/Index mới khai ở `apps/api/src/modules/deal/default-templates.ts` (`COM_DU_KIEN`, `COM_CHO_NHAN`, `indexLateColumns`); cột muộn (`late_columns`) cho cột đọc bảng tạo sau. Liên kết Sổ com ghi ở `apps/api/src/modules/deal/payments.ts` `linkLedger`.
 - Chỉ số trỏ vai trò: `role:<key>` (`packages/metrics/src/columns.ts` `findColumn`, `MTable.roles` ở `apps/api/src/modules/metrics/context.ts` `loadMTable`).
-- Dashboard tính theo người xem: `as_viewer` ở `DashboardConfigSchema`; `apps/api/src/modules/metrics/dashboard-access.ts` `viewDash`, `computeCtx`. Dashboard Deals mặc định: `apps/api/src/modules/deal/default-dashboard.ts` `ensureDealDashboard`. Test: `apps/api/test/deal-com-columns.test.ts`.
+- Dashboard tính theo người xem: `as_viewer` ở `DashboardConfigSchema`; `apps/api/src/modules/metrics/dashboard-access.ts` `viewDash`, `computeCtx`. Dashboard Deals mặc định: `apps/api/src/modules/deal/default-dashboard.ts` (`ensureDealDashboard` qua lệnh, `ensureDealDashboardForTree` ghi hệ thống). Test: `apps/api/test/deal-com-columns.test.ts`.
+
+**Doanh thu theo người, forecast Leader, dashboard Deals tự dựng (4.6A2)**
+- Cột "của tôi" của Sổ com: autofill `present: true` (`datahub/pushdown.ts` `desiredFor`, `template-ops.ts` `resolveAutofill`), cột `Của tôi` và công thức `Com đã nhận/tạm tính của tôi` ở `default-templates.ts` `LEDGER`.
+- Bảng `Doanh thu theo người` (bộ vai trò `revenue`, `column-roles.ts`; `default-templates.ts` `REVENUE`): ghi/xoá ở `deal/payments.ts` `addRevenueLines`, `revenueLinesOf` (gọi từ `payment.confirm`, `payment.unconfirm`); KPI `Đã đạt` ở `KPI` (`PROGRESS`). Dọn id Sổ com mồ côi: `unlinkLedger`. Test: `apps/api/test/deal-revenue-by-person.test.ts`, `deal-com-columns.test.ts`.
+- Forecast cho Leader: `deal/forecast.ts` `forecastScope` (quyền `deal:forecast:read`, Leader lọc theo `loadReader().ids` và `DealFact.people`). Test: `deal-period.test.ts`.
+- Dashboard Deals tự dựng cùng cây: `deal/default-dashboard.ts` `ensureDealDashboardForTree` (gọi cuối `ensureTreeTemplates`), `DEAL_DASHBOARD_CHARTS`, `DEAL_DASHBOARD_METRICS` (chỉ số cohort CR1/CR2).
 
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.

@@ -6,6 +6,8 @@ import { defineCommand, defineQuery } from "../../core/registry";
 import type { HandlerCtx } from "../../core/types";
 import { Id } from "../datahub/shared";
 import type { SelectOption } from "../datahub/types";
+import { loadReader } from "../datahub/access";
+import { userIdsOf } from "../datahub/user-values";
 
 /**
  * Forecast and snapshot of the deals (design module4 11), one place that computes them:
@@ -54,6 +56,8 @@ export interface DealFact {
   lead: string | null;
   level: string | null;
   perf: string | null;
+  /** The people named in `Người tham gia`: the key of the split lock, so who reads the deal. */
+  people: string[];
 }
 
 export async function dealFacts(db: Executor, managerId: string): Promise<DealFact[]> {
@@ -73,6 +77,7 @@ export async function dealFacts(db: Executor, managerId: string): Promise<DealFa
       return typeof v === "string" ? (opts.get(v)?.name ?? v) : null;
     };
   };
+  const kPeople = deals.key("nguoi_tham_gia");
   const [lead, level, perf] = [pick("nguon_lead"), pick("level_bc"), pick("performance_bc")];
   const byDeal = new Map<string, { amount: number; due: string | null }[]>();
   const scheduled = new Set<string>();
@@ -102,6 +107,7 @@ export async function dealFacts(db: Executor, managerId: string): Promise<DealFa
     lead: lead(r.data),
     level: level(r.data),
     perf: perf(r.data),
+    people: kPeople ? userIdsOf(r.data[kPeople]) : [],
   }));
 }
 
@@ -186,15 +192,28 @@ export function managerOf(ctx: Pick<HandlerCtx, "access">) {
     return p.userId;
   });
 }
+/**
+ * Whose forecast the caller may read. A Manager: the whole tree. A Leader: the deals the split lock lets them read (a person of their team named in `Người tham gia`),
+ * the same rows they read in the Deals table. Anyone else: forbidden.
+ */
+export async function forecastScope(ctx: Pick<HandlerCtx, "access" | "db">): Promise<{ managerId: string; readerIds: Set<string> | null }> {
+  const p = await ctx.access.requirePrincipal();
+  if (p.roles.includes("manager")) return { managerId: p.userId, readerIds: null };
+  if (!p.roles.includes("leader")) throw new AppError("forbidden", "Chỉ Manager hoặc Leader xem forecast.", { reason: "manager_or_leader_only" });
+  const res = await ctx.db.execute(sql`SELECT manager_id FROM org_memberships WHERE user_id = ${p.userId}::uuid AND valid_to IS NULL`);
+  const managerId = (res.rows[0] as { manager_id: string | null } | undefined)?.manager_id;
+  if (!managerId) throw new AppError("forbidden", "Leader chưa thuộc cây của Manager nào.", { reason: "no_manager" });
+  return { managerId, readerIds: new Set((await loadReader(ctx.db, p.userId)).ids) };
+}
 const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Ngày dạng YYYY-MM-DD.");
 
 export const forecastOperations = [
   defineQuery({
     name: "deal.forecast",
-    summary: "Forecast của cây theo loại deal và tháng, hai phần: đã ký chờ tiền về, chưa ký.",
+    summary: "Forecast theo loại deal và tháng, hai phần: đã ký chờ tiền về, chưa ký.",
     description:
-      "Chỉ Manager của cây. `signed`: tổng `Số tiền dự kiến` của các đợt chưa về có hạn trong khoảng (deal mở hoặc Won). `unsigned`: `Doanh thu` của deal đang mở chưa có lịch thanh toán, có Ngày dự kiến chốt trong khoảng. Deal đã đóng (Lost, Disqualified, Convert, Huỷ) không tính.",
-    permission: "deal:snapshot:create",
+      "Manager của cây (cả cây) và Leader (deal team đọc được: có người của team trong Người tham gia). User, Guest bị chặn. `signed`: tổng `Số tiền dự kiến` của các đợt chưa về có hạn trong khoảng (deal mở hoặc Won). `unsigned`: `Doanh thu` của deal đang mở chưa có lịch thanh toán, có Ngày dự kiến chốt trong khoảng. Deal đã đóng (Lost, Disqualified, Convert, Huỷ) không tính.",
+    permission: "deal:forecast:read",
     aiAllowed: true,
     input: z.object({ from: ymd, to: ymd, deal_type: z.string().max(100).optional() }),
     output: z.object({
@@ -208,9 +227,10 @@ export const forecastOperations = [
     }),
     http: { method: "GET", path: "/deal/forecast" },
     handler: async (ctx, i) => {
-      const m = await managerOf(ctx);
+      const { managerId, readerIds } = await forecastScope(ctx);
       if (i.to < i.from) throw new AppError("validation_error", "Ngày kết thúc phải sau ngày bắt đầu.");
-      const parts = forecastParts(await dealFacts(ctx.db, m), i.from, i.to).filter((p) => !i.deal_type || p.type === i.deal_type);
+      const facts = (await dealFacts(ctx.db, managerId)).filter((d) => !readerIds || d.people.some((x) => readerIds.has(x)));
+      const parts = forecastParts(facts, i.from, i.to).filter((p) => !i.deal_type || p.type === i.deal_type);
       const sum = (key: "type" | "month") => {
         const g = new Map<string, { signed: number; unsigned: number }>();
         for (const p of parts) {

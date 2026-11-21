@@ -8,6 +8,7 @@ import { setShareOptions } from "../datahub/split-ops";
 import { addTemplateColumn, createTemplateCore, masterAccess } from "../datahub/template-ops";
 import { loadTemplate, systemCtx, workerEmit, type Emit } from "../datahub/template-sync";
 import { readSetting, type SettingDef } from "../system/settings-catalog";
+import { ensureDealDashboardForTree } from "./default-dashboard";
 import { BUILTIN_DEFAULT_SET, DefaultSetSchema, type DefaultTable, type DefaultTableSchema } from "./default-templates";
 import type { z } from "zod";
 
@@ -110,6 +111,8 @@ export async function ensureTreeTemplates(db: Executor, emit: Emit, managerId: s
   }
   // Second pass: link columns whose target table is built later in the set.
   for (const def of set) await addLateColumns(ctx, managerId, def);
+  // The default dashboard of the tree (module4 13): a system write like the tables, made once.
+  await ensureDealDashboardForTree(db, managerId);
   return made;
 }
 

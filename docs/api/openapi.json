@@ -15123,11 +15123,14 @@
                                           "team",
                                           "tree"
                                         ]
+                                      },
+                                      "present": {
+                                        "type": "boolean",
+                                        "const": true
                                       }
                                     },
                                     "required": [
-                                      "column",
-                                      "attr"
+                                      "column"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -16539,11 +16542,14 @@
                                     "team",
                                     "tree"
                                   ]
+                                },
+                                "present": {
+                                  "type": "boolean",
+                                  "const": true
                                 }
                               },
                               "required": [
-                                "column",
-                                "attr"
+                                "column"
                               ],
                               "additionalProperties": false
                             },
@@ -17010,11 +17016,14 @@
                                     "team",
                                     "tree"
                                   ]
+                                },
+                                "present": {
+                                  "type": "boolean",
+                                  "const": true
                                 }
                               },
                               "required": [
-                                "column",
-                                "attr"
+                                "column"
                               ],
                               "additionalProperties": false
                             },
@@ -17600,11 +17609,14 @@
                                     "team",
                                     "tree"
                                   ]
+                                },
+                                "present": {
+                                  "type": "boolean",
+                                  "const": true
                                 }
                               },
                               "required": [
-                                "column",
-                                "attr"
+                                "column"
                               ],
                               "additionalProperties": false
                             },
@@ -18348,11 +18360,14 @@
                                         "team",
                                         "tree"
                                       ]
+                                    },
+                                    "present": {
+                                      "type": "boolean",
+                                      "const": true
                                     }
                                   },
                                   "required": [
-                                    "column",
-                                    "attr"
+                                    "column"
                                   ],
                                   "additionalProperties": false
                                 },
@@ -30940,6 +30955,7 @@
                       "com_policy",
                       "com_params",
                       "ledger",
+                      "revenue",
                       "kpi",
                       "receipts"
                     ]
@@ -32046,11 +32062,14 @@
                                           "team",
                                           "tree"
                                         ]
+                                      },
+                                      "present": {
+                                        "type": "boolean",
+                                        "const": true
                                       }
                                     },
                                     "required": [
-                                      "column",
-                                      "attr"
+                                      "column"
                                     ],
                                     "additionalProperties": false
                                   },
@@ -33305,7 +33324,7 @@
                     "maxLength": 60
                   },
                   "autofill": {
-                    "description": "\"Gửi xuống\" (Module 4 mục 4.5): hệ thống tự điền cột (storage `person`) từ thuộc tính `attr` của mỗi người trong cột Người dùng có thuộc tính `column` của cùng dòng. `sum: team|tree`: Leader/Manager nhận tổng của team/cây.",
+                    "description": "\"Gửi xuống\" (Module 4 mục 4.5): hệ thống tự điền cột (storage `person`) từ thuộc tính `attr` của mỗi người trong cột Người dùng có thuộc tính `column` của cùng dòng. `sum: team|tree`: Leader/Manager nhận tổng của team/cây. `present: true` (thay `attr`): cột checkbox, mỗi người có tên trong cột nhận Có.",
                     "type": "object",
                     "properties": {
                       "column": {
@@ -33324,11 +33343,14 @@
                           "team",
                           "tree"
                         ]
+                      },
+                      "present": {
+                        "type": "boolean",
+                        "const": true
                       }
                     },
                     "required": [
-                      "column",
-                      "attr"
+                      "column"
                     ]
                   }
                 },
@@ -33466,11 +33488,14 @@
                                     "team",
                                     "tree"
                                   ]
+                                },
+                                "present": {
+                                  "type": "boolean",
+                                  "const": true
                                 }
                               },
                               "required": [
-                                "column",
-                                "attr"
+                                "column"
                               ],
                               "additionalProperties": false
                             },
@@ -33937,11 +33962,14 @@
                                         "team",
                                         "tree"
                                       ]
+                                    },
+                                    "present": {
+                                      "type": "boolean",
+                                      "const": true
                                     }
                                   },
                                   "required": [
-                                    "column",
-                                    "attr"
+                                    "column"
                                   ],
                                   "additionalProperties": false
                                 },
@@ -34857,11 +34885,14 @@
                                         "team",
                                         "tree"
                                       ]
+                                    },
+                                    "present": {
+                                      "type": "boolean",
+                                      "const": true
                                     }
                                   },
                                   "required": [
-                                    "column",
-                                    "attr"
+                                    "column"
                                   ],
                                   "additionalProperties": false
                                 },
@@ -35429,11 +35460,14 @@
                                     "team",
                                     "tree"
                                   ]
+                                },
+                                "present": {
+                                  "type": "boolean",
+                                  "const": true
                                 }
                               },
                               "required": [
-                                "column",
-                                "attr"
+                                "column"
                               ],
                               "additionalProperties": false
                             },
@@ -35861,11 +35895,14 @@
                                         "team",
                                         "tree"
                                       ]
+                                    },
+                                    "present": {
+                                      "type": "boolean",
+                                      "const": true
                                     }
                                   },
                                   "required": [
-                                    "column",
-                                    "attr"
+                                    "column"
                                   ],
                                   "additionalProperties": false
                                 },
@@ -36113,11 +36150,14 @@
                                             "team",
                                             "tree"
                                           ]
+                                        },
+                                        "present": {
+                                          "type": "boolean",
+                                          "const": true
                                         }
                                       },
                                       "required": [
-                                        "column",
-                                        "attr"
+                                        "column"
                                       ],
                                       "additionalProperties": false
                                     },
@@ -54675,14 +54715,14 @@
     "/api/v1/deal/forecast": {
       "get": {
         "operationId": "deal.forecast",
-        "summary": "Forecast của cây theo loại deal và tháng, hai phần: đã ký chờ tiền về, chưa ký.",
-        "description": "Chỉ Manager của cây. `signed`: tổng `Số tiền dự kiến` của các đợt chưa về có hạn trong khoảng (deal mở hoặc Won). `unsigned`: `Doanh thu` của deal đang mở chưa có lịch thanh toán, có Ngày dự kiến chốt trong khoảng. Deal đã đóng (Lost, Disqualified, Convert, Huỷ) không tính.",
+        "summary": "Forecast theo loại deal và tháng, hai phần: đã ký chờ tiền về, chưa ký.",
+        "description": "Manager của cây (cả cây) và Leader (deal team đọc được: có người của team trong Người tham gia). User, Guest bị chặn. `signed`: tổng `Số tiền dự kiến` của các đợt chưa về có hạn trong khoảng (deal mở hoặc Won). `unsigned`: `Doanh thu` của deal đang mở chưa có lịch thanh toán, có Ngày dự kiến chốt trong khoảng. Deal đã đóng (Lost, Disqualified, Convert, Huỷ) không tính.",
         "tags": [
           "deal"
         ],
         "x-command-name": "deal.forecast",
         "x-ai-allowed": true,
-        "x-permission": "deal:snapshot:create",
+        "x-permission": "deal:forecast:read",
         "parameters": [
           {
             "name": "from",

@@ -96,6 +96,7 @@ describe("Admin is system administration only (module1 3.1)", () => {
     const has = (r: keyof typeof ROLE_PERMISSIONS, p: string) => (ROLE_PERMISSIONS[r] as string[]).includes(p);
     expect(has("manager", "deal:deal:assign") && !has("leader", "deal:deal:assign")).toBe(true);
     expect(has("leader", "deal:column:push") && !has("user", "deal:column:push")).toBe(true);
+    expect(has("manager", "deal:forecast:read") && has("leader", "deal:forecast:read") && !has("user", "deal:forecast:read") && !has("guest", "deal:forecast:read")).toBe(true);
     expect(has("leader", "onboarding:path:create") && !has("user", "onboarding:path:create")).toBe(true);
     expect(["manager", "leader", "user"].every((r) => has(r as "user", "datahub:datahub:create"))).toBe(true);
     expect(has("guest", "docs:read")).toBe(false);

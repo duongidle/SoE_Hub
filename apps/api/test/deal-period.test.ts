@@ -192,7 +192,22 @@ describe("forecast and snapshot", () => {
     expect(pod.signed).toBeGreaterThanOrEqual(150_000_000);
     expect(f.by_type.find((x: { type: string }) => x.type === "PS không kèm POD")).toBeUndefined(); // d7 expects to close after the range
     expect(f.by_month.length).toBeGreaterThan(0);
-    for (const who of [leaderA, userA1, guest]) expect((await fails(who("deal.forecast", { from: q.start, to: q.end }))).code).toBe("forbidden");
+    for (const who of [userA1, guest]) expect((await fails(who("deal.forecast", { from: q.start, to: q.end }))).code).toBe("forbidden");
+  });
+
+  it("a Leader reads the forecast of the deals of their team only; another team's deal is not in it", async () => {
+    // userA2 reports straight to the Manager, so this deal is outside the Leader's team.
+    const other = (await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: {
+      "Tên công ty": "Công ty Ngoài Team", "Loại deal": "POD bán mới", "Start date": "2026-06-10", "Nguồn lead": "ML", "Level BC": "Level 1", "Performance BC": "KPI",
+      "Người tham gia": [person(org.userA2.id, { vai_tro: "Leading", ty_le_com: 0.1, ty_le_dt: 1 })],
+    } })).id as string;
+    await schedule(other, [{ amount: 77_000_000, due: q.end }]);
+    await drainOutbox(t);
+    const m = await mgrA("deal.forecast", { from: q.start, to: q.end });
+    const l = await leaderA("deal.forecast", { from: q.start, to: q.end });
+    expect(m.signed - l.signed).toBe(77_000_000);
+    expect(l.signed).toBeGreaterThanOrEqual(150_000_000);
+    expect(l.unsigned).toBeGreaterThanOrEqual(80_000_000);
   });
 
   it("a snapshot copies the open deals with their forecast value; the quarterly job takes one per tree and quarter", async () => {

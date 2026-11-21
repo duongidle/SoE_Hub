@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { as, drainOutbox, unlimit } from "./dh-helpers";
+import { as, drainOutbox, fails, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
 import { BUILTIN_DEFAULT_SET, ensureTreeTemplates } from "../src/modules/deal";
@@ -130,5 +130,40 @@ describe("Doanh thu theo người", () => {
     expect(await revenueRows()).toHaveLength(1);
     expect((await row(userA1, tables["Probation KPI"]!, kpiA1))["Đã đạt"]).toBe(100_000_000);
     expect((await row(leaderA, tables["Probation KPI"]!, kpiLeader))["Đã đạt"]).toBe(0);
+  });
+});
+
+describe("Guest and per-person columns", () => {
+  it("a Guest with no grant reads nothing of the revenue, ledger, Deals or Probation KPI tables", async () => {
+    const guest = as(t, org.guestData.id);
+    for (const name of ["Doanh thu theo người", "Sổ com", "Deals", "Probation KPI"]) {
+      expect((await fails(guest("datahub.row.list", { table_id: tables[name]!, limit: 10 }))).code, name).toMatch(/forbidden|not_found/);
+    }
+    expect((await fails(guest("deal.forecast", { from: "2026-01-01", to: "2026-12-31" }))).code).toBe("forbidden");
+  });
+});
+
+describe("Index: Winrate of the quarter", () => {
+  it("Won closed in the quarter over Qualified received in the quarter, for the deals the person counts as theirs", async () => {
+    // Deal A (userA1 Leading, Start 2026-06-10) is Won in July (Q3) by its first payment; deal B has the Leader as Leading. Both received in Q2.
+    const my = (await userA1("datahub.template.list")).find((x: { name: string }) => x.name === "Index").my_table_id as string;
+    const made = await userA1("datahub.row.create", { table_id: my, data: { Tháng: "2026-07-01" } });
+    await settle();
+    const r = await row(userA1, my, made.id);
+    // Q3 starts: none received in Q3 (denominator 0) -> blank. Use the Q2 month for the received-quarter reading.
+    expect(r["Winrate quý"] ?? "").toBe("");
+    // Q3: three deals of userA1 received in July; one is Won in July (payment). With deal A (received in Q2, Won in July) Won in Q3 = 2, Qualified received in Q3 = 3.
+    const mk = async (name: string) => (await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: { ...dealData(name, [person(org.userA1.id, { vai_tro: "Leading", ty_le_com: 0.1 })]), "Start date": "2026-07-10" } })).id as string;
+    const c = await mk("Công ty Q3 Một");
+    await mk("Công ty Q3 Hai");
+    await mk("Công ty Q3 Ba");
+    const payC = (await mgrA("payment.schedule", { deal_id: c, payments: [{ legal_entity: "CT C", amount: 10_000_000, due: "2026-07-20" }] })).payments[0].id;
+    await mgrA("payment.confirm", { received_on: "2026-07-20", receipt: { amount: 10_000_000 }, allocations: [{ payment_id: payC, amount: 10_000_000 }] });
+    await settle();
+    expect((await row(userA1, my, made.id))["Winrate quý"] as number).toBeCloseTo(2 / 3, 9);
+    const q2 = await userA1("datahub.row.create", { table_id: my, data: { Tháng: "2026-06-01" } });
+    await settle();
+    // Q2: userA1 counts deals A and B? only A is Leading for userA1 (B is Associate): 1 received, 0 Disqualified; Won closed in Q2: none yet (A closed in July).
+    expect((await row(userA1, my, q2.id))["Winrate quý"]).toBe(0);
   });
 });
