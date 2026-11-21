@@ -80,6 +80,7 @@ export interface TableDetail {
   /** Template table (Quản lý Deal): `protected` columns, anyone who sees it adds a column of their own. */
   protected?: boolean;
   template_id?: string | null;
+  role_set?: string | null;
 }
 
 export interface Row {

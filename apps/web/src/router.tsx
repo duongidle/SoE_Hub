@@ -36,6 +36,7 @@ export const router = createRouter({
     lazyPage("/datahub/$datahubId/$tableId", () => import("@/pages/datahub/detail"), "DatahubPage"),
     lazyPage("/quan-ly-deal", () => import("@/pages/deal/home"), "DealHomePage"),
     lazyPage("/quan-ly-deal/template", () => import("@/pages/deal/template"), "TemplatePage"),
+    lazyPage("/quan-ly-deal/thanh-toan", () => import("@/pages/deal/payments"), "PaymentsPage"),
     lazyPage("/quan-ly-deal/$tableId", () => import("@/pages/deal/home"), "DealHomePage"),
     r("/dashboard", SharedDashboardsPage),
     r("/dashboard/$dashboardId", SharedDashboardPage),

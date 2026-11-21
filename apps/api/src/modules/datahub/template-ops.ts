@@ -300,7 +300,7 @@ export const templateOperations = [
     input: z.object({}),
     output: z.object({
       datahub_id: Id.nullable(),
-      tables: z.array(z.object({ id: Id, datahub_id: Id, name: z.string(), row_count: z.number().int(), access: z.enum(["owner", "edit_data", "view"]), kind: z.enum(["normal", "merged"]), template_id: Id.nullable(), template_kind: z.enum(["shared", "personal"]).nullable(), template_scope: z.enum(["tree", "team"]).nullable() })),
+      tables: z.array(z.object({ id: Id, datahub_id: Id, name: z.string(), row_count: z.number().int(), access: z.enum(["owner", "edit_data", "view"]), kind: z.enum(["normal", "merged"]), template_id: Id.nullable(), template_kind: z.enum(["shared", "personal"]).nullable(), template_scope: z.enum(["tree", "team"]).nullable(), role_set: z.string().nullable() })),
     }),
     http: { method: "GET", path: "/datahub/deal-home" },
     handler: async (ctx) => {
@@ -313,17 +313,17 @@ export const templateOperations = [
       const byDh = await tablesOf(ctx.db, me, dhIds);
       const all = dhIds.flatMap((d) => (byDh.get(d) ?? []).map((t) => ({ ...t, datahub_id: d })));
       if (!all.length) return { datahub_id: myId, tables: [] };
-      const meta = await ctx.db.execute(sql`SELECT t.id, t.template_id, tp.kind AS tkind, tp.scope AS tscope, tp.created_at AS tcreated
+      const meta = await ctx.db.execute(sql`SELECT t.id, t.template_id, t.role_set, tp.kind AS tkind, tp.scope AS tscope, tp.created_at AS tcreated
         FROM dh_tables t LEFT JOIN dh_templates tp ON tp.id = t.template_id WHERE /*scope*/ t.id = ANY(${`{${all.map((t) => t.id).join(",")}}`}::uuid[])`);
       const info = new Map((meta.rows as Raw[]).map((r) => [r.id as string, r]));
       const rows = all.map((t) => {
         const m = info.get(t.id);
-        return { t, tpl: (m?.template_id as string | null) ?? null, kind: (m?.tkind as "shared" | "personal" | null) ?? null, scope: (m?.tscope as "tree" | "team" | null) ?? null, created: m?.tcreated ? new Date(m.tcreated as string).getTime() : 0 };
+        return { t, role_set: (m?.role_set as string | null) ?? null, tpl: (m?.template_id as string | null) ?? null, kind: (m?.tkind as "shared" | "personal" | null) ?? null, scope: (m?.tscope as "tree" | "team" | null) ?? null, created: m?.tcreated ? new Date(m.tcreated as string).getTime() : 0 };
       });
       rows.sort((a, b) => (a.tpl && !b.tpl ? -1 : !a.tpl && b.tpl ? 1 : a.tpl ? a.created - b.created : a.t.position - b.t.position));
       return {
         datahub_id: myId,
-        tables: rows.map(({ t, tpl, kind, scope }) => ({ id: t.id, datahub_id: t.datahub_id, name: t.name, row_count: t.row_count, access: t.access, kind: t.kind, template_id: tpl, template_kind: kind, template_scope: scope })),
+        tables: rows.map(({ t, tpl, kind, scope, role_set }) => ({ role_set, id: t.id, datahub_id: t.datahub_id, name: t.name, row_count: t.row_count, access: t.access, kind: t.kind, template_id: tpl, template_kind: kind, template_scope: scope })),
       };
     },
   }),

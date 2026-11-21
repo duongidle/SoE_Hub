@@ -31486,6 +31486,12 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "role_set": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
                               }
                             },
                             "required": [
@@ -31497,7 +31503,8 @@
                               "kind",
                               "template_id",
                               "template_kind",
-                              "template_scope"
+                              "template_scope",
+                              "role_set"
                             ],
                             "additionalProperties": false
                           }

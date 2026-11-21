@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { MoreHorizontal, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Settings2, Trash2, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Menu, MenuItem } from "@/components/ui/dropdown";
 import { Button, ConfirmDialog, ErrorText } from "@/components/ui/form";
@@ -45,6 +45,11 @@ function DealBody({ home, tableId }: { home: { datahub_id: string | null; tables
         <h1 className="min-w-0 text-xl font-semibold sm:text-2xl">Quản lý Deal</h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {isDealTable && hasLeader && !roles.includes("manager") && <LeaderEditToggle />}
+          {home.tables.some((t) => t.role_set === "payments") && (
+            <Link to="/quan-ly-deal/thanh-toan" data-testid="open-payments-page" className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">
+              <Wallet size={16} aria-hidden /> Thanh toán và com
+            </Link>
+          )}
           {canTemplate && (
             <Link to="/quan-ly-deal/template" data-testid="open-template-page" className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">
               <Settings2 size={16} aria-hidden /> Template

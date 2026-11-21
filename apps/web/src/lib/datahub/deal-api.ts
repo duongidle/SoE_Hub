@@ -15,6 +15,8 @@ export interface DealTable {
   template_id: string | null;
   template_kind: "shared" | "personal" | null;
   template_scope: "tree" | "team" | null;
+  /** Column role set of the table (Module 4 mục 3.7): `deals`, `payments`, `receipts`, `ledger`... null for a table without roles. */
+  role_set: string | null;
 }
 export interface DealHome { datahub_id: string | null; tables: DealTable[] }
 

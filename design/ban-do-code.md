@@ -53,6 +53,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 - Mẫu subscriber: `createNotificationSubscriber` ở `apps/api/src/modules/notification/index.ts`. Thông báo cho sự kiện mới → thêm `Notifier` vào bảng `notifiers` cùng file.
 - Dispatcher xử lý từng sự kiện nối tiếp nhau. **Việc nặng (dựng nhiều bảng, quét nhiều dòng) không chạy trong subscriber.** Đã có lỗi thật: dựng template trong dispatcher làm trễ mọi sự kiện sau, kể cả thông báo mã kích hoạt.
 - Việc nặng làm một trong hai cách. Vòng riêng, truy vấn chính là hàng đợi, bỏ nhịp nếu lần trước chưa xong: mẫu `startDealDefaultsLoop` ở `apps/api/src/modules/deal/tree-templates.ts`, gắn vào `apps/api/src/worker.ts`. Hoặc job định kỳ: thêm vào `jobs` ở `apps/api/src/jobs/index.ts` (cron, mẫu `system-heartbeat`).
+- Vòng thứ hai theo mẫu này: `startRefillLoop` (điền lại cột gửi xuống khi đổi cây; hàng đợi là cột `dh_tables.refill_pending_at`, subscriber chỉ đánh dấu).
 - Vòng mới phải có `stop()` và được gọi trong `shutdown` của `apps/api/src/worker.ts`.
 - Job và worker chạy với `systemActor` (`apps/api/src/jobs/index.ts`), không có người dùng.
 - Muốn ghi cài đặt hệ thống từ job → `systemSettings`, đọc → `getSetting` (`packages/db/src/helpers/settings.ts`).
@@ -247,7 +248,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 
 ## Module 4: Quản lý Deal
 
-_Phần 4.1–4.4A. Mỗi bước con sau cập nhật phần của mình trong cùng commit với code._
+_Phần 4.1–4.4B. Mỗi bước con sau cập nhật phần của mình trong cùng commit với code._
 
 **Bảng template (mỗi template có bảng chủ và bản sao cho từng thành viên)**
 - Tạo template bằng code, không cần request: `apps/api/src/modules/datahub/template-ops.ts` `createTemplateCore`. Thêm cột: `apps/api/src/modules/datahub/template-ops.ts` `addTemplateColumn`. Bảng chủ nhìn như chủ sở hữu: `apps/api/src/modules/datahub/template-ops.ts` `masterAccess`.
@@ -306,6 +307,16 @@ _Phần 4.1–4.4A. Mỗi bước con sau cập nhật phần của mình trong 
 - Khoá kỳ cho huỷ xác nhận: `assertPeriodOpen` với `tableId` = bảng Đợt, `scope` = id Manager (4.5 khoá kỳ cùng cách).
 - Vai trò cột mới: bộ `receipts`, `kpi`, thêm vai trò vào `payments`, `ledger`, `deals` ở `apps/api/src/modules/datahub/column-roles.ts` `ROLE_SETS`.
 
+**Web thanh toán và com (4.4B)**
+- Trang `/quan-ly-deal/thanh-toan`: `apps/web/src/pages/deal/payments.tsx` `PaymentsPage` (ba tab: Đợt thanh toán, Ghép tiền về chỉ Manager, Sổ com). Nút vào ở `apps/web/src/pages/deal/home.tsx` (hiện khi `deal-home` có bảng `role_set = "payments"`). Router: `apps/web/src/router.tsx`.
+- Gọi lệnh: `apps/web/src/lib/datahub/payment-api.ts` (`schedulePayments`, `confirmPayments`, `unconfirmPayments`, `adjustCommission`, `matchCandidates`). Giao diện chỉ gửi và hiện kết quả, không tự tính tiền, com, trạng thái.
+- Tìm bảng theo `role_set` (lệnh `datahub.deal.home` trả thêm `role_set` của bảng; `usePaymentTables`), tìm cột theo `role` (`useSchema().key("han")`). Ô chọn lưu id lựa chọn: đọc tên bằng `optionName`.
+- Lập lịch: `ScheduleDialog` (chọn deal bằng `DealPickerAndSchedule`, hoặc nút "Lập lịch" trong ngăn chi tiết deal). Đợt đã về hiện khoá. Ghép tiền về: `MatchTab`; hàng Tiền về chưa ghép: `UnmatchedReceipts` (đợt chưa liên kết nào); huỷ xác nhận và điều chỉnh com: `InstalmentsTab`, `AdjustDialog`.
+- Ngăn chi tiết deal: `DealPaymentsPanel` gắn ở `apps/web/src/pages/datahub/row-panel.tsx` khi `table.role_set === "deals"`.
+- Lỗi server hiện bằng `ErrorText`/`errorMessage`, không bắt mã lỗi riêng ở web.
+- Hàng đợi điền lại cột gửi xuống khi đổi cây (server): `apps/api/src/modules/datahub/pushdown.ts` `refillSubscriber` (chỉ đánh dấu `dh_tables.refill_pending_at`), `processPendingRefills`, `startRefillLoop` (nối ở `apps/api/src/worker.ts`).
+- e2e: `apps/web/e2e/stage4-4.spec.ts`.
+
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.
 - Không đưa số chính sách com thật vào code, bộ mặc định hay test (bảng chính sách và tham số tạo rỗng; Manager điền).
@@ -315,4 +326,4 @@ _Phần 4.1–4.4A. Mỗi bước con sau cập nhật phần của mình trong 
 - Lệnh thanh toán chỉ ghi cột thường; tổng, trạng thái, kỳ, com là công thức, lookup, rollup (không tự cộng trong lệnh).
 - Không viết điều kiện riêng cho một bảng template trong engine; bảng Deal chỉ là bảng thường có vai trò.
 
-**Việc còn nợ:** xem `progress.md` mục "4.4 BÀN GIAO".
+**Việc còn nợ của 4.4:** xem `progress.md`.

@@ -18,6 +18,7 @@ import { OriginLink } from "./merge-status";
 import { OptionChip, PersonPicker, RatingPicker } from "./pickers";
 import { RelationPicker } from "./relation-picker";
 import { PeopleAttrsEditor } from "./people-attrs";
+import { DealPaymentsPanel } from "../deal/payments";
 
 const OP_LABEL: Record<string, string> = { create: "Tạo dòng", update: "Sửa", delete: "Xoá vào thùng rác", restore: "Khôi phục", upsert: "Cập nhật" };
 const VIA_LABEL: Record<string, string> = { web: "", api: "qua API", mcp: "qua AI", form: "qua form", import: "qua import", automation: "tự động", system: "hệ thống" };
@@ -75,6 +76,7 @@ export function RowPanel({ session, rowId, level, onClose }: { session: TableSes
             ) : tab === "data" ? (
               <div className="flex flex-col gap-4">
                 {level === "view" && <p className="rounded-md bg-muted px-3 py-2 text-sm">Bạn chỉ có quyền xem bảng này.</p>}
+                {session.table.role_set === "deals" && <DealPaymentsPanel dealRow={row} dealsTableId={session.table.id} />}
                 {session.table.columns.map((c) => (
                   <Field key={c.id} col={c} row={row} level={level} session={session} ctx={ctx} />
                 ))}
