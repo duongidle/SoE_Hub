@@ -9,12 +9,13 @@ import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { columnTypes, dhKeys, getTable, lookupPeople } from "@/lib/datahub/api";
 import {
-  archiveTemplate, changeTemplateColumnType, columnUsage, createTemplate, createTemplateColumn, dealKeys, deleteTemplateColumn, getTemplate, listTemplates, restoreTemplate, restoreTemplateColumn,
+  archiveTemplate, changeTemplateColumnType, columnUsage, createTemplate, listLeaders, createTemplateColumn, dealKeys, deleteTemplateColumn, getTemplate, listTemplates, restoreTemplate, restoreTemplateColumn,
   setColumnRole, setShareOptions, templateImpact, updateTemplate, updateTemplateColumn, type ColumnUsage, type Template, type TemplateDetail, type TemplateRole,
 } from "@/lib/datahub/deal-api";
 import { previewTypeChange, optionImpact } from "@/lib/datahub/api";
 import type { Column, TableDetail } from "@/lib/datahub/types";
 import { nameError } from "../datahub/list";
+import { attrsOf } from "@/lib/datahub/cells";
 import { ColumnEditor, type ColumnAdapter } from "../datahub/column-editor";
 import { TableNameDialog } from "../datahub/detail";
 import { useMe } from "@/lib/session";
@@ -96,8 +97,13 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
   const [kind, setKind] = useState<"shared" | "personal">("shared");
   const [perm, setPerm] = useState<"view" | "edit_data">("view");
   const [touched, setTouched] = useState(false);
+  // A Manager makes a table for the whole tree or for the team of one Leader; a Leader only for their own team (the server decides).
+  const isManager = !!useMe().data?.user.roles.includes("manager");
+  const [scope, setScope] = useState<"tree" | "team">("tree");
+  const [leader, setLeader] = useState("");
+  const leadersQ = useQuery({ queryKey: ["tpl-leader-choices"], queryFn: listLeaders, enabled: isManager });
   const m = useMutation({
-    mutationFn: () => createTemplate({ name: name.trim(), kind, member_permission: perm }),
+    mutationFn: () => createTemplate({ name: name.trim(), kind, member_permission: perm, ...(isManager && scope === "team" ? { scope, leader_id: leader } : {}) }),
     onSuccess: async (t) => {
       await qc.invalidateQueries({ queryKey: dealKeys.templates });
       await qc.invalidateQueries({ queryKey: dealKeys.home });
@@ -109,10 +115,26 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
   const err = touched ? nameError(name) : null;
   return (
     <Modal title="Tạo bảng template" open onClose={onClose} dirty={name !== "" && !m.isPending}>
-      <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); setTouched(true); if (!nameError(name)) m.mutate(); }}>
+      <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); setTouched(true); if (!nameError(name) && !(isManager && scope === "team" && !leader)) m.mutate(); }}>
         <Field label="Tên bảng *" error={err}>
           <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setTouched(true)} autoFocus autoComplete="off" aria-invalid={!!err} />
         </Field>
+        {isManager && (
+          <Field label="Phạm vi" hint="Bảng của team chỉ hiện cho Leader và thành viên của team đó.">
+            <Select value={scope} onChange={(e) => setScope(e.target.value as "tree" | "team")} aria-label="Phạm vi">
+              <option value="tree">Cả cây của tôi</option>
+              <option value="team">Một team</option>
+            </Select>
+          </Field>
+        )}
+        {isManager && scope === "team" && (
+          <Field label="Leader của team *" error={touched && !leader ? "Chọn Leader của team." : null}>
+            <Select value={leader} onChange={(e) => setLeader(e.target.value)} aria-label="Leader của team" aria-invalid={touched && !leader}>
+              <option value="">Chọn Leader</option>
+              {(leadersQ.data ?? []).map((l) => <option key={l.id} value={l.id}>{l.full_name}</option>)}
+            </Select>
+          </Field>
+        )}
         <Field label="Kiểu bảng" hint="Không đổi được sau khi tạo.">
           <Select value={kind} onChange={(e) => setKind(e.target.value as "shared" | "personal")} aria-label="Kiểu bảng">
             <option value="shared">Bảng chung: một bộ dòng, khoá phân chia quyết định ai thấy dòng nào</option>
@@ -325,6 +347,13 @@ function ColumnFlow({ tpl, d, master, column, onClose, onSaved }: { tpl: Templat
   const [roles, setRoles] = useState<string[]>(column?.layer_roles ?? ["user"]);
   const [storage, setStorage] = useState<"shared" | "person">(column?.storage ?? "shared");
   const [role, setRole] = useState("");
+  // "Gửi xuống": the system fills this column from an attribute of the people in a Người dùng column of the same row (module4 4.5).
+  const [fillCol, setFillCol] = useState("");
+  const [fillAttr, setFillAttr] = useState("");
+  const [fillSum, setFillSum] = useState<"" | "team" | "tree">("");
+  const sources = master.columns.filter((c) => c.type === "user" && attrsOf(c).length > 0);
+  const fillSrc = sources.find((c) => c.key === fillCol);
+  const fillAttrs = fillSrc ? attrsOf(fillSrc) : [];
   const leader = column?.layer_ref ?? (layer === "team" && leaderOnly ? meId : undefined);
   const impactQ = useQuery({
     queryKey: ["tpl-impact", tpl.id, layer, roles.join(","), leader ?? ""],
@@ -335,7 +364,7 @@ function ColumnFlow({ tpl, d, master, column, onClose, onSaved }: { tpl: Templat
   const confirmText = n === undefined ? "Thay đổi này áp dụng ngay cho mọi người trong phạm vi." : `Áp dụng cho ${n} người${impactQ.data?.names.length ? `: ${impactQ.data.names.join(", ")}${n > impactQ.data.names.length ? "…" : ""}` : ""}. Xác nhận?`;
   const key = (c?: string) => c ?? "";
   const adapter: ColumnAdapter = {
-    create: (b) => createTemplateColumn(tpl.id, { ...b, layer, ...(layer === "role" ? { layer_roles: roles } : {}), ...(layer === "team" && leader ? { team_leader_id: leader } : {}), storage, ...(role ? { role } : {}) }),
+    create: (b) => createTemplateColumn(tpl.id, { ...b, layer, ...(layer === "role" ? { layer_roles: roles } : {}), ...(layer === "team" && leader ? { team_leader_id: leader } : {}), storage, ...(role ? { role } : {}), ...(storage === "person" && fillSrc && fillAttr ? { autofill: { column: fillSrc.key, attr: fillAttr, ...(fillSum ? { sum: fillSum } : {}) } } : {}) }),
     update: (k, b) => updateTemplateColumn(tpl.id, k, b),
     changeType: (k, t, c, a) => changeTemplateColumnType(tpl.id, key(k), t, c, a),
     preview: (k, t, c) => previewTypeChange(master.id, k, t, c),
@@ -364,6 +393,35 @@ function ColumnFlow({ tpl, d, master, column, onClose, onSaved }: { tpl: Templat
               <option value="person">Mỗi người một giá trị</option>
             </Select>
           </Field>
+          {storage === "person" && !column && sources.length > 0 && (
+            <div className="flex flex-col gap-2 rounded-md border border-border p-3" data-testid="autofill-step">
+              <Field label="Tự điền từ người tham gia (tuỳ chọn)" hint="Hệ thống điền cột này cho từng người từ thuộc tính của họ trong cột Người dùng của dòng; không ai sửa ô.">
+                <Select aria-label="Cột người tham gia" value={fillCol} onChange={(e) => { setFillCol(e.target.value); setFillAttr(""); setFillSum(""); }}>
+                  <option value="">Không tự điền</option>
+                  {sources.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+                </Select>
+              </Field>
+              {fillSrc && (
+                <>
+                  <Field label="Thuộc tính">
+                    <Select aria-label="Thuộc tính gửi xuống" value={fillAttr} onChange={(e) => { setFillAttr(e.target.value); setFillSum(""); }}>
+                      <option value="">Chọn thuộc tính</option>
+                      {fillAttrs.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
+                    </Select>
+                  </Field>
+                  {fillAttrs.find((a) => a.key === fillAttr)?.kind === "percent" && (
+                    <Field label="Giá trị" hint="Leader và Manager có thể nhận tổng của cả team hoặc cả cây.">
+                      <Select aria-label="Cách gửi xuống" value={fillSum} onChange={(e) => setFillSum(e.target.value as "" | "team" | "tree")}>
+                        <option value="">Phần của chính người đó</option>
+                        <option value="team">Tổng của team</option>
+                        <option value="tree">Tổng của cả cây</option>
+                      </Select>
+                    </Field>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           {fitting.length > 0 && tpl.can_edit && (
             <Field label="Vai trò của cột (tuỳ chọn)">
               <Select aria-label="Vai trò của cột" value={role} onChange={(e) => setRole(e.target.value)}>

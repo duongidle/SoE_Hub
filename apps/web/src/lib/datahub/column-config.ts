@@ -65,8 +65,23 @@ export interface OptionDraft {
   color: string;
 }
 
+/** One attribute of a Người dùng column as typed: options one per comma, limits as percent text. `extra` keeps what the form does not show (default, default_when). */
+export interface AttrDraft {
+  key: string;
+  label: string;
+  kind: "select" | "percent" | "boolean";
+  options: string;
+  sumMax: string;
+  capParam: string;
+  extra: Record<string, unknown>;
+  /** Added in this form: its code follows the name until typed. A saved attribute keeps its code (the values of people are stored under it). */
+  fresh: boolean;
+}
+
 export interface ColumnDraft {
   type: string;
+  /** Người dùng: attributes of each person of a cell (role, share, yes/no). Empty = the cell holds people without attributes. */
+  attrs: AttrDraft[];
   name: string;
   description: string;
   required: boolean;
@@ -99,6 +114,7 @@ export interface ColumnDraft {
 export function emptyDraft(type = "text"): ColumnDraft {
   return {
     type,
+    attrs: [],
     name: "",
     description: "",
     required: false,
@@ -127,11 +143,19 @@ export function emptyDraft(type = "text"): ColumnDraft {
 
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 
+function attrDraftOf(a: Record<string, unknown>): AttrDraft {
+  const { key, label, kind, options, sum_max, cap_param, ...extra } = a;
+  return { key: str(key), label: str(label), kind: (kind as AttrDraft["kind"]) ?? "select", options: Array.isArray(options) ? options.join(", ") : "", sumMax: typeof sum_max === "number" ? String(Number((sum_max * 100).toPrecision(10))) : "", capParam: str(cap_param), extra, fresh: false };
+}
+export const emptyAttr = (): AttrDraft => ({ key: "", label: "", kind: "select", options: "", sumMax: "", capParam: "", extra: {}, fresh: true });
+const optionList = (t: string) => t.split(",").map((x) => x.trim()).filter(Boolean);
+
 export function draftFromColumn(col: Column): ColumnDraft {
   const d = emptyDraft(col.type);
   const c = col.config as Record<string, unknown>;
   return {
     ...d,
+    attrs: Array.isArray(c.attrs) ? (c.attrs as Record<string, unknown>[]).map(attrDraftOf) : [],
     name: col.name,
     description: col.description ?? "",
     required: col.required,
@@ -199,9 +223,24 @@ export function buildConfig(d: ColumnDraft): Record<string, unknown> {
       const f = d.formula.trim();
       return { formula: f.startsWith("=") ? f : `=${f}`, ...(d.resultType ? { result_type: d.resultType } : {}) };
     }
+    case "user":
+      return d.attrs.length ? { attrs: d.attrs.map(attrBody) } : {};
     default:
       return {};
   }
+}
+
+function attrBody(a: AttrDraft): Record<string, unknown> {
+  const sum = Number(a.sumMax.replace(",", "."));
+  return {
+    ...a.extra,
+    key: a.key.trim(),
+    label: a.label.trim(),
+    kind: a.kind,
+    ...(a.kind === "select" ? { options: optionList(a.options) } : {}),
+    ...(a.kind === "percent" && a.sumMax.trim() !== "" && Number.isFinite(sum) ? { sum_max: Math.round(sum * 100) / 10000 } : {}),
+    ...(a.kind === "percent" && a.capParam.trim() ? { cap_param: a.capParam.trim() } : {}),
+  };
 }
 
 /** How values look. A formula, lookup or rollup that gives a number takes the same fields as a number column. */
@@ -260,7 +299,7 @@ export function validateName(name: string, columns: Pick<Column, "id" | "name">[
   return null;
 }
 
-export type DraftErrors = Partial<Record<"name" | "options" | "maxLength" | "precision" | "decimals" | "ratingMax" | "maxFiles" | "start" | "targetTableId" | "relation" | "targetColumn" | "formula" | "unit" | "watch", string>>;
+export type DraftErrors = Partial<Record<"name" | "options" | "maxLength" | "precision" | "decimals" | "ratingMax" | "maxFiles" | "start" | "targetTableId" | "relation" | "targetColumn" | "formula" | "unit" | "watch" | "attrs", string>>;
 
 export function validateDraft(d: ColumnDraft, columns: Pick<Column, "id" | "name">[], selfId?: string): DraftErrors {
   const e: DraftErrors = {};
@@ -290,6 +329,22 @@ export function validateDraft(d: ColumnDraft, columns: Pick<Column, "id" | "name
     }
     if (d.options.length > 200) e.options = "Tối đa 200 lựa chọn.";
   }
+  if (d.type === "user") {
+    if (d.attrs.length > 8) e.attrs = "Tối đa 8 thuộc tính.";
+    const keys = new Set<string>();
+    for (const [i, a] of d.attrs.entries()) {
+      const at = `Thuộc tính thứ ${i + 1}`;
+      if (!a.label.trim()) return { ...e, attrs: `${at} chưa có tên.` };
+      if (!/^[a-z][a-z0-9_]{0,29}$/.test(a.key.trim())) return { ...e, attrs: `${at}: mã gồm chữ thường không dấu, số và dấu gạch dưới, bắt đầu bằng chữ (ví dụ "vai_tro").` };
+      if (keys.has(a.key.trim())) return { ...e, attrs: `Mã thuộc tính bị trùng: "${a.key.trim()}".` };
+      keys.add(a.key.trim());
+      if (a.kind === "select" && optionList(a.options).length === 0) return { ...e, attrs: `${at} ("${a.label.trim()}") kiểu nhãn cần ít nhất một nhãn.` };
+      if (a.kind === "percent" && a.sumMax.trim() !== "") {
+        const n = Number(a.sumMax.replace(",", "."));
+        if (!Number.isFinite(n) || n < 0 || n > 100) return { ...e, attrs: `${at}: giới hạn tổng từ 0 đến 100 (%).` };
+      }
+    }
+  }
   if (d.type === "relation" && !d.targetTableId) e.targetTableId = "Chọn bảng để liên kết tới.";
   if ((d.type === "lookup" || d.type === "rollup") && !d.relation) e.relation = "Chọn cột Liên kết của bảng này.";
   if ((d.type === "lookup" || d.type === "rollup") && d.relation && !d.targetColumn) e.targetColumn = "Chọn cột của bảng được liên kết.";
@@ -299,7 +354,7 @@ export function validateDraft(d: ColumnDraft, columns: Pick<Column, "id" | "name
 }
 
 /** Where the first error sits, in form order (focus goes there). */
-export const FIELD_ORDER: (keyof DraftErrors)[] = ["name", "targetTableId", "relation", "targetColumn", "watch", "formula", "options", "maxLength", "precision", "ratingMax", "maxFiles", "start", "decimals", "unit"];
+export const FIELD_ORDER: (keyof DraftErrors)[] = ["name", "targetTableId", "relation", "targetColumn", "watch", "formula", "options", "attrs", "maxLength", "precision", "ratingMax", "maxFiles", "start", "decimals", "unit"];
 export function firstError(e: DraftErrors): keyof DraftErrors | null {
   return FIELD_ORDER.find((k) => e[k]) ?? null;
 }
@@ -326,6 +381,7 @@ export function columnError(e: unknown): { field: keyof DraftErrors | "form"; me
     if (/target_table_id/.test(path) || d?.code === "#PERM!" || /Bảng liên kết/.test(msg)) return { field: "targetTableId", message: msg };
     if (/relation/.test(path)) return { field: "relation", message: msg };
     if (/target_column/.test(path)) return { field: "targetColumn", message: msg };
+    if (/attrs/.test(path)) return { field: "attrs", message: msg };
     if (/max_length/.test(path)) return { field: "maxLength", message: msg };
     if (/precision/.test(path)) return { field: "precision", message: msg };
     if (/max_files/.test(path)) return { field: "maxFiles", message: msg };

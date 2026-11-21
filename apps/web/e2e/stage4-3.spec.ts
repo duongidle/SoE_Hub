@@ -259,6 +259,101 @@ test("ô Người dùng có thuộc tính: Manager sửa vai trò và %, tổng 
   await expect.poll(async () => (await u2Api.raw<{ data: unknown[] }>(`/tables/${dealsTableId}/rows?limit=10`)).data.length).toBe(1);
 });
 
+test("Template: Manager tạo bảng cho một team; Leader thấy bảng ở nhóm team, thành viên của team nhận", async () => {
+  const pg = mgrS.page;
+  await pg.goto("/quan-ly-deal/template");
+  await expect(pg.getByTestId("template-list")).toBeVisible();
+  await pg.getByRole("button", { name: "Tạo bảng template" }).click();
+  const d = dialog(pg, "Tạo bảng template");
+  await d.getByLabel("Tên bảng *").fill("Việc riêng của team");
+  await d.getByLabel("Phạm vi").selectOption("team");
+  // A team table needs a Leader: the form says so before anything is sent.
+  await d.getByRole("button", { name: "Tạo bảng" }).click();
+  await expect(d.getByText("Chọn Leader của team.")).toBeVisible();
+  await d.getByLabel("Leader của team").selectOption({ label: `Leader 43 ${p}` });
+  await d.getByRole("button", { name: "Tạo bảng" }).click();
+  await expect(pg.getByTestId("template-panel").getByRole("heading", { name: "Việc riêng của team" })).toBeVisible();
+  // The list groups it under the team of that Leader.
+  await expect(pg.getByTestId("template-list").getByRole("heading", { name: `Team Leader 43 ${p}` })).toBeVisible();
+  const mine = await mgrApi.call<{ name: string; scope: string; leader_id: string | null }[]>("GET", "/datahub/templates");
+  const made = mine.find((t) => t.name === "Việc riêng của team")!;
+  expect(made.scope).toBe("team");
+  expect(made.leader_id).toBe(uid("lead"));
+  await expect.poll(async () => (await leadApi.call<{ name: string }[]>("GET", "/datahub/templates")).some((t) => t.name === "Việc riêng của team")).toBe(true);
+  // A table of another tree's team is not offered: only Leaders of this tree are in the list.
+  await pg.getByRole("button", { name: "Tạo bảng template" }).click();
+  await dialog(pg, "Tạo bảng template").getByLabel("Phạm vi").selectOption("team");
+  await expect(dialog(pg, "Tạo bảng template").getByLabel("Leader của team").locator("option")).toHaveCount(2);
+  await pg.keyboard.press("Escape");
+});
+
+test("Template: cột Người dùng có thuộc tính (vai trò, %, tổng tối đa) và cột gửi xuống tự điền từ thuộc tính", async () => {
+  const pg = mgrS.page;
+  const tpl = (await mgrApi.call<{ id: string; name: string; master_table_id: string }[]>("GET", "/datahub/templates")).find((t) => t.name === "Việc riêng của team")!;
+  await pg.goto(`/quan-ly-deal/template?template=${tpl.id}`);
+  const panel = pg.getByTestId("template-panel");
+  await expect(panel.getByRole("heading", { name: "Việc riêng của team" })).toBeVisible();
+
+  // 1) A Người dùng column with two attributes.
+  await panel.getByRole("button", { name: "Thêm cột" }).first().click();
+  await dialog(pg, "Thêm cột vào template").getByRole("button", { name: "Tiếp tục" }).click();
+  let ed = dialog(pg, "Thêm cột");
+  await ed.getByLabel(/Tên cột/).fill("Người làm");
+  await ed.getByLabel("Kiểu cột").selectOption({ label: "Người dùng" });
+  const attrs = ed.getByTestId("attrs-editor");
+  await attrs.getByRole("button", { name: "Thêm thuộc tính" }).click();
+  await attrs.getByLabel("Tên thuộc tính 1").fill("Vai trò");
+  await expect(attrs.getByLabel("Mã thuộc tính 1")).toHaveValue("vai_tro");
+  await attrs.getByLabel("Các nhãn thuộc tính 1").fill("Chính, Phụ");
+  await attrs.getByRole("button", { name: "Thêm thuộc tính" }).click();
+  await attrs.getByLabel("Tên thuộc tính 2").fill("Tỉ lệ");
+  await attrs.getByLabel("Kiểu thuộc tính 2").selectOption("percent");
+  await attrs.getByLabel("Tổng tối đa thuộc tính 2").fill("100");
+  // A select attribute without labels is refused in the form, in words.
+  await attrs.getByLabel("Các nhãn thuộc tính 1").fill("");
+  await ed.getByRole("button", { name: "Thêm cột" }).click();
+  await expect(attrs.getByRole("alert")).toContainText("cần ít nhất một nhãn");
+  await attrs.getByLabel("Các nhãn thuộc tính 1").fill("Chính, Phụ");
+  await ed.getByRole("button", { name: "Thêm cột" }).click();
+  await dialog(pg, "Áp dụng thay đổi template?").getByRole("button", { name: "Xác nhận" }).click();
+  await expect(panel.getByTestId("template-column").filter({ hasText: "Người làm" })).toBeVisible();
+  const cols = (await mgrApi.call<{ columns: { name: string; key: string; config: { attrs?: { key: string; kind: string; options?: string[]; sum_max?: number }[] } }[] }>("GET", `/datahub/templates/${tpl.id}`)).columns;
+  const who = cols.find((c) => c.name === "Người làm")!;
+  expect(who.config.attrs).toEqual([
+    { key: "vai_tro", label: "Vai trò", kind: "select", options: ["Chính", "Phụ"] },
+    { key: "ti_le", label: "Tỉ lệ", kind: "percent", sum_max: 1 },
+  ]);
+
+  // 2) A column "gửi xuống": one value per person, filled by the system from the % attribute.
+  await panel.getByRole("button", { name: "Thêm cột" }).first().click();
+  const step = dialog(pg, "Thêm cột vào template");
+  await step.getByLabel("Cách lưu giá trị").selectOption("person");
+  await step.getByLabel("Cột người tham gia").selectOption({ label: "Người làm" });
+  await step.getByLabel("Thuộc tính gửi xuống").selectOption({ label: "Tỉ lệ" });
+  await step.getByRole("button", { name: "Tiếp tục" }).click();
+  ed = dialog(pg, "Thêm cột");
+  await ed.getByLabel(/Tên cột/).fill("Phần của tôi");
+  await ed.getByLabel("Kiểu cột").selectOption({ label: "Phần trăm" });
+  await ed.getByRole("button", { name: "Thêm cột" }).click();
+  await dialog(pg, "Áp dụng thay đổi template?").getByRole("button", { name: "Xác nhận" }).click();
+  await expect(panel.getByTestId("template-column").filter({ hasText: "Phần của tôi" }).getByText("Hệ thống tự điền, không ai sửa ô")).toBeVisible();
+  const after = (await mgrApi.call<{ columns: { name: string; autofill: { column: string; attr: string } | null }[] }>("GET", `/datahub/templates/${tpl.id}`)).columns;
+  expect(after.find((c) => c.name === "Phần của tôi")!.autofill).toEqual({ column: who.key, attr: "ti_le" });
+
+  // A column that cannot take the attribute is refused by the server in words (a text column cannot hold a %).
+  await panel.getByRole("button", { name: "Thêm cột" }).first().click();
+  const step2 = dialog(pg, "Thêm cột vào template");
+  await step2.getByLabel("Cách lưu giá trị").selectOption("person");
+  await step2.getByLabel("Cột người tham gia").selectOption({ label: "Người làm" });
+  await step2.getByLabel("Thuộc tính gửi xuống").selectOption({ label: "Tỉ lệ" });
+  await step2.getByRole("button", { name: "Tiếp tục" }).click();
+  ed = dialog(pg, "Thêm cột");
+  await ed.getByLabel(/Tên cột/).fill("Sai kiểu");
+  await ed.getByRole("button", { name: "Thêm cột" }).click();
+  await dialog(pg, "Áp dụng thay đổi template?").getByRole("button", { name: "Xác nhận" }).click();
+  await expect(ed.getByRole("alert").filter({ hasText: "không điền được" })).toBeVisible();
+});
+
 test("Admin: Cài đặt → Template Quản lý Deal liệt kê bộ mặc định; JSON sai bị chặn trước khi gửi", async () => {
   const pg = adminS.page;
   await pg.goto("/quan-tri/cai-dat");

@@ -1,4 +1,4 @@
-import { api, qs } from "@/lib/api";
+import { api, apiList, qs } from "@/lib/api";
 import type { ColumnBody } from "./api";
 import type { ConversionReport } from "./column-config";
 import type { Column } from "./types";
@@ -54,6 +54,9 @@ export const getTemplate = (id: string) => api<TemplateDetail>("GET", `/datahub/
 export const templateImpact = (id: string, o: { layer?: string; layer_roles?: string[]; team_leader_id?: string } = {}) =>
   api<Impact>("GET", `/datahub/templates/${id}/impact${qs({ layer: o.layer, layer_roles: o.layer_roles, team_leader_id: o.team_leader_id })}`);
 export const createTemplate = (body: { name: string; kind: "shared" | "personal"; scope?: "tree" | "team"; leader_id?: string; member_permission: "view" | "edit_data" }) => api<Template>("POST", "/datahub/templates", body);
+/** The active Leaders a Manager can make a team table for (the org list is already limited to the Manager's tree). */
+export const listLeaders = async () =>
+  (await apiList<{ id: string; full_name: string }>(`/org/members${qs({ limit: 200, filter: { and: [{ field: "roles", op: "contains", value: "leader" }, { field: "status", op: "eq", value: "active" }] } })}`)).data;
 export const updateTemplate = (id: string, body: { name?: string; member_permission?: "view" | "edit_data"; leader_can_add_columns?: boolean }) => api<Template>("PATCH", `/datahub/templates/${id}`, body);
 export const archiveTemplate = (id: string) => api("POST", `/datahub/templates/${id}/archive`, {});
 export const restoreTemplate = (id: string) => api("POST", `/datahub/templates/${id}/restore`, {});
@@ -65,7 +68,7 @@ export const setShareOptions = (tableId: string, body: { key_split?: boolean; ke
 
 // ---- columns of a template (each save reaches every person of the template at once)
 const tc = (id: string, key?: string) => `/datahub/templates/${id}/columns${key ? `/${encodeURIComponent(key)}` : ""}`;
-export interface NewTemplateColumn { layer: "basic" | "role" | "team"; layer_roles?: string[]; team_leader_id?: string; storage: "shared" | "person"; role?: string }
+export interface NewTemplateColumn { layer: "basic" | "role" | "team"; layer_roles?: string[]; team_leader_id?: string; storage: "shared" | "person"; role?: string; autofill?: { column: string; attr: string; sum?: "team" | "tree" } }
 export const createTemplateColumn = (id: string, body: ColumnBody & NewTemplateColumn) => api<Column>("POST", tc(id), body);
 export const updateTemplateColumn = (id: string, key: string, body: ColumnBody) => api<{ column: Column; usage: ColumnUsage }>("PATCH", tc(id, key), body);
 export const changeTemplateColumnType = (id: string, key: string, type: string, config: Record<string, unknown> | undefined, acceptDataLoss: boolean) =>

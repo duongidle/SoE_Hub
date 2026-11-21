@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/toast";
 import { Tip } from "@/components/ui/tooltip";
 import { changeColumnType, columnTypes, createColumn, dhKeys, optionImpact, previewTypeChange, updateColumn, type ColumnBody, type OptionImpact } from "@/lib/datahub/api";
-import { COMPUTED, ROLLUP_FUNCTIONS, TEXT_LIKE, buildBody, buildConfig, columnError, convertibleTypes, describeConversion, draftFromColumn, emptyDraft, firstError, groupedTypes, hasNumberFormat, hasProperty, moveOption, nextColor, sampleLine, validateDraft, type ColumnDraft, type ConversionReport, type DraftErrors, type TypeInfo } from "@/lib/datahub/column-config";
+import { COMPUTED, ROLLUP_FUNCTIONS, TEXT_LIKE, buildBody, buildConfig, columnError, emptyAttr, type AttrDraft, convertibleTypes, describeConversion, draftFromColumn, emptyDraft, firstError, groupedTypes, hasNumberFormat, hasProperty, moveOption, nextColor, sampleLine, validateDraft, type ColumnDraft, type ConversionReport, type DraftErrors, type TypeInfo } from "@/lib/datahub/column-config";
 import { parseCellText, SYSTEM_TYPES } from "@/lib/datahub/cells";
 import type { Column, TableDetail } from "@/lib/datahub/types";
 import { OPTION_COLORS, optionVar } from "@/lib/theme";
@@ -389,6 +389,7 @@ function TypeFields({ draft, set, shown, fieldProps, table, column, others }: { 
   if (t === "single_select" || t === "multi_select") return <OptionsEditor draft={draft} set={set} error={shown("options")} />;
   if (t === "relation") return <RelationFields draft={draft} set={set} shown={shown} fieldProps={fieldProps} table={table} locked={!!column} />;
   if (t === "lookup" || t === "rollup") return <LookupFields draft={draft} set={set} shown={shown} table={table} others={others} />;
+  if (t === "user") return <AttrsEditor draft={draft} set={set} error={shown("attrs")} />;
   if (t === "field_modified") {
     // Columns people type into; computed and system-made values change without anyone editing, so they cannot be watched.
     const watchable = others.filter((c) => !COMPUTED.has(c.type) && !SYSTEM_TYPES.has(c.type) && c.type !== "auto_number");
@@ -416,6 +417,51 @@ function TypeFields({ draft, set, shown, fieldProps, table, column, others }: { 
     );
   }
   return null;
+}
+
+/** Attributes of each person in a Người dùng cell (module4 4.5): a label (role), a share in %, or yes/no; a percent can be capped in total. */
+function AttrsEditor({ draft, set, error }: { draft: ColumnDraft; set: (p: Partial<ColumnDraft>) => void; error?: string }) {
+  const list = draft.attrs;
+  const update = (i: number, patch: Partial<AttrDraft>) => set({ attrs: list.map((a, k) => (k === i ? { ...a, ...patch } : a)) });
+  return (
+    <fieldset className="flex flex-col gap-2" data-field="attrs" data-testid="attrs-editor">
+      <legend className="mb-1 text-sm font-medium">Thuộc tính của mỗi người</legend>
+      <p className="text-xs text-muted-foreground">Ví dụ vai trò (nhãn), tỉ lệ doanh thu (%). Để trống thì ô chỉ chứa người, không có thuộc tính. Tối đa 8.</p>
+      <ul className="flex flex-col gap-3">
+        {list.map((a, i) => (
+          <li key={i} className="flex flex-col gap-2 rounded-md border border-border p-2" data-testid="attr-row">
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label="Tên"><Input aria-label={`Tên thuộc tính ${i + 1}`} value={a.label} onChange={(e) => update(i, { label: e.target.value, ...(a.fresh && (a.key === "" || a.key === slugKey(a.label)) ? { key: slugKey(e.target.value) } : {}) })} /></Field>
+              <Field label="Mã"><Input aria-label={`Mã thuộc tính ${i + 1}`} value={a.key} onChange={(e) => update(i, { key: e.target.value })} /></Field>
+              <Field label="Kiểu">
+                <Select aria-label={`Kiểu thuộc tính ${i + 1}`} value={a.kind} onChange={(e) => update(i, { kind: e.target.value as AttrDraft["kind"] })}>
+                  <option value="select">Nhãn (chọn một)</option>
+                  <option value="percent">Phần trăm</option>
+                  <option value="boolean">Có / không</option>
+                </Select>
+              </Field>
+              <Button variant="secondary" aria-label={`Xoá thuộc tính ${i + 1}`} onClick={() => set({ attrs: list.filter((_, k) => k !== i) })}><Trash2 size={16} aria-hidden /></Button>
+            </div>
+            {a.kind === "select" && <Field label="Các nhãn" hint="Cách nhau bằng dấu phẩy."><Input aria-label={`Các nhãn thuộc tính ${i + 1}`} value={a.options} onChange={(e) => update(i, { options: e.target.value })} /></Field>}
+            {a.kind === "percent" && (
+              <div className="flex flex-wrap gap-2">
+                <Field label="Tổng tối đa (%)" hint="Tổng của mọi người trong một ô không vượt quá."><Input aria-label={`Tổng tối đa thuộc tính ${i + 1}`} inputMode="decimal" value={a.sumMax} onChange={(e) => update(i, { sumMax: e.target.value })} /></Field>
+                <Field label="Hoặc theo tham số" hint="Tên tham số trong bảng Tham số com."><Input aria-label={`Tham số giới hạn thuộc tính ${i + 1}`} value={a.capParam} onChange={(e) => update(i, { capParam: e.target.value })} /></Field>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {error && <p role="alert" className="text-sm text-bad">{error}</p>}
+      {list.length < 8 && <div><Button variant="secondary" onClick={() => set({ attrs: [...list, emptyAttr()] })}><Plus size={16} aria-hidden /> Thêm thuộc tính</Button></div>}
+    </fieldset>
+  );
+}
+
+/** "Vai trò bán hàng" -> "vai_tro_ban_hang": the code of an attribute, made from its name until the person types their own. */
+function slugKey(label: string): string {
+  const k = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 30);
+  return /^[a-z]/.test(k) ? k : k ? `a_${k}`.slice(0, 30) : "";
 }
 
 function OptionsEditor({ draft, set, error }: { draft: ColumnDraft; set: (p: Partial<ColumnDraft>) => void; error?: string }) {
