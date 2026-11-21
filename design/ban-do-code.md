@@ -247,4 +247,59 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 
 ## Module 4: Quản lý Deal
 
-_Chưa viết (viết ở bước kiểm thử cuối Stage 4)._
+_Phần 4.1–4.3. Mỗi bước con sau cập nhật phần của mình trong cùng commit với code._
+
+**Bảng template (mỗi template có bảng chủ và bản sao cho từng thành viên)**
+- Tạo template bằng code, không cần request: `apps/api/src/modules/datahub/template-ops.ts` `createTemplateCore`. Thêm cột: `apps/api/src/modules/datahub/template-ops.ts` `addTemplateColumn`. Bảng chủ nhìn như chủ sở hữu: `apps/api/src/modules/datahub/template-ops.ts` `masterAccess`.
+- Lệnh registry (`datahub.template.*`) nằm trong `apps/api/src/modules/datahub/template-ops.ts` `templateOperations`. Thêm lệnh theo mẫu `datahub.template.column.create` ở đó.
+- Ai sửa được lớp nào: `apps/api/src/modules/datahub/template-ops.ts` `canEditLayer`. Lớp `basic` / `role` / `team` nằm ở bảng chủ; lớp `custom` là cột riêng của một người (`layer_ref` = người đó).
+- Đồng bộ chủ → bản sao: `apps/api/src/modules/datahub/template-sync.ts` `syncTemplate`, `syncCopyColumns`; chạy lại cả hệ: `syncAllTemplates`. Người nhận theo phạm vi: `scopeMembers`.
+- Cây tổ chức đổi thì template theo: `apps/api/src/modules/datahub/template-ops.ts` `templateSubscriber`.
+- Khoá phân chia và chung/riêng của bảng: `apps/api/src/modules/datahub/split-ops.ts` `setShareOptions`. Cờ "Cho phép leader sửa": lệnh `datahub.prefs.get` / `datahub.prefs.set` cùng file; đọc ra cấp dưới sửa được ở `apps/api/src/modules/datahub/access.ts` `loadReader` (`editIds`).
+- Vai trò cột (cột bắt buộc của bộ vai trò `deals`, `deal_payments`, `index`, `com_params`…): `apps/api/src/modules/datahub/column-roles.ts` `ROLE_SETS`. Kiểm: `assertRoleOfSet`, `fitsRole`; cột nào đang giữ vai trò: `columnUsage`. Cột có vai trò `required` luôn còn một cột, chỉ chuyển được sang cột khác.
+- Hàm dùng chung tìm cột theo vai trò, không theo tên cột. Thêm vai trò mới = thêm vào `ROLE_SETS`.
+
+**Bộ mặc định theo cây (Deals, Index, Probation KPI, Chính sách com, Tham số com)**
+- Khai báo bằng dữ liệu: `apps/api/src/modules/deal/default-templates.ts` `BUILTIN_DEFAULT_SET`, kiểu `DefaultTable` / `DefaultColumn`. Mỗi bảng một khối, cột có `role`, `layer`, `autofill`, `split`.
+- Thêm bảng mặc định mới (4.4: Đợt thanh toán, Sổ com, Tiền về): thêm một khối vào `BUILTIN_DEFAULT_SET` (kèm `role_set` mới trong `ROLE_SETS` nếu cần). Không viết code dựng riêng cho từng bảng. Công thức là công thức Excel của engine.
+- Dựng cho một cây: `apps/api/src/modules/deal/tree-templates.ts` `ensureTreeTemplates` (chạy lại được; bảng đã có tên thì bỏ qua). Cho mọi Manager chưa có cây: `ensureAllTrees`.
+- Cây đã tạo không nhận bảng mới của bộ mặc định tự động. Cây đang chạy cần bảng mới thì gọi `ensureTreeTemplates` (bảng trùng tên được bỏ qua), hoặc `ensureAllTrees` chỉ chạy cho Manager chưa có cây nào.
+- Admin sửa bộ mặc định qua setting `deal.default_templates` (`apps/api/src/modules/deal/tree-templates.ts` `DEAL_SETTINGS`, đăng ký trong `apps/api/src/modules/deal/index.ts`). Sửa chỉ ảnh hưởng cây tạo sau.
+- Vòng lặp worker: `apps/api/src/modules/deal/tree-templates.ts` `startDealDefaultsLoop`, nối ở `apps/api/src/worker.ts`. Dựng bảng nặng nên không đặt trong subscriber outbox.
+- Datahub "Quản lý Deal" của người dùng: `apps/api/src/modules/datahub/template-sync.ts` `ensureDealDatahub`.
+
+**Kiểu Người dùng có thuộc tính**
+- Cấu hình `config.attrs` (`AttrKind`, `UserAttr`): `apps/api/src/modules/datahub/user-values.ts` `userAttrs`, `hasAttrs`. Ô lưu `[{id, attrs}]`.
+- Lấy id người từ ô, dù dạng nào: `apps/api/src/modules/datahub/user-values.ts` `userIdsOf`. SQL dùng hàm `soe_dh_ids(cell)` (migration `packages/db/drizzle/0017_datahub_user_ids.sql`). Không tự `->>'id'` trên ô người.
+- Ràng buộc `sum_max` và `cap_param` (Tỉ lệ SoE lấy từ bảng Tham số com theo ngày): `apps/api/src/modules/datahub/people-caps.ts` `checkPeopleCaps`, `capFor`; gọi trong `apps/api/src/modules/datahub/rows.ts` `applyRowOps`.
+- Gửi xuống (`autofill`: cột người → cột lưu theo người): `apps/api/src/modules/datahub/pushdown.ts` `pushDownRows`, `pushDownTable`, `refillRows`, `dependentsOf`.
+
+**Status có `meaning`**
+- Lựa chọn có `meaning`: open / won / lost / disqualified / converted / cancelled. `apps/api/src/modules/datahub/types.ts` `OPTION_MEANINGS`, `isClosedMeaning`.
+- Đọc lựa chọn Status theo `meaning`, không theo tên (Admin đổi tên được). Cột Status tìm theo vai trò `trang_thai`.
+- Chuyển giao giữ người cũ ở deal đã đóng: `apps/api/src/modules/datahub/transfer.ts` `datahubTransferHandler`.
+
+**Công thức đọc sang bảng template của người khác**
+- Chỉ mục của người sở hữu có cả bảng người khác chia sẻ: `apps/api/src/modules/datahub/computed.ts` `OwnerIndex` (cờ `foreign`; chỉ lớp `basic` và `custom` của chính người đó).
+- Dựng nguồn đọc theo người đọc: `apps/api/src/modules/datahub/recalc.ts` `sourceView`. Bảng `foreign` tính bằng quyền chủ (`ownerReader`).
+
+**Job tháng Index**
+- `apps/api/src/modules/deal/index-months.ts` `addIndexMonths`; job `deal-index-months` khai ở `apps/api/src/jobs/index.ts` (`jobs`), chạy 00:10 mỗi ngày giờ nghiệp vụ.
+- Ghi dòng kiểu hệ thống (không lịch sử, không audit) bằng `apps/api/src/modules/datahub/partial.ts` `recordChanges`. Cần thêm dòng hệ thống vào bảng khác thì theo mẫu này.
+
+**Web**
+- Màn Quản lý Deal: `apps/web/src/pages/deal/home.tsx` `DealHomePage`, đọc lệnh `datahub.deal.home` (`apps/web/src/lib/datahub/deal-api.ts` `getDealHome`).
+- Trang Template: `apps/web/src/pages/deal/template.tsx` `TemplatePage`; số bảng/cột bị ảnh hưởng: `datahub.template.impact` (`templateImpact`). Quyền sửa cột theo lớp phía web: `apps/web/src/lib/datahub/template-ui.ts` `canEditColumnHere`, `canAddColumnHere`.
+- Trang Admin bộ mặc định: `apps/web/src/pages/admin.tsx` `DealDefaultsPage`.
+- Thêm một màn vào menu Quản lý Deal: sửa `apps/web/src/router.tsx` `router` (đường `/quan-ly-deal/...`), `apps/web/src/pages/shell.tsx` `Shell` (mảng `NAV`, `dealOnly`, quyền ở bảng prefix cùng file).
+- Ô nhiều người trên lưới: `apps/web/src/pages/datahub/grid-cells.tsx` `soeRenderer` (kiểu `persons`); sửa thuộc tính: `apps/web/src/pages/datahub/people-attrs.tsx` `PeopleAttrsEditor`.
+- Hộp sửa cột dùng cho cả bảng thường lẫn template: `apps/web/src/pages/datahub/column-editor.tsx` `ColumnEditor` với `ColumnAdapter` (template đưa adapter riêng gọi `datahub.template.column.*`).
+
+**Luật cấm**
+- Không đọc lựa chọn Status theo tên; dùng `meaning`.
+- Không đưa số chính sách com thật vào code, bộ mặc định hay test (bảng chính sách và tham số tạo rỗng; Manager điền).
+- Không tìm cột theo tên trong code hệ thống; dùng vai trò.
+- Không dựng bảng nặng trong subscriber outbox; dùng vòng lặp hoặc job như `startDealDefaultsLoop`.
+- Không viết điều kiện riêng cho một bảng template trong engine; bảng Deal chỉ là bảng thường có vai trò.
+
+**Việc còn nợ:** xem `progress.md` (mục 4.2: guard Status, Probation KPI sau commit, điền lại gửi xuống khi đổi cây, công thức theo người, tháng Index đầu tiên).
