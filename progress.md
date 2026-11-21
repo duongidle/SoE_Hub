@@ -5,7 +5,7 @@ Cập nhật: 21/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–5 và 7 đã chốt. Module 6 là bản nháp vòng 1, chờ Dương phản biện. Module 8–11 chưa làm.
-- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2, 4.3 xong (21/11, Opus rà đạt); bản đồ code Module 0–3 xong (`design/ban-do-code.md`, Opus rà và sửa luật sai, 5999ea3); tiếp 4.4 (thanh toán và com), tách hai agent từ đầu, prompt trỏ mục bản đồ.
+- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2, 4.3 xong (21/11, Opus rà đạt); bản đồ code Module 0–3 xong (`design/ban-do-code.md`, Opus rà và sửa luật sai, 5999ea3); đang làm 4.4 (thanh toán và com): **4.4A server** (agent 1) → bàn giao → **4.4B web + e2e + cả bộ test** (agent 2). Agent quá ~120 lượt thì dừng ở commit, ghi bàn giao, Opus giao agent mới.
 - **Git:** đã push `main` + `dev` tới 154655d (hết bước con 4.1, Dương yêu cầu 20/11).
 - **Mốc test** (e817470, 21/11): `pnpm exec vitest run apps packages` 1120 pass, 9 skip (golden + load; 1110 -> 1120 do test mới của 4.3); `pnpm test:e2e --project=desktop` 109/109 (gồm 9 của stage4-3). Không chạy hai lệnh vitest song song (chung DB: chạy chồng làm 5 test hỏng giả).
 
