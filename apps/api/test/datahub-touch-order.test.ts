@@ -96,4 +96,27 @@ describe("touching columns from concurrent transactions", () => {
     await columnTx(db, (tx) => touchColumns(tx, [f1.id]));
     expect((await t.c.db.db.execute(sql`SELECT calc_bulk FROM dh_columns WHERE /*scope:system*/ id = ${f1.id}::uuid`)).rows[0]).toMatchObject({ calc_bulk: false });
   });
+
+  it("a transaction that holds a column row for another reason and still deadlocks is run again, not failed", async () => {
+    const tb = await makeTable(a, { columns: [{ name: "A", type: "text" }, { name: "B", type: "text" }] });
+    const [x, y] = [tb.cols["A"]!.id, tb.cols["B"]!.id].sort() as [string, string];
+    const db = t.c.db.db;
+    const g = gate();
+    let waiting = 0;
+    let runs = 0;
+    const edit = (first: string, second: string) =>
+      columnTx(db, async (tx) => {
+        runs++;
+        await tx.execute(sql`UPDATE dh_columns SET description = 'x' WHERE /*scope:system*/ id = ${first}::uuid`);
+        if (runs <= 2) {
+          waiting++;
+          if (waiting === 2) g.open();
+          await g.p;
+        }
+        await tx.execute(sql`UPDATE dh_columns SET description = 'y' WHERE /*scope:system*/ id = ${second}::uuid`);
+      });
+    const res = await Promise.allSettled([edit(x, y), edit(y, x)]);
+    expect(res.map((r) => r.status)).toEqual(["fulfilled", "fulfilled"]);
+    expect(runs).toBeGreaterThan(2);
+  });
 });

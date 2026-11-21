@@ -66,16 +66,32 @@ const touchStates = new WeakMap<object, TouchState>();
  * another sorted round. `bulk` marks background building (trees of default tables, template sync, refills): see `calc_bulk`. Every transaction that can reach `touchColumns` must be opened with this (see design/ban-do-code.md, Module 0).
  */
 export async function columnTx<T>(db: Db, fn: (tx: Executor) => Promise<T>, opts: { bulk?: boolean } = {}): Promise<T> {
-  return db.transaction(async (tx) => {
-    touchStates.set(tx, { touch: new Set(), lockOnly: new Set(), bulk: opts.bulk ?? false });
+  for (let attempt = 1; ; attempt++) {
     try {
-      const out = await fn(tx as Executor);
-      await flushTouches(tx as Executor);
-      return out;
-    } finally {
-      touchStates.delete(tx);
+      return await db.transaction(async (tx) => {
+        touchStates.set(tx, { touch: new Set(), lockOnly: new Set(), bulk: opts.bulk ?? false });
+        try {
+          const out = await fn(tx as Executor);
+          await flushTouches(tx as Executor);
+          return out;
+        } finally {
+          touchStates.delete(tx);
+        }
+      });
+    } catch (e) {
+      // The sorted round removes the cycles this code can make, but a transaction may already hold a column row for another reason (the auto-number
+      // counter of `row.create`, a structure update of a template sync) before it gets to the round. Postgres picks one victim and rolls it back whole:
+      // run it again, as Postgres itself advises. `fn` must be safe to run again (every caller writes only inside the transaction).
+      if (!isDeadlock(e) || attempt >= DEADLOCK_ATTEMPTS) throw e;
+      await new Promise((r) => setTimeout(r, 20 + Math.random() * 80 * attempt));
     }
-  });
+  }
+}
+
+const DEADLOCK_ATTEMPTS = 4;
+function isDeadlock(e: unknown): boolean {
+  for (let cur: unknown = e, i = 0; cur && i < 4; i++, cur = (cur as { cause?: unknown }).cause) if ((cur as { code?: string }).code === "40P01") return true;
+  return false;
 }
 
 /** Locks (no status change) columns together with the touched ones at the flush, so a transaction that updates its own column also takes that lock in the sorted round. */
