@@ -571,6 +571,9 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     ...updated.map((id): RowChange => ({ rowId: id, kind: "update", old: loaded.get(id)!.data, new: newData.get(id)! })),
     ...deleted.map((id): RowChange => ({ rowId: id, kind: "delete", old: out.get(id)?.data ?? loaded.get(id)!.data, new: null })),
   ];
+  // The actor's own cells (person-stored columns) are in no row version, but a column that reads them (reader-scoped, "Com dự kiến của tôi") must be computed again for those rows.
+  const createdSet = new Set(created);
+  for (const [rowId, data] of ownWrites) if (!createdSet.has(rowId)) rowChanges.push({ rowId, kind: "update", old: null, new: null, keys: Object.keys(data) });
   const seq = await nextChangeSeq(db);
   if (rowChanges.length) await recordChanges(db, access.tableId, rowChanges, seq);
   ctx.audit({ type: "datahub_row", id: access.tableId, details: { table_id: access.tableId, created: created.length, updated: updated.length, deleted: deleted.length, fields: columns } });

@@ -175,7 +175,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 - Tên cột trong công thức lưu theo khoá, hiển thị theo tên → `packages/formula/src/refs.ts` `toStoredFormula`, `toDisplayFormula`.
 - Biên dịch công thức của một cột, chỉ mục chủ sở hữu → `apps/api/src/modules/datahub/computed.ts` `prepareComputed`, `OwnerIndex`.
 - Ghi dòng xong, ghi "cột nào có thể đổi, dòng nào" → `apps/api/src/modules/datahub/partial.ts` `recordChanges` (hàng đợi `apps/api/src/modules/datahub/change-queue.ts` `enqueue`). Công thức tính lại theo lô trong `apps/api/src/modules/datahub/recalc.ts` `recalcColumn`, `processPendingColumns`; muốn đánh dấu cột cần tính: `markPending`.
-- Giá trị theo người đọc (cột tính đọc sang bảng có khoá phân chia): `apps/api/src/modules/datahub/reader-scope.ts` `refreshReaderScoped`, `overlayRel`; cờ `dh_columns.reader_scoped`; bảng `dh_personal_rows`. Giá trị mỗi người một ô: `dh_person_cells`.
+- Giá trị theo người đọc (cột tính đọc sang bảng có khoá phân chia): `apps/api/src/modules/datahub/reader-scope.ts` `refreshReaderScoped`, `overlayRel`; cờ `dh_columns.reader_scoped`; bảng `dh_personal_rows`. Giá trị mỗi người một ô: `dh_person_cells`. Cột công thức đọc cột `storage: person` (cell hoặc range) cũng là `reader_scoped` (`refreshReaderScoped`, cột `src_person`); ô người sửa thì `rows.ts` `applyRowOps` ghi `recordChanges` với `keys` để tính lại đúng dòng. Test: `apps/api/test/datahub-person-formula.test.ts`.
 - Đối chiếu số liệu tính lại với tính mới: `apps/api/src/modules/datahub/reconcile.ts` `reconcileColumns`.
 
 **Bảng template, liên kết**
