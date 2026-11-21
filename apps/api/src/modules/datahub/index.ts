@@ -32,6 +32,7 @@ export { importOperations } from "./import-job";
 export { jobOperations, processJobs, resetRunningJobs, startJobLoop, purgeJobFiles } from "./jobs";
 export { datahubJobs as exportJobs, sqlViewSubscriber } from "./export-views";
 export { reconcileColumns } from "./reconcile";
+export { processPendingRefills, refillSubscriber, startRefillLoop } from "./pushdown";
 export { formulaSubscriber, markVolatilePending, processPendingColumns, resetRunningColumns, startRecalcLoop } from "./recalc";
 import { datahubJobs as exportJobs } from "./export-views";
 import { markVolatilePending } from "./recalc";

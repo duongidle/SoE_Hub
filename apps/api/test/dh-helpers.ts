@@ -3,7 +3,7 @@ import type { Actor } from "@soe/shared";
 import { isAppError } from "@soe/shared";
 import { dispatchOutboxOnce } from "../src/core/outbox-dispatcher";
 import { defaultSubscribers } from "../src/core/subscribers";
-import { processPendingColumns, processPendingMerges } from "../src/modules/datahub";
+import { processPendingColumns, processPendingMerges, processPendingRefills } from "../src/modules/datahub";
 import type { TestApp } from "./helpers";
 
 export function actorOf(userId: string, via: Actor["via"] = "api"): Actor {
@@ -38,7 +38,8 @@ export async function drainOutbox(t: TestApp, opts: { now?: Date; maxRatio?: num
     const n = await dispatchOutboxOnce(t.c.db.db, defaultSubscribers(t.c.events, t.c.config.AUTH_SECRET), t.c.logger, { batchSize: 500 });
     const m = await processPendingColumns(t.c.db.db, { now: opts.now, maxRatio: opts.maxRatio });
     const g = await processPendingMerges(t.c.db.db);
-    if (n === 0 && m === 0 && g === 0) return;
+    const f = await processPendingRefills(t.c.db.db);
+    if (n === 0 && m === 0 && g === 0 && f === 0) return;
   }
 }
 

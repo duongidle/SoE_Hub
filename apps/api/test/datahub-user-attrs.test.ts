@@ -3,6 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { as, drainOutbox, fails, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
+import { enqueueOutbox } from "@soe/db";
+import { dispatchOutboxOnce } from "../src/core/outbox-dispatcher";
+import { defaultSubscribers } from "../src/core/subscribers";
+import { processPendingRefills } from "../src/modules/datahub";
 import { rowAudience } from "../src/modules/datahub/access";
 import { splitLockTransferHandler } from "../src/modules/datahub/transfer";
 
@@ -148,6 +152,27 @@ describe("gửi xuống: each person reads their own value, the system writes it
     expect(await cellOf(leaderA, rid["d1"]!, "% com của team")).toBeCloseTo(0.1, 9); // UserA1 is in the team; UserA2 reports to MgrA
     expect(await cellOf(mgrA, rid["d1"]!, "Tổng % com đã chia")).toBeCloseTo(0.15, 9);
     expect(await cellOf(mgrA, rid["d2"]!, "Tổng % com đã chia")).toBeCloseTo(0.1, 9);
+  });
+
+  it("an organization change refills the cells in the worker loop, not in the dispatcher (queue on the table)", async () => {
+    const moveA2 = async (leader: string | null) => {
+      await t.c.db.db.execute(sql`UPDATE org_memberships SET leader_id = ${leader}::uuid WHERE user_id = ${org.userA2.id}::uuid AND valid_to IS NULL`);
+      await enqueueOutbox(t.c.db.db, { event: "org.member.changed", aggregateType: "user", aggregateId: org.userA2.id, payload: { user_id: org.userA2.id, change: "updated" } });
+    };
+    const pending = async () => Number(((await t.c.db.db.execute(sql`SELECT count(*)::int AS n FROM dh_tables WHERE /*scope:system*/ refill_pending_at IS NOT NULL`)).rows[0] as { n: number }).n);
+    await drainOutbox(t);
+    await moveA2(org.leaderA.id);
+    // The dispatcher only queues the tables; nothing is refilled until the loop runs.
+    await dispatchOutboxOnce(t.c.db.db, defaultSubscribers(t.c.events, t.c.config.AUTH_SECRET), t.c.logger, { batchSize: 500 });
+    expect(await pending()).toBeGreaterThan(0);
+    expect(await cellOf(leaderA, rid["d1"]!, "% com của team")).toBeCloseTo(0.1, 9);
+    expect(await processPendingRefills(t.c.db.db)).toBeGreaterThan(0);
+    expect(await pending()).toBe(0);
+    expect(await cellOf(leaderA, rid["d1"]!, "% com của team")).toBeCloseTo(0.15, 9); // UserA2 is now in the team
+    await moveA2(null);
+    await drainOutbox(t);
+    expect(await cellOf(leaderA, rid["d1"]!, "% com của team")).toBeCloseTo(0.1, 9);
+    expect(await processPendingRefills(t.c.db.db)).toBe(0); // idempotent: nothing left in the queue
   });
 
   it("nobody types into those cells, whatever the channel", async () => {

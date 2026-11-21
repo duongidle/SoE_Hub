@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
-import type { Executor } from "@soe/db";
+import type { Logger } from "pino";
+import type { Db, Executor } from "@soe/db";
+import type { Subscriber } from "../../core/outbox-dispatcher";
 import { entriesOf } from "./user-values";
 import { columnFromDb } from "./table-schema";
 import { markPending } from "./recalc";
@@ -171,4 +173,59 @@ export async function refillRows(db: Executor, tableId: string, rows: { id: stri
   if (cols.length === 0) return;
   const keys = rows === "all" ? await pushDownTable(db, tableId, cols) : await pushDownRows(db, tableId, cols, rows);
   await markPending(db, await dependentsOf(db, tableId, keys));
+}
+
+// ================================================================================================
+// the organization changed: refill the autofill columns of every table that has them (in the worker loop, not in the dispatcher)
+// ================================================================================================
+
+/**
+ * A change in the people of the organization (a move, a new Leader or Manager) changes what "% com của team" / "Tổng % com đã chia" hold. The refill scans every
+ * row of a table, so it is NOT done in the subscriber (the dispatcher handles events one by one): the subscriber only sets `refill_pending_at` on the tables that
+ * have an autofill column, and `startRefillLoop` refills them (the query is the queue, so a crash loses nothing). `default_templates` events do not move people.
+ */
+export const refillSubscriber: Subscriber = {
+  name: "datahub.refill",
+  match: (e) => e === "org.member.changed",
+  async handle(ev, db) {
+    if ((ev.payload as { change?: string } | null)?.change === "default_templates") return;
+    await db.execute(sql`UPDATE dh_tables SET refill_pending_at = clock_timestamp() WHERE /*scope:system*/ deleted_at IS NULL
+      AND EXISTS (SELECT 1 FROM dh_columns c WHERE c.table_id = dh_tables.id AND c.deleted_at IS NULL AND c.autofill IS NOT NULL)`);
+  },
+};
+
+/** Refills the tables waiting in the queue, one at a time; a table marked again while it is being refilled stays in the queue. Returns the number refilled. */
+export async function processPendingRefills(db: Db): Promise<number> {
+  let n = 0;
+  for (;;) {
+    const next = await db.execute(sql`SELECT id, refill_pending_at FROM dh_tables WHERE /*scope:system*/ refill_pending_at IS NOT NULL ORDER BY refill_pending_at LIMIT 1`);
+    const row = next.rows[0] as { id: string; refill_pending_at: Date | string } | undefined;
+    if (!row) return n;
+    await db.transaction(async (tx) => {
+      await refillRows(tx, row.id, "all");
+      await tx.execute(sql`UPDATE dh_tables SET refill_pending_at = NULL WHERE /*scope:system*/ id = ${row.id}::uuid AND refill_pending_at = ${row.refill_pending_at instanceof Date ? row.refill_pending_at.toISOString() : row.refill_pending_at}::timestamptz`);
+    });
+    n++;
+  }
+}
+
+export function startRefillLoop(db: Db, log: Logger, intervalMs: number): { stop(): Promise<void> } {
+  let stopped = false;
+  let current: Promise<void> | null = null;
+  const timer = setInterval(() => {
+    if (stopped || current) return;
+    current = processPendingRefills(db)
+      .then(() => undefined)
+      .catch((err) => log.error({ err }, "autofill refill loop error"))
+      .finally(() => {
+        current = null;
+      });
+  }, intervalMs);
+  return {
+    async stop() {
+      stopped = true;
+      clearInterval(timer);
+      await current;
+    },
+  };
 }

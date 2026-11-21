@@ -103,6 +103,8 @@ export const dhTables = pgTable(
     membersBulkCreate: boolean("members_bulk_create").notNull().default(true),
     /** Protected (template) table: no rename, no delete from the table commands; only the template commands change it (design module4 1.3, Stage 4.1c). */
     protected: boolean("protected").notNull().default(false),
+    /** The organization changed: the autofill ("gửi xuống") columns of this table are to be refilled by the worker loop (query is the queue). Cleared when refilled. */
+    refillPendingAt: timestamp("refill_pending_at", { withTimezone: true }),
     /** The template this table was made from (the shared table, or one person's copy of a personal template). */
     templateId: uuid("template_id").references(() => dhTemplates.id),
     /** Personal template: the person this copy belongs to. */

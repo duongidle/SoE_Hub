@@ -5,7 +5,7 @@ import { defaultSubscribers } from "./core/subscribers";
 import { jobs } from "./jobs";
 import { registerTrashTables } from "./modules";
 import { ensureAllTrees, startDealDefaultsLoop } from "./modules/deal";
-import { markVolatilePending, resetRunningColumns, resetRunningJobs, startJobLoop, startMergeLoop, startRecalcLoop } from "./modules/datahub";
+import { markVolatilePending, resetRunningColumns, resetRunningJobs, startJobLoop, startMergeLoop, startRecalcLoop, startRefillLoop } from "./modules/datahub";
 
 const c = createContainer({}, "worker");
 registerTrashTables({ config: c.config, storage: c.storage });
@@ -41,6 +41,9 @@ const recalc = startRecalcLoop(c.db.db, c.logger, c.config.WORKER_OUTBOX_POLL_MS
 
 const dealDefaults = startDealDefaultsLoop(c.db.db, c.logger, c.config.WORKER_OUTBOX_POLL_MS);
 
+// Organization changed: refill the autofill ("gửi xuống") columns of the tables marked by the `datahub.refill` subscriber.
+const refills = startRefillLoop(c.db.db, c.logger, c.config.WORKER_OUTBOX_POLL_MS);
+
 // Merged tables (Module 3 section 4): copy the rows of the source tables whenever a change asked for it.
 const merges = startMergeLoop(c.db.db, c.logger, c.config.WORKER_OUTBOX_POLL_MS);
 
@@ -56,6 +59,7 @@ const shutdown = async (signal: string) => {
   await dispatcher.stop();
   await recalc.stop();
   await dealDefaults.stop();
+  await refills.stop();
   await merges.stop();
   await jobLoop.stop();
   await boss.stop({ graceful: true, timeout: 10_000 });

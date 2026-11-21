@@ -1,0 +1,1 @@
+ALTER TABLE "dh_tables" ADD COLUMN "refill_pending_at" timestamp with time zone;
