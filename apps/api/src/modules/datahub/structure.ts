@@ -117,7 +117,7 @@ export const ColumnOut = z.object({
   storage: z.enum(["shared", "person"]).describe("`shared`: một giá trị mỗi dòng. `person`: mỗi người một giá trị."),
   role: z.string().nullable().describe("Vai trò cột (Module 4 mục 3.7) nếu cột đang giữ vai trò."),
   protected: z.boolean().describe("Cột của bảng template: không đổi tên, xoá, đổi kiểu từ lệnh cột thường."),
-  autofill: z.object({ column: z.string(), attr: z.string(), sum: z.enum(["team", "tree"]).optional() }).nullable().describe("Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."),
+  autofill: z.object({ column: z.string(), attr: z.string().optional(), sum: z.enum(["team", "tree"]).optional(), present: z.literal(true).optional() }).nullable().describe("Cột hệ thống tự điền từ thuộc tính của người trong cột Người dùng (Module 4 mục 4.5); không ai sửa ô."),
   unique: z.boolean(),
   default_value: z.unknown(),
   description: z.string().nullable(),

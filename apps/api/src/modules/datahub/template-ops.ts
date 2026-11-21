@@ -193,7 +193,7 @@ type NewTemplateColumn = z.output<z.ZodObject<typeof ColumnFields>> & {
   layer_roles?: ("manager" | "leader" | "user")[];
   storage: "shared" | "person";
   role?: string;
-  autofill?: { column: string; attr: string; sum?: "team" | "tree" };
+  autofill?: { column: string; attr?: string; sum?: "team" | "tree"; present?: true };
 };
 
 /** Adds a column to the master table of a template (and to the copies of a personal one). The checks of who may are the caller's; the default set of a new tree calls this as the Manager. */
@@ -493,9 +493,9 @@ export const templateOperations = [
       storage: z.enum(["shared", "person"]).default("shared"),
       role: z.string().min(1).max(60).optional(),
       autofill: z
-        .object({ column: z.string().min(1).max(100), attr: z.string().min(1).max(30), sum: z.enum(["team", "tree"]).optional() })
+        .object({ column: z.string().min(1).max(100), attr: z.string().min(1).max(30).optional(), sum: z.enum(["team", "tree"]).optional(), present: z.literal(true).optional() })
         .optional()
-        .describe("\"Gửi xuống\" (Module 4 mục 4.5): hệ thống tự điền cột (storage `person`) từ thuộc tính `attr` của mỗi người trong cột Người dùng có thuộc tính `column` của cùng dòng. `sum: team|tree`: Leader/Manager nhận tổng của team/cây."),
+        .describe("\"Gửi xuống\" (Module 4 mục 4.5): hệ thống tự điền cột (storage `person`) từ thuộc tính `attr` của mỗi người trong cột Người dùng có thuộc tính `column` của cùng dòng. `sum: team|tree`: Leader/Manager nhận tổng của team/cây. `present: true` (thay `attr`): cột checkbox, mỗi người có tên trong cột nhận Có."),
     }),
     output: ColumnOut,
     http: { method: "POST", path: "/datahub/templates/:template_id/columns", status: 201 },
@@ -688,13 +688,19 @@ export const templateOperations = [
 ];
 
 /** "Gửi xuống": the source column must be a user column with that attribute, and the column that receives must be person-stored and fit the attribute. */
-async function resolveAutofill(ctx: CoreCtx, acc: TableAccess, a: { column: string; attr: string; sum?: "team" | "tree" }, type: string, storage: string): Promise<Autofill> {
+async function resolveAutofill(ctx: CoreCtx, acc: TableAccess, a: { column: string; attr?: string; sum?: "team" | "tree"; present?: true }, type: string, storage: string): Promise<Autofill> {
   const bad = (m: string, reason = "autofill_invalid"): never => {
     throw new AppError("validation_error", m, { reason });
   };
   if (storage !== "person") bad("Cột tự điền từ Người tham gia phải là cột mỗi người một giá trị (`storage: person`).");
   const src = (await TableSchema.load(ctx.db, acc)).tryResolve(a.column);
   if (!src || src.deletedAt || src.type !== "user") return bad(`Không có cột Người dùng "${a.column}" để lấy thuộc tính.`);
+  if (a.present) {
+    if (a.attr || a.sum) bad("`present` không đi cùng `attr` hay `sum`.");
+    if (type !== "checkbox") bad("Cột \"có mặt\" phải là kiểu checkbox.");
+    return { column: src.key, present: true };
+  }
+  if (!a.attr) bad("Thiếu `attr` (hoặc `present`).");
   const attr = userAttrs(src).find((x) => x.key === a.attr);
   if (!attr) return bad(`Cột "${src.name}" không có thuộc tính "${a.attr}".`);
   const fits = a.sum ? attr.kind === "percent" && ["percent", "number"].includes(type) : attr.kind === "select" ? type === "text" : attr.kind === "percent" ? ["percent", "number"].includes(type) : type === "checkbox";

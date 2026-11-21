@@ -116,6 +116,17 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "ky_ghi_nhan", label: "Kỳ ghi nhận (điều chỉnh vào kỳ đang mở)", types: ["date", "datetime"], required: false, usedBy: ["Chốt kỳ", "Điều chỉnh com"] },
     ],
   },
+  revenue: {
+    label: "Doanh thu theo người",
+    roles: [
+      { key: "nguoi", label: "Người", types: ["user"], required: true, usedBy: ["Phạm vi xem", "Lệnh thanh toán"] },
+      { key: "dot", label: "Đợt", types: ["relation"], required: true, usedBy: ["Lệnh thanh toán"] },
+      { key: "deal", label: "Deal", types: ["relation"], required: false, usedBy: ["Lệnh thanh toán"] },
+      { key: "ty_le_dt", label: "% doanh thu", types: ["percent", "number"], required: true, usedBy: ["Lệnh thanh toán"] },
+      { key: "ngay_tien_ve", label: "Ngày tiền về", types: ["date", "datetime"], required: false, usedBy: ["Probation KPI"] },
+      { key: "doanh_thu_nguoi", label: "Doanh thu", types: MONEY, required: false, usedBy: ["Probation KPI"] },
+    ],
+  },
   kpi: {
     label: "Probation KPI",
     roles: [

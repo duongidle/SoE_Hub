@@ -13,6 +13,7 @@ import type { DhColumn, Stored } from "./types";
  * in a user column of the same row, so a member reads "my role", "my share" without a function that knows who reads. One place computes it; the grid,
  * export, API and formulas only read the stored person cells.
  *
+ * - `present: true`: each person named gets `true` (checkbox "Của tôi": "my line" for a formula that must count only the reader's own rows).
  * - `attr` only: each person named gets the value of their own attribute (a person without a value has the cell removed).
  * - `sum: "team"`: a Leader gets the total of the attribute over the people of their team who are named in the row (a Leader named in it counts for themselves);
  *   `sum: "tree"`: a Manager the total over their tree. Numbers only (percent, number).
@@ -57,6 +58,11 @@ function desiredFor(data: Record<string, Stored>, cols: DhColumn[], org: Org): C
   for (const col of cols) {
     const a = col.autofill!;
     const entries = entriesOf(data[a.column]);
+    if (a.present) {
+      for (const e of entries) put(e.id, col.key, true);
+      continue;
+    }
+    if (!a.attr) continue;
     if (!a.sum) {
       for (const e of entries) {
         const v = e.attrs[a.attr];
@@ -73,7 +79,7 @@ function desiredFor(data: Record<string, Stored>, cols: DhColumn[], org: Org): C
       // A Leader named in the row counts in their own team; a Manager in their own tree.
       if (a.sum === "team" && roles.includes("leader")) targets.add(e.id);
       if (a.sum === "tree" && roles.includes("manager")) targets.add(e.id);
-      for (const t of targets) totals.set(t, (totals.get(t) ?? 0) + num(e.attrs[a.attr]));
+      for (const t of targets) totals.set(t, (totals.get(t) ?? 0) + num(e.attrs[a.attr!]));
     }
     for (const [user, total] of totals) put(user, col.key, Math.round(total * 1e9) / 1e9);
   }

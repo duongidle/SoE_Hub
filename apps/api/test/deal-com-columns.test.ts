@@ -161,3 +161,35 @@ describe("default Deals dashboard", () => {
     expect(await kpiOf(userA2, "Doanh thu tính cho tôi")).not.toContain("100000000");
   });
 });
+
+describe("Com của tôi vs Com của team (Leader and Manager count only their own lines for \"của tôi\")", () => {
+  it("Leader has 4tr of their own, the team 6tr more: mine 4tr, team 10tr; the Manager's mine is 0", async () => {
+    const d = await mgrA("datahub.row.create", {
+      table_id: tables["Deals"]!,
+      data: {
+        "Tên công ty": "Công ty Team Com",
+        "Loại deal": "POD bán mới",
+        "Start date": "2026-06-10",
+        "Ngày dự kiến chốt": "2026-07-01",
+        "Doanh thu dự kiến": 1_000,
+        "Nguồn lead": "ML",
+        "Level BC": "Level 1",
+        "Performance BC": "KPI",
+        "Người tham gia": [person(org.leaderA.id, { vai_tro: "Associate", ty_le_com: 0.2 }), person(org.userA1.id, { vai_tro: "Associate", ty_le_com: 0.3 })],
+      },
+    });
+    const pay = (await mgrA("payment.schedule", { deal_id: d.id, payments: [{ legal_entity: "CT Gamma", amount: 100_000_000, due: "2026-07-01" }] })).payments[0].id;
+    await mgrA("payment.confirm", { received_on: "2026-07-04", receipt: { amount: 100_000_000 }, allocations: [{ payment_id: pay, amount: 100_000_000 }] });
+    await settle();
+    const l = await row(leaderA, tables["Deals"]!, d.id);
+    expect(l["Com tạm tính của tôi"]).toBeCloseTo(4_000_000, 6);
+    expect(l["Com tạm tính của team"]).toBeCloseTo(10_000_000, 6);
+    expect(l["Com đã nhận của tôi"]).toBeCloseTo(0, 6);
+    const a1 = await row(userA1, tables["Deals"]!, d.id);
+    expect(a1["Com tạm tính của tôi"]).toBeCloseTo(6_000_000, 6);
+    expect(a1["Com tạm tính của team"]).toBeUndefined();
+    const m = await row(mgrA, tables["Deals"]!, d.id);
+    expect(m["Com tạm tính của tôi"]).toBeCloseTo(0, 6);
+    expect(m["Com của deal"]).toBeCloseTo(10_000_000, 6);
+  });
+});

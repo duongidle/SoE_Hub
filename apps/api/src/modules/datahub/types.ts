@@ -58,8 +58,11 @@ export interface DhColumn {
 /** Where an autofilled column takes its value: the attribute `attr` of each person in the user column `column` (by key). `sum`: the value of a Leader (`team`) or Manager (`tree`) is the total over the people they manage. */
 export interface Autofill {
   column: string;
-  attr: string;
+  /** The attribute to copy. Absent when `present` is set. */
+  attr?: string;
   sum?: "team" | "tree";
+  /** "Có mặt": every person named in the column gets `true` (a checkbox column "Của tôi"). */
+  present?: true;
 }
 
 export interface SelectOption {

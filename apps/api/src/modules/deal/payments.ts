@@ -40,15 +40,20 @@ export interface Tree {
   dots: T;
   receipts: T;
   ledger: T;
+  /** "Doanh thu theo người": absent in a tree built before the table was added (it gets it on the next beat of the defaults loop). */
+  revenue: T | null;
 }
 export type Ctx = Pick<HandlerCtx, "db" | "actor" | "emit" | "audit" | "requestId" | "access">;
 
-const ROLE_OF_TABLE = { deals: "deals", dots: "payments", receipts: "receipts", ledger: "ledger" } as const;
+const ROLE_OF_TABLE = { deals: "deals", dots: "payments", receipts: "receipts", ledger: "ledger", revenue: "revenue" } as const;
 
-async function loadT(ctx: Ctx, managerId: string, roleSet: string, label: string): Promise<T> {
+async function loadT(ctx: Ctx, managerId: string, roleSet: string, label: string): Promise<T>;
+async function loadT(ctx: Ctx, managerId: string, roleSet: string, label: string, optional: true): Promise<T | null>;
+async function loadT(ctx: Ctx, managerId: string, roleSet: string, label: string, optional = false): Promise<T | null> {
   const r = await ctx.db.execute(sql`SELECT id FROM dh_templates WHERE /*scope:system*/ manager_id = ${managerId}::uuid AND scope = 'tree' AND role_set = ${roleSet} AND deleted_at IS NULL ORDER BY created_at LIMIT 1`);
   const id = (r.rows[0] as { id: string } | undefined)?.id;
   const tpl = id ? await loadTemplate(ctx.db, id) : null;
+  if (!tpl?.masterTableId && optional) return null;
   if (!tpl?.masterTableId) throw new AppError("conflict", `Cây của bạn chưa có bảng "${label}" (bộ vai trò ${roleSet}). Chờ hệ thống dựng bộ bảng mặc định hoặc tạo bảng ở trang Template.`, { reason: "payment_table_missing", role_set: roleSet });
   const acc = await masterAccess(ctx as never, tpl);
   const schema = await TableSchema.load(ctx.db, acc);
@@ -65,6 +70,7 @@ export async function loadTree(ctx: Ctx): Promise<Tree> {
     dots: await loadT(ctx, m, ROLE_OF_TABLE.dots, "Đợt thanh toán"),
     receipts: await loadT(ctx, m, ROLE_OF_TABLE.receipts, "Tiền về"),
     ledger: await loadT(ctx, m, ROLE_OF_TABLE.ledger, "Sổ com"),
+    revenue: await loadT(ctx, m, ROLE_OF_TABLE.revenue, "Doanh thu theo người", true),
   };
 }
 
@@ -164,6 +170,54 @@ async function linkLedger(ctx: Ctx, tree: Tree, byDeal: Map<string, string[]>): 
     ops.push({ op: "update", id: dealId, data: { [col.key]: [...new Set([...idsOf(row.data[col.key] ?? null), ...added])] } });
   }
   if (ops.length) await write(ctx, tree.deals, ops, true);
+}
+
+/** Takes deleted ledger lines out of the deals' `so_com` link (no orphan ids left in the cell). System write, like `linkLedger`. */
+async function unlinkLedger(ctx: Ctx, tree: Tree, dealIds: string[], gone: Set<string>): Promise<void> {
+  const col = roleCol(tree.deals, "so_com", false);
+  if (!col || dealIds.length === 0 || gone.size === 0) return;
+  const cur = await readRows(ctx, tree.deals, dealIds);
+  const ops: RowOp[] = [];
+  for (const [dealId, row] of cur) {
+    const had = idsOf(row.data[col.key] ?? null);
+    const left = had.filter((x) => !gone.has(x));
+    if (left.length !== had.length) ops.push({ op: "update", id: dealId, data: { [col.key]: left.length ? left : null } });
+  }
+  if (ops.length) await write(ctx, tree.deals, ops, true);
+}
+
+/** Revenue share attribute of `Người tham gia` (module4 4.5). */
+export const REVENUE_ATTR = "ty_le_dt";
+
+/**
+ * One row of "Doanh thu theo người" per person who has a revenue share in the instalment (design module4 4.6A2): the revenue of ONE named person, the same
+ * for every reader, so Probation KPI and the Index of a team can sum it. A tree without the table skips it. System bookkeeping next to the ledger lines.
+ */
+async function addRevenueLines(ctx: Ctx, tree: Tree, paymentId: string, dealId: string, people: Stored): Promise<void> {
+  const t = tree.revenue;
+  if (!t || !Array.isArray(people)) return;
+  const ops: RowOp[] = (people as unknown as PersonEntry[])
+    .filter((e) => e && typeof e.id === "string" && Number(e.attrs?.[REVENUE_ATTR] ?? 0) > 0)
+    .map((e) => ({
+      op: "create" as const,
+      data: cells(t, [
+        ["nguoi", e.id],
+        ["dot", [paymentId] as Stored],
+        ["deal", [dealId] as Stored],
+        ["ty_le_dt", Number(e.attrs[REVENUE_ATTR])],
+      ]),
+    }));
+  if (ops.length) await write(ctx, t, ops);
+}
+
+/** The rows of "Doanh thu theo người" of these instalments (for `payment.unconfirm`). */
+async function revenueLinesOf(ctx: Ctx, tree: Tree, paymentIds: string[]): Promise<string[]> {
+  const t = tree.revenue;
+  if (!t) return [];
+  const dotCol = roleCol(t, "dot")!;
+  const link = sourceOf(dotCol).cellExpr(dotCol, "data", "json");
+  const res = await ctx.db.execute(sql`SELECT id FROM dh_rows WHERE ${t.acc.rows()} AND deleted_at IS NULL AND ${link} ?| ${`{${paymentIds.join(",")}}`}::text[]`);
+  return (res.rows as { id: string }[]).map((r) => r.id);
 }
 
 /** The payments of a deal: rows of Đợt thanh toán whose link column holds the deal. */
@@ -479,6 +533,7 @@ export const paymentOperations = [
           ledgerIds.push(...made);
           ledgerByDeal.set(dealId, [...(ledgerByDeal.get(dealId) ?? []), ...made]);
         }
+        await addRevenueLines(ctx, tree, a.payment_id, dealId, cellOf(tree.dots, row, "nguoi_tham_gia"));
       }
       const linkCol = roleCol(tree.deals, "dot_thanh_toan", false);
       if (linkCol) {
@@ -532,6 +587,9 @@ export const paymentOperations = [
         if (cellOf(tree.ledger, l, "trang_thai_com") !== temp) throw new AppError("conflict", "Đợt có dòng Sổ com đã chốt hoặc điều chỉnh. Dùng điều chỉnh com thay vì huỷ.", { reason: "ledger_not_temporary", ledger_id: l.id });
       }
       if (lines.size) await write(ctx, tree.ledger, [...lines.keys()].map((id) => ({ op: "delete" as const, id })));
+      await unlinkLedger(ctx, tree, [...dealIds], new Set(lines.keys()));
+      const revenueIds = await revenueLinesOf(ctx, tree, i.payment_ids);
+      if (revenueIds.length) await write(ctx, tree.revenue!, revenueIds.map((id) => ({ op: "delete" as const, id })));
       await write(
         ctx,
         tree.dots,

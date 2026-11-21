@@ -28,7 +28,7 @@ export const DefaultColumnSchema = z.strictObject({
   description: z.string().max(1000).optional(),
   /** Hidden in the default grid view (the column is still there). */
   hidden: z.boolean().optional(),
-  autofill: z.strictObject({ column: NAME, attr: z.string().min(1).max(30), sum: z.enum(["team", "tree"]).optional() }).optional(),
+  autofill: z.strictObject({ column: NAME, attr: z.string().min(1).max(30).optional(), sum: z.enum(["team", "tree"]).optional(), present: z.literal(true).optional() }).optional(),
 });
 
 export const DefaultTableSchema = z.strictObject({
@@ -213,8 +213,10 @@ const DEALS: DefaultTable = {
   // Columns that read the ledger, a table made after Deals.
   late_columns: [
     { name: "Sổ com", type: "relation", config: { target_table: "Sổ com", multiple: true }, role: "so_com", hidden: true, description: "Ghi bởi lệnh xác nhận tiền về và điều chỉnh com." },
-    { name: "Com đã nhận của tôi", type: "rollup", config: { relation: "Sổ com", target_column: "Com đã nhận", fn: "sum" }, description: "Dòng Sổ com đã chốt hoặc điều chỉnh mà bạn đọc được (Sổ com theo khoá phân chia)." },
-    { name: "Com tạm tính của tôi", type: "rollup", config: { relation: "Sổ com", target_column: "Com tạm tính", fn: "sum" }, description: "Dòng Sổ com Tạm tính mà bạn đọc được." },
+    { name: "Com đã nhận của tôi", type: "rollup", config: { relation: "Sổ com", target_column: "Com đã nhận của tôi", fn: "sum" }, description: "Dòng Sổ com của chính bạn đã chốt hoặc điều chỉnh." },
+    { name: "Com tạm tính của tôi", type: "rollup", config: { relation: "Sổ com", target_column: "Com tạm tính của tôi", fn: "sum" }, description: "Dòng Sổ com của chính bạn đang Tạm tính." },
+    { name: "Com đã nhận của team", type: "rollup", config: { relation: "Sổ com", target_column: "Com đã nhận", fn: "sum" }, layer: "role", layer_roles: ["leader"], description: "Mọi dòng Sổ com của team đã chốt hoặc điều chỉnh (Sổ com theo khoá phân chia)." },
+    { name: "Com tạm tính của team", type: "rollup", config: { relation: "Sổ com", target_column: "Com tạm tính", fn: "sum" }, layer: "role", layer_roles: ["leader"], description: "Mọi dòng Sổ com của team đang Tạm tính." },
     { name: "Com của deal", type: "rollup", config: { relation: "Sổ com", target_column: "Com", fn: "sum" }, layer: "role", layer_roles: ["manager"], description: "Mọi dòng Sổ com của deal (chỉ Manager thấy)." },
   ],
 };
@@ -295,6 +297,12 @@ const INDEX: DefaultTable = { name: "Index", kind: "personal", role_set: "index"
 // Probation KPI (module4 6): the plan. "Đã đạt / Còn thiếu / % đạt" come with the payment step.
 // ------------------------------------------------------------------------------------------------
 
+const REV = (col: string) => `[Doanh thu theo người].[${col}]`;
+/** Sum of the revenue of the person of THIS row between two dates (`from` inclusive, `to` exclusive). */
+const PROGRESS_BODY = (from: string, to: string) => `SUMIFS(${REV("Doanh thu")},${REV("Người")},[Người],${REV("Ngày tiền về")},">="&${from},${REV("Ngày tiền về")},"<"&${to})`;
+const PROGRESS = (from: string, to: string) => `=${PROGRESS_BODY(from, to)}`;
+const QUARTER_OF_TODAY = "DATE(YEAR(TODAY()),(QUARTER(TODAY())-1)*3+1,1)";
+
 const KPI: DefaultTable = {
   name: "Probation KPI",
   kind: "shared",
@@ -327,6 +335,13 @@ const KPI: DefaultTable = {
     ]),
     { name: "Số deal cần thắng", type: "formula", config: { formula: '=IF([Deal size]=0,"",[KPI tổng]/[Deal size])', result_type: "number" } },
     { name: "Lead cần nhận", type: "formula", config: { formula: '=IF([CR1]*[CR2]=0,"",[Số deal cần thắng]/([CR1]*[CR2]))', result_type: "number" } },
+    // Progress: the revenue of THIS row's person (not the reader's), from "Doanh thu theo người" by the day the money arrived (module4 6, 4.6A2).
+    { name: "Đã đạt", type: "formula", config: { formula: PROGRESS("DATE([Năm],1,1)", "DATE([Năm]+1,1,1)"), result_type: "number" }, description: "Doanh thu của người trong năm, theo ngày tiền về." },
+    { name: "Còn thiếu", type: "formula", config: { formula: "=MAX([KPI tổng]-[Đã đạt],0)", result_type: "number" } },
+    { name: "% đạt", type: "formula", config: { formula: '=IF([KPI tổng]=0,"",[Đã đạt]/[KPI tổng])', result_type: "percent" } },
+    { name: "KPI quý này", type: "formula", config: { formula: '=IF([Năm]<>YEAR(TODAY()),"",IF(QUARTER(TODAY())=1,[KPI Q1],IF(QUARTER(TODAY())=2,[KPI Q2],IF(QUARTER(TODAY())=3,[KPI Q3],[KPI Q4]))))', result_type: "number" } },
+    { name: "Đã đạt quý này", type: "formula", config: { formula: `=IF([Năm]<>YEAR(TODAY()),"",${PROGRESS_BODY(QUARTER_OF_TODAY, `EDATE(${QUARTER_OF_TODAY},3)`)})`, result_type: "number" } },
+    { name: "% đạt quý này", type: "formula", config: { formula: '=IF(OR([KPI quý này]="",[KPI quý này]=0),"",[Đã đạt quý này]/[KPI quý này])', result_type: "percent" } },
   ],
 };
 
@@ -415,6 +430,8 @@ const LEDGER: DefaultTable = {
   split: { columns: ["Người"], primary: "Người" },
   columns: [
     { name: "Người", type: "user", role: "nguoi", required: true },
+    // One value per reader: true on the line of the person named in `Người`, so "của tôi" sums only the reader's own lines.
+    { name: "Của tôi", type: "checkbox", storage: "person", autofill: { column: "Người", present: true }, hidden: true },
     { name: "Đợt", type: "relation", config: { target_table: DOT_TABLE, multiple: false }, role: "dot", required: true },
     { name: "Deal", type: "relation", config: { target_table: "Deals", multiple: false }, role: "deal" },
     { name: "Kỳ của đợt", type: "lookup", config: { relation: "Đợt", target_column: "Kỳ" }, role: "ky_dot" },
@@ -430,8 +447,32 @@ const LEDGER: DefaultTable = {
     { name: "Lý do", type: "text", role: "ly_do" },
     { name: "Com đã nhận", type: "formula", config: { formula: '=IF(OR([Trạng thái]="Đã chốt",[Trạng thái]="Điều chỉnh"),IF([Com]="",0,[Com]),0)', result_type: "number" }, description: "Com của dòng đã chốt hoặc điều chỉnh (Deals cộng cột này)." },
     { name: "Com tạm tính", type: "formula", config: { formula: '=IF([Trạng thái]="Tạm tính",IF([Com]="",0,[Com]),0)', result_type: "number" }, description: "Com của dòng Tạm tính (Deals cộng cột này)." },
+    { name: "Com đã nhận của tôi", type: "formula", config: { formula: "=IF([Của tôi]=TRUE,[Com đã nhận],0)", result_type: "number" }, hidden: true, description: "Com đã nhận nếu dòng là của người đọc (Deals cộng cột này cho cột \"của tôi\")." },
+    { name: "Com tạm tính của tôi", type: "formula", config: { formula: "=IF([Của tôi]=TRUE,[Com tạm tính],0)", result_type: "number" }, hidden: true, description: "Com tạm tính nếu dòng là của người đọc." },
+  ],
+};
+
+/**
+ * One row per person per paid instalment (design module4 4.6A2, "Thêm vì hệ thống cần"): the revenue of ONE named person, the same for every reader. The formulas
+ * of the Index are per reader, so they cannot say "the revenue of Nam" on Nam's Probation KPI row when a Manager reads it. Rows are written by `payment.confirm`
+ * (one per person with `% doanh thu` > 0) and removed by `payment.unconfirm`. The paid amount and the date are looked up from the instalment, so a frozen period freezes them.
+ */
+const REVENUE: DefaultTable = {
+  name: "Doanh thu theo người",
+  kind: "shared",
+  role_set: "revenue",
+  member_permission: "view",
+  split: { columns: ["Người"], primary: "Người" },
+  columns: [
+    { name: "Người", type: "user", role: "nguoi", required: true },
+    { name: "Đợt", type: "relation", config: { target_table: DOT_TABLE, multiple: false }, role: "dot", required: true },
+    { name: "Deal", type: "relation", config: { target_table: "Deals", multiple: false }, role: "deal" },
+    { name: "Ngày tiền về", type: "lookup", config: { relation: "Đợt", target_column: "Ngày tiền về" }, role: "ngay_tien_ve" },
+    { name: "Số tiền về", type: "lookup", config: { relation: "Đợt", target_column: "Số tiền về (chưa VAT)" } },
+    { name: "% doanh thu", type: "percent", role: "ty_le_dt", description: "Phần doanh thu của người trong đợt, chép từ Người tham gia lúc xác nhận tiền về." },
+    { name: "Doanh thu", type: "formula", config: { formula: '=IF([Số tiền về]="",0,[Số tiền về]*[% doanh thu])', result_type: "number" }, role: "doanh_thu_nguoi", description: "Số tiền về (chưa VAT) × % doanh thu." },
   ],
 };
 
 /** The built-in default set, in dependency order: a table that a formula reads is made before it. */
-export const BUILTIN_DEFAULT_SET: DefaultTable[] = [PARAMS, POLICY, RECEIPTS, PAYMENTS, DEALS, INDEX, KPI, LEDGER];
+export const BUILTIN_DEFAULT_SET: DefaultTable[] = [PARAMS, POLICY, RECEIPTS, PAYMENTS, DEALS, REVENUE, INDEX, KPI, LEDGER];
