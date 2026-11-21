@@ -335,6 +335,8 @@ _Phần 4.1–4.5A. Mỗi bước con sau cập nhật phần của mình trong 
 
 - Lọc "deal thuộc kỳ" (bốn cách hiểu, Module 4 mục 11a): tham số `deal_rule` của `time_filter` (`related` / `received` / `closed` / `expected`), kiểu `TimeFilterSchema` ở `packages/shared/src/time-filter.ts`, tính ở `apps/api/src/modules/datahub/time-filter.ts` `timeFilterNode` (cột tìm theo vai trò `ngay_bat_dau`, `ngay_chot`, `ngay_du_kien_chot`, `trang_thai`). `columns` được để `[]` khi có `deal_rule`. Dùng được ở `datahub.row.list`, nhóm, xuất file.
 
+- BANT: cột và quy tắc H-002 là công thức trong bộ mặc định, khai ở `apps/api/src/modules/deal/default-templates.ts` `BANT_COLUMNS` (không có code logic). Hàng chờ "Cần chấm lại hôm nay" là cột công thức `Cần chấm lại` (khác rỗng = cần chấm lại); view "Ưu tiên hôm nay" là filter + sort trên cột `Thứ tự ưu tiên`. Lịch sử mỗi lần chấm là lịch sử dòng (`row_history`) của Deals.
+
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.
 - Không đưa số chính sách com thật vào code, bộ mặc định hay test (bảng chính sách và tham số tạo rỗng; Manager điền).

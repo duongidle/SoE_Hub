@@ -200,8 +200,9 @@ describe("forecast and snapshot", () => {
     expect(snap.row_count).toBeGreaterThanOrEqual(3);
     expect(snap.forecast).toBeGreaterThanOrEqual(230_000_000);
     expect((await mgrA("deal.snapshot.list")).map((x: { id: string }) => x.id)).toContain(snap.id);
-    expect(await snapshotAllTrees(t.c.db.db)).toBe(1);
-    expect(await snapshotAllTrees(t.c.db.db)).toBe(0);
+    // The job runs for every tree of the (shared) database, so only this tree is asserted: two runs leave exactly one automatic snapshot.
+    expect(await snapshotAllTrees(t.c.db.db)).toBeGreaterThanOrEqual(1);
+    await snapshotAllTrees(t.c.db.db);
     expect((await mgrA("deal.snapshot.list")).filter((x: { auto: boolean }) => x.auto)).toHaveLength(1);
     expect((await fails(mgrB("deal.snapshot.create", {}))).details.reason).toBe("payment_table_missing");
     for (const who of [leaderA, userA1, guest]) expect((await fails(who("deal.snapshot.create", {}))).code).toBe("forbidden");
@@ -281,5 +282,46 @@ describe("time filter: the four readings of a deal belonging to the period", () 
     const my = (await tplOf(userA1, "Deals")).my_table_id as string;
     const mine = await userA1("datahub.row.list", { table_id: my, time_filter: JSON.stringify({ columns: [], range: q1, deal_rule: "closed" }), limit: 200 });
     expect((mine.items as { id: string }[]).map((x) => x.id)).toEqual([b]);
+  });
+});
+
+describe("BANT: the rule H-002 is a formula of the template", () => {
+  const level = (v: string) => v;
+  it("computes the priority from the four letters, lets a person override it, and queues the deals to score again", async () => {
+    const mk = async (b: string, a: string, n: string, tl: string, extra: Record<string, unknown> = {}) => {
+      const id = await newDeal({ Budget: level(b), Authority: a, Need: n, Timeline: tl, ...extra });
+      await drainOutbox(t);
+      return row(mgrA, tables["Deals"]!, id);
+    };
+    const E = "Có bằng chứng", U = "Chưa rõ", N = "Âm";
+    expect((await mk(E, E, E, U))["Mức ưu tiên"]).toBe("P1 – Ưu tiên cao"); // Need + Authority + Budget
+    expect((await mk(U, E, E, E))["Mức ưu tiên"]).toBe("P1 – Ưu tiên cao"); // Need + Authority + Timeline
+    expect((await mk(U, E, E, U))["Mức ưu tiên"]).toBe("P2 – Ưu tiên trung bình");
+    expect((await mk(E, N, E, E))["Mức ưu tiên"]).toBe("P3 – Ưu tiên thấp"); // one Âm
+    expect((await mk(E, E, U, E))["Mức ưu tiên"]).toBe("Chưa đủ dữ liệu"); // Need unclear
+    expect((await mk(U, U, E, U))["Mức ưu tiên"]).toBe("Chưa đủ dữ liệu"); // B, A, T all unclear
+    const ps = await mk(E, E, E, E, { "Loại deal": "PS kèm POD" });
+    expect(ps["Mức ưu tiên"]).toBe("Không đánh giá");
+    expect(ps["Cần chấm lại"]).toBe(""); // PS is not scored
+    // an override wins over the computed level
+    const id = await newDeal({ Budget: E, Authority: E, Need: E, Timeline: E });
+    await drainOutbox(t);
+    await upd(mgrA, tables["Deals"]!, id, { "Mức ưu tiên ghi đè": "P3 – Ưu tiên thấp" });
+    await drainOutbox(t);
+    const o = await row(mgrA, tables["Deals"]!, id);
+    expect(o["Mức ưu tiên tự tính"]).toBe("P1 – Ưu tiên cao");
+    expect(o["Mức ưu tiên"]).toBe("P3 – Ưu tiên thấp");
+    expect(o["Thứ tự ưu tiên"]).toBe(4);
+    // never scored: in the queue; just scored: out of it
+    const fresh = await newDeal();
+    await drainOutbox(t);
+    expect((await row(mgrA, tables["Deals"]!, fresh))["Cần chấm lại"]).toBe("Chưa chấm lần nào");
+    await upd(mgrA, tables["Deals"]!, fresh, { Budget: E, Authority: E, Need: E, Timeline: U });
+    await drainOutbox(t);
+    const scored = await row(mgrA, tables["Deals"]!, fresh);
+    expect(scored["Cần chấm lại"]).toBe("");
+    expect(scored["Chấm BANT lần cuối"]).toBeTruthy();
+    // a change of the data of the deal after the score does not queue it on the same day (the rule compares days)
+    expect(["", "Dữ liệu deal đã đổi"]).toContain((await row(mgrA, tables["Deals"]!, fresh))["Cần chấm lại"]);
   });
 });

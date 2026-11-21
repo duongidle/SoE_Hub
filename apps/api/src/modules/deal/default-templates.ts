@@ -102,6 +102,41 @@ const TI_LE_COM_SALE =
   `SUMIFS([Chính sách com].[Tỉ lệ],[Chính sách com].[Hiệu lực từ],${latest("Chính sách com")},[Chính sách com].[Nguồn lead],[Nguồn lead],[Chính sách com].[Level],[Level BC],[Chính sách com].[Performance],[Performance BC])),` +
   `IF([Nhóm dịch vụ]="PS",SUMIFS([Tham số com].[Giá trị],[Tham số com].[Tên tham số],"Tỉ lệ PS POD",[Tham số com].[Hiệu lực từ],${latest("Tham số com", '[Tham số com].[Tên tham số],"Tỉ lệ PS POD",')}),""))`;
 
+
+// ------------------------------------------------------------------------------------------------
+// BANT and the queue "Cần chấm lại hôm nay" (module4 8): the rule H-002 is a FORMULA of the template, the Admin or Manager edits it when the criteria change
+// ------------------------------------------------------------------------------------------------
+const BANT_LEVELS = ["Có bằng chứng", "Chưa rõ", "Âm"];
+const PRIORITY = ["P1 – Ưu tiên cao", "P2 – Ưu tiên trung bình", "P3 – Ưu tiên thấp", "Chưa đủ dữ liệu", "Không đánh giá"];
+const isNeg = ["Budget", "Authority", "Need", "Timeline"].map((n) => `[${n}]="Âm"`).join(",");
+const BANT_AUTO =
+  '=IF([Nhóm dịch vụ]<>"POD","Không đánh giá",IF(OR([Budget]="",[Authority]="",[Need]="",[Timeline]=""),"Chưa chấm",' +
+  `IF(OR(${isNeg}),"P3 – Ưu tiên thấp",` +
+  'IF(OR([Need]="Chưa rõ",AND([Budget]="Chưa rõ",[Authority]="Chưa rõ",[Timeline]="Chưa rõ")),"Chưa đủ dữ liệu",' +
+  'IF(AND([Need]="Có bằng chứng",[Authority]="Có bằng chứng",OR([Budget]="Có bằng chứng",[Timeline]="Có bằng chứng")),"P1 – Ưu tiên cao","P2 – Ưu tiên trung bình")))))';
+const BANT_ORDER =
+  '=IF([Mức ưu tiên]="P1 – Ưu tiên cao",1,IF([Mức ưu tiên]="P2 – Ưu tiên trung bình",2,IF([Mức ưu tiên]="Chưa đủ dữ liệu",3,IF([Mức ưu tiên]="P3 – Ưu tiên thấp",4,5))))';
+/** Open POD deals only; never scored, last scored over 7 days ago, closing within 14 days and last scored over 3 days ago, or Status / expected closing date / revenue changed since. */
+const BANT_RECHECK =
+  '=IF(AND(OR([Status]="Processing",[Status]="Pending"),[Nhóm dịch vụ]="POD",[Mức ưu tiên ghi đè]<>"Không đánh giá"),' +
+  'IF([Chấm BANT lần cuối]="","Chưa chấm lần nào",' +
+  'IF(TODAY()-INT([Chấm BANT lần cuối])>7,"Quá 7 ngày",' +
+  'IF(AND([Ngày dự kiến chốt]<>"",[Ngày dự kiến chốt]-TODAY()<=14,TODAY()-INT([Chấm BANT lần cuối])>3),"Sắp chốt, quá 3 ngày",' +
+  'IF(INT([Ngày đổi dữ liệu deal])>INT([Chấm BANT lần cuối]),"Dữ liệu deal đã đổi","")))),"")';
+const BANT_COLUMNS: DefaultColumn[] = [
+  { name: "Budget", type: "single_select", config: opts(BANT_LEVELS), role: "bant_b", allow_edit: true },
+  { name: "Authority", type: "single_select", config: opts(BANT_LEVELS), role: "bant_a", allow_edit: true },
+  { name: "Need", type: "single_select", config: opts(BANT_LEVELS), role: "bant_n", allow_edit: true },
+  { name: "Timeline", type: "single_select", config: opts(BANT_LEVELS), role: "bant_t", allow_edit: true },
+  { name: "Chấm BANT lần cuối", type: "field_modified", config: { watch: ["Budget", "Authority", "Need", "Timeline"] }, role: "bant_cham", description: "Lúc người dùng sửa một trong bốn cột B, A, N, T lần cuối. Lịch sử mỗi lần chấm nằm trong lịch sử dòng." },
+  { name: "Ngày đổi dữ liệu deal", type: "field_modified", config: { watch: ["Status", "Ngày dự kiến chốt", "Doanh thu dự kiến"] }, hidden: true },
+  { name: "Mức ưu tiên tự tính", type: "formula", config: { formula: BANT_AUTO, result_type: "text" }, description: "Quy tắc H-002 (Module 4 mục 8). Sửa công thức khi có tiêu chí mới." },
+  { name: "Mức ưu tiên ghi đè", type: "single_select", config: opts(PRIORITY), allow_edit: true, description: "Chọn để ghi đè mức tự tính." },
+  { name: "Mức ưu tiên", type: "formula", config: { formula: '=IF([Mức ưu tiên ghi đè]<>"",[Mức ưu tiên ghi đè],[Mức ưu tiên tự tính])', result_type: "text" }, role: "muc_uu_tien" },
+  { name: "Thứ tự ưu tiên", type: "formula", config: { formula: BANT_ORDER, result_type: "number" }, hidden: true, description: "Để sắp view \"Ưu tiên hôm nay\": 1 = P1 ... 5 = còn lại." },
+  { name: "Cần chấm lại", type: "formula", config: { formula: BANT_RECHECK, result_type: "text" }, role: "can_cham_lai", description: "Hàng chờ \"Cần chấm lại hôm nay\": khác rỗng là deal cần chấm lại (lý do ghi trong ô)." },
+];
+
 const PEOPLE = "Người tham gia";
 const DOT_TABLE = "Đợt thanh toán";
 const DOT_LINK = "Đợt thanh toán";
@@ -139,6 +174,7 @@ const DEALS: DefaultTable = {
     { name: "Nhóm dịch vụ", type: "formula", config: { formula: '=IF(LEFT([Loại deal],3)="POD","POD",IF(LEFT([Loại deal],2)="PS","PS","Khác"))', result_type: "text" }, hidden: true },
     { name: "Mã deal", type: "formula", config: { formula: '="D-"&TEXT(ROW_NO(),"000000")', result_type: "text" }, role: "ma_deal" },
     { name: "Tỉ lệ com sale", type: "formula", config: { formula: TI_LE_COM_SALE, result_type: "percent" } },
+    ...BANT_COLUMNS,
     {
       name: PEOPLE,
       type: "user",
