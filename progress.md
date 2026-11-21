@@ -5,7 +5,7 @@ Cập nhật: 21/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–5 và 7 đã chốt. Module 6 là bản nháp vòng 1, chờ Dương phản biện. Module 8–11 chưa làm.
-- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2 xong (21/11, Opus rà đạt); đang làm 4.3 (giao diện).
+- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2, 4.3 xong (21/11, Opus rà đạt); trước 4.4: viết bản đồ code Module 0–3 (`design/ban-do-code.md`), tiếp 4.4 (thanh toán và com).
 - **Git:** đã push `main` + `dev` tới 154655d (hết bước con 4.1, Dương yêu cầu 20/11).
 - **Mốc test** (e817470, 21/11): `pnpm exec vitest run apps packages` 1120 pass, 9 skip (golden + load; 1110 -> 1120 do test mới của 4.3); `pnpm test:e2e --project=desktop` 109/109 (gồm 9 của stage4-3). Không chạy hai lệnh vitest song song (chung DB: chạy chồng làm 5 test hỏng giả).
 
@@ -25,7 +25,7 @@ Cập nhật: 21/11/2026
 
 **Kế hoạch (20/11):** 4.2 server bảng mặc định **xong, Opus rà đạt 21/11** (a2543ed chốt chặn `dh_rows`; 16bb103 kiểu Người dùng có thuộc tính + gửi xuống; 5d6e5db công thức sang bảng template khác chủ; e5d04fa bộ mặc định theo cây + Index tháng + việc để lại từ 4.1; chi tiết `design/module4-quyet-dinh-khi-code.md` mục 4.2); 4.3 giao diện (trang Template, menu Quản lý Deal, màn Deals); 4.4 thanh toán và com; 4.5 chốt kỳ/BANT/forecast/snapshot; 4.6 chỉ số + dashboard Deals; 4.7 API ngoài, nhập lịch sử, Guest; 4.8 kiểm thử cuối.
 
-**4.3 giao diện Quản lý Deal: Sonnet xong cả hai nửa (21/11), chờ Opus rà.** Commit: 3386ccd, fd2d337, 7fd73eb (nửa đầu), 132245b (vòng dựng bộ mặc định riêng + `sameStored`), e817470 (thuộc tính cột Người dùng, cột gửi xuống, Manager tạo bảng team, e2e). Quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.3" và "4.3 nửa sau".
+**4.3 giao diện Quản lý Deal: xong, Opus rà đạt 21/11** (chạy lại cả bộ ở e817470: 1120 pass 9 skip, e2e 109/109; dcf6d0c sửa vòng dựng bộ mặc định chạy chồng lượt). Token: hai agent 38M + 14,6M. Commit: 3386ccd, fd2d337, 7fd73eb (nửa đầu), 132245b (vòng dựng bộ mặc định riêng + `sameStored`), e817470 (thuộc tính cột Người dùng, cột gửi xuống, Manager tạo bảng team, e2e). Quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.3" và "4.3 nửa sau".
 - Có: menu + màn Quản lý Deal, trang Template (bảng, cột, lớp, xem trước "Áp dụng cho N người", vai trò cột, khoá phân chia, Manager tạo bảng cây hoặc team), ô Người dùng có thuộc tính, cột gửi xuống, khoá ô theo `can_edit`/autofill, nhãn lớp cột, trang Admin bộ mặc định.
 - **Lỗi gốc đã sửa:** `seedPeople` chập chờn do dispatcher outbox chạy tuần tự, subscriber dựng bộ template mặc định (nhiều giây) chặn thông báo mã kích hoạt sau nó. Giờ là vòng riêng `startDealDefaultsLoop` (worker), seed về 20 lần thử. Opus đọc kỹ: `modules/deal/tree-templates.ts`, `worker.ts`, `core/subscribers.ts`, test trong `deal-defaults.test.ts`.
 - **Dời:** nhóm "Quản lý Deal" ở ô chọn nguồn chỉ số (4.6); mục Quản lý của Manager (4.4/4.5); khôi phục cột template chỉ qua nút Hoàn tác. Ô lưới `persons` chưa thử 375px (Stage 12).
