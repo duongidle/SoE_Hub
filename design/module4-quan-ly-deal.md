@@ -337,7 +337,7 @@ Kiểm chứng `Disqualified`: trong `Raw PODPS`, deal Disqualified chỉ dừng
 - Cột `Người tham gia` nằm ở **lớp Cơ bản** của Deals (mọi người tham gia thấy, chỉ Manager sửa; sửa 19/11 lần 2, trước đây chỉ ở bảng của Manager), kiểu **Người dùng** (chọn nhiều người trong hệ thống). Mỗi người được chọn kèm bốn ô: **Vai trò** (nhãn `Leading` / `Associate` / `Advisor`), **% doanh thu**, **% com** (phần trăm **trên com của sale**), **Tính vào số deal** (có/không). Giống bảng "Danh sách SoE tham gia deal" của BPM. Manager điền (tay hoặc nhờ AI đọc phiếu request), hoặc API bắn vào.
 - Đây là **nguồn duy nhất** của việc chia deal. Bảng của người khác chỉ nhận dữ liệu từ cột này, không ai khác sửa được.
 - Chọn ai thì deal hiện trong bảng Deals của người đó. Hệ thống **gửi dữ liệu xuống**: tự điền các cột mỗi-người-một-giá-trị của họ: `Vai trò của tôi`, `% doanh thu của tôi`, `% Com cá nhân`, `Tính vào số deal của tôi`; với Leader thêm `% com của team`, `% doanh thu của team`; với Manager thêm `Tổng % com đã chia`. Chọn cách gửi xuống thay vì để mỗi người tự lookup, vì lookup "phần của tôi" cần một hàm biết ai đang xem, mà ta đã thống nhất không thêm hàm riêng.
-- **% com** là mặc định cho các đợt chưa về. Mỗi đợt có cột `Chia com đợt này` riêng (mục 7.2), điền sẵn từ đây lúc xác nhận tiền về. Đổi % com ở deal không đổi com của đợt đã về.
+- **% com** chia một lần cho cả deal; mọi đợt dùng cùng tỉ lệ (Dương chốt 21/11/2026). Cột `Chia com đợt này` của mỗi đợt (mục 7.2) là bản chụp tỉ lệ lúc xác nhận tiền về, không nhập riêng từng đợt. Đổi % com ở deal không đổi com của đợt đã về.
 - **% com mặc định 0** (chưa chia). Deal vẫn hiện, com bằng 0 cho đến khi Manager chia.
 - **Ràng buộc com:** tổng % com của một deal và của một đợt **không vượt `Tỉ lệ SoE`** (bảng Tham số com, ví dụ 20%), kiểm ở mọi kênh. Thấp hơn mức trần thì màn chốt kỳ cảnh báo "còn 5% chưa chia".
 - % doanh thu mặc định: deal chỉ có một Leading thì Leading 100%; còn lại 0 cho đến khi Manager chia. Associate, Advisor mặc định 0 (chỉ tính workload). Tổng % doanh thu ≤ 100%.
@@ -409,7 +409,7 @@ Bảng template chung của cây (Manager tạo). Mỗi đợt thanh toán của
 | Số tiền dự kiến (chưa VAT), Hạn | Nhập lúc lập lịch |
 | Ngày tiền về, Số tiền về (chưa VAT), Số tiền nhận (gồm VAT) | Ghi khi xác nhận tiền về (mục 7.4) |
 | Tiền về | Liên kết tới dòng của bảng Tiền về (mục 7.3a) đã trả cho đợt này. Ghi khi ghép |
-| Chia com đợt này | Người dùng có thuộc tính (người, % com trên com sale). Điền sẵn từ `Người tham gia` của deal lúc xác nhận tiền về; Manager sửa nếu đợt này chia khác. Tổng ≤ `Tỉ lệ SoE` |
+| Chia com đợt này | Người dùng có thuộc tính (người, % com trên com sale). Bản chụp từ `Người tham gia` của deal lúc xác nhận tiền về. Mọi đợt cùng tỉ lệ, không nhập riêng từng đợt (Dương chốt 21/11/2026). Tổng ≤ `Tỉ lệ SoE` |
 | Trạng thái | Công thức: `Chưa đến hạn` / `Sắp đến hạn` (7 ngày) / `Quá hạn` / `Đã về` / `Về thiếu` |
 | Kỳ | Tháng của ngày tiền về. Tháng đó đã chốt thì lấy kỳ đang mở, kèm nhãn `Về muộn` |
 | Người tham gia | Tự điền từ deal (gửi xuống như mục 4.5), là **khoá phân chia**: SoE chỉ thấy đợt của deal mình, Leader của team, Manager cả cây |
