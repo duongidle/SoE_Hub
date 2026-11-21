@@ -69,7 +69,7 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 | 12 | — | tất cả | Làm lại giao diện, rà toàn bộ chuẩn giao diện | — | |
 | — | Automation | 0, 2, 6 | Module lõi, hoãn; kiến trúc để sẵn chỗ (Module 0 mục 19) | Hoãn | |
 
-**Bước con:** stage lớn chia bước con để giao việc. **Chia bước con to** (Dương chốt 20/11/2026): mỗi bước con là một khối chức năng trọn vẹn, đủ cho một phiên Sonnet dài, không chia nhỏ theo từng màn hay từng lệnh; mỗi lần giao là một lần Sonnet đọc lại từ đầu. danh sách và trạng thái ở `progress.md` mục "Đang làm", cột "Code" ở bảng trên ghi bước đang làm. Xong một bước con thì cập nhật cả hai chỗ. **Mọi stage có giao diện kết thúc bằng một bước con kiểm thử riêng** (như 2E), không gộp với bước có code.
+**Bước con:** stage lớn chia bước con để giao việc. **Chia bước con to** (Dương chốt 20/11/2026): mỗi bước con là một khối chức năng trọn vẹn, làm bằng hai agent Sonnet (mục "Phân vai khi code"), không chia nhỏ theo từng màn hay từng lệnh; mỗi lần giao là một lần Sonnet đọc lại từ đầu. danh sách và trạng thái ở `progress.md` mục "Đang làm", cột "Code" ở bảng trên ghi bước đang làm. Xong một bước con thì cập nhật cả hai chỗ. **Mọi stage có giao diện kết thúc bằng một bước con kiểm thử riêng** (như 2E), không gộp với bước có code.
 
 **Định nghĩa xong của mỗi stage:**
 
@@ -102,7 +102,13 @@ Stage 0–1 Opus đã code. Từ Stage 2: **Sonnet** code, test nhanh, kiểm th
    - (c) **Chạy test gì:** đúng lệnh test, và **chỉ in dòng tổng kết và dòng lỗi** (ví dụ `pnpm exec vitest run <file> 2>&1 | grep -E "Test Files|Tests |FAIL|Error" | head -40`; e2e lọc `passed|failed|flaky|✘`). Chỉ mở output đầy đủ của đúng test đang fail.
    - (d) Sau mỗi bước nhỏ cập nhật `progress.md` và **commit ngay**; không push.
 
-   Trong một bước con, Opus **giữ cùng một agent Sonnet** và gửi phần tiếp theo, chỉnh hướng hay yêu cầu sửa bằng SendMessage (agent giữ nguyên những gì đã đọc), không tạo agent mới cho từng phần. Chỉ tạo agent mới khi sang bước con mới hoặc agent cũ đã hết quota/ngữ cảnh.
+   **Mỗi bước con hai agent Sonnet** (Dương chốt 21/11/2026). Lý do: token chủ yếu là đọc lại ngữ cảnh, nên một agent chạy dài đắt dần. Ví dụ 4.2 một agent hết 61M; tách đôi ước khoảng 35–40M.
+   - Ranh giới do Opus chọn lúc lập kế hoạch và ghi vào `progress.md`. Bước có giao diện tách nửa A (server: lệnh, migration, unit test, OpenAPI, Bruno) và nửa B (web, e2e). Bước chỉ có server tách sau phần chạm engine dùng chung.
+   - Agent A kết thúc bằng bản bàn giao trong `progress.md` (đã xong, phần còn lại kèm file/hàm, lệnh và dữ liệu trả về, chỗ dở), đủ để agent B không đọc lại code của nửa A.
+   - Agent B chạy cả bộ test cuối bước con.
+   - Trong một nửa, Opus giữ cùng agent và chỉnh hướng hay yêu cầu sửa bằng SendMessage.
+   - Hết quota giữa chừng thì phiên sau tạo agent mới làm tiếp từ `progress.md`, không cố chạy tiếp agent cũ.
+   - Mọi agent đọc file theo đoạn cần thiết (grep, `sed -n`), không đọc cả file lớn; không đọc file sinh tự động (`packages/db/drizzle/meta/`, OpenAPI sinh ra).
 2. Opus rà theo "Kiểm thử theo cấp", phản biện và yêu cầu sửa khi chưa đạt; chỉ đánh dấu xong khi đạt "Định nghĩa xong".
 3. Sonnet không tự đổi quy định đã chốt; chỗ thiết kế chưa rõ thì hỏi Opus. Opus tự quyết chi tiết nhỏ, chỉ hỏi Dương việc quan trọng.
 4. **Sửa quá 5 vòng chưa xong thì dừng, báo Opus.** Một vòng là một lần sửa rồi chạy lại mà cùng lỗi vẫn còn (đổi dạng nhưng cùng chỗ vẫn tính). Báo: lỗi, cách tái hiện, lệnh fail; 5 cách đã thử và vì sao không ăn; giả thuyết nguyên nhân, file, hàm. Opus tìm nguyên nhân gốc và hướng dẫn sửa tận gốc; đòi đổi quy định đã chốt thì Opus hỏi Dương.
