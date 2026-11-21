@@ -35,11 +35,14 @@ export async function dispatchOutboxOnce(db: Db, subscribers: Subscriber[], log:
   const maxAttempts = opts.maxAttempts ?? 8;
 
   return db.transaction(async (tx) => {
+    // Events `auth.*` and `notification.*`: a person is waiting for these (the activation code, a notification), so they go before the rest of the queue. Order inside each group is still by time. The dispatcher
+    // is one line, and a bulk change (building a default template set writes hundreds of events) would otherwise hold them back for seconds. They do not depend on the
+    // events they overtake: handlers read the database when they run.
     const rows = await tx
       .select()
       .from(outbox)
       .where(and(eq(outbox.status, "pending"), lte(outbox.availableAt, sql`now()`)))
-      .orderBy(outbox.createdAt, outbox.id)
+      .orderBy(sql`CASE WHEN ${outbox.event} LIKE 'auth.%' OR ${outbox.event} LIKE 'notification.%' THEN 0 ELSE 1 END`, outbox.createdAt, outbox.id)
       .limit(batchSize)
       .for("update", { skipLocked: true });
 
