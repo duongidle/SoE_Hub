@@ -144,9 +144,16 @@ Bổ sung ngày 18/11/2026 theo yêu cầu của Dương, làm ở phần 2C.
 | Ngày | TODAY, NOW, DATE, DATEVALUE, YEAR, MONTH, DAY, QUARTER, WEEKDAY, WEEKNUM, EOMONTH, EDATE, DATEDIF, DAYS, NETWORKDAYS, WORKDAY |
 | Tra cứu | XLOOKUP, VLOOKUP, INDEX, MATCH, XMATCH, FILTER, UNIQUE, SORT |
 | Thông tin dòng | ROW_ID, ROW_NO, CREATED_TIME, MODIFIED_TIME |
+| Người xem (Dương chốt 22/11/2026) | ME, ISME, ATTR |
 
 - Mọi công thức trong file deal mẫu (COUNTIFS, SUMIFS, DATEDIF, IFS, EOMONTH, ROUNDUP…) phải chạy được. Golden test kiểm việc này.
 - Toán tử: `+ - * / ^ &`, so sánh `= <> < <= > >=`, điều kiện dạng chuỗi kiểu Excel (`">="&[Ngày]`, `"POD*"` có ký tự đại diện).
+- **Hàm người xem** (Dương chốt 22/11/2026). Mục đích: bảng linh hoạt, Manager đổi cách bố trí cột (một cột Người tham gia có thuộc tính, hai cột Leading/Associate, bốn cột người và %) mà không phải sửa code.
+  - `ME()`: người đang xem. Chủ bảng là chủ; người được chia sẻ là chính họ; export, API, MCP, dashboard là người gọi.
+  - `ISME(ô Người dùng)`: có/không, người xem có nằm trong ô đó không.
+  - `ATTR(ô Người dùng có thuộc tính, người, "tên thuộc tính")`: thuộc tính của một người trong ô. Ví dụ `ATTR([Người tham gia], ME(), "% com")`. Người không có trong ô thì trống.
+  - Cột dùng `ME()` hoặc `ISME()` (trực tiếp hay qua cột khác) là **cột phụ thuộc người xem**, cùng loại với cột đọc dòng bảng có khoá phân chia hay cột mỗi người một giá trị (mục 10). Hệ thống tự suy ra, tính và lưu theo người như các cột đó.
+  - Ví dụ bốn cột: `% com của tôi = IF([Leading] = ME(), [Leading %], IF([Associate] = ME(), [Associate %], 0))`.
 
 ### 6.3 Trình soạn công thức
 
