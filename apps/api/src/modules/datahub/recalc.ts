@@ -91,7 +91,7 @@ export const formulaSubscriber: Subscriber = {
   match: (e) => e === "datahub.structure.changed" || e === "datahub.share.changed" || e === "org.member.changed",
   async handle(ev, db) {
     if (ev.event === "datahub.share.changed") return onShareChanged(db, ev.payload as { datahub_id: string; grantee_id: string });
-    if (ev.event === "org.member.changed") return markPending(db, await readerScopedColumns(db, null));
+    if (ev.event === "org.member.changed") return markPending(db, await readerScopedColumnsOfOrgChange(db, ev.payload as { user_id?: string; change?: string } | null));
     const p = ev.payload as { table_id?: string; datahub_id?: string; change?: string };
     const marks = new Set<string>();
     const change = p.change ?? "";
@@ -117,6 +117,24 @@ export const formulaSubscriber: Subscriber = {
 export async function readerScopedColumns(db: Executor, datahubId: string | null): Promise<string[]> {
   const res = await db.execute(sql`SELECT c.id FROM dh_columns c JOIN dh_tables t ON t.id = c.table_id
     WHERE /*scope:system*/ c.reader_scoped AND c.deleted_at IS NULL AND t.deleted_at IS NULL ${datahubId ? sql`AND t.datahub_id = ${datahubId}::uuid` : sql``}`);
+  return ids(res.rows);
+}
+
+/**
+ * The reader-scoped columns a change of the organization can move. A reader's value depends on the people they see (`loadReader`: themselves and
+ * the people under them NOW), so only a change of placement or role (`change = "updated"`) moves values: a new person is in no row yet, and a lock,
+ * a permission or a template build does not change the tree (the same rule as `refillSubscriber`). Of those, only the members of a datahub who
+ * see the person differently: the person, and the Managers and Leaders they have had. The owner's own value is over every row and never moves.
+ * Marking every reader-scoped column of the system made each org event cost the size of the whole database (4.6C: 1,260 columns, 17 s).
+ */
+export async function readerScopedColumnsOfOrgChange(db: Executor, p: { user_id?: string; change?: string } | null): Promise<string[]> {
+  if (!p || !p.user_id) return readerScopedColumns(db, null);
+  if (p.change !== "updated") return [];
+  const res = await db.execute(sql`SELECT DISTINCT c.id FROM dh_columns c JOIN dh_tables t ON t.id = c.table_id
+    JOIN dh_shares s ON s.datahub_id = t.datahub_id AND (s.table_id IS NULL OR s.table_id = t.id)
+    WHERE /*scope:system*/ c.reader_scoped AND c.deleted_at IS NULL AND t.deleted_at IS NULL
+      AND s.grantee_id IN (SELECT ${p.user_id}::uuid UNION SELECT manager_id FROM org_memberships WHERE user_id = ${p.user_id}::uuid
+                           UNION SELECT leader_id FROM org_memberships WHERE user_id = ${p.user_id}::uuid AND leader_id IS NOT NULL)`);
   return ids(res.rows);
 }
 

@@ -5,6 +5,7 @@ import { as, drainOutbox, makeTable, unlimit } from "./dh-helpers";
 import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
 import { processJobs } from "../src/modules/datahub";
+import { readerScopedColumns, readerScopedColumnsOfOrgChange } from "../src/modules/datahub/recalc";
 import { datahubEvents } from "../src/modules/datahub/events";
 import { invalidateMetricCache } from "../src/modules/metrics";
 
@@ -194,6 +195,24 @@ describe("partial recalculation for the readers affected", () => {
     await drainOutbox(t);
     expect(await all(userA1, "Tổng rollup")).toEqual({ K1: 5, K2: 0 });
     expect(await all(leaderA, "Tổng rollup")).toEqual({ K1: 405, K2: 0 });
+  });
+});
+
+describe("an organization event marks only the columns it can move (4.6C)", () => {
+  it("only a move or a role change of someone who is, or is under, a member marks the datahub's reader-scoped columns", async () => {
+    const mine = await readerScopedColumns(t.c.db.db, cust.dhId);
+    expect(mine.length).toBeGreaterThan(0);
+    const marked = async (user: string, change: string) => new Set(await readerScopedColumnsOfOrgChange(t.c.db.db, { user_id: user, change }));
+    // A new person is in no row yet; lock, permission and a template build do not change the tree.
+    for (const change of ["created", "activated", "locked", "unlocked", "permission_granted", "default_templates"]) expect((await marked(org.userA2.id, change)).size).toBe(0);
+    // UserA2 reports to MgrA, who is a member: the move changes what MgrA (and UserA2) read.
+    const moved = await marked(org.userA2.id, "updated");
+    for (const id of mine) expect(moved.has(id)).toBe(true);
+    // MgrB and tree B's people are not members of this datahub and are not under one except UserB1 (a member himself).
+    const stranger = await marked(org.mgrB.id, "updated");
+    for (const id of mine) expect(stranger.has(id)).toBe(false);
+    // An event without a person keeps the wide mark.
+    expect(new Set(await readerScopedColumnsOfOrgChange(t.c.db.db, null)).has(mine[0]!)).toBe(true);
   });
 });
 
