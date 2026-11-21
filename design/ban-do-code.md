@@ -247,7 +247,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 
 ## Module 4: Quản lý Deal
 
-_Phần 4.1–4.3. Mỗi bước con sau cập nhật phần của mình trong cùng commit với code._
+_Phần 4.1–4.4A. Mỗi bước con sau cập nhật phần của mình trong cùng commit với code._
 
 **Bảng template (mỗi template có bảng chủ và bản sao cho từng thành viên)**
 - Tạo template bằng code, không cần request: `apps/api/src/modules/datahub/template-ops.ts` `createTemplateCore`. Thêm cột: `apps/api/src/modules/datahub/template-ops.ts` `addTemplateColumn`. Bảng chủ nhìn như chủ sở hữu: `apps/api/src/modules/datahub/template-ops.ts` `masterAccess`.
@@ -296,11 +296,23 @@ _Phần 4.1–4.3. Mỗi bước con sau cập nhật phần của mình trong c
 - Ô nhiều người trên lưới: `apps/web/src/pages/datahub/grid-cells.tsx` `soeRenderer` (kiểu `persons`); sửa thuộc tính: `apps/web/src/pages/datahub/people-attrs.tsx` `PeopleAttrsEditor`.
 - Hộp sửa cột dùng cho cả bảng thường lẫn template: `apps/web/src/pages/datahub/column-editor.tsx` `ColumnEditor` với `ColumnAdapter` (template đưa adapter riêng gọi `datahub.template.column.*`).
 
+**Thanh toán và com theo đợt (4.4)**
+- Lệnh `payment.schedule`, `payment.confirm`, `payment.unconfirm`, `commission.adjust`, query `payment.match_candidates`: `apps/api/src/modules/deal/payments.ts` `paymentOperations`, đăng ký ở `apps/api/src/modules/index.ts` `buildRegistry`. Quyền `deal:payment:write` (chỉ Manager). Thêm lệnh thanh toán mới theo mẫu `payment.schedule` ở đó.
+- Cách các lệnh tìm bảng và cột: `apps/api/src/modules/deal/payments.ts` `loadTree` (bảng theo `role_set` của cây Manager: `deals`, `payments`, `receipts`, `ledger`), `roleCol` (cột theo vai trò), `write` (luôn qua `applyRowOps`, tự thêm `version`), `readRows`.
+- Chấm điểm ghép tiền về (hàm thuần, dễ test): `apps/api/src/modules/deal/payment-match.ts` `scoreCandidates`, trọng số `MATCH_WEIGHTS`.
+- Bảng mới trong bộ mặc định: `apps/api/src/modules/deal/default-templates.ts` `BUILTIN_DEFAULT_SET` (Tiền về, Đợt thanh toán, Sổ com). Bảng liên kết vòng dùng `late_columns` (thêm sau khi cả bộ có bảng): `apps/api/src/modules/deal/tree-templates.ts` `addLateColumns`. Cột liên kết khai `config.target_table`, đổi thành id ở `addColumnOf`.
+- Đưa bảng mới vào cây đang chạy: `apps/api/src/modules/deal/tree-templates.ts` `ensureMissingTables` (vòng `startDealDefaultsLoop` gọi cả `ensureAllTrees` lẫn hàm này).
+- Guard theo `meaning` của lựa chọn, gọi trong `applyRowOps`: `apps/api/src/modules/datahub/status-guard.ts` `guardStatusMeaning` (Won chỉ `opts.system`, Huỷ chỉ chủ bảng), `guardCommitted` (Probation KPI đã commit). Lệnh hệ thống ghi Won bằng `applyRowOps(..., { system: true })`.
+- Khoá kỳ cho huỷ xác nhận: `assertPeriodOpen` với `tableId` = bảng Đợt, `scope` = id Manager (4.5 khoá kỳ cùng cách).
+- Vai trò cột mới: bộ `receipts`, `kpi`, thêm vai trò vào `payments`, `ledger`, `deals` ở `apps/api/src/modules/datahub/column-roles.ts` `ROLE_SETS`.
+
 **Luật cấm**
 - Không đọc lựa chọn Status theo tên; dùng `meaning`.
 - Không đưa số chính sách com thật vào code, bộ mặc định hay test (bảng chính sách và tham số tạo rỗng; Manager điền).
 - Không tìm cột theo tên trong code hệ thống; dùng vai trò.
 - Không dựng bảng nặng trong subscriber outbox; dùng vòng lặp hoặc job như `startDealDefaultsLoop`.
+- Won không đặt tay (cả Manager): chỉ lệnh thanh toán, qua `opts.system`. Không tự đổi Status bằng `applyRowOps` thường.
+- Lệnh thanh toán chỉ ghi cột thường; tổng, trạng thái, kỳ, com là công thức, lookup, rollup (không tự cộng trong lệnh).
 - Không viết điều kiện riêng cho một bảng template trong engine; bảng Deal chỉ là bảng thường có vai trò.
 
-**Việc còn nợ:** xem `progress.md` (mục 4.2: guard Status, Probation KPI sau commit, điền lại gửi xuống khi đổi cây, công thức theo người, tháng Index đầu tiên).
+**Việc còn nợ:** xem `progress.md` mục "4.4 BÀN GIAO".

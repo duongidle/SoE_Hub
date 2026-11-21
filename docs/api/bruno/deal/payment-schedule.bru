@@ -1,0 +1,31 @@
+meta {
+  name: payment.schedule
+  type: http
+  seq: 122
+}
+
+post {
+  url: {{baseUrl}}/api/v1/deal/payments/schedule
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+body:json {
+  {
+    "deal_id": "{{deal_id}}",
+    "payments": [
+      { "legal_entity": "Công ty TNHH Mẫu", "contract_no": "HD-01", "amount": 100000000, "due": "2026-07-01" },
+      { "legal_entity": "Công ty TNHH Mẫu", "contract_no": "HD-01", "amount": 50000000, "due": "2026-08-01" }
+    ],
+    "remove_ids": []
+  }
+}
+
+docs {
+  Lập hoặc sửa lịch thanh toán của một deal (đợt chưa về). Quyền: `deal:payment:write` (Manager).
+}

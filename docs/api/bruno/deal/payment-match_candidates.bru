@@ -1,0 +1,19 @@
+meta {
+  name: payment.match_candidates
+  type: http
+  seq: 126
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deal/payments/match?amount=108000000&payer_name=CT TNHH Mau&account_no=0011223344&received_on=2026-07-03
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Xếp hạng các đợt chưa về có thể là đợt mà khoản tiền vừa về đã trả, kèm lý do. Quyền: `deal:payment:write`.
+}

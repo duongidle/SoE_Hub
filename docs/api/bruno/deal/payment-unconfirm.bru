@@ -1,0 +1,26 @@
+meta {
+  name: payment.unconfirm
+  type: http
+  seq: 124
+}
+
+post {
+  url: {{baseUrl}}/api/v1/deal/payments/unconfirm
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+body:json {
+  {
+    "payment_ids": ["{{payment_id}}"]
+  }
+}
+
+docs {
+  Huỷ xác nhận tiền về khi kỳ chưa chốt. Quyền: `deal:payment:write`.
+}

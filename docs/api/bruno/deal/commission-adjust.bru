@@ -1,0 +1,29 @@
+meta {
+  name: commission.adjust
+  type: http
+  seq: 125
+}
+
+post {
+  url: {{baseUrl}}/api/v1/deal/commission/adjust
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+body:json {
+  {
+    "payment_id": "{{payment_id}}",
+    "person_id": "{{person_id}}",
+    "amount": -500000,
+    "reason": "Nhập sai tỉ lệ"
+  }
+}
+
+docs {
+  Thêm dòng Sổ com Điều chỉnh (có lý do, có thể âm). Quyền: `deal:payment:write`.
+}

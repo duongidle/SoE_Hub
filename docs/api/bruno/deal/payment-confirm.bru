@@ -1,0 +1,28 @@
+meta {
+  name: payment.confirm
+  type: http
+  seq: 123
+}
+
+post {
+  url: {{baseUrl}}/api/v1/deal/payments/confirm
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+  Content-Type: application/json
+}
+body:json {
+  {
+    "received_on": "2026-07-03",
+    "receipt": { "amount": 108000000, "payer_name": "CT TNHH Mau", "account_no": "0011223344", "bank": "VCB", "content": "TT dot 1" },
+    "allocations": [ { "payment_id": "{{payment_id}}", "amount": 100000000, "amount_received": 108000000, "shortfall": "split" } ]
+  }
+}
+
+docs {
+  Xác nhận tiền về cho một hoặc nhiều đợt; đợt đầu của deal thì deal thành Won; sinh dòng Sổ com Tạm tính. Quyền: `deal:payment:write`.
+}

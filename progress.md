@@ -32,7 +32,25 @@ Cập nhật: 21/11/2026
 - Sau rà Opus: `startDealDefaultsLoop` bỏ nhịp khi lượt trước chưa xong (cờ, không nối chuỗi), có test không chạy chồng/không xếp hàng; `deal-defaults.test.ts` 14 pass (typecheck, lint sạch).
 - **Chỗ dở:** không có.
 
-**Còn nợ của 4.2, **làm ở 4.4**: guard Status (Won/Huỷ), Probation KPI sau commit, điền lại gửi xuống khi đổi cây, công thức theo người cho cột `person`, tháng Index đầu tiên.
+**4.4A server (21/11): phần lớn xong, còn nợ ở dưới.** Chi tiết quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.4A". Test: `deal-payments.test.ts` (16), `deal-defaults.test.ts` (14), `openapi.test.ts` pass.
+
+**4.4 BÀN GIAO (cho agent 4.4B web, đọc đủ không cần đọc code server)**
+- Đã xong: 3 bảng mới (Tiền về, Đợt thanh toán, Sổ com) + `ensureMissingTables` cho cây đang chạy; guard Status (Won hệ thống, Huỷ Manager); Probation KPI khoá sau commit; tháng Index đầu tiên; 4 lệnh + 1 query; Bruno `docs/api/bruno/deal/`; OpenAPI sinh lại; bản đồ code.
+- Quyền `deal:payment:write` (chỉ Manager). Mọi lệnh REST `/api/v1`, cần `Idempotency-Key`; ngày `YYYY-MM-DD`; tiền là số; tỉ lệ com là phân số (0,15 = 15%).
+- `payment.schedule` POST `/deal/payments/schedule` `{deal_id, payments:[{id?, legal_entity?, tax_code?, contract_no?, seq?, amount (chưa VAT), due, com_split?:[{user_id,pct}]}], remove_ids?}` -> `{deal_id, payments:[{id,seq,amount,due,created}], removed}`. Lỗi: `deal_closed`, `payment_not_of_deal`, `payment_confirmed`, `not_found`, `conflict` (`payment_table_missing`, `role_missing`).
+- `payment.confirm` POST `/deal/payments/confirm` `{received_on, receipt:{id? | amount, payer_name?, account_no?, bank?, content?}, allocations:[{payment_id, amount (chưa VAT), amount_received? (gồm VAT), com_split?, shortfall:"split"|"keep"}]}` -> `{receipt_id, payments:[{id, split_off_id}], won_deal_ids, ledger_ids}`. Lỗi: `allocation_sum_mismatch` (tổng amount_received phải bằng số tiền khoản), `payment_already_confirmed`, `deal_closed`, `receipt_amount_required`, `duplicate_payment`.
+- `payment.unconfirm` POST `/deal/payments/unconfirm` `{payment_ids}` -> `{payment_ids, reopened_deal_ids, removed_ledger_ids}`. Lỗi: `period_locked` (423), `payment_not_confirmed`, `ledger_not_temporary`.
+- `commission.adjust` POST `/deal/commission/adjust` `{payment_id, person_id, amount (có thể âm), reason}` -> `{ledger_id}`.
+- `payment.match_candidates` GET `/deal/payments/match?amount&payer_name&account_no&tax_code&content&received_on&limit` -> `[{payment_id, deal_id, deal_name, seq, planned, due, score, strong, reasons[]}]`.
+- Bảng của giao diện: đọc/sửa qua `datahub.*` như mọi bảng template (tìm bằng `datahub.template.list`, tên `Tiền về`, `Đợt thanh toán`, `Sổ com`). Giao diện nên gọi lệnh trên thay vì sửa dòng tay cho: lập lịch, xác nhận, huỷ, điều chỉnh. Thành viên thấy bảng Đợt và Sổ com theo khoá phân chia; bảng Tiền về chỉ Manager có dòng (thành viên thấy rỗng).
+- Won không chọn tay (lỗi `status_won_system_only`), Huỷ chỉ Manager (`status_cancel_manager_only`), Probation KPI đã commit chỉ Manager sửa kèm `Lý do sửa sau commit` (`plan_committed_manager_only`, `plan_committed_reason_required`).
+- **Còn lại (chưa làm, mỗi việc kèm chỗ làm):**
+  1. Điền lại cột gửi xuống khi đổi cây tổ chức: dùng `refillRows` (`apps/api/src/modules/datahub/pushdown.ts`); cần vòng riêng như `startDealDefaultsLoop`, không đặt trong subscriber; cần hàng đợi (vd cờ trên `dh_templates`) khi nhận `org.member.changed`.
+  2. Công thức theo người cho cột `person` (`Doanh thu tính cho tôi`, `Com dự kiến của tôi`): engine chưa hỗ trợ cột `storage: person` kiểu công thức (`apps/api/src/modules/datahub/template-ops.ts` chặn ở `column.create`); cần thiết kế engine (Module 2) trước.
+  3. Cột Index và Probation KPI từ Đợt thanh toán (doanh thu theo ngày tiền về, forecast, Winrate quý; Đã đạt / Còn thiếu / % đạt): thêm công thức vào `apps/api/src/modules/deal/default-templates.ts` (`indexColumns`, `KPI`); cần cột `Loại deal` và `% doanh thu của tôi` đọc được từ Đợt (lookup từ Deals; cột gửi xuống `person` chưa lookup được). Làm cùng việc 2.
+  4. Cây dev cũ: Deals vẫn có `Đã thu` / `Ngày tiền về đầu tiên` kiểu thường (xem quyết định 4.4A); dựng lại cây hoặc thêm rollup tay.
+  5. `payment.confirm` chưa kiểm tổng `% com` so với `Tỉ lệ SoE` ở lệnh (cột Chia com đợt này có `cap_param` nên `applyRowOps` đã chặn khi có tham số).
+- Chỗ dở: không có. Chưa chạy cả bộ vitest và e2e (việc của 4.4B).
 
 Mục tiêu Deals hạ xuống **20.000 deal** (Dương chốt 20/11): load test Stage 4 dùng 20.000 deal, 20 người phạm vi khác nhau, mọi biểu đồ ≤ 3 s; Datahub thường giữ 100.000 dòng.
 
