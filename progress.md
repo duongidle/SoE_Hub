@@ -7,7 +7,7 @@ Cập nhật: 21/11/2026
 - **Thiết kế:** Module 0–5 và 7 đã chốt. Module 6 là bản nháp vòng 1, chờ Dương phản biện. Module 8–11 chưa làm.
 - **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2 xong (21/11, Opus rà đạt); đang làm 4.3 (giao diện).
 - **Git:** đã push `main` + `dev` tới 154655d (hết bước con 4.1, Dương yêu cầu 20/11).
-- **Mốc test** (e5d04fa, 20-21/11): `pnpm exec vitest run apps packages` 1110 pass, 9 skip (golden + load); `pnpm test:e2e --project=desktop` 100/100. Không chạy hai lệnh vitest song song (chung DB).
+- **Mốc test** (e817470, 21/11): `pnpm exec vitest run apps packages` 1120 pass, 9 skip (golden + load; 1110 -> 1120 do test mới của 4.3); `pnpm test:e2e --project=desktop` 109/109 (gồm 9 của stage4-3). Không chạy hai lệnh vitest song song (chung DB: chạy chồng làm 5 test hỏng giả).
 
 ## Đã xong
 
@@ -25,20 +25,13 @@ Cập nhật: 21/11/2026
 
 **Kế hoạch (20/11):** 4.2 server bảng mặc định **xong, Opus rà đạt 21/11** (a2543ed chốt chặn `dh_rows`; 16bb103 kiểu Người dùng có thuộc tính + gửi xuống; 5d6e5db công thức sang bảng template khác chủ; e5d04fa bộ mặc định theo cây + Index tháng + việc để lại từ 4.1; chi tiết `design/module4-quyet-dinh-khi-code.md` mục 4.2); 4.3 giao diện (trang Template, menu Quản lý Deal, màn Deals); 4.4 thanh toán và com; 4.5 chốt kỳ/BANT/forecast/snapshot; 4.6 chỉ số + dashboard Deals; 4.7 API ngoài, nhập lịch sử, Guest; 4.8 kiểm thử cuối.
 
-**4.3 BÀN GIAO (Sonnet nửa đầu xong, 21/11).** Chi tiết quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.3". Commit: 3386ccd (server), phần web + sửa lỗi + e2e ở commit ngay sau 093a821 (xem `git log`).
-- **Đã xong:** server `datahub.deal.home` (`{datahub_id, tables[{id,datahub_id,name,row_count,access,kind,template_id,template_kind,template_scope}]}`), `datahub.template.impact` (`{count,names}`), `template.get` thêm `roles[]`; menu + màn `pages/deal/home.tsx`; ô Người dùng có thuộc tính (`people-attrs.tsx`, `grid-cells.tsx` kiểu `persons`, `row-panel.tsx`); `can_edit`/autofill khoá ô (`cells.ts readOnlyReason`); nhãn lớp cột + "Sửa trong template" (`grid.tsx`, `table-view.tsx`, `template-ui.ts`); công tắc "Cho phép leader sửa" (`datahub.prefs.get/set`); trang Template `pages/deal/template.tsx`; trang Admin `/quan-tri/template-deal`; nhóm "Quản lý Deal" ở `formula-scope.ts` và `merge-dialog.tsx`. Sửa lỗi gốc: so khoá jsonb không theo thứ tự (`sameStored`), kích hoạt tài khoản phát `org.member.changed`, API import `./deal` (setting), `include_archived` GET.
-- **Test đã chạy (chưa cả bộ):** `pnpm exec vitest run apps/api/test/datahub` 391 pass 4 skip (sau khi sửa `sameStored`); `deal-defaults`, `datahub-deal-home` (7 test), `auth`, `datahub-user-attrs` 15 pass; `pnpm test:e2e stage4-3 --project=desktop` 7/7 pass; typecheck, lint sạch. Chưa chạy cả vitest và cả e2e desktop (làm ở cuối bước con).
-- **Còn lại cho agent sau:**
-  1. Ô chọn nguồn **chỉ số** (dashboard, `pages/datahub/dashboard/data-views.tsx` dùng `dh.tables`) chưa có nhóm "Quản lý Deal" (cần server cho phép nguồn chỉ số là bảng ở datahub khác; để 4.6 nếu ngoài phạm vi). `relation-picker.tsx`/`pickers.tsx` là ô chọn dòng, không cần nhóm.
-  2. Mục Quản lý của Manager (phân deal, chính sách com, chốt kỳ...) chưa có vì server chưa có (4.4/4.5); menu chỉ có Deals, Index, Probation KPI, bảng tự tạo, Template.
-  3. Giao diện sửa `config.attrs` của cột Người dùng và tạo cột "gửi xuống" (`autofill`) ở trang Template (`column-editor.tsx` `TypeFields` cho `user`; server `template.column.create` đã nhận `autofill`).
-  4. Tạo bảng template cho team do Manager tạo (`scope: team` + `leader_id`) chưa có ở `CreateDialog` (template.tsx).
-  5. Khôi phục bảng template đã lưu trữ: có nút; khôi phục **cột** đã bỏ chỉ qua nút "Hoàn tác" của thông báo (cột đã bỏ không nằm trong `template.get`).
-  6. Rà tay: nút "Template" ở đầu trang Quản lý Deal có; ô lưới `persons` chưa thử trên 375px (Stage 12).
-  7. Cuối bước con: `pnpm exec vitest run apps packages` và `pnpm test:e2e --project=desktop`, ghi mã commit + số pass/fail/skip vào mục "Mốc test"; cập nhật cột "Code" của CLAUDE.md; nhờ Opus rà.
-- **Chỗ dở:** không có. Quan sát: lần chạy e2e đầu có `seedPeople` hết giờ chờ mã kích hoạt (worker bận dựng bộ mặc định sau khi Manager kích hoạt); đã tăng số lần thử ở `seed.ts` (20 → 60). Nếu còn chập chờn, tìm nguyên nhân ở độ trễ outbox, đừng chạy lại cho qua.
+**4.3 giao diện Quản lý Deal: Sonnet xong cả hai nửa (21/11), chờ Opus rà.** Commit: 3386ccd, fd2d337, 7fd73eb (nửa đầu), 132245b (vòng dựng bộ mặc định riêng + `sameStored`), e817470 (thuộc tính cột Người dùng, cột gửi xuống, Manager tạo bảng team, e2e). Quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.3" và "4.3 nửa sau".
+- Có: menu + màn Quản lý Deal, trang Template (bảng, cột, lớp, xem trước "Áp dụng cho N người", vai trò cột, khoá phân chia, Manager tạo bảng cây hoặc team), ô Người dùng có thuộc tính, cột gửi xuống, khoá ô theo `can_edit`/autofill, nhãn lớp cột, trang Admin bộ mặc định.
+- **Lỗi gốc đã sửa:** `seedPeople` chập chờn do dispatcher outbox chạy tuần tự, subscriber dựng bộ template mặc định (nhiều giây) chặn thông báo mã kích hoạt sau nó. Giờ là vòng riêng `startDealDefaultsLoop` (worker), seed về 20 lần thử. Opus đọc kỹ: `modules/deal/tree-templates.ts`, `worker.ts`, `core/subscribers.ts`, test trong `deal-defaults.test.ts`.
+- **Dời:** nhóm "Quản lý Deal" ở ô chọn nguồn chỉ số (4.6); mục Quản lý của Manager (4.4/4.5); khôi phục cột template chỉ qua nút Hoàn tác. Ô lưới `persons` chưa thử 375px (Stage 12).
+- **Chỗ dở:** không có.
 
-**Đang làm (4.3, Sonnet, 21/11):** xem BÀN GIAO ở trên. Còn nợ của 4.2, **làm ở 4.4**: guard Status (Won/Huỷ), Probation KPI sau commit, điền lại gửi xuống khi đổi cây, công thức theo người cho cột `person`, tháng Index đầu tiên.
+**Còn nợ của 4.2, **làm ở 4.4**: guard Status (Won/Huỷ), Probation KPI sau commit, điền lại gửi xuống khi đổi cây, công thức theo người cho cột `person`, tháng Index đầu tiên.
 
 Mục tiêu Deals hạ xuống **20.000 deal** (Dương chốt 20/11): load test Stage 4 dùng 20.000 deal, 20 người phạm vi khác nhau, mọi biểu đồ ≤ 3 s; Datahub thường giữ 100.000 dòng.
 
