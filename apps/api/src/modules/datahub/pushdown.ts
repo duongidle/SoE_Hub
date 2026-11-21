@@ -182,13 +182,13 @@ export async function refillRows(db: Executor, tableId: string, rows: { id: stri
 /**
  * A change in the people of the organization (a move, a new Leader or Manager) changes what "% com của team" / "Tổng % com đã chia" hold. The refill scans every
  * row of a table, so it is NOT done in the subscriber (the dispatcher handles events one by one): the subscriber only sets `refill_pending_at` on the tables that
- * have an autofill column, and `startRefillLoop` refills them (the query is the queue, so a crash loses nothing). `default_templates` events do not move people.
+ * have an autofill column, and `startRefillLoop` refills them (the query is the queue, so a crash loses nothing). Only `change = "updated"` can move people (a new person is in no row yet; lock and permission events do not change the tree): marking every table on every org event made the worker rescan all tables for each person a test or an import added, and delayed the dispatcher (activation codes arrived late).
  */
 export const refillSubscriber: Subscriber = {
   name: "datahub.refill",
   match: (e) => e === "org.member.changed",
   async handle(ev, db) {
-    if ((ev.payload as { change?: string } | null)?.change === "default_templates") return;
+    if ((ev.payload as { change?: string } | null)?.change !== "updated") return;
     await db.execute(sql`UPDATE dh_tables SET refill_pending_at = clock_timestamp() WHERE /*scope:system*/ deleted_at IS NULL
       AND EXISTS (SELECT 1 FROM dh_columns c WHERE c.table_id = dh_tables.id AND c.deleted_at IS NULL AND c.autofill IS NOT NULL)`);
   },
