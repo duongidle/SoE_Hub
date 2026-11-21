@@ -107,7 +107,7 @@ describe("whole-tree grant, columns Tên and Doanh thu", () => {
   it("export: only the granted columns, and only when the grant allows the export channel", async () => {
     const job = await guest("datahub.export.create", { table_id: x.tableId, format: "csv" });
     const text = await csvOf(guest, job.id);
-    const lines = text.replace(/^﻿/, "").trim().split("\r\n");
+    const lines = text.trim().split("\r\n");
     expect(lines[0]).toBe("Tên,Doanh thu");
     expect(lines.slice(1).sort()).toEqual(["d1,100", "d2,200"]);
     expect(text).not.toContain("bí mật");
