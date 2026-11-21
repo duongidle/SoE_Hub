@@ -218,6 +218,7 @@ const INDEX: DefaultTable = { name: "Index", kind: "personal", role_set: "index"
 const KPI: DefaultTable = {
   name: "Probation KPI",
   kind: "shared",
+  role_set: "kpi",
   member_permission: "edit_data",
   leader_can_add_columns: true,
   split: { columns: ["Người"], primary: "Người" },
@@ -237,8 +238,9 @@ const KPI: DefaultTable = {
     { name: "CR1", type: "percent", default_value: 0.9, allow_edit: true },
     { name: "CR2", type: "percent", allow_edit: true },
     { name: "Cycle (ngày) cam kết", type: "number", allow_edit: true },
-    { name: "Trạng thái", type: "single_select", config: opts(["Nháp", "Đã commit"]), default_value: "Nháp", allow_edit: true },
-    { name: "Ngày commit", type: "date" },
+    { name: "Trạng thái", type: "single_select", config: opts(["Nháp", "Đã commit"], { "Đã commit": "committed" }), role: "trang_thai_commit", default_value: "Nháp", allow_edit: true },
+    { name: "Ngày commit", type: "field_modified", config: { watch: ["Trạng thái"] }, description: "Ngày đổi Trạng thái lần cuối (lúc commit)." },
+    { name: "Lý do sửa sau commit", type: "text", role: "ly_do_sua", allow_edit: true, description: "Manager ghi khi sửa kế hoạch đã commit." },
     ...[1, 2, 3, 4].flatMap((q): DefaultColumn[] => [
       { name: `KPI Q${q}`, type: "formula", config: { formula: `=[KPI tổng]*[% Q${q}]`, result_type: "number" } },
       { name: `Goal Q${q}`, type: "formula", config: { formula: `=[Goal]*[% Q${q}]`, result_type: "number" } },

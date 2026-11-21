@@ -88,6 +88,13 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "ly_do", label: "Lý do", types: ["text", "long_text"], required: false, usedBy: ["Điều chỉnh com"] },
     ],
   },
+  kpi: {
+    label: "Probation KPI",
+    roles: [
+      { key: "trang_thai_commit", label: "Trạng thái commit", types: ["single_select"], required: true, usedBy: ["Khoá sửa sau commit"] },
+      { key: "ly_do_sua", label: "Lý do sửa sau commit", types: ["text", "long_text"], required: false, usedBy: ["Khoá sửa sau commit"] },
+    ],
+  },
   receipts: {
     label: "Tiền về",
     roles: [

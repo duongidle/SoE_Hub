@@ -20,6 +20,7 @@ import { rowFromDb, toApiRow, type ApiRow, type TableSchema } from "./table-sche
 import { CellError, type DhColumn, type Stored } from "./types";
 import { hasAttrs, userIdsOf } from "./user-values";
 import { checkPeopleCaps, type PeopleCell } from "./people-caps";
+import { guardCommitted, guardStatusMeaning } from "./status-guard";
 import { autofillColumns, dependentsOf, pushDownRows } from "./pushdown";
 
 /** A merged table is read-only for everyone, its owner included: its rows are written only by the worker (design module3 section 4.3). */
@@ -219,7 +220,7 @@ interface Plan {
  * caller's transaction. Cells are validated per column type; updates merge per cell (a conflict only when the SAME cell
  * changed since the client read it); history records input data only; the audit entry never holds values.
  */
-export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSchema, ops: RowOp[], opts: { labels?: boolean } = {}): Promise<OpResult[]> {
+export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSchema, ops: RowOp[], opts: { labels?: boolean; /** The payment commands set Won; nothing else does (module4 4.4). */ system?: boolean } = {}): Promise<OpResult[]> {
   // A person writes THEIR OWN values (custom columns, one-value-per-person columns) with no more than the right to see the table (module4 3.6).
   access.require(onlyOwnCells(schema, ops) ? "view" : "edit_data");
   assertWritable(access);
@@ -309,6 +310,9 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     for (const r of res.rows as Record<string, unknown>[]) loaded.set(r.id as string, rowFromDb(r));
     for (const id of targetIds) if (!loaded.has(id)) throw new AppError("not_found", "Không tìm thấy dòng (có thể đã bị xoá).", { row_id: id });
   }
+
+  guardStatusMeaning(access, schema, plans, loaded, opts.system === true);
+  guardCommitted(access, schema, plans, loaded, opts.system === true);
 
   // The actor's own values of the person-stored columns (module4 3.4): where an update compares with what they had, and what is written back.
   const ownBefore = new Map<string, Record<string, Stored>>();

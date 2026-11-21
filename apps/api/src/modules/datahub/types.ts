@@ -68,10 +68,10 @@ export interface SelectOption {
   meaning?: OptionMeaning;
 }
 
-export type OptionMeaning = "open" | "won" | "lost" | "disqualified" | "converted" | "cancelled";
-export const OPTION_MEANINGS: OptionMeaning[] = ["open", "won", "lost", "disqualified", "converted", "cancelled"];
+export type OptionMeaning = "open" | "won" | "lost" | "disqualified" | "converted" | "cancelled" | "committed";
+export const OPTION_MEANINGS: OptionMeaning[] = ["open", "won", "lost", "disqualified", "converted", "cancelled", "committed"];
 /** A closed deal: anything that is not "open". */
-export const isClosedMeaning = (m: OptionMeaning | undefined): boolean => m !== undefined && m !== "open";
+export const isClosedMeaning = (m: OptionMeaning | undefined): boolean => m !== undefined && m !== "open" && m !== "committed";
 
 /** Thrown by column-type validation. The message never contains the cell value (it may end up in the audit log). */
 export class CellError extends Error {
