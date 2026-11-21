@@ -60,3 +60,5 @@ Không chặn bước con; gom sửa một đợt. `stage1.spec.ts` phone "cài 
 - Đối soát công thức (2B+): ngân sách 1.000.000 dòng/đêm, chờ 5 s là giá trị tự chọn.
 - Module 4 (4.4A): cây đã tạo trước 4.4 giữ `Đã thu` là cột thường; bảng Tiền về "chỉ Manager" làm bằng khoá phân chia theo cột `Người xem` luôn trống.
 - Stage 9 Onboarding: hỏi Dương có kiểm giao diện kỹ như ngoại lệ không. Danh sách token cần duyệt chưa phân trang (500), làm ở Stage 5.
+
+- **DỪNG 22/11 (hết quota):** 4.7A xong (cd7e5fd, 54,8M token, vượt ước vì 193 lượt). 4.7B vừa bắt đầu: còn thay đổi chưa commit ở việc 1 (trần `Tỉ lệ SoE` cho `com_split` gửi tay; `participants.ts`, `payments.ts`, `deal-flexible-layout.test.ts`), **chưa chạy test**. **Phiên sau:** xem diff đó, giao lại 4.7B đủ 8 việc như prompt cũ (câu trả lời của Opus ở `design/module4-quyet-dinh-khi-code.md` mục "4.7A: Opus trả lời"); mỗi agent tối đa khoảng 5 việc, Opus tự kiểm số lượt ở mốc khoảng 100.

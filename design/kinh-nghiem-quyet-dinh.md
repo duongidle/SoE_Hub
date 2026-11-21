@@ -36,6 +36,11 @@ File này ghi cách đi tới những quyết định vừa tiết kiệm token,
 10. **Số gắn với một người phải đúng bất kể ai xem.** Doanh thu, KPI, com của A phải ra cùng một số dù A, Leader hay Manager mở. Ví dụ 4.6: KPI tính theo người đọc ra số sai.
 11. **Kiểm thử vừa đủ.** Giữ lớp kiểm rẻ mà bắt được lỗi nặng (quyền, tiền, hồi quy phần dùng chung). Bỏ lớp trùng. Lỗi chập chờn thì tái hiện bằng chạy lặp đúng chỗ, không chạy cả bộ để thử từng giả thuyết. Chi tiết: `CLAUDE.md`, "Kiểm thử theo cấp".
 
+12. **Chia việc cho agent vừa sức, và tự theo dõi.**
+    - Mỗi agent tối đa khoảng 5 việc. Nhiều hơn thì tách agent ngay từ lúc lập kế hoạch.
+    - Opus tự kiểm số lượt của agent. Tới khoảng 100 lượt mà còn nhiều việc thì nhắn agent dừng ở commit gần nhất và bàn giao. Không trông vào việc agent tự dừng.
+    - Ví dụ 4.7A: 9 việc trong một agent, chạy 193 lượt, tốn 54,8M token so với ước 17–23M.
+
 ## Cách làm trước mỗi bước con
 
 1. Lấy phạm vi bước con từ thiết kế.
