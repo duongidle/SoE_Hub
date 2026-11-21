@@ -161,7 +161,10 @@ test("nhập xlsx hai sheet vào datahub mới, lấy công thức: dịch đư�
   await expect(f.locator("li", { hasText: "Gấp đôi" })).toContainText("Thành cột công thức");
   await expect(f.locator("li", { hasText: "Khác nhau" })).toContainText("Công thức khác nhau giữa các dòng");
   await expect(f.locator("li", { hasText: "Hàm lạ" })).toContainText("INDIRECT");
-  await expect(f.locator("li", { hasText: "Tháng" }).getByTestId("import-warning")).toContainText("LEFT()");
+  // LEFT() over a date column: the warning stays, and the import now says it turned the columns into TEXT to match what Excel shows (4.5A).
+  const warn = f.locator("li", { hasText: "Tháng" }).getByTestId("import-warning");
+  await expect(warn.filter({ hasText: "LEFT()" })).toHaveCount(1);
+  await expect(warn.filter({ hasText: "Đã tự đổi sang TEXT" })).toHaveCount(1);
   await owner.shot("import-step4");
   await d.getByRole("button", { name: "Bắt đầu nhập" }).click();
 
