@@ -109,3 +109,23 @@ describe("ledger roll-ups", () => {
     expect(m["Com của deal"]).toBeCloseTo(6_000_000, 6);
   });
 });
+
+describe("Index: revenue and forecast by the person's share", () => {
+  it("revenue by the day the money arrived, weighted by % doanh thu of the reader; the Leader sees the team's total", async () => {
+    // Revenue of the instalment is the paid amount: Leading takes 100%, Associate 0% (default).
+    const idx = async (call: ReturnType<typeof as>) => {
+      const my = (await call("datahub.template.list")).find((x: { name: string }) => x.name === "Index").my_table_id as string;
+      const made = await call("datahub.row.create", { table_id: my, data: { Tháng: "2026-07-01" } });
+      await settle();
+      return row(call, my, made.id);
+    };
+    const a1 = await idx(userA1);
+    const a2 = await idx(userA2);
+    expect(a1["Doanh thu Tổng"]).toBe(100_000_000);
+    expect(a1["Doanh thu POD"]).toBe(100_000_000);
+    expect(a1["Doanh thu PS"]).toBe(0);
+    expect(a2["Doanh thu Tổng"]).toBe(0);
+    const l = await idx(leaderA);
+    expect(l["Doanh thu Tổng (team)"]).toBe(100_000_000);
+  });
+});

@@ -208,6 +208,7 @@ const DEALS: DefaultTable = {
     { name: "Doanh thu của team", type: "formula", config: { formula: "=[Doanh thu]*[% doanh thu của team]", result_type: "number" }, layer: "role", layer_roles: ["leader"] },
     { name: "Com dự kiến của team", type: "formula", config: { formula: COM_DU_KIEN("% com của team"), result_type: "number" }, layer: "role", layer_roles: ["leader"] },
     { name: "Com chờ nhận của team", type: "formula", config: { formula: COM_CHO_NHAN("% com của team"), result_type: "number" }, layer: "role", layer_roles: ["leader"] },
+    { name: "Dự kiến chưa ký tính cho tôi", type: "formula", config: { formula: '=IF(AND(OR([Status]="Processing",[Status]="Pending"),[Giá trị hợp đồng]=0),[Doanh thu dự kiến]*[% doanh thu của tôi],0)', result_type: "number" }, hidden: true, description: "Forecast chưa ký: deal đang mở chưa có lịch, phần của mình." },
   ],
   // Columns that read the ledger, a table made after Deals.
   late_columns: [
@@ -265,7 +266,30 @@ function indexColumns(): DefaultColumn[] {
   return cols;
 }
 
-const INDEX: DefaultTable = { name: "Index", kind: "personal", role_set: "index", leader_can_add_columns: true, columns: indexColumns() };
+const DOT = (col: string) => `[Đợt thanh toán].[${col}]`;
+const DOT_MONTH = (col: string) => `${DOT(col)},">="&[Tháng],${DOT(col)},"<"&EDATE([Tháng],1)`;
+const QUARTER_START = "DATE(YEAR([Tháng]),(QUARTER([Tháng])-1)*3+1,1)";
+const QUARTER_RANGE = (col: string) => `[Deals].[${col}],">="&${QUARTER_START},[Deals].[${col}],"<"&EDATE(${QUARTER_START},3)`;
+/** Index columns that read the payments (made after every table of the set exists, so they are late columns): revenue by the day the money arrived, forecast, Winrate of the quarter. */
+function indexLateColumns(): DefaultColumn[] {
+  const cols: DefaultColumn[] = [];
+  const f = (name: string, formula: string, result: string, extra: Partial<DefaultColumn> = {}): void => {
+    cols.push({ name, type: "formula", config: { formula: `=${formula}`, result_type: result }, ...extra });
+  };
+  const sumOf = (types: string[], valueCol: string, dateCol: string) => types.map((t) => `SUMIFS(${DOT(valueCol)},${DOT("Loại deal")},"${t}",${DOT_MONTH(dateCol)})`).join("+");
+  for (const g of GROUPS) f(`Doanh thu ${g.name}`, sumOf(g.types, "Doanh thu tính cho tôi", "Ngày tiền về"), "number");
+  const pod = GROUPS[0]!.types;
+  f("Forecast đã ký", sumOf(pod, "Chờ về tính cho tôi", "Hạn"), "number", { description: "Đợt chưa về có hạn trong tháng của deal đã có lịch, phần của mình (module4 11)." });
+  f("Forecast chưa ký", pod.map((t) => `SUMIFS([Deals].[Dự kiến chưa ký tính cho tôi],[Deals].[Loại deal],"${t}",${MONTH("Ngày dự kiến chốt")})`).join("+"), "number", { description: "Doanh thu dự kiến của deal đang mở chưa có lịch, có Ngày dự kiến chốt trong tháng (module4 11)." });
+  f("Forecast Tổng", "[Forecast đã ký]+[Forecast chưa ký]", "number");
+  const qn = (status: string | null, dateCol: string) => pod.map((t) => `COUNTIFS([Deals].[Loại deal],"${t}",${QUARTER_RANGE(dateCol)}${status ? `,[Deals].[Status],"${status}"` : ""},[Deals].[Tính vào số deal của tôi],TRUE)`).join("+");
+  f("Winrate quý", `IF((${qn(null, "Start date")})-(${qn("Disqualified", "Start date")})=0,"",(${qn("Won", "Closing date")})/((${qn(null, "Start date")})-(${qn("Disqualified", "Start date")})))`, "percent", { description: "Won đóng trong quý ÷ Qualified nhận trong quý (như sheet Index)." });
+  const team = { layer: "role" as const, layer_roles: ["leader", "manager"] as ("leader" | "manager")[] };
+  f("Doanh thu Tổng (team)", `SUMIFS(${DOT("Số tiền về (chưa VAT)")},${DOT_MONTH("Ngày tiền về")})`, "number", { ...team, description: "Tiền về của mọi deal bạn thấy, mỗi deal một lần (không nhân % chia)." });
+  return cols;
+}
+
+const INDEX: DefaultTable = { name: "Index", kind: "personal", role_set: "index", leader_can_add_columns: true, columns: indexColumns(), late_columns: indexLateColumns() };
 
 // ------------------------------------------------------------------------------------------------
 // Probation KPI (module4 6): the plan. "Đã đạt / Còn thiếu / % đạt" come with the payment step.
@@ -371,8 +395,15 @@ const PAYMENTS: DefaultTable = {
     { name: PEOPLE, type: "user", config: PEOPLE_ATTRS, role: "nguoi_tham_gia" },
     { name: "Nguồn nhập", type: "single_select", config: SOURCE, role: "nguon_nhap", default_value: "Tay" },
     { name: "Đã kiểm", type: "checkbox", role: "da_kiem" },
+    // One value per reader: the person's share of the instalment, for the revenue and forecast of their Index (module4 5, 10.3).
+    { name: "% doanh thu của tôi", type: "percent", storage: "person", autofill: { column: PEOPLE, attr: "ty_le_dt" }, hidden: true },
+    { name: "Doanh thu tính cho tôi", type: "formula", config: { formula: "=[Số tiền về (chưa VAT)]*[% doanh thu của tôi]", result_type: "number" }, description: "Số tiền về (chưa VAT) × % doanh thu của mình. Mỗi người một giá trị." },
+    { name: "Chờ về tính cho tôi", type: "formula", config: { formula: '=IF([Ngày tiền về]="",[Số tiền dự kiến (chưa VAT)]*[% doanh thu của tôi],0)', result_type: "number" }, description: "Phần của mình trong đợt chưa về (forecast đã ký, chờ tiền về)." },
   ],
-  late_columns: [{ name: "Deal", type: "relation", config: { target_table: "Deals", multiple: false }, role: "deal", required: true }],
+  late_columns: [
+    { name: "Deal", type: "relation", config: { target_table: "Deals", multiple: false }, role: "deal", required: true },
+    { name: "Loại deal", type: "lookup", config: { relation: "Deal", target_column: "Loại deal" }, hidden: true },
+  ],
 };
 
 /** One row per person per instalment (module4 7.3). `Tạm tính` rows are formulas; closed and adjusted rows keep a fixed amount in `Com cố định`. */
