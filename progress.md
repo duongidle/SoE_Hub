@@ -6,7 +6,7 @@ Cập nhật: 21/11/2026
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
 - **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1 xong (20/11); 4.2, 4.3 xong (21/11, Opus rà đạt); bản đồ code Module 0–3 xong (`design/ban-do-code.md`, Opus rà và sửa luật sai, 5999ea3); 4.4 (thanh toán và com) xong, chờ Opus rà; tiếp 4.5 (chốt kỳ, BANT, forecast, snapshot).
-- **Git:** đã push `main` + `dev` tới 154655d (hết bước con 4.1, Dương yêu cầu 20/11).
+- **Git:** đã push `main` + `dev` tới HEAD của dev ngày 21/11 (Dương yêu cầu, lúc 4.4 chưa đạt rà: còn test chập chờn).
 - **Mốc test** (4.4B): `pnpm exec vitest run apps packages` 1141 pass, 9 skip (c1704f4; sau đó chỉ đổi điều kiện của subscriber refill ở 2630f26, `datahub-user-attrs` 16/16 pass lại); `pnpm test:e2e --project=desktop` 116/116 (2630f26, gồm 7 của stage4-4). Lần chạy e2e đầu (c1704f4) hỏng 2-3 bài ở bước dựng người ("Không thấy mã ... trong hộp thông báo"), mỗi lần bài khác; chạy riêng từng file thì pass; nguyên nhân: subscriber refill đánh dấu mọi sự kiện `org.member.changed`, đã sửa ở 2630f26. Không chạy hai lệnh vitest song song (chung DB).
 
 ## Đã xong
@@ -32,7 +32,9 @@ Cập nhật: 21/11/2026
 - Sau rà Opus: `startDealDefaultsLoop` bỏ nhịp khi lượt trước chưa xong (cờ, không nối chuỗi), có test không chạy chồng/không xếp hàng; `deal-defaults.test.ts` 14 pass (typecheck, lint sạch).
 - **Chỗ dở:** không có.
 
-**4.4 thanh toán và com: xong, chờ Opus rà (21/11).** 4.4A server (b809b2d, 66ee9ed, d0fa5b0); 4.4B: sửa test TODAY/NOW chập chờn, hàng đợi điền lại cột gửi xuống khi đổi cây, trang `/quan-ly-deal/thanh-toan` (đợt, lập lịch, ghép tiền về, huỷ xác nhận, điều chỉnh com, Sổ com), ngăn chi tiết deal, e2e `stage4-4`. Quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.4A", "4.4B". Lệnh server: Bruno `docs/api/bruno/deal/`, OpenAPI.
+**4.4 thanh toán và com: code xong, CHƯA ĐẠT rà (21/11).** 4.4A server (b809b2d, 66ee9ed, d0fa5b0); 4.4B: sửa test TODAY/NOW chập chờn, hàng đợi điền lại cột gửi xuống khi đổi cây, trang `/quan-ly-deal/thanh-toan` (đợt, lập lịch, ghép tiền về, huỷ xác nhận, điều chỉnh com, Sổ com), ngăn chi tiết deal, e2e `stage4-4`. Quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.4A", "4.4B". Lệnh server: Bruno `docs/api/bruno/deal/`, OpenAPI.
+- **Opus chạy lại cả bộ ở 2bb7452: chưa sạch.** Vitest 1 fail (`datahub-reader-scope.test.ts`, describe "a merged table whose source is a table with the split lock", chạy riêng file thì 15/15 pass). E2e 3 fail ở 0 ms, chỉ 96 bài chạy (`stage4-1d.spec.ts:115`, `stage4-3.spec.ts:107`, `stage4-4.spec.ts:125`). Giả thuyết: hai vòng mới trong worker (`startRefillLoop` giữ transaction dài; `startDealDefaultsLoop` gọi `ensureMissingTables` mỗi nhịp cho mọi cây) làm trễ dispatcher hoặc đổi dữ liệu test khác. Đã giao một agent Sonnet tìm nguyên nhân gốc (không tăng thời gian chờ, chạy cả bộ e2e hai lần phải sạch). **Phiên sau:** xem `git log` có commit sửa của agent đó không; nếu không, giao lại đúng việc này. Token 4.4: A 17M, B 14,9M.
+- Dương chốt 21/11: ô dán UNC chỉ dùng chấm điểm gợi ý (giữ); com chia một lần cho cả deal, mọi đợt cùng tỉ lệ (đã ghi Module 4 mục 4.5, 7.2).
 - **Còn nợ (đã ghi trong 4.4A):** công thức theo người cho cột `person` (`Doanh thu tính cho tôi`, `Com dự kiến của tôi`) cần thiết kế engine Module 2; cột Index/Probation KPI đọc Đợt thanh toán (làm cùng việc đó, 4.6); cây dev cũ giữ `Đã thu` kiểu thường (dựng lại cây); `payment.confirm` chưa kiểm tổng `% com` so với `Tỉ lệ SoE` ở lệnh (cột đã có `cap_param`). Chốt kỳ là 4.5.
 
 Mục tiêu Deals hạ xuống **20.000 deal** (Dương chốt 20/11): load test Stage 4 dùng 20.000 deal, 20 người phạm vi khác nhau, mọi biểu đồ ≤ 3 s; Datahub thường giữ 100.000 dòng.
