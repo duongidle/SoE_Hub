@@ -462,12 +462,29 @@ describe("viewer functions", () => {
       ['ATTR("x", ME(), "a")', "#VALUE!", { me: "u1" }],
     ]);
   });
+  it("INSCOPE, ATTRSUM", () => {
+    const cells = { ng: "u1, u2, u3" };
+    const ppl = { ng: { u1: { "% com": 0.3 }, u2: { "% com": 0.1 }, u3: { "% com": 0.2 } } };
+    run([
+      ["INSCOPE([ng])", true, { me: "u1", scope: ["u1", "u9"], cells }],
+      ["INSCOPE([ng])", false, { me: "u5", scope: ["u5", "u9"], cells }],
+      ["INSCOPE([ng])", false, { me: "u5", scope: ["u5"], cells: { ng: null } }],
+      ['ATTRSUM([ng], "% com")', 0.6, { me: "u5", scope: ["u5"], cells, people: ppl }],
+      ['ATTRSUM([ng], "% com", "của tôi")', 0.5, { me: "u1", scope: ["u1", "u3"], cells, people: ppl }],
+      ['ATTRSUM([ng], "% com", "Của tôi")', 0, { me: "u5", scope: ["u5"], cells, people: ppl }],
+      ['ATTRSUM([ng], "% com", "khác")', "#VALUE!", { me: "u1", cells, people: ppl }],
+      ['IF(INSCOPE([a]),[x],0)+IF(INSCOPE([b]),[y],0)', 0.5, { me: "u1", scope: ["u1"], cells: { a: "u1", b: "u1", x: 0.2, y: 0.3 } }],
+    ]);
+  });
   it("is in the catalogue and ME/ISME mark a column as viewer dependent", () => {
-    for (const n of ["ME", "ISME", "ATTR"]) expect(FUNCTION_CATALOG.find((f) => f.name === n)?.group).toBe("Người xem");
+    for (const n of ["ME", "ISME", "ATTR", "INSCOPE", "ATTRSUM"]) expect(FUNCTION_CATALOG.find((f) => f.name === n)?.group).toBe("Người xem");
     const deps = (src: string) => collectDeps(compile(src).ast);
     expect(deps("ME()").usesViewer).toBe(true);
     expect(deps("IF(ISME([a]),1,0)").usesViewer).toBe(true);
     expect(deps("[a]+1").usesViewer).toBe(false);
     expect(deps('ATTR([a], [b], "x")').usesViewer).toBe(false);
+    expect(deps("INSCOPE([a])").usesViewer).toBe(true);
+    expect(deps('ATTRSUM([a], "x")').usesViewer).toBe(false);
+    expect(deps('ATTRSUM([a], "x", "của tôi")').usesViewer).toBe(true);
   });
 });

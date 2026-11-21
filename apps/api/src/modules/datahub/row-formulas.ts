@@ -1,7 +1,7 @@
 import { collectDeps, evaluate, FError, parseFormula, type EvalContext, type Node } from "@soe/formula";
 import { applyOutcome, cellValue, resultTypeOf, valueToStored } from "./cell-values";
 import type { TableSchema } from "./table-schema";
-import { attrOfCell } from "./user-values";
+import { attrOfCell, attrSumOfCell } from "./user-values";
 import type { DhColumn, Stored } from "./types";
 
 const parseCache = new Map<string, Node | null>();
@@ -92,6 +92,14 @@ export class RowFormulas {
         if (!c) throw new FError("#REF!", "Cột được tham chiếu đã bị xoá.");
         if (c.type !== "user") throw new FError("#VALUE!", "ATTR cần một cột Người dùng.");
         return attrOfCell(c, data[key], person, name);
+      },
+      attrSum: (key, name, mine) => {
+        const c = this.byKey.get(key);
+        if (!c) throw new FError("#REF!", "Cột được tham chiếu đã bị xoá.");
+        if (c.type !== "user") throw new FError("#VALUE!", "ATTRSUM cần một cột Người dùng.");
+        // `mine` depends on who reads: those columns are not computed here (see `for`).
+        if (mine) throw new FError("#VALUE!", "ATTRSUM với \"của tôi\" do worker tính theo người xem.");
+        return attrSumOfCell(c, data[key], name, null);
       },
       rowInfo: () => ({ id: meta.id, rowNo: meta.rowNo, createdAt: cellValue({ type: "created_time", key: "_", config: {} } as DhColumn, row) as number, modifiedAt: cellValue({ type: "modified_time", key: "_", config: {} } as DhColumn, row) as number }),
     };

@@ -323,13 +323,14 @@ function depsOfAst(ast: Node, here: string): { deps: DepRow[]; volatile: "today"
 /** ATTR(ô, người, "tên"): the cell must be a column of this table that holds people with attributes, and a literal name must be one of them. */
 function checkAttrCalls(ast: Node, ix: OwnerIndex, tableId: string): void {
   walk(ast, (n) => {
-    if (n.t !== "call" || n.name !== "ATTR") return;
-    const [a, , nm] = n.args;
-    if (!a || a.t !== "key" || a.table !== null) throw new AppError("validation_error", "Đối số đầu của ATTR phải là một cột Người dùng của chính bảng này.", { position: { start: n.s, end: n.e } });
+    if (n.t !== "call" || (n.name !== "ATTR" && n.name !== "ATTRSUM")) return;
+    const [a, b, c] = n.args;
+    const nm = n.name === "ATTR" ? c : b;
+    if (!a || a.t !== "key" || a.table !== null) throw new AppError("validation_error", `Đối số đầu của ${n.name} phải là một cột Người dùng của chính bảng này.`, { position: { start: n.s, end: n.e } });
     const col = ix.column(tableId, a.key);
-    if (!col || col.type !== "user") throw new AppError("validation_error", "Đối số đầu của ATTR phải là một cột Người dùng có thuộc tính.", { position: { start: n.s, end: n.e } });
+    if (!col || col.type !== "user") throw new AppError("validation_error", `Đối số đầu của ${n.name} phải là một cột Người dùng có thuộc tính.`, { position: { start: n.s, end: n.e } });
     const attrs = userAttrs(col as never);
-    if (attrs.length === 0) throw new AppError("validation_error", "Cột Người dùng này chưa có thuộc tính nào để lấy bằng ATTR.", { position: { start: n.s, end: n.e } });
+    if (attrs.length === 0) throw new AppError("validation_error", "Cột Người dùng này chưa có thuộc tính nào để lấy bằng ATTR/ATTRSUM.", { position: { start: n.s, end: n.e } });
     if (nm && nm.t === "str") {
       const want = nm.v.trim().toLowerCase();
       if (!attrs.some((x) => x.key.toLowerCase() === want || x.label.trim().toLowerCase() === want)) {

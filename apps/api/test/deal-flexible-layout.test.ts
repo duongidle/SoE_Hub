@@ -18,6 +18,7 @@ let org: Org;
 let mgrA: ReturnType<typeof as>;
 let userA1: ReturnType<typeof as>;
 let userA2: ReturnType<typeof as>;
+let leaderA: ReturnType<typeof as>;
 const tables: Record<string, string> = {};
 let dealsTpl = "";
 const person = (id: string, attrs: Record<string, unknown> = {}) => ({ id, attrs });
@@ -68,6 +69,7 @@ beforeAll(async () => {
   mgrA = as(t, org.mgrA.id);
   userA1 = as(t, org.userA1.id);
   userA2 = as(t, org.userA2.id);
+  leaderA = as(t, org.leaderA.id);
   await ensureTreeTemplates(t.c.db.db, workerEmit(t.c.db.db), org.mgrA.id);
   await drainOutbox(t);
   const list = await mgrA("datahub.template.list");
@@ -95,6 +97,14 @@ const expectOwnCom = async (call: ReturnType<typeof as>, deal: string, pct: numb
   expect(mine[0]!["Com tạm tính của tôi"] as number).toBeCloseTo(100_000_000 * 0.2 * pct, 3);
 };
 
+/** The team columns: the Leader reads the total of their own team (LeaderA > UserA1), the Manager the total of everyone on the deal. */
+const expectTeam = async (deal: string, team: { com: number; dt: number }, all: number) => {
+  const l = await row(leaderA, tables["Deals"]!, deal);
+  expect(l["% com của team"] as number, "% com của team").toBeCloseTo(team.com, 9);
+  expect(l["% doanh thu của team"] as number, "% doanh thu của team").toBeCloseTo(team.dt, 9);
+  expect((await row(mgrA, tables["Deals"]!, deal))["Tổng % com đã chia"] as number, "Tổng % com đã chia").toBeCloseTo(all, 9);
+};
+
 describe("(a) the default layout: one column with attributes", () => {
   let deal = "";
   it("the viewer columns give each person their own share; the commands write the right lines", async () => {
@@ -107,6 +117,7 @@ describe("(a) the default layout: one column with attributes", () => {
     await expectLines(deal, { [org.userA1.id]: 0.15, [org.userA2.id]: 0.05 }, { [org.userA1.id]: 0.6, [org.userA2.id]: 0.4 });
     await expectOwnCom(userA1, deal, 0.15);
     await expectOwnCom(userA2, deal, 0.05);
+    await expectTeam(deal, { com: 0.15, dt: 0.6 }, 0.2);
   });
   it("the split lock gives the deal to its people only", async () => {
     const only1 = (await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: dealData("Chỉ A1", { "Người tham gia": [person(org.userA1.id, { vai_tro: "Leading", ty_le_com: 0.1 })] }) })).id;
@@ -128,6 +139,10 @@ describe("(b) two columns Leading and Associate, each with attributes", () => {
     await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "% doanh thu của tôi", config: { formula: mine("% doanh thu", "0"), result_type: "percent" } });
     await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "% Com cá nhân", config: { formula: mine("% com", "0"), result_type: "percent" } });
     await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "Tính vào số deal của tôi", config: { formula: '=IF(ISME([Leading]),ATTR([Leading],ME(),"Tính vào số deal")=TRUE,IF(ISME([Associate]),ATTR([Associate],ME(),"Tính vào số deal")=TRUE,FALSE))', result_type: "checkbox" } });
+    const sum2 = (attr: string, mineOnly: boolean) => `=ATTRSUM([Leading],"${attr}"${mineOnly ? ',"của tôi"' : ""})+ATTRSUM([Associate],"${attr}"${mineOnly ? ',"của tôi"' : ""})`;
+    await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "Tổng % com đã chia", config: { formula: sum2("% com", false), result_type: "percent" } });
+    await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "% com của team", config: { formula: sum2("% com", true), result_type: "percent" } });
+    await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "% doanh thu của team", config: { formula: sum2("% doanh thu", true), result_type: "percent" } });
   });
   it("the commands read the people of both columns and each person's own share", async () => {
     deal = (await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: dealData("Bố trí B", { Leading: [person(org.userA1.id, { ty_le_com: 0.2, ty_le_dt: 0.5, tinh_deal: true })], Associate: [person(org.userA2.id, { ty_le_com: 0.1, ty_le_dt: 0.5 })] }) })).id;
@@ -139,6 +154,7 @@ describe("(b) two columns Leading and Associate, each with attributes", () => {
     await expectLines(deal, { [org.userA1.id]: 0.2, [org.userA2.id]: 0.1 }, { [org.userA1.id]: 0.5, [org.userA2.id]: 0.5 });
     await expectOwnCom(userA1, deal, 0.2);
     await expectOwnCom(userA2, deal, 0.1);
+    await expectTeam(deal, { com: 0.2, dt: 0.5 }, 0.3);
   });
   it("the split lock follows the new key columns", async () => {
     const only2 = (await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: dealData("Chỉ A2", { Associate: [person(org.userA2.id, { ty_le_com: 0.1 })] }) })).id;
@@ -163,6 +179,9 @@ describe("(c) four columns: Leading, Leading %, Associate, Associate %", () => {
     await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "% doanh thu của tôi", config: { formula: mine("0.6", "0.4"), result_type: "percent" } });
     await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "% Com cá nhân", config: { formula: mine("[L4 %]", "[A4 %]"), result_type: "percent" } });
     await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "Tính vào số deal của tôi", config: { formula: "=IF([L4]=ME(),TRUE,FALSE)", result_type: "checkbox" } });
+    await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "Tổng % com đã chia", config: { formula: "=[L4 %]+[A4 %]", result_type: "percent" } });
+    await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "% com của team", config: { formula: "=IF(INSCOPE([L4]),[L4 %],0)+IF(INSCOPE([A4]),[A4 %],0)", result_type: "percent" } });
+    await mgrA("datahub.template.column.update", { template_id: dealsTpl, column: "% doanh thu của team", config: { formula: "=IF(INSCOPE([L4]),0.6,0)+IF(INSCOPE([A4]),0.4,0)", result_type: "percent" } });
   });
   it("the commands write the right lines without a code change", async () => {
     deal = (await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: dealData("Bố trí C", { L4: org.userA1.id, "L4 %": 0.3, A4: org.userA2.id, "A4 %": 0.1 }) })).id;
@@ -173,6 +192,7 @@ describe("(c) four columns: Leading, Leading %, Associate, Associate %", () => {
     await expectLines(deal, { [org.userA1.id]: 0.3, [org.userA2.id]: 0.1 }, { [org.userA1.id]: 0.6, [org.userA2.id]: 0.4 });
     await expectOwnCom(userA1, deal, 0.3);
     await expectOwnCom(userA2, deal, 0.1);
+    await expectTeam(deal, { com: 0.3, dt: 0.6 }, 0.4);
   });
   it("changing a person's % changes the lines of the next payment for that person only", async () => {
     const cur = await mgrA("datahub.row.get", { table_id: tables["Deals"]!, row_id: deal });

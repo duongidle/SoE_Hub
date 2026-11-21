@@ -30,7 +30,7 @@ export function collectDeps(ast: Node): FormulaDeps {
       if (fn?.volatile === "now") volatile = "now";
       else if (fn?.volatile === "today" && volatile !== "now") volatile = "today";
       if (fn?.group === "Thông tin dòng") usesRowInfo = true;
-      if (n.name === "ME" || n.name === "ISME") usesViewer = true;
+      if (n.name === "ME" || n.name === "ISME" || n.name === "INSCOPE" || (n.name === "ATTRSUM" && n.args.length >= 3)) usesViewer = true;
     }
   });
   return { cells: [...cells], ranges: [...ranges.values()], volatile, usesRowInfo, usesViewer };

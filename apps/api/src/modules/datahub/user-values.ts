@@ -81,6 +81,18 @@ export function formatPeople(entries: PersonEntry[], attrs: UserAttr[], nameOf: 
     .join(", ");
 }
 
+/** The sum of the numeric attribute `name` over the people of a user cell (all of them, or only those in `inScope`). Used by ATTRSUM. */
+/** The sum of the numeric attribute `name` over the people of a user cell (all of them, or only those in `inScope`). Used by ATTRSUM (module2 section 6.2). */
+export function attrSumOfCell(col: Pick<DhColumn, "type" | "config">, stored: unknown, name: string, inScope: Set<string> | null): number {
+  let sum = 0;
+  for (const id of userIdsOf(stored)) {
+    if (inScope && !inScope.has(id)) continue;
+    const v = attrOfCell(col, stored, id, name);
+    if (typeof v === "number" && Number.isFinite(v)) sum += v;
+  }
+  return sum;
+}
+
 /**
  * The value of attribute `name` (label or code, case-insensitive) of `person` in a stored user cell of `col`: a number, text or boolean; null when the person
  * is not in the cell or the attribute has no value. Used by the formula function ATTR (design module2 section 6.2). An unknown attribute name is a #NAME? error.

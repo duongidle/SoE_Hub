@@ -29,7 +29,7 @@ import { columnFromDb, rowFromDb } from "./table-schema";
 import { assertColumnKey, type DhColumn, type Stored } from "./types";
 import type { LoadedRow } from "./column-source";
 import { keyMatch } from "./access";
-import { attrOfCell } from "./user-values";
+import { attrOfCell, attrSumOfCell } from "./user-values";
 import { dropPersonalValues, idsOf, membersOf, overlayRel, refreshReaderScoped } from "./reader-scope";
 
 type Raw = Record<string, unknown>;
@@ -601,10 +601,18 @@ export async function buildFormulaEnv(db: Executor, ix: OwnerIndex, tableId: str
   }
 
   const meId = reader ? reader.userId : ix.ownerId;
+  const scopeIds = reader ? reader.ids : (ix.ownerReader?.ids ?? null);
   const ctx: EvalContext = {
     now,
     plans,
     me: () => meId ?? null,
+    scope: () => scopeIds,
+    attrSum: (key, name, mine) => {
+      const c = colsByKey.get(key);
+      if (!c) throw new FError("#REF!", "Cột được tham chiếu đã bị xoá.");
+      if (c.type !== "user") throw new FError("#VALUE!", "ATTRSUM cần một cột Người dùng.");
+      return attrSumOfCell(c, current.data[key], name, mine ? new Set(scopeIds ?? []) : null);
+    },
     attr: (key, person, name) => {
       const c = colsByKey.get(key);
       if (!c) throw new FError("#REF!", "Cột được tham chiếu đã bị xoá.");

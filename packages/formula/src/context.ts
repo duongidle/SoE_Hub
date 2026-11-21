@@ -36,6 +36,10 @@ export interface EvalContext {
   me?(): string | null;
   /** The attribute `name` (label or code) of `person` in the user cell `key` of the current row; null when the person is not in the cell. */
   attr?(key: string, person: string, name: string): Scalar;
+  /** The ids in the viewer's scope: the viewer and the people under them (a Leader's team, a Manager's tree). Absent where there is no viewer. */
+  scope?(): string[] | null;
+  /** The sum of the numeric attribute `name` over the people of the user cell `key` of the current row; only those in the viewer's scope when `mine`. */
+  attrSum?(key: string, name: string, mine: boolean): number;
   /** Grouped plans by call-node id. */
   plans?: Map<number, GroupPlan>;
 }

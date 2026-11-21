@@ -16,6 +16,8 @@ export interface Fixture {
   me?: string;
   /** User cells with attributes by cell key: person id to attributes by label. */
   people?: Record<string, Record<string, Record<string, Scalar>>>;
+  /** The ids in the viewer's scope (INSCOPE, ATTRSUM "của tôi"). */
+  scope?: string[];
 }
 
 /** Names in tests: `[a_b]` is the cell `a_b`; `[T1].[x]` and `[T2].[x]` are columns of the two tables. */
@@ -44,6 +46,12 @@ export function ctxOf(f: Fixture = {}): EvalContext {
     plans: f.plans,
     me: () => f.me ?? null,
     attr: (key, person, name) => f.people?.[key]?.[person]?.[name] ?? null,
+    scope: () => f.scope ?? (f.me ? [f.me] : null),
+    attrSum: (key, name, mine) => {
+      const ids = String(f.cells?.[key] ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+      const scope = f.scope ?? (f.me ? [f.me] : []);
+      return ids.filter((id) => !mine || scope.includes(id)).reduce((a, id) => a + (Number(f.people?.[key]?.[id]?.[name]) || 0), 0);
+    },
   };
 }
 

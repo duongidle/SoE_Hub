@@ -158,6 +158,6 @@ describe("viewer functions: columns and errors", () => {
 
   it("the function catalogue lists them", async () => {
     const f = await mgrA("datahub.formula.functions", {});
-    expect(f.functions.filter((x: { group: string }) => x.group === "Người xem").map((x: { name: string }) => x.name).sort()).toEqual(["ATTR", "ISME", "ME"]);
+    expect(f.functions.filter((x: { group: string }) => x.group === "Người xem").map((x: { name: string }) => x.name).sort()).toEqual(["ATTR", "ATTRSUM", "INSCOPE", "ISME", "ME"]);
   });
 });
