@@ -1,0 +1,19 @@
+meta {
+  name: onboarding.overview
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/api/v1/onboarding/overview?status=active
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Trang Theo dõi: mỗi dòng một nhân sự. Manager xem cả cây, Leader xem team và lộ trình đang theo dõi. Lọc: leader_id, source_plan_id, q, status.
+}

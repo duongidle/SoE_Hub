@@ -295,6 +295,8 @@ describe("onboarding 9B", () => {
   });
 });
 
+const GROUP_CYCLE = ["test", "mockup", "on_job", "qna", "daily"] as const;
+
 describe("onboarding 9C", () => {
   const monday = (): string => {
     const d = businessDate(new Date());
@@ -341,5 +343,30 @@ describe("onboarding 9C", () => {
     expect(all).toHaveLength(1);
     expect((await mine(leader, "onboarding.daily")).filter((n) => n.body.includes("xong 1 việc"))).toHaveLength(0); // rewritten, not a second one
     expect(await mine(staff, "onboarding.daily")).toHaveLength(0);
+  });
+
+  it("overview: a Leader sees only their own team; the Manager sees the tree; 10 plans of 20 checkpoints (timed)", async () => {
+    const f = await leaderForm();
+    const mgr = as(t, org.mgrA.id, "web");
+    const db = t.c.db.db;
+    const ids: string[] = [];
+    for (let n = 0; n < 9; n++) {
+      const [u] = await db.insert(users).values({ email: `ov${n}.${org.tag}@base.vn`, fullName: `Nhân sự ${n} ${org.tag}`, roles: ["user"], status: "active", passwordHash: "x" }).returning({ id: users.id });
+      await db.insert(orgMemberships).values({ userId: u!.id, managerId: org.mgrA.id, leaderId: org.leaderA.id });
+      ids.push(u!.id);
+    }
+    const cps = Array.from({ length: 20 }, (_, k) => ({ week_no: 1, name: `CP ${k}`, group: GROUP_CYCLE[k % GROUP_CYCLE.length], conditions: [{ type: "metric", form_id: f.id, agg: "count", threshold: 1, range: "plan" }] }));
+    await runPlan([{ name: "W1", items: [{ name: "Việc", weekday: 1 }] }], cps); // UserA1
+    for (const id of ids) await runPlan([{ name: "W1", items: [{ name: "Việc", weekday: 1 }] }], cps, leader, id);
+    const t0 = Date.now();
+    const rows = (await leader("onboarding.overview", {})) as any[];
+    const ms = Date.now() - t0;
+    expect(ms).toBeLessThan(2000); // measured 135 ms (23/11/2026, 10 plans x 20 checkpoints)
+    expect(rows.length).toBeGreaterThanOrEqual(10);
+    expect(rows[0]).toMatchObject({ checkpoints_total: 20, total_weeks: 1, groups: { test: { total: 4, passed: 0, state: expect.any(String) } } });
+    expect(((await leader2("onboarding.overview", {})) as any[]).length).toBe(0);
+    expect(((await mgr("onboarding.overview", {})) as any[]).length).toBe(rows.length);
+    expect(((await staff("onboarding.overview", {})) as any[]).length).toBe(0);
+    expect(((await leader("onboarding.overview", { q: "Nhân sự 3" })) as any[]).length).toBe(1);
   });
 });

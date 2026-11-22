@@ -8,6 +8,7 @@ import type { HandlerCtx } from "../../core/types";
 import { cloneForm } from "../form/io";
 import { CheckpointIn, checkpointOperations, copyCheckpoints, readCheckpoints, writeCheckpoints } from "./checkpoints";
 import { applyGrants } from "./grants";
+import { overviewOperations } from "./overview";
 import {
   Id, StructureIn, guardAi, isMonday, loadPerson, loadPlan, planFrom, requirePlan, rights, syncOccurrences, treeOf, type ItemInput, type PlanRow, type Structure,
 } from "./shared";
@@ -146,6 +147,7 @@ const touch = (ctx: Ctx, id: string) => ctx.db.execute(sql`UPDATE onb_plans SET 
 
 export const onboardingOperations = [
   ...checkpointOperations,
+  ...overviewOperations,
   defineCommand({
     name: "onboarding.plan.create",
     summary: "Tạo lộ trình từ đầu (nháp hoặc mẫu), có thể kèm luôn giai đoạn, tuần, việc.",
