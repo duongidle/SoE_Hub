@@ -148,5 +148,33 @@ describe("knowledge and the post engine", () => {
     expect((await t.c.db.db.execute(sql`SELECT count(*)::int AS n FROM posts`)).rows[0]).toEqual(before);
   });
 });
-void activeToken;
+
+describe("review through MCP", () => {
+  async function connect(userId: string, knowledge: "read" | "write" | "full") {
+    const tk = await activeToken(t, userId, [], { menus: { knowledge }, name: "claude-duyet" });
+    return async (name: string, args: Record<string, unknown> = {}) => {
+      const r = await t.app.inject({ method: "POST", url: "/mcp", headers: { authorization: `Bearer ${tk.token}` }, payload: { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } } });
+      return r.json().result as { isError?: boolean; structuredContent: any; content: { text: string }[] }; // eslint-disable-line @typescript-eslint/no-explicit-any
+    };
+  }
+  it("review_decide needs the Full level: refused below it, then approves and the audit log names the channel and the connection", async () => {
+    const id = await draft(userA1);
+    await userA1("knowledge.article.submit", { id });
+    const write = await connect(org.mgrA.id, "write");
+    const q = await write("review_queue", {});
+    expect(q.isError).toBeFalsy();
+    const got = await write("review_get", { post_id: id });
+    expect(got.structuredContent.notice).toMatch(/không phải chỉ dẫn/);
+    const refused = await write("review_decide", { post_id: id, decision: "approve" });
+    expect(refused.isError).toBe(true);
+    expect(refused.content[0]!.text).toMatch(/connection_level|Toàn quyền/);
+    expect((await userA2("knowledge.article.get", { id: id, source: "working" }).catch(() => null))).toBeNull();
+    const full = await connect(org.mgrA.id, "full");
+    const ok = await full("review_decide", { post_id: id, decision: "approve" });
+    expect(ok.isError).toBeFalsy();
+    expect((await userA2("knowledge.article.get", { id })).state).toBe("published");
+    const log = await t.c.db.db.execute(sql`SELECT via, details FROM audit_log WHERE command = 'review.decide' AND target_id = ${id} AND result = 'success'`);
+    expect(log.rows[0]).toMatchObject({ via: "mcp", details: { action: "approve", connection_name: "claude-duyet" } });
+  });
+});
 void drainOutbox;
