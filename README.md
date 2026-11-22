@@ -150,6 +150,8 @@ pnpm --filter @soe/api demo:seed --reset    # xoá dữ liệu Deal và chính s
 pnpm --filter @soe/api demo:seed --check    # không ghi gì: in bảng đối chiếu doanh thu theo tháng và kiểm Sổ com 5 deal mẫu
 ```
 
+File chính sách PS ngoài repo (`SoE_hub_demo-policy.json`) có hai trường: `ps_pod_rate` (quỹ PS POD) và `ps_soe_share` (phần của SoE trong quỹ PS, giả định demo vì PM thoả thuận theo deal). Deal PS demo có một người Leading với % com = `ps_soe_share`, không Associate; có `Trần chia PS = 1`.
+
 Mặc định script dùng 5 người giả (`demo-seed.*@base.vn`). Muốn dùng tên và email thật thì đặt file JSON **ngoài repo** (không commit), đường dẫn mặc định là `SoE_hub_demo-people.json` cạnh thư mục repo, hoặc biến `DEMO_PEOPLE_FILE`: `{"people":[{"key":"mgr","name":"…","email":"…","role":"manager"},{"key":"ld1","role":"leader","manager":"mgr",…},{"key":"us1","role":"user","leader":"ld1",…}]}` (đủ 1 Manager, 2 Leader, 2 User, theo thứ tự đó). Mật khẩu sinh ngẫu nhiên lúc tạo tài khoản và được **thêm** vào file ngoài repo `SoE_hub_tai-khoan-dev.txt` (hoặc biến `DEMO_ACCOUNTS_FILE`). Cây: Leader đầu có hai User dưới, Leader thứ hai không có User. Mọi deal do Manager tạo; người SoE trong file thành Leading, SoE Associate thành Associate.
 
 ## Cấu trúc

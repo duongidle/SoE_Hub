@@ -188,7 +188,7 @@ function checkAttrs(attrs: UserAttr[], ctx: z.RefinementCtx): void {
     seen.add(a.key);
     if (a.kind === "select" && (!a.options || a.options.length === 0)) ctx.addIssue({ code: "custom", message: `Thuộc tính "${a.label}" kiểu nhãn cần danh sách nhãn.` });
     if (a.kind !== "select" && a.options) ctx.addIssue({ code: "custom", message: `Thuộc tính "${a.label}" không có danh sách nhãn.` });
-    if ((a.sum_max !== undefined || a.cap_param !== undefined) && a.kind !== "percent") ctx.addIssue({ code: "custom", message: `Giới hạn tổng chỉ dùng cho thuộc tính phần trăm ("${a.label}").` });
+    if ((a.sum_max !== undefined || a.cap_param !== undefined || a.cap_role !== undefined) && a.kind !== "percent") ctx.addIssue({ code: "custom", message: `Giới hạn tổng chỉ dùng cho thuộc tính phần trăm ("${a.label}").` });
   }
 }
 

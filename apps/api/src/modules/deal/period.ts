@@ -7,6 +7,8 @@ import { currentChangeSeq } from "../datahub/change-queue";
 import { waitConsistent } from "../datahub/consistency";
 import { sourceOf } from "../datahub/column-source";
 import { capFor } from "../datahub/people-caps";
+import { COM_CAP_PARAM } from "./com-cap";
+import { comCapOf } from "./participants";
 import { activeLocks } from "../datahub/period-guard";
 import { rowFromDb } from "../datahub/table-schema";
 import { userIdsOf } from "../datahub/user-values";
@@ -101,10 +103,13 @@ async function review(ctx: Ctx, tree: Tree, ym: string, staleDays: number): Prom
   for (const r of unmatched) items.push(base("unmatched_receipt", "receipts", r.id, null, { received_on: dateStr(cellOf(tree.receipts, r, "ngay_nhan")), amount: numOf(cellOf(tree.receipts, r, "so_tien")), payer: cellOf(tree.receipts, r, "nguoi_tra") }));
 
   // 3. confirmed instalments whose commission shares do not add up to the cap `Tỉ lệ SoE`
-  const cap = await capFor(ctx.db, tree.dots.acc.datahub.id, "Tỉ lệ SoE", end);
+  // (a deal whose own cap differs from `Tỉ lệ SoE`, such as PS with `Trần chia PS`, is left out: its % is agreed per deal and the cap is only a ceiling; module4 mục 9)
+  const cap = await capFor(ctx.db, tree.dots.acc.datahub.id, COM_CAP_PARAM, end);
   if (cap !== null) {
     for (const r of inPeriod) {
       if (!confirmed(tree.dots, r)) continue;
+      const dealRow = deals.get(dealOfDot(r) ?? "");
+      if (dealRow && (await comCapOf(ctx, tree.deals, dealRow)).cap !== cap) continue;
       const split = (cellOf(tree.dots, r, "chia_com_dot") as unknown as PersonEntry[] | null) ?? [];
       const total = (Array.isArray(split) ? split : []).reduce((s, e) => s + Number(e?.attrs?.[COM_ATTR] ?? 0), 0);
       if (Math.abs(total - cap) > 1e-9) items.push(base("com_cap_mismatch", "payments", r.id, dealOfDot(r), { total, cap }));

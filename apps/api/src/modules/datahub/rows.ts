@@ -436,7 +436,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
         if (access.level !== "owner" && !col.allowEdit) lockedColumns.add(col.name);
         if (col.type === "user") {
           for (const id of userIdsOf(v)) userUses.push({ row: p.indexes[0]!, column: col.name, id });
-          if (hasAttrs(col)) peopleCells.push({ row: p.indexes[0]!, col, value: v });
+          if (hasAttrs(col)) peopleCells.push({ rowId: p.id, row: p.indexes[0]!, col, value: v });
         }
         changes.push({ field: k, old: was, new: v });
         changedColumns.add(k);
@@ -453,7 +453,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
       if (access.level !== "owner" && !col.allowEdit && col.layer !== "custom") lockedColumns.add(col.name);
       if (col.type === "user") {
           for (const id of userIdsOf(v)) userUses.push({ row: p.indexes[0]!, column: col.name, id });
-          if (hasAttrs(col)) peopleCells.push({ row: p.indexes[0]!, col, value: v });
+          if (hasAttrs(col)) peopleCells.push({ rowId: p.id, row: p.indexes[0]!, col, value: v });
         }
       ownWrites.set(p.id, { ...(ownWrites.get(p.id) ?? {}), [k]: v });
       ownChanged = true;
@@ -527,7 +527,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
         const v = c.storage === "person" ? own[c.key] : data[c.key];
         if (c.type === "user") {
           for (const id of userIdsOf(v)) userUses.push({ row: p.indexes[0]!, column: c.name, id });
-          if (hasAttrs(c)) peopleCells.push({ row: p.indexes[0]!, col: c, value: v ?? null });
+          if (hasAttrs(c)) peopleCells.push({ rowId: p.id, row: p.indexes[0]!, col: c, value: v ?? null });
         }
       }
       for (const c of autoCols) data[c.key] = autoStart.get(c.key)! + n;
@@ -546,7 +546,7 @@ export async function applyRowOps(ctx: Ctx, access: TableAccess, schema: TableSc
     throwIssues(issues);
   }
   await checkMembers(db, access, userUses, issues);
-  await checkPeopleCaps(db, access.datahub.id, peopleCells, businessDate(new Date()), issues);
+  await checkPeopleCaps(db, access.datahub.id, peopleCells, businessDate(new Date()), issues, { keyOfRole: (role) => schema.alive.find((c) => c.role === role)?.key, data: (id) => newData.get(id) });
   throwIssues(issues);
 
   // ---- 6. write ----------------------------------------------------------------------------------------

@@ -24,22 +24,42 @@ export async function capFor(db: Executor, datahubId: string, name: string, toda
 }
 
 export interface PeopleCell {
+  /** Id of the row (to read the row as it will be saved, for `cap_role`). */
+  rowId?: string;
   row: number;
   col: DhColumn;
   value: Stored;
 }
 
 /** Checks the data-driven limits of the user cells just written; adds one issue per cell that is over. */
-export async function checkPeopleCaps(db: Executor, datahubId: string, cells: PeopleCell[], today: string, issues: { row: number; column: string; message: string }[]): Promise<void> {
+export async function checkPeopleCaps(
+  db: Executor,
+  datahubId: string,
+  cells: PeopleCell[],
+  today: string,
+  issues: { row: number; column: string; message: string }[],
+  /** For `cap_role`: the key of the column holding a role, and the row as it will be saved (formulas computed). */
+  rowRead?: { keyOfRole: (role: string) => string | undefined; data: (rowId: string) => Record<string, Stored> | undefined },
+): Promise<void> {
   const cache = new Map<string, number | null>();
   for (const c of cells) {
     for (const a of userAttrs(c.col)) {
-      if (!a.cap_param) continue;
-      if (!cache.has(a.cap_param)) cache.set(a.cap_param, await capFor(db, datahubId, a.cap_param, today));
-      const cap = cache.get(a.cap_param);
+      let cap: number | null | undefined;
+      let param = a.cap_param;
+      const roleKey = a.cap_role && rowRead ? rowRead.keyOfRole(a.cap_role) : undefined;
+      if (roleKey && c.rowId) {
+        // the cap of this row (a formula column): not computed yet or empty = no limit here; the money commands check it again from the stored value
+        const v = rowRead!.data(c.rowId)?.[roleKey];
+        cap = typeof v === "number" ? v : null;
+        param = a.cap_role;
+      } else {
+        if (!param) continue;
+        if (!cache.has(param)) cache.set(param, await capFor(db, datahubId, param, today));
+        cap = cache.get(param);
+      }
       if (cap === null || cap === undefined) continue;
       const total = entriesOf(c.value).reduce((s, e) => s + (typeof e.attrs[a.key] === "number" ? (e.attrs[a.key] as number) : 0), 0);
-      if (total > cap + 1e-9) issues.push({ row: c.row, column: c.col.name, message: `Tổng "${a.label}" của cột "${c.col.name}" là ${Math.round(total * 10000) / 100}%, vượt "${a.cap_param}" (${Math.round(cap * 10000) / 100}%).` });
+      if (total > cap + 1e-9) issues.push({ row: c.row, column: c.col.name, message: `Tổng "${a.label}" của cột "${c.col.name}" là ${Math.round(total * 10000) / 100}%, vượt "${param}" (${Math.round(cap * 10000) / 100}%).` });
     }
   }
 }

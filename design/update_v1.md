@@ -8,6 +8,7 @@
 | Việc | Thiết kế gốc | Lý do dời / khi nào cần |
 |---|---|---|
 | Bảng ánh xạ BPM, lệnh `deal.upsert` riêng | Module 4 mục 7.1, 14 | Làm khi nối BPM thật (4.7, Dương 22/11) |
+| Bù cho cây đang chạy: cột công thức `Trần % com` (vai trò `tran_com`), dòng `Trần chia PS = 1` ở Tham số com; cây cũ không có cột thì lệnh rơi về `Tỉ lệ SoE` | Module 4 mục 9, 23/11 | Làm cùng việc bù cột dưới đây |
 | Bù cột cho cây đang chạy (cột mới, `Mã ngoài`, cột team thành công thức) | Module 4, 4.7 | Chỉ cần cho cây tạo trước 4.7; làm trước khi nhập dữ liệu thật |
 | Sinh lại snapshot drizzle cho migration 0021, 0022, 0023 (viết tay) | — | Khi `drizzle-kit` chạy được; kiểm `db:generate` không sinh diff thừa |
 

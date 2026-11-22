@@ -325,3 +325,13 @@ Việc 1-3 là phần còn của 4.6E (Opus quyết ở mục trên), 4-7 là ph
 ## Lỗi phát hiện khi dựng dữ liệu demo (22/11/2026, chưa sửa)
 
 - `ensureTreeTemplates` không hoàn thiện được cây dựng dở: lần dựng lỗi giữa chừng để lại bảng "Tham số com" 0 cột; chạy lại không bù cột (bản đồ nói chạy lại được). Rủi ro ở production khi dựng cây cho Manager mới bị gián đoạn. Cần sửa: dựng cây trong một giao dịch hoặc chạy lại bù bảng/cột còn thiếu. Ghi vào "Còn nợ" của `progress.md` khi 9A xong.
+
+
+## Com PS (23/11/2026)
+
+- **Trần % com là một cột của deal, không phải code theo loại deal** (Dương hỏi "sao không sửa công thức"; nguyên tắc 2 `kinh-nghiem-quyet-dinh.md`: luật nằm trong công thức Manager sửa được). Vai trò mới `tran_com` (`ROLE_SETS.deals`, kiểu Phần trăm/Số). Bộ mặc định có cột công thức ẩn `Trần % com` = `IF([Nhóm dịch vụ]="PS", tra "Trần chia PS", tra "Tỉ lệ SoE")`, tra theo ngày hiệu lực như `Tỉ lệ com sale`; trống khi chưa có tham số (không chặn, đúng quyết định 4.2).
+- **Một nơi đọc trần:** `participants.ts` `comCapOf` (cột vai trò `tran_com` của deal; cây cũ không có cột thì rơi về tham số `Tỉ lệ SoE`), dùng bởi `assertComCap`, `assertComTotal` (đổi tham số thứ tư từ `dealId` sang dòng deal) và rà soát kỳ. Ô người tham gia: thuộc tính `cap_role` (user-values.ts) thắng `cap_param`; `checkPeopleCaps` đọc giá trị cột đó trên dòng sắp lưu, chưa tính xong hoặc trống thì không chặn ở ô (lệnh thanh toán kiểm lại từ giá trị đã lưu).
+- Bảng `Đợt thanh toán` và `Chia com đợt này` không còn `cap_param` trên ô (không có nhóm riêng, chỉ lệnh ghi, đã kiểm trước).
+- `period.review` `com_cap_mismatch` (tổng % phải bằng trần) chỉ xét deal có trần bằng `Tỉ lệ SoE`; deal có trần khác (PS) bỏ qua vì % do PM thoả thuận.
+- Thiếu `Trần chia PS` thì cột trống và deal PS không bị chặn (không đoán). Cây đang chạy cần bù cột `Trần % com` và dòng `Trần chia PS = 1` (ghi ở `update_v1.md`).
+- Demo: deal PS một người Leading, % com = `ps_soe_share` (file chính sách ngoài repo), không Associate.

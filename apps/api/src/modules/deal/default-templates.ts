@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COM_CAP_PARAM, COM_CAP_ROLE } from "./com-cap";
 
 /**
  * The DEFAULT SET of template tables (design module4 1.2, 3.1, 3.3, 4, 5, 6, 9): declared as data, never as code per table. A new tree (a new Manager)
@@ -96,12 +97,19 @@ const POLICY: DefaultTable = {
 
 /** The date a commission policy is looked up at: the closing date, or the expected one while the deal is open. */
 const POLICY_DATE = 'IF([Closing date]="",[Ngày dự kiến chốt],[Closing date])';
-const latest = (table: string, extra = "") => `MAXIFS([${table}].[Hiệu lực từ],${extra}[${table}].[Hiệu lực từ],"<="&${POLICY_DATE})`;
+const latest = (table: string, extra = "", at = POLICY_DATE) => `MAXIFS([${table}].[Hiệu lực từ],${extra}[${table}].[Hiệu lực từ],"<="&${at})`;
 const TI_LE_COM_SALE =
   `=IF(OR([Loại deal]="POD bán mới",[Loại deal]="POD CSM"),IF(OR([Nguồn lead]="",[Level BC]="",[Performance BC]=""),"",` +
   `SUMIFS([Chính sách com].[Tỉ lệ],[Chính sách com].[Hiệu lực từ],${latest("Chính sách com")},[Chính sách com].[Nguồn lead],[Nguồn lead],[Chính sách com].[Level],[Level BC],[Chính sách com].[Performance],[Performance BC])),` +
   `IF([Nhóm dịch vụ]="PS",SUMIFS([Tham số com].[Giá trị],[Tham số com].[Tên tham số],"Tỉ lệ PS POD",[Tham số com].[Hiệu lực từ],${latest("Tham số com", '[Tham số com].[Tên tham số],"Tỉ lệ PS POD",')}),""))`;
 
+/** The cap of the total `% com` of one deal (module4 mục 9): PS -> `Trần chia PS`, else `Tỉ lệ SoE`; empty while the parameter is not entered. */
+// A deal with no date yet is capped by the version in force today.
+const CAP_DATE = 'IF([Closing date]<>"",[Closing date],IF([Ngày dự kiến chốt]<>"",[Ngày dự kiến chốt],TODAY()))';
+const capParam = (name: string) =>
+  `IF(COUNTIFS([Tham số com].[Tên tham số],"${name}",[Tham số com].[Hiệu lực từ],${latest("Tham số com", `[Tham số com].[Tên tham số],"${name}",`, CAP_DATE)})=0,"",` +
+  `SUMIFS([Tham số com].[Giá trị],[Tham số com].[Tên tham số],"${name}",[Tham số com].[Hiệu lực từ],${latest("Tham số com", `[Tham số com].[Tên tham số],"${name}",`, CAP_DATE)}))`;
+const TRAN_COM = `=IF([Nhóm dịch vụ]="PS",${capParam("Trần chia PS")},${capParam(COM_CAP_PARAM)})`;
 
 // ------------------------------------------------------------------------------------------------
 // BANT and the queue "Cần chấm lại hôm nay" (module4 8): the rule H-002 is a FORMULA of the template, the Admin or Manager edits it when the criteria change
@@ -176,6 +184,7 @@ const DEALS: DefaultTable = {
     { name: "Performance BC", type: "single_select", role: "performance_bc", config: opts(["Under KPI", "KPI", "Goal", "Out performance"]), allow_edit: true },
     { name: "Mã số thuế", type: "text", allow_edit: true },
     { name: "Nhóm dịch vụ", type: "formula", config: { formula: '=IF(LEFT([Loại deal],3)="POD","POD",IF(LEFT([Loại deal],2)="PS","PS","Khác"))', result_type: "text" }, hidden: true },
+    { name: "Trần % com", type: "formula", config: { formula: TRAN_COM, result_type: "percent" }, role: COM_CAP_ROLE, hidden: true, description: "Mức trần tổng % com của người tham gia deal: deal PS lấy `Trần chia PS`, deal khác lấy `Tỉ lệ SoE` (Tham số com, bản hiệu lực theo ngày chốt). Trống khi chưa có tham số: không chặn. Manager sửa công thức khi đổi luật." },
     { name: "Mã deal", type: "formula", config: { formula: '="D-"&TEXT(ROW_NO(),"000000")', result_type: "text" }, role: "ma_deal" },
     { name: "Tỉ lệ com sale", type: "formula", config: { formula: TI_LE_COM_SALE, result_type: "percent" } },
     ...BANT_COLUMNS,
@@ -187,7 +196,7 @@ const DEALS: DefaultTable = {
         attrs: [
           { key: "vai_tro", label: "Vai trò", kind: "select", options: ["Leading", "Associate", "Advisor"] },
           { key: "ty_le_dt", label: "% doanh thu", kind: "percent", default: 0, sum_max: 1, default_when: { attr: "vai_tro", value: "Leading", set: 1, only_one: true } },
-          { key: "ty_le_com", label: "% com", kind: "percent", default: 0, cap_param: "Tỉ lệ SoE" },
+          { key: "ty_le_com", label: "% com", kind: "percent", default: 0, cap_param: COM_CAP_PARAM, cap_role: COM_CAP_ROLE },
           { key: "tinh_deal", label: "Tính vào số deal", kind: "boolean", default: false, default_when: { attr: "vai_tro", value: "Leading", set: true } },
         ],
       },
@@ -352,8 +361,11 @@ const KPI: DefaultTable = {
 // ------------------------------------------------------------------------------------------------
 
 const SOURCE = opts(["Tay", "AI", "API"]);
-const COM_ONLY = { attrs: [{ key: "ty_le_com", label: "% com", kind: "percent", default: 0, cap_param: "Tỉ lệ SoE" }] };
-const PEOPLE_ATTRS = DEALS.columns.find((c) => c.name === PEOPLE)!.config!;
+// The instalment tables carry no cap on the cell: they have no service group of their own, and only the commands write them, after `assertComCap` / `assertComTotal`
+// (participants.ts) chose the cap by the deal group (module4 mục 9, PS has `Trần chia PS`, not `Tỉ lệ SoE`).
+const withoutCap = (attrs: Record<string, unknown>[]) => attrs.map(({ cap_param: _p, cap_role: _b, ...a }) => a);
+const COM_ONLY = { attrs: [{ key: "ty_le_com", label: "% com", kind: "percent", default: 0 }] };
+const PEOPLE_ATTRS = { ...DEALS.columns.find((c) => c.name === PEOPLE)!.config!, attrs: withoutCap((DEALS.columns.find((c) => c.name === PEOPLE)!.config as { attrs: Record<string, unknown>[] }).attrs) };
 
 /** The bank transfers (module4 7.3a). Manager only: the key column of the split lock is never filled, so a member reads no row. */
 const RECEIPTS: DefaultTable = {

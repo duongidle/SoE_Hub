@@ -71,13 +71,12 @@ const DEALS_FILE = process.env.DEMO_DEALS_FILE ?? fileURLToPath(new URL("../../.
 const SOE_ORDER = ["ld1", "us2", "ld2", "mgr", "us1"];
 const LEAD_COM = 0.15; // Leading SoE: share of the sale's commission
 const ASSOC_COM = 0.05; // Associate SoE
-/** PS rates (CS-SALES-CRM-PS, mục 4.1) are read from a JSON outside the repo: {"ps_pod_rate": 0.xx}. Without it PS deals get no commission. */
+/** PS rates (CS-SALES-CRM-PS, mục 4.1) are read from a JSON outside the repo: {"ps_pod_rate": 0.xx, "ps_soe_share": 0.xx}. Without them PS deals get no commission. `ps_soe_share` (SoE share of the PS fund) is a demo assumption: the PM agrees it per deal. */
 const POLICY_FILE = process.env.DEMO_POLICY_FILE ?? `${repoParent}SoE_hub_demo-policy.json`;
-const psPodRate = (): number | null => {
-  if (!existsSync(POLICY_FILE)) return null;
-  const v = Number((JSON.parse(readFileSync(POLICY_FILE, "utf8")) as { ps_pod_rate?: number }).ps_pod_rate);
-  return Number.isFinite(v) && v > 0 ? v : null;
-};
+const psPolicyFile = (): { ps_pod_rate?: number; ps_soe_share?: number } => (existsSync(POLICY_FILE) ? (JSON.parse(readFileSync(POLICY_FILE, "utf8")) as { ps_pod_rate?: number; ps_soe_share?: number }) : {});
+const positive = (x: unknown): number | null => (Number.isFinite(Number(x)) && Number(x) > 0 ? Number(x) : null);
+const psPodRate = (): number | null => positive(psPolicyFile().ps_pod_rate);
+const psSoeShare = (): number | null => positive(psPolicyFile().ps_soe_share);
 const POLICY_FROM = "2021-01-01"; // the workbook has no effective date; early enough to cover every deal
 
 const cellValue = (c: ExcelJS.Cell): unknown => {
@@ -191,6 +190,22 @@ async function main() {
     await ensureTreeTemplates(db, workerEmit(db), W.m);
     await drain(c);
     const mgr = as(c, W.m);
+    // A tree built before `Trần % com` existed: add the column and the cap_role of the people attribute (what the Manager would do; design/update_v1.md).
+    const dealsDef = BUILTIN_DEFAULT_SET.find((d) => d.name === "Deals")!;
+    const dealsTpl = ((await mgr("datahub.template.list")) as { name: string; id: string }[]).find((x) => x.name === "Deals")!;
+    const tplCols = ((await mgr("datahub.template.get", { template_id: dealsTpl.id })) as { columns: { name: string }[] }).columns;
+    if (!tplCols.some((x) => x.name === "Trần % com")) {
+      const cap = dealsDef.columns.find((x) => x.name === "Trần % com")!;
+      await mgr("datahub.template.column.create", { template_id: dealsTpl.id, name: cap.name, type: cap.type, config: cap.config, role: cap.role, hidden: true, description: cap.description });
+      const people = dealsDef.columns.find((x) => x.name === "Người tham gia")!;
+      await mgr("datahub.template.column.update", { template_id: dealsTpl.id, column: "Người tham gia", config: people.config });
+      console.log("Đã bù cột Trần % com cho cây demo.");
+    }
+    // the instalment tables carry no cap on the cell any more (the commands check it): bring an old tree's two cells to the default (idempotent)
+    const dotsDef = BUILTIN_DEFAULT_SET.find((d) => d.name === "Đợt thanh toán")!;
+    const dotsTpl = ((await mgr("datahub.template.list")) as { name: string; id: string }[]).find((x) => x.name === "Đợt thanh toán")!;
+    for (const name of ["Người tham gia", "Chia com đợt này"]) await mgr("datahub.template.column.update", { template_id: dotsTpl.id, column: name, config: dotsDef.columns.find((x) => x.name === name)!.config });
+    await drain(c);
     const tables: Record<string, string> = {};
     for (const d of BUILTIN_DEFAULT_SET) tables[d.name] = ((await mgr("datahub.template.list")) as { name: string; master_table_id: string }[]).find((x) => x.name === d.name)!.master_table_id;
 
@@ -218,6 +233,7 @@ async function main() {
     // 3. commission policy from the workbook ------------------------------------------------------
     const { policy, deals } = await readWorkbook();
     const psRate = psPodRate();
+    const psShare = psSoeShare();
     if (reset && !dry) {
       for (const name of ["Chính sách com", "Tham số com"]) for (const r of await rowsOf(tables[name]!)) await mgr("datahub.row.delete", { table_id: tables[name]!, row_id: r.id });
     }
@@ -225,7 +241,9 @@ async function main() {
       // Tỉ lệ SoE is the ceiling of the SoE shares (Leading + Associate). PS has no rate in the workbook, so "Tỉ lệ PS POD" is not set.
       await mgr("datahub.row.create", { table_id: tables["Tham số com"]!, data: { "Hiệu lực từ": POLICY_FROM, "Tên tham số": "Tỉ lệ SoE", "Giá trị": LEAD_COM + ASSOC_COM } });
       if (psRate !== null) await mgr("datahub.row.create", { table_id: tables["Tham số com"]!, data: { "Hiệu lực từ": POLICY_FROM, "Tên tham số": "Tỉ lệ PS POD", "Giá trị": psRate } });
-      else console.log("Không có file chính sách PS ngoài repo: không đặt Tỉ lệ PS POD, deal PS không có com.");
+      // PS: one SoE per deal, the sum of their % may be up to the whole fund (module4 mục 9).
+      await mgr("datahub.row.create", { table_id: tables["Tham số com"]!, data: { "Hiệu lực từ": POLICY_FROM, "Tên tham số": "Trần chia PS", "Giá trị": 1 } });
+      if (psRate === null) console.log("Không có file chính sách PS ngoài repo: không đặt Tỉ lệ PS POD, deal PS không có com.");
       for (const p of policy) await mgr("datahub.row.create", { table_id: tables["Chính sách com"]!, data: { "Hiệu lực từ": POLICY_FROM, "Nguồn lead": p.lead, Level: p.level, Performance: p.perf, ...(p.min ? { "Doanh thu tối thiểu": p.min } : {}), "Tỉ lệ": p.rate } });
       console.log(`Đã nạp ${policy.length} dòng chính sách com (ML ${policy.filter((p) => p.lead === "ML").length}, SH ${policy.filter((p) => p.lead === "SH").length}) và Tỉ lệ SoE ${(LEAD_COM + ASSOC_COM) * 100}%.`);
     }
@@ -283,8 +301,9 @@ async function main() {
       const people: ReturnType<typeof person>[] = [];
       const soeId = d.soe ? soeUser.get(d.soe) : undefined;
       const assocId = d.assoc ? soeUser.get(d.assoc) : undefined;
-      if (soeId) people.push(person(soeId, "Leading", 1, LEAD_COM));
-      if (assocId && assocId !== soeId) people.push(person(assocId, "Associate", 0, ASSOC_COM));
+      // PS: one SoE only (Leading), % com = the SoE share of the PS fund (`ps_soe_share` of the policy file, demo assumption); no Associate.
+      if (soeId) people.push(person(soeId, "Leading", 1, pod ? LEAD_COM : (psShare ?? 0)));
+      if (pod && assocId && assocId !== soeId) people.push(person(assocId, "Associate", 0, ASSOC_COM));
       const lead = pod ? (h % 2 === 0 ? "ML" : "SH") : undefined;
       const combo = lead ? byLead[lead][(h >>> 4) % byLead[lead].length]! : undefined;
       const data: Record<string, unknown> = {
@@ -357,7 +376,7 @@ async function main() {
     const led = await keyOf(tables["Sổ com"]!);
     console.log(`\nSổ com: ${ledger.length} dòng. Kiểm 5 deal Won POD và 2 deal Won PS (com sale = tỉ lệ × số tiền về của từng đợt; SoE Leading ${LEAD_COM * 100}%, Associate ${ASSOC_COM * 100}% của com sale):`);
     const pick = (list: Won[], k: number) => list.filter((_, i) => i % Math.max(1, Math.floor(list.length / k)) === 0).slice(0, k);
-    const withPeople = (w: Won) => w.soe || w.assoc;
+    const withPeople = (w: Won) => (w.pod ? w.soe || w.assoc : w.soe);
     for (const w of [...pick(wonList.filter((x) => x.pod && x.lead && withPeople(x)), 5), ...pick(wonList.filter((x) => !x.pod && withPeople(x)), 2)]) {
       const rate = w.pod ? policy.find((p) => p.lead === w.lead && p.level === w.level && p.perf === w.perf)!.rate : psRate;
       const rows = ledger.filter((r) => JSON.stringify(led(r, "Deal") ?? "").includes(w.rowId));
@@ -366,7 +385,7 @@ async function main() {
       for (const r of rows) {
         const who = led(r, "Người"), pct = Number(led(r, "% com") ?? 0), com = Number(led(r, "Com") ?? 0), amt = Number(led(r, "Số tiền về") ?? 0), cs = Number(led(r, "Com sale") ?? 0);
         const whoId = Array.isArray(who) ? String((who[0] as { id?: string })?.id ?? who[0]) : String((who as { id?: string })?.id ?? who);
-        const expSale = rate ? amt * rate : 0, exp = expSale * (whoId === w.soe ? LEAD_COM : ASSOC_COM);
+        const expSale = rate ? amt * rate : 0, exp = expSale * (!w.pod ? (psShare ?? 0) : whoId === w.soe ? LEAD_COM : ASSOC_COM);
         const ok = Math.abs(cs - expSale) <= 1 && Math.abs(com - exp) <= 1;
         console.log(`    ${whoId === w.soe ? "Leading" : "Associate"} tiền về ${amt.toLocaleString("en-US")}: Com sale ${cs.toLocaleString("en-US")} (kỳ vọng ${Math.round(expSale).toLocaleString("en-US")}), % com ${pct}, Com ${com.toLocaleString("en-US")} (kỳ vọng ${Math.round(exp).toLocaleString("en-US")}) ${ok ? "khớp" : "LỆCH"}`);
       }

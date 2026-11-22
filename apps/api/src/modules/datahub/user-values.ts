@@ -19,6 +19,7 @@ export interface UserAttr {
   default?: string | number | boolean | null;
   sum_max?: number;
   cap_param?: string;
+  cap_role?: string;
   default_when?: { attr: string; value: string; set: string | number | boolean; only_one?: boolean };
 }
 
@@ -34,6 +35,8 @@ export const userAttrSchema = z.strictObject({
   sum_max: z.number().min(0).max(1).optional(),
   /** `percent`: the total may not exceed the parameter of this name in the "Tham số com" table of the same datahub (module4 4.5); no value there, no limit. */
   cap_param: z.string().trim().min(1).max(100).optional(),
+  /** `percent`: the cap of the row is the value of the column holding this role in the same row (a formula of the template); it wins over `cap_param`. Empty value: no limit. */
+  cap_role: z.string().min(1).max(40).optional(),
   /** When the person gives no value: `set` instead of `default`, for entries whose attribute `attr` is `value` (`only_one`: only when exactly one entry has it). Example: a lone Leading gets 100% revenue. */
   default_when: z
     .strictObject({ attr: z.string().min(1).max(30), value: z.string().min(1).max(60), set: z.union([z.string(), z.number(), z.boolean()]), only_one: z.boolean().optional() })

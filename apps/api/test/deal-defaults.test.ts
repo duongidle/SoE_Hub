@@ -301,3 +301,43 @@ describe("the default-templates loop", () => {
     expect(started).toBe(1);
   });
 });
+
+describe("the cap of the % com is a column of the deal (Trần % com): PS has its own ceiling (module4 mục 9)", () => {
+  const ps = (name: string, pct: number) =>
+    mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: { "Tên công ty": name, "Loại deal": "PS không kèm POD", "Start date": "2026-06-10", "Ngày dự kiến chốt": "2026-07-01", "Người tham gia": [person(org.userA1.id, { vai_tro: "Leading", ty_le_com: pct })] } }).then((r: { id: string }) => r.id);
+  const settle = async () => {
+    await drainOutbox(t);
+    const { processPendingColumns } = await import("../src/modules/datahub");
+    await processPendingColumns(t.c.db.db);
+    await drainOutbox(t);
+  };
+  const schedule = (deal: string) => mgrA("payment.schedule", { deal_id: deal, payments: [{ legal_entity: "CT PS", amount: 90_000_000, due: "2026-07-01" }] });
+  it("PS: the fund is the paid amount x Tỉ lệ PS POD, SoE gets its share; 100% passes, 120% is refused; POD keeps Tỉ lệ SoE", async () => {
+    // Invented figures only.
+    await mgrA("datahub.row.create", { table_id: tables["Tham số com"]!, data: { "Hiệu lực từ": "2026-01-01", "Tên tham số": "Tỉ lệ PS POD", "Giá trị": 0.25 } });
+    await mgrA("datahub.row.create", { table_id: tables["Tham số com"]!, data: { "Hiệu lực từ": "2026-01-01", "Tên tham số": "Tỉ lệ SoE", "Giá trị": 0.2 } });
+    await mgrA("datahub.row.create", { table_id: tables["Tham số com"]!, data: { "Hiệu lực từ": "2026-01-01", "Tên tham số": "Trần chia PS", "Giá trị": 1 } });
+    const d40 = await ps("PS 40", 0.4);
+    const d100 = await ps("PS 100", 1);
+    await settle();
+    expect(await cell(mgrA, tables["Deals"]!, d40, "Trần % com")).toBe(1);
+    const s = await schedule(d40);
+    await mgrA("payment.confirm", { received_on: "2026-07-02", receipt: { amount: 90_000_000 }, allocations: [{ payment_id: s.payments[0].id, amount: 90_000_000 }] });
+    await settle();
+    const k = await keys(mgrA, tables["Sổ com"]!);
+    const lines = ((await mgrA("datahub.row.list", { table_id: tables["Sổ com"]!, limit: 200 })).items as { data: Record<string, unknown> }[]).filter((r) => (r.data[k["Deal"]!] as string[] | undefined)?.[0] === d40);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.data[k["Com"]!] as number).toBeCloseTo(9_000_000, 3);
+    await schedule(d100);
+    const d120 = await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: { "Tên công ty": "PS 120", "Loại deal": "PS không kèm POD", "Start date": "2026-06-10", "Ngày dự kiến chốt": "2026-07-01", "Người tham gia": [person(org.userA1.id, { vai_tro: "Leading", ty_le_com: 0.7 }), person(org.userA2.id, { vai_tro: "Associate", ty_le_com: 0.5 })] } }).then((r: { id: string }) => r.id).catch((e: unknown) => e);
+    if (typeof d120 === "string") {
+      await settle();
+      expect((await fails(schedule(d120))).details?.reason).toBe("com_over_cap");
+    } else expect(String((d120 as Error).message)).toMatch(/Trần % com|vượt/);
+    const pod = await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: { "Tên công ty": "POD cap", "Loại deal": "POD CSM", "Start date": "2026-06-10", "Ngày dự kiến chốt": "2026-07-01", "Nguồn lead": "ML", "Level BC": "Level 3", "Performance BC": "KPI", "Người tham gia": [person(org.userA1.id, { vai_tro: "Leading", ty_le_com: 0.15 }), person(org.userA2.id, { vai_tro: "Associate", ty_le_com: 0.1 })] } }).then((r: { id: string }) => r.id).catch((e: unknown) => e);
+    if (typeof pod === "string") {
+      await settle();
+      expect((await fails(schedule(pod))).details?.reason).toBe("com_over_cap");
+    } else expect(String((pod as Error).message)).toMatch(/Tỉ lệ SoE|Trần % com|vượt/);
+  });
+});

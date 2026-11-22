@@ -1,6 +1,6 @@
 # Tiến độ
 
-Cập nhật: 22/11/2026
+Cập nhật: 23/11/2026
 
 ## Trạng thái
 
@@ -10,6 +10,8 @@ Cập nhật: 22/11/2026
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 
 ## Đã xong
+
+- **Com PS (23/11):** trần % com đọc từ cột vai trò `tran_com` (`Trần % com`, công thức: PS `Trần chia PS`, còn lại `Tỉ lệ SoE`), một nơi `comCapOf`; demo PS một Leading, com = quỹ × phần SoE. vitest cả bộ 1362 pass 10 skip 0 fail (`DH_EQUIV_EDITS=2500`, mã trước commit này là 5137100 + thay đổi com PS). Chi tiết `module4-quyet-dinh-khi-code.md` "Com PS".
 
 - **Stage 0–3:** nền tảng, tài khoản/phân quyền, Datahub (106 hàm, golden khớp Excel), metric + dashboard + Guest. Quyết định: `design/module{0..3}-*.md`, `design/module{2,3}-quyet-dinh-khi-code.md`.
 - **4.1** (20/11) sửa Stage 2: khoá phân chia, tính theo người đọc, bảng template, giao diện chia sẻ (`module4-quyet-dinh-khi-code.md` 4.1a–d).

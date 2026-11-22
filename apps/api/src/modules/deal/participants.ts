@@ -8,7 +8,8 @@ import { idsOf as readerIdsOf, membersOfDatahub } from "../datahub/reader-scope"
 import { parsedExpr } from "../datahub/row-formulas";
 import { userAttrs, userIdsOf } from "../datahub/user-values";
 import type { DhColumn, PersonEntry, Stored } from "../datahub/types";
-import { roleCol, type Ctx, type RowData, type T } from "./payments";
+import { COM_CAP_PARAM, COM_CAP_ROLE } from "./com-cap";
+import { cellOf, roleCol, type Ctx, type RowData, type T } from "./payments";
 
 /**
  * The people of a deal and what each of them gets, for the money commands (design module4 4.1 "Sửa 22/11/2026").
@@ -153,24 +154,30 @@ export async function participantsOf(ctx: Ctx, deals: T, row: RowData): Promise<
   });
 }
 
-/** The parameter (table `Tham số com`) that the total of the commission shares of a deal may not exceed. */
-export const COM_CAP_PARAM = "Tỉ lệ SoE";
-
 /**
- * The total `% com` of the people of a deal may not exceed `Tỉ lệ SoE` (the value in force today). Checked here, on the shares each person holds, so it
- * holds for any layout of the people columns (design module4 4.6E, Opus decision 22/11/2026); the cap of the attribute (`cap_param`) stays for the
- * one-column layout. No parameter yet: no limit.
+ * The total `% com` of the people of a deal may not exceed the cap of that deal: the value of its `tran_com` column (a formula of the template: PS
+ * `Trần chia PS`, else `Tỉ lệ SoE`; module4 mục 9). A tree without that column falls back to `Tỉ lệ SoE`. Checked here, on the shares each person holds,
+ * so it holds for any layout of the people columns (module4 4.6E). No value: no limit, a tree that has not entered the parameter is not blocked.
  */
-export async function assertComCap(ctx: Ctx, deals: T, parts: Participant[], dealId: string): Promise<void> {
+export async function assertComCap(ctx: Ctx, deals: T, parts: Participant[], deal: RowData): Promise<void> {
   if (parts.length === 0) return;
-  await assertComTotal(ctx, deals, parts.reduce((a, p) => a + p.com, 0), dealId);
+  await assertComTotal(ctx, deals, parts.reduce((a, p) => a + p.com, 0), deal);
 }
 
-/** Same cap for a total given by hand (`com_split` of a call): the sum of the shares may not exceed `Tỉ lệ SoE`. */
-export async function assertComTotal(ctx: Ctx, deals: T, total: number, dealId: string): Promise<void> {
-  const cap = await capFor(ctx.db, deals.acc.datahub.id, COM_CAP_PARAM, businessDate(new Date()));
+/** The cap of a deal: its `tran_com` cell; null = none. */
+export async function comCapOf(ctx: Ctx, deals: T, deal: RowData): Promise<{ cap: number | null; name: string }> {
+  if (roleCol(deals, COM_CAP_ROLE, false)) {
+    const v = cellOf(deals, deal, COM_CAP_ROLE);
+    return { cap: typeof v === "number" ? v : null, name: "Trần % com" };
+  }
+  return { cap: await capFor(ctx.db, deals.acc.datahub.id, COM_CAP_PARAM, businessDate(new Date())), name: COM_CAP_PARAM };
+}
+
+/** Same cap for a total given by hand (`com_split` of a call). */
+export async function assertComTotal(ctx: Ctx, deals: T, total: number, deal: RowData): Promise<void> {
+  const { cap, name } = await comCapOf(ctx, deals, deal);
   if (cap !== null && total > cap + 1e-9) {
-    throw new AppError("validation_error", `Tổng % com của người tham gia deal là ${Math.round(total * 10000) / 100}%, vượt "${COM_CAP_PARAM}" (${Math.round(cap * 10000) / 100}%). Sửa % com của deal trước.`, { reason: "com_over_cap", deal_id: dealId, total, cap });
+    throw new AppError("validation_error", `Tổng % com của người tham gia deal là ${Math.round(total * 10000) / 100}%, vượt "${name}" (${Math.round(cap * 10000) / 100}%). Sửa % com của deal trước.`, { reason: "com_over_cap", deal_id: deal.id, total, cap });
   }
 }
 

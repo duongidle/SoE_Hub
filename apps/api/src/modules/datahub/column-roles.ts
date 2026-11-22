@@ -33,6 +33,7 @@ export const ROLE_SETS: Record<string, { label: string; roles: RoleDef[] }> = {
       { key: "ngay_bat_dau", label: "Ngày bắt đầu (Start date)", types: ["date", "datetime"], required: true, usedBy: ["Team của deal", "Cohort CR1/CR2"] },
       { key: "doanh_thu", label: "Doanh thu", types: MONEY, required: true, usedBy: ["Index", "Forecast", "Com"] },
       { key: "trang_thai", label: "Trạng thái (Status)", types: ["single_select"], required: true, usedBy: ["Khoá kỳ", "Forecast", "BANT", "Index"] },
+      { key: "tran_com", label: "Trần % com của deal", types: ["percent", "number"], required: false, usedBy: ["Ràng buộc tổng % com (lệnh thanh toán, ô người tham gia)", "Rà soát kỳ"] },
       { key: "loai_deal", label: "Loại deal", types: ["single_select"], required: true, usedBy: ["Com", "Index"] },
       { key: "nguoi_tham_gia", label: "Người tham gia", types: ["user"], required: true, multi: true, usedBy: ["Phạm vi xem", "Chia doanh thu và com"] },
       { key: "vai_tro_cua_toi", label: "Vai trò của tôi", types: ["text", "single_select"], required: false, usedBy: ["Lệnh thanh toán (vai trò của từng người)"] },
