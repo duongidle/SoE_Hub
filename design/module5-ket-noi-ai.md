@@ -342,3 +342,23 @@ Trang Admin → Kết nối AI → Chính sách:
 Đã chốt 19/11/2026: MCP là kênh chính, tool chọn lọc + `soe_operations` / `soe_describe` / `soe_call` (4.1); AI gọi REST bằng token của kết nối, không bằng phiên web (1); ba mức Xem / Sửa / Toàn quyền (3.2); nhóm cấm AI gồm cấm cứng và cấm mặc định Admin bật được (3.3); AI đổi chia sẻ như người dùng, việc không hợp lệ thì không ghi và báo lý do (3.3, 4.5); menu theo đối tượng, Quản lý Deal tách khỏi Datahub (3.1); kết nối chờ duyệt vẫn hoàn tất OAuth (2.4); Guest mẫu Data tạo được token (2.1); key API của cây, Admin tạo thì không cần Admin duyệt (2.5); thao tác lớn qua AI bằng xem trước + mã xác nhận, cần Toàn quyền, AI không tự đánh "Đã kiểm" (3.4); `rows_write` ghi từng phần theo dòng (4.5).
 
 Tự quyết khi chốt (chờ Dương phản biện nếu muốn khác): key do Admin tạo cần một Manager của cây bấm nhận, vì Admin không có quyền nghiệp vụ (2.5).
+
+## 12. Phạm vi Stage 5 rút gọn (Dương chốt 22/11/2026)
+
+Rà theo `kinh-nghiem-quyet-dinh.md`; mục tiêu: Stage 5 nhanh, gọn, ước 20–25M (đủ thiết kế khoảng 50–60M). Mục này thắng các mục trên khi khác nhau.
+
+**Giữ:** khai báo menu, `access`, nhóm cấm cho mọi thao tác (mặc định theo tiền tố và loại, khai riêng chỗ khác; test khởi động); token cá nhân thành kết nối có menu và mức (thay scope chuỗi quyền), Admin duyệt / duyệt bớt / từ chối, executor lấy giao quyền (mục 3.5); menu theo đối tượng (3.1); cấm cứng và nhóm cấm Admin bật (3.3); `/mcp` xác thực bằng token của kết nối; 3 tool chung; đọc ngay sau khi ghi (4.6); lỗi cho AI (4.5); annotations (4.7); nhật ký `via`, tên kết nối; nguồn nhập `AI (tên kết nối)` / `API (tên kết nối)`; giới hạn tốc độ đơn giản theo kết nối.
+
+**Rút gọn:**
+- Tool chọn lọc còn 7: `soe_whoami`, `deals_list`, `deal_get`, `deal_metrics`, `rows_query`, `rows_write`, `metrics_query`. Việc khác qua `soe_call`; thêm tool sau khi đo nhật ký.
+- Mở rộng quyền của kết nối = tạo kết nối mới (không có "phần mở rộng chờ duyệt"). Thu hẹp vẫn có hiệu lực ngay.
+- Chính sách AI (mục 6) chỉ còn: công tắc khẩn cấp, bật tắt nhóm cấm. Bỏ mức cao nhất toàn hệ thống, hạn tối đa riêng, danh sách nguồn client (đi cùng OAuth).
+- Kiểm thử: unit test quyền (mức, menu theo đối tượng, nhóm cấm, chờ duyệt, `rows_write` từng phần), vitest cả bộ một lần, e2e chỉ màn kết nối, thử Claude Code một lần; đo `tools/list`. Không làm ma trận quyền đầy đủ theo kênh.
+
+**Dời:**
+1. OAuth (mục 2.4, trang cho phép, 375px): làm khi lên VPS có domain (claude.ai, Claude Desktop, ChatGPT cần). Claude Code, Codex dùng token.
+2. Key API của cây (2.5) và `docs/api/he-thong-ngoai.md`: làm cùng lúc nối BPM.
+3. Thao tác lớn qua AI (3.4: xem trước + mã xác nhận, "Kiểm khi chốt qua AI"): tới lúc đó chốt kỳ, mở lại kỳ, sửa template cho cây/team, chuyển vai trò cột **cấm AI** (`aiAllowed: false`), chỉ làm trên web.
+4. Phân trang danh sách token và tài khoản hệ thống.
+
+**Chia bước:** 5A1 khai báo registry + kết nối + executor; 5A2 `/mcp` + 7 tool + test; 5B giao diện, `docs/ket-noi-ai.md`, kiểm thử cuối stage. Mỗi agent tối đa khoảng 60 lượt.
