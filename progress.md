@@ -5,7 +5,7 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** Stage 0–8 xong (Stage 4: 4.8 bản cơ bản; Stage 5–7: bản rút gọn; Stage 8 theo thiết kế chốt 22/11, test tối giản; Opus rà đạt 22/11). Mốc test: vitest cả bộ 1343 pass 10 skip (mã dbe0ec0); e2e stage8 + stage6 5 pass (f6de013). Typecheck 0 lỗi. Tiếp: Stage 9 (Module 9, Onboarding): **thiết kế chưa có**, đề xuất thiết kế trước. Việc dời: `design/update_v1.md`.
+- **Code:** Stage 0–8 xong (Stage 4: 4.8 bản cơ bản; Stage 5–7: bản rút gọn; Stage 8 theo thiết kế chốt 22/11, test tối giản; Opus rà đạt 22/11). Mốc test: vitest cả bộ 1343 pass 10 skip (mã dbe0ec0); e2e stage8 + stage6 5 pass (f6de013). Typecheck 0 lỗi. Tiếp: Stage 9: thiết kế **đã chốt** 22/11 (`design/module9-onboarding.md`); chờ Dương đồng ý chia bước rồi mới code (Dương: "chưa code"). Việc dời: `design/update_v1.md`.
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 

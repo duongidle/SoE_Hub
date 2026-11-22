@@ -121,7 +121,7 @@ Không phải thao tác nào cũng mở cho AI. Hai lớp (Dương chốt 19/11:
 
 **Cấm cứng** (không bật được, kể cả Admin). Đây là những việc giúp AI tự nâng quyền hoặc che dấu vết:
 
-- Mọi `onboarding.*`.
+- Mọi `onboarding.*` phía nhân sự (sửa 22/11/2026, Module 9 mục 10): tick việc, xác nhận checkpoint, chốt đánh giá cuối; nhân sự onboard không dùng AI với Onboarding. Leader, Manager được dùng AI để tạo, sửa, đọc lộ trình.
 - Tạo, duyệt, mở rộng, thu hồi token và kết nối; đổi chính sách AI (mục 6). AI không được tự duyệt kết nối của chính nó.
 - Đổi mật khẩu, phiên, thiết bị; đăng ký đẩy thông báo (Module 6 mục 8).
 - Nộp bài kiểm tra (Module 7 mục 6.5); nhập key API của nguồn dữ liệu form (Module 7 mục 2.5).

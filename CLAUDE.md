@@ -41,7 +41,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 ### Code
 
 1. **Chỉ code module đã có thiết kế `Đã chốt`**, theo thứ tự stage; không cần chờ lệnh riêng.
-2. **Engine trước, giao diện sau.** Giao diện mỗi stage đủ dùng, đủ xem; vẫn theo `design/chuan-giao-dien.md` (token, thành phần chung, wording) nhưng **không rà chuẩn giao diện** ở Stage 2–11: Stage 12 làm lại giao diện và rà toàn bộ. **Ngoại lệ: Onboarding (Stage 9)** rà đủ chuẩn giao diện, bộ skill giao diện, `break-ui` và 375px ở kiểm thử cuối stage (Dương chốt 19/11/2026). Dynamic Form (Stage 7) không còn là ngoại lệ (Dương đổi 22/11/2026): chỉ cần chức năng tạo form (kéo thả) chắc chắn chạy và trang công khai hiển thị ổn định ở máy tính và 375px (Module 7 mục 14).
+2. **Engine trước, giao diện sau.** Giao diện mỗi stage đủ dùng, đủ xem; vẫn theo `design/chuan-giao-dien.md` (token, thành phần chung, wording) nhưng **không rà chuẩn giao diện** ở Stage 2–11: Stage 12 làm lại giao diện và rà toàn bộ. Không còn ngoại lệ (Dương đổi 22/11/2026): Dynamic Form (Stage 7) và Onboarding (Stage 9) chỉ cần chức năng chắc chắn chạy và các màn chính hiển thị ổn định ở máy tính và 375px (Module 7 mục 14, Module 9 mục 7).
 3. **Tự quyết chi tiết nhỏ** (đặt tên, cấu trúc file, thư viện phụ, xử lý lỗi, giá trị mặc định; Sonnet chỉ phần không đổi kết quả người dùng thấy, xem "Phân vai khi code" mục 3) và ghi vào mục "Quyết định khi code" của module (file `moduleX-quyet-dinh-khi-code.md` khi dài quá khoảng 100 dòng). Chỉ hỏi Dương khi việc quyết định chức năng quan trọng, đổi quy định đã chốt, hoặc chạm dữ liệu thật / thao tác khó hoàn tác.
 4. **Làm liền từ đầu đến cuối.** Sonnet gặp chỗ chưa có quyết định thì dừng báo Opus ("Phân vai khi code" mục 3). Opus gặp việc cần Dương quyết thì ghi vào `progress.md` mục "Câu hỏi còn mở", chọn phương án an toàn tạm thời nếu việc đó không chặn phần còn lại, làm tiếp, báo ở cuối.
 
@@ -69,7 +69,7 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 | 6 | M6 `module6-thong-bao.md` | 1, 2, 4 | Thông báo đầy đủ (một cửa vào `notify`), Web Push, nhắc hẹn, nhắc hạn Deal, bản tin buổi sáng, thông báo chung | Đã chốt | Đã xong (bản rút gọn mục 14) |
 | 7 | M7 `module7-dynamic-form.md` | 2, 3, 5, 6 | Builder kéo thả, form công khai, nháp, chấm điểm, nguồn dữ liệu, JSON | Đã chốt | Đã xong (bản rút gọn mục 14) |
 | 8 | M8 `module8-knowledge-aihub.md` | 1, 5, 6 | Đăng → kiểm tra → duyệt → xuất bản; Knowledge; AI Hub | Đã chốt | Đã xong |
-| 9 | M9 `module9-onboarding.md` | 6, 7 | Lộ trình, checklist, bài test, theo dõi | Chưa | |
+| 9 | M9 `module9-onboarding.md` | 1, 2, 3, 5, 6, 7 | Lộ trình, checkpoint bằng engine chỉ số, bài test và form, theo dõi chung | Đã chốt | |
 | 10 | M10 `module10-workspace.md` | 4, 6 | Giao việc | Chưa | |
 | 11 | M11 `module11-cai-dat-feedback.md` | trên | Cài đặt còn lại, feedback | Chưa | |
 | 12 | — | tất cả | Làm lại giao diện, rà toàn bộ chuẩn giao diện | — | |

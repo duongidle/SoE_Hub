@@ -68,7 +68,7 @@ Tách từ `CLAUDE.md` ngày 20/11/2026 để `CLAUDE.md` nhẹ hơn. **Khi nào
 ## AI
 
 - Kết nối AI: user tạo kết nối, admin duyệt; scope là **menu và mức** (Xem / Sửa / Toàn quyền); menu tính theo **đối tượng đích** (bảng của datahub "Quản lý Deal" thuộc menu Quản lý Deal); quyền thực tế = giao của quyền user, scope kết nối, chính sách AI chung, nhóm cấm (Module 5).
-- **Nhóm cấm AI:** cấm cứng (Onboarding; tạo/duyệt/thu hồi token và kết nối; chính sách AI; mật khẩu, phiên; nộp bài kiểm tra) và cấm mặc định Admin bật được theo nhóm (tổ chức, cấp dữ liệu Guest, chuyển giao, cài đặt hệ thống, nhật ký). Chia sẻ bảng không bị cấm: việc không hợp lệ thì không ghi, trả lỗi kèm lý do.
+- **Nhóm cấm AI:** cấm cứng (Onboarding phía nhân sự: tick việc, xác nhận checkpoint, chốt đánh giá cuối; nhân sự onboard không dùng AI với Onboarding; Leader/Manager được dùng AI để tạo, sửa, đọc lộ trình — Module 9 mục 10, Dương 22/11/2026; tạo/duyệt/thu hồi token và kết nối; chính sách AI; mật khẩu, phiên; nộp bài kiểm tra) và cấm mặc định Admin bật được theo nhóm (tổ chức, cấp dữ liệu Guest, chuyển giao, cài đặt hệ thống, nhật ký). Chia sẻ bảng không bị cấm: việc không hợp lệ thì không ghi, trả lỗi kèm lý do.
 - Hỗ trợ OAuth (Claude Desktop, claude.ai, ChatGPT, Codex) và token (Claude Code, Codex, script). AI gọi REST được bằng token của kết nối, **không bao giờ** bằng phiên đăng nhập web.
 - MCP: bộ tool chọn lọc (tối đa 30) + `soe_operations` / `soe_describe` / `soe_call` cho mọi thao tác còn lại.
 - **Thao tác lớn** (chốt kỳ, mở lại kỳ, sửa template cả cây/team, chuyển vai trò cột): xem trước rồi xác nhận bằng mã, một đường cho web và AI; qua AI cần mức Toàn quyền; AI không tự đánh "Đã kiểm".

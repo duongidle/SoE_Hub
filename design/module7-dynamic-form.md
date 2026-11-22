@@ -462,3 +462,5 @@ Rà theo `kinh-nghiem-quyet-dinh.md`; ước 45–50M (đủ thiết kế 80–1
 **Dời:** toàn bộ Nguồn dữ liệu (2.5–2.8 phần nguồn); bảng lựa chọn; nhảy trang, xem trước đi thử từng nhánh; ô "Tạo link điền sẵn"; nhúng iframe; "Cho sửa sau khi gửi"; link "Lưu và làm tiếp sau"; thời gian làm bài, xáo trộn, chấm lại theo đáp án mới; biểu đồ tóm tắt ở tab Phản hồi; thông báo có phản hồi mới (chỉ có nút mờ); hàng nhiều cột; video nhúng.
 
 **Chia bước:** 7A1 form + bảng + xuất bản + gửi bài + chống spam + nháp; 7A2 bài kiểm tra + chấm + JSON + MCP + nhân bản; 7B1 trình soạn, danh sách form, Phản hồi, Chấm bài; 7B2 trang điền công khai, e2e, kiểm thử cuối stage. Mỗi agent tối đa khoảng 80 lượt.
+
+**Bổ sung 22/11/2026 (Module 9 mục 2):** câu ẩn **"Người điền"** kiểu Người dùng, tự điền người đang đăng nhập (chỉ form nội bộ), ghi vào cột Người dùng; Onboarding dùng làm cột khoá phân chia khi chia sẻ bảng cho nhân sự.
