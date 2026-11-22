@@ -39384,7 +39384,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.import.analyze",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "datahub:datahub:use",
         "parameters": [
           {
@@ -39867,7 +39867,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.import.sheet",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "datahub:datahub:use",
         "parameters": [
           {
@@ -40160,7 +40160,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.import.preview",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "datahub:datahub:use",
         "parameters": [
           {
@@ -40703,7 +40703,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.import.start",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "datahub:datahub:use",
         "parameters": [
           {

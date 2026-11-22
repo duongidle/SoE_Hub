@@ -546,7 +546,9 @@ export function importOperations(cfg: Config, storage: StorageDriver) {
         "Nguồn là MỘT trong ba: `file_id` (file .xlsx hoặc .csv đã tải lên bằng `file.upload.init` + `file.upload.complete`), `url` (link Google Sheets đang để \"ai có link đều xem được\"; hệ thống tải về dạng xlsx, không dùng OAuth), hoặc `text` (dán từ Google Sheets/Excel hoặc CSV). " +
         "Trả một việc ở trạng thái `draft`. Gọi `datahub.import.sheet` để đổi dòng tiêu đề của một sheet, `datahub.import.preview` để xem báo cáo trước khi chạy, `datahub.import.start` để chạy nền.",
       permission: "datahub:datahub:use",
-      aiAllowed: false,
+      aiAllowed: true,
+      menu: "datahub",
+      access: "read",
       input: z
         .object({
           file_id: Id.optional(),
@@ -608,7 +610,9 @@ export function importOperations(cfg: Config, storage: StorageDriver) {
       name: "datahub.import.sheet",
       summary: "Đọc lại một sheet với dòng tiêu đề khác (khi dòng 1 không phải tiêu đề).",
       permission: "datahub:datahub:use",
-      aiAllowed: false,
+      aiAllowed: true,
+      menu: "datahub",
+      access: "read",
       audit: "none",
       input: z.object({ job_id: Id, sheet: z.string().min(1).max(200), header_row: z.number().int().min(1).max(1000) }),
       output: SheetAnalysisOut,
@@ -629,7 +633,9 @@ export function importOperations(cfg: Config, storage: StorageDriver) {
       description:
         "Không ghi gì. Kiểm tra 5.000 dòng đầu của mỗi sheet bằng chính bộ kiểm tra kiểu cột của hệ thống (`sampled = true` nếu file dài hơn); lỗi ở các dòng sau chỉ biết khi chạy. `blocking` không rỗng = chưa chạy được (vượt giới hạn cột/bảng/datahub, trùng tên, thiếu quyền).",
       permission: "datahub:datahub:use",
-      aiAllowed: false,
+      aiAllowed: true,
+      menu: "datahub",
+      access: "read",
       audit: "none",
       input: z.object({ job_id: Id, mapping: ImportMappingSchema }),
       output: PreviewOut,
@@ -684,7 +690,7 @@ export function importOperations(cfg: Config, storage: StorageDriver) {
         "`import_formulas = true`: cột có công thức trong file được dịch thành cột công thức nếu mọi dòng cùng một công thức và mọi tham chiếu dịch được; không thì nhập giá trị và báo lý do từng cột. " +
         "Cần quyền: datahub mới cần quyền tạo datahub; bảng/cột mới cần là chủ datahub; nhập vào bảng có sẵn cần quyền Sửa dữ liệu.",
       permission: "datahub:datahub:use",
-      aiAllowed: false,
+      aiAllowed: true,
       input: z.object({ job_id: Id, mapping: ImportMappingSchema }),
       output: JobOut,
       http: { method: "POST", path: "/datahub/imports/:job_id/start", status: 202 },

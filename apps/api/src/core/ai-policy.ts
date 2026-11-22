@@ -103,6 +103,10 @@ export function accessOfInput(name: string, input: unknown): AiAccess | null {
     return deletes > 1 ? "full" : null;
   }
   if (name === "datahub.row.duplicates.resolve") return "full";
+  // Import that replaces a table's rows wipes data (to the trash): top level.
+  if (name === "datahub.import.start" && Array.isArray((i.mapping as { sheets?: unknown[] } | undefined)?.sheets)) {
+    return (i.mapping as { sheets: { write?: string }[] }).sheets.some((s) => s?.write === "replace") ? "full" : null;
+  }
   if (name === "datahub.row.restore_batch") return null;
   return null;
 }

@@ -44,3 +44,7 @@
 - `rows_write` bỏ dòng lỗi rồi gửi lại tối đa 5 vòng; lỗi không gắn dòng (hoặc quá 5 vòng) thì báo lỗi cả lô, không ghi nửa: chấp nhận.
 - `soe_call` kiểm đầu vào trước quyền (thao tác cấm với đầu vào sai trả `validation_error`): chấp nhận, không lộ dữ liệu.
 - **Import qua AI mở lại ở 5B** (Dương hỏi 22/11): `datahub.import.analyze`, `.sheet`, `.preview` menu cố định `datahub` (chưa ghi dữ liệu); `.start` lấy menu theo các bảng đích trong mapping (có bảng "Quản lý Deal" → `deal`), mức theo chế độ (thay toàn bộ → `full`).
+
+## 5B
+
+- Import qua AI (việc 1): `datahub.import.analyze/sheet/preview` menu `datahub`, mức `read` (chỉ tạo việc nháp, không ghi dữ liệu bảng); `datahub.import.start` menu theo `mapping` (`importMenu` trong `ai-gate.ts`: datahub hay bảng có sẵn thuộc "Quản lý Deal" -> `deal`, còn lại `datahub`; id sai -> đóng cửa), mức `write`, có sheet `write: "replace"` -> `full` (`accessOfInput`). Việc nhập chạy nền bằng quyền chủ việc nên không cần kết nối lúc chạy.

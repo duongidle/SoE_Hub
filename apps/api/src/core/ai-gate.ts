@@ -58,6 +58,30 @@ function nestedTableIds(v: unknown, depth = 0, out: string[] = []): string[] {
 }
 
 /**
+ * `datahub.import.start`: the target is in the mapping, not in a top-level id. Any table or datahub of "Quản lý Deal" -> `deal`;
+ * new datahub/tables or other datahubs -> `datahub`. A malformed id closes the door (null).
+ */
+async function importMenu(ex: Executor, mapping: Record<string, unknown>): Promise<"deal" | "datahub" | null> {
+  const isDeal = async (q: ReturnType<typeof sql>): Promise<boolean | null> => {
+    const row = (await ex.execute(q)).rows[0] as { system_key: string | null } | undefined;
+    return row ? row.system_key === "deal" : null;
+  };
+  const ids: { key: "datahub_id" | "table_id"; id: string }[] = [];
+  const dh = mapping.datahub as { id?: unknown } | undefined;
+  if (dh && typeof dh === "object" && "id" in dh) ids.push({ key: "datahub_id", id: String(dh.id) });
+  for (const sh of Array.isArray(mapping.sheets) ? (mapping.sheets as { table?: { mode?: string; table_id?: unknown } }[]) : []) {
+    if (sh?.table?.mode === "existing") ids.push({ key: "table_id", id: String(sh.table.table_id) });
+  }
+  for (const { key, id } of ids) {
+    if (!UUID_RE.test(id)) return null;
+    const r = await isDeal(LOOKUP[key](id));
+    if (r === null) return null;
+    if (r) return "deal";
+  }
+  return "datahub";
+}
+
+/**
  * The menu of a call aimed at a datahub: "Quản lý Deal" -> `deal`, any other datahub -> `datahub` (module5 3.1).
  * Looks at every id in the input: the top-level ones (table, datahub, view, job, chart, dashboard, metric, source) must all be known,
  * and tables named deeper (inline metric source, merge sources) count too. If one of them belongs to the Deal datahub the whole call is
@@ -65,6 +89,7 @@ function nestedTableIds(v: unknown, depth = 0, out: string[] = []): string[] {
  */
 export async function menuOfTarget(ex: Executor, input: unknown): Promise<"deal" | "datahub" | null> {
   const i = (input ?? {}) as Record<string, unknown>;
+  if (i.mapping && typeof i.mapping === "object") return importMenu(ex, i.mapping as Record<string, unknown>);
   let found: "deal" | "datahub" | null = null;
   const system = async (key: (typeof TARGET_KEYS)[number], id: string): Promise<"deal" | "datahub" | "unknown"> => {
     const res = await ex.execute(LOOKUP[key](id));

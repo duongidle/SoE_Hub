@@ -163,6 +163,29 @@ describe("hard bans and groups the Admin switches on (module5 3.3)", () => {
   });
 });
 
+describe("import through a connection (module5 12)", () => {
+  const text = "Tên,Số\nA,1\nB,2";
+  it("Datahub-only cannot import into the Deal table; Datahub write imports into a normal table", async () => {
+    const c = await conn(org.mgrA.id, { datahub: "write" });
+    const an = await c.call("datahub.import.analyze", { text });
+    const sheet = an.sheets[0].name;
+    expect((await c.call("datahub.import.preview", { job_id: an.job.id, mapping: { datahub: { name: "Nhập thử" }, sheets: [{ sheet, table: { mode: "new", name: "T" } }] } })).ok).toBe(true);
+    // Into the Deal table: needs the Deal menu.
+    const toDeal = await fails(c.call("datahub.import.start", { job_id: an.job.id, mapping: { datahub: { id: dealDatahub }, sheets: [{ sheet, table: { mode: "existing", table_id: dealTable } }] } }));
+    expect(toDeal.code).toBe("forbidden");
+    expect(toDeal.message).toContain("chưa có menu Quản lý Deal");
+    // Into a normal table: fine at level Sửa; replacing needs Toàn quyền.
+    const x = await makeTable(as(t, org.mgrA.id), { columns: [{ name: "Tên", type: "text" }] });
+    const map = (write: string) => ({ datahub: { id: x.dhId }, sheets: [{ sheet, table: { mode: "existing", table_id: x.tableId }, write }] });
+    expect((await fails(c.call("datahub.import.start", { job_id: an.job.id, mapping: map("replace") }))).message).toContain("chỉ có mức Sửa");
+    const job = await c.call("datahub.import.start", { job_id: an.job.id, mapping: map("add") });
+    expect(job.id).toBe(an.job.id);
+    const ro = await conn(org.mgrA.id, { datahub: "read" });
+    const an2 = await ro.call("datahub.import.analyze", { text });
+    expect((await fails(ro.call("datahub.import.start", { job_id: an2.job.id, mapping: map("add") }))).message).toContain("chỉ có mức Xem");
+  });
+});
+
 describe("pending, narrowing, narrower approval and the emergency switch", () => {
   it("a pending connection answers connection_pending (executor and REST); approval makes it work", async () => {
     const s = await login(t, org.userA1.email);
