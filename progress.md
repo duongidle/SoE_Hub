@@ -5,7 +5,7 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1–4.6 xong (Opus rà đạt, 4.6E chờ rà); 4.7A server xong 22/11 (xem "4.7 BÀN GIAO"); tiếp 4.7B (web + e2e), rồi 4.8.
+- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1–4.6 xong (Opus rà đạt, 4.6E chờ rà); 4.7A server xong 22/11 (xem "4.7 BÀN GIAO"); 4.7B web + e2e xong (chờ Opus rà); tiếp 4.8.
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): xem dòng "Mốc test 4.7A" bên dưới; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 
@@ -20,10 +20,10 @@ Cập nhật: 22/11/2026
 
 **4.7 đã chốt (Dương 22/11):** phần chung Datahub (email ở ô Người dùng, import cột Liên kết và Người, upsert theo cột khoá, cấp bảng cho Guest kèm chọn cột) và phần Deal (lệnh tiền nhận mã ngoài của đợt, chốt kỳ xác nhận đợt import). Com cũ import dạng `Com cố định` + Đã chốt, không đổi engine. Dời: bảng ánh xạ BPM, `deal.upsert` riêng. Ước 25–30M, hai agent (A server, B web).
 
-### 4.7 BÀN GIAO (4.7A server xong 22/11; 4.7B1 xong 22/11; tiếp 4.7B2)
+### 4.7 BÀN GIAO (4.7A, 4.7B1, 4.7B2 xong 22/11, chờ Opus rà; tiếp 4.8)
 
-**4.7B1 xong** (commit c76a440 trần com_split gửi tay; 5b74252 Guest ẩn created_by/updated_by; e5aa886 web Chốt kỳ + Template vai trò đa cột, cộng spec e2e và tài liệu ở commit sau). Chi tiết: `design/module4-quyet-dinh-khi-code.md` mục "4.7B". Test: `vitest` deal-flexible-layout + deal-payments 27 pass; datahub-guest-table/export/access/view-query 68 pass; datahub-template + openapi 32 pass; e2e desktop `stage4-7` + `stage4-5` + `stage4-3` 20 pass (chạy bằng `node apps/web/e2e/run.mjs e2e/stage4-7.spec.ts ... --project=desktop`). typecheck không tăng lỗi, lint sạch. Cả bộ vitest chưa chạy (B2 chạy cuối bước).
-**Cho B2:** spec `apps/web/e2e/stage4-7.spec.ts` đã có setup chung ở mức file (Manager, Leader, User một; `tbl` bảng Deals/Đợt/Tiền về/Sổ com; hàm `patchRow`, `waitFor`, `toast`); B2 thêm `test.describe("4.7B2 ...")` mới, cần Guest thì tạo thêm trong `beforeAll` (seedPeople). Phiên Manager `mgrS` đã `allow(400)`; lỗi 409 cố ý thì `mgrS.allow(409, /url/)` trong test. Còn lại: việc (2) màn import và (3) màn cấp Guest bên dưới.
+**4.7B1 xong** (commit c76a440 trần com_split gửi tay; 5b74252 Guest ẩn created_by/updated_by; e5aa886 web Chốt kỳ + Template vai trò đa cột, cộng spec e2e và tài liệu ở commit sau). Chi tiết: `design/module4-quyet-dinh-khi-code.md` mục "4.7B". Test: `vitest` deal-flexible-layout + deal-payments 27 pass; datahub-guest-table/export/access/view-query 68 pass; datahub-template + openapi 32 pass; e2e desktop `stage4-7` + `stage4-5` + `stage4-3` 20 pass (chạy bằng `node apps/web/e2e/run.mjs e2e/stage4-7.spec.ts ... --project=desktop`). typecheck không tăng lỗi, lint sạch. 
+**Cho B2:** spec `apps/web/e2e/stage4-7.spec.ts` đã có setup chung ở mức file (Manager, Leader, User một; `tbl` bảng Deals/Đợt/Tiền về/Sổ com; hàm `patchRow`, `waitFor`, `toast`); B2 thêm `test.describe("4.7B2 ...")` mới, cần Guest thì tạo thêm trong `beforeAll` (seedPeople). Phiên Manager `mgrS` đã `allow(400)`; lỗi 409 cố ý thì `mgrS.allow(409, /url/)` trong test. 
 
 
 Chi tiết quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.7A". Bản đồ cập nhật. Commit: 4a7c0f5 (INSCOPE, ATTRSUM), 01d74cd (lệnh tiền tính ngay, trần %), 8bb30be (email, import Người/Liên kết), f24ccf6 (mã ngoài), 0d9b6df (Guest cấp bảng), cca0f3b (chốt kỳ import); OpenAPI đã sinh lại.
@@ -38,9 +38,12 @@ Chi tiết quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.7A"
 | Mã ngoài của đợt | `payment.schedule` mỗi đợt `source` + `external_id`; `payment.confirm` allocation `external_id` thay `payment_id`; `payments[].external_id` | `external_id_unsupported`, `external_id_taken`, `duplicate_external_id`, `payment_ref_required`, `payment_not_found` |
 | Chốt kỳ đợt import | `period.review` loại mới `received_unconfirmed`; lệnh `period.confirm_received {month}` (kết quả `payments`, `won_deal_ids`, `ledger_ids`, `skipped_ledger`) | `period_already_closed` |
 
-**Việc web cho 4.7B (B1 đã làm (1) và (4); B2 làm (2), (3), (5) phần còn lại):** (1) màn Chốt kỳ: hiện loại `received_unconfirmed`, nút "Xác nhận rồi chốt" = `period.confirm_received`, chờ công thức, rồi `period.close` (thử lại khi `recalc_pending`); (2) màn import: ghép cột Người/Liên kết vào cột có sẵn (cột đích kiểu Người dùng/Liên kết giờ chọn được), ô `link_by` cho cột Liên kết, hiện lỗi mới ở bước xem trước; (3) màn cấp dữ liệu Guest: loại "Bảng Datahub", chọn bảng + cột + phạm vi + kênh; Guest xem bảng được cấp (`guest.grant.mine` có `options`), lưới chỉ có cột được cấp, không có ô tìm kiếm; (4) trang Template: ô chọn vai trò hiện mọi cột giữ vai trò đa cột (Opus quyết ở 4.6E); (5) e2e cho các màn trên; (6) cột `Mã ngoài` chỉ có ở cây mới (cây cũ: 4.8 bù cột).
+**Việc web cho 4.7B (B1 làm (1), (4); B2 làm (2), (3), (5), đã xong):** (1) màn Chốt kỳ: hiện loại `received_unconfirmed`, nút "Xác nhận rồi chốt" = `period.confirm_received`, chờ công thức, rồi `period.close` (thử lại khi `recalc_pending`); (2) màn import: ghép cột Người/Liên kết vào cột có sẵn (cột đích kiểu Người dùng/Liên kết giờ chọn được), ô `link_by` cho cột Liên kết, hiện lỗi mới ở bước xem trước; (3) màn cấp dữ liệu Guest: loại "Bảng Datahub", chọn bảng + cột + phạm vi + kênh; Guest xem bảng được cấp (`guest.grant.mine` có `options`), lưới chỉ có cột được cấp, không có ô tìm kiếm; (4) trang Template: ô chọn vai trò hiện mọi cột giữ vai trò đa cột (Opus quyết ở 4.6E); (5) e2e cho các màn trên; (6) cột `Mã ngoài` chỉ có ở cây mới (cây cũ: 4.8 bù cột).
 
 **Mốc test 4.7A (mã cca0f3b, sau đó chỉ thêm tài liệu và Bruno):** `pnpm exec vitest run apps packages` 1233 pass, 9 skip, 1 fail (`openapi.test.ts` thiếu Bruno cho `period.confirm_received`; đã thêm `docs/api/bruno/deal/period-confirm_received.bru`, chạy lại `openapi` + `ban-do-code` 8/8 pass), 101 file pass, 2 skip, khoảng 10 phút. Không chạy e2e (4.7B làm). `typecheck`: chỉ còn lỗi có sẵn (`apps/api` 15 lỗi ở `http/app.ts`, `auth/google.ts`; `apps/web` 31 lỗi) ; `lint` sạch.
+
+**4.7B2 xong** (commit c9c807e và các commit sau chỉ sửa tài liệu): màn import chọn cột Người/Liên kết + ô `link_by`; form cấp Guest loại "Bảng Datahub" (`guest.tsx`); trang Guest xem bảng `/du-lieu-duoc-cap` (`guest-data.tsx`); e2e `4.7B2 Import`, `4.7B2 Guest bảng` trong `stage4-7.spec.ts`. e2e desktop `stage4-7` 7 pass; cùng `stage4-5`, `stage4-3`, `stage2d`, `stage3c2`, `stage1`: 52 pass, 0 fail. Chưa e2e: lỗi `grant_*` dịch sang câu dễ hiểu (UI ẩn cột cá nhân/đính kèm nên khó tái hiện). Quyết định: `module4-quyet-dinh-khi-code.md` "4.7B".
+**Việc cho 4.8:** sinh lại snapshot drizzle cho migration 0021, 0022 (viết tay) khi `drizzle-kit` chạy được, kiểm `db:generate` không sinh diff thừa.
 
 ## Còn nợ / ghi nhận để sau
 
@@ -65,4 +68,3 @@ Không chặn bước con; gom sửa một đợt. `stage1.spec.ts` phone "cài 
 - Module 4 (4.4A): cây đã tạo trước 4.4 giữ `Đã thu` là cột thường; bảng Tiền về "chỉ Manager" làm bằng khoá phân chia theo cột `Người xem` luôn trống.
 - Stage 9 Onboarding: hỏi Dương có kiểm giao diện kỹ như ngoại lệ không. Danh sách token cần duyệt chưa phân trang (500), làm ở Stage 5.
 
-- **DỪNG 22/11 (hết quota):** 4.7A xong (cd7e5fd, 54,8M token, vượt ước vì 193 lượt). 4.7B vừa bắt đầu: còn thay đổi chưa commit ở việc 1 (trần `Tỉ lệ SoE` cho `com_split` gửi tay; `participants.ts`, `payments.ts`, `deal-flexible-layout.test.ts`), **chưa chạy test**. **Phiên sau:** xem diff đó, giao lại 4.7B đủ 8 việc như prompt cũ (câu trả lời của Opus ở `design/module4-quyet-dinh-khi-code.md` mục "4.7A: Opus trả lời"); mỗi agent tối đa khoảng 5 việc, Opus tự kiểm số lượt ở mốc khoảng 100.
