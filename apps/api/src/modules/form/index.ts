@@ -1,3 +1,4 @@
+import { registerOwnedTable } from "../../auth/query-guard";
 import { registerSettings } from "../system/settings-catalog";
 import type { Config } from "../../config";
 import type { StorageDriver } from "../../storage/types";
@@ -15,3 +16,5 @@ export function formOperations(cfg: Config, storage: StorageDriver) {
   return [...formManageOperations, ...fillOperations(cfg, storage), ...gradeOperations, ...formIoOperations];
 }
 void registerSettings;
+
+for (const t of ["forms", "form_versions", "form_drafts", "form_responses", "form_uploads", "form_scores"]) registerOwnedTable(t);

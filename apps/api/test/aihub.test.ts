@@ -94,12 +94,12 @@ describe("AI Hub skills", () => {
   });
 
   it("check_only creates nothing", async () => {
-    const before = (await t.c.db.db.execute(sql`SELECT count(*)::int AS n FROM posts`)).rows[0];
+    const before = (await t.c.db.db.execute(sql`/*scope:system*/ SELECT count(*)::int AS n FROM posts`)).rows[0];
     const bad = await userA1("skill.package.submit", { files: [{ path: "README.md", content: "x" }], check_only: true });
     expect(bad).toMatchObject({ check_only: true, ok: false });
     expect(bad.errors.map((x: { code: string }) => x.code)).toContain("skill_md_missing");
     expect(await userA1("skill.package.submit", { ...base(`ok-${uniq()}`), check_only: true })).toMatchObject({ ok: true });
-    expect((await t.c.db.db.execute(sql`SELECT count(*)::int AS n FROM posts`)).rows[0]).toEqual(before);
+    expect((await t.c.db.db.execute(sql`/*scope:system*/ SELECT count(*)::int AS n FROM posts`)).rows[0]).toEqual(before);
   });
 
   it("a Guest cannot read AI Hub", async () => {

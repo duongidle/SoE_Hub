@@ -39,7 +39,7 @@ interface ScoreRow {
 }
 
 async function loadScore(db: Executor, responseId: string): Promise<ScoreRow> {
-  const r = await db.execute(sql`SELECT * FROM form_scores WHERE response_id = ${responseId}::uuid`);
+  const r = await db.execute(sql`/*scope:system*/ SELECT * FROM form_scores WHERE response_id = ${responseId}::uuid`);
   if (!r.rows[0]) throw new AppError("not_found", "Không tìm thấy bài làm.");
   return r.rows[0] as unknown as ScoreRow;
 }
@@ -235,7 +235,7 @@ export const gradeOperations = [
       const sum = summarize(quiz, t);
       const now = new Date();
       const done = !t.pending;
-      await ctx.db.execute(sql`UPDATE form_scores SET score = ${t.score}, max_score = ${t.max}, result = ${sum.result}, floor_failed = ${t.floorFailed}, details = ${JSON.stringify(items)}::jsonb, comment = ${i.comment ?? sc.comment},
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE form_scores SET score = ${t.score}, max_score = ${t.max}, result = ${sum.result}, floor_failed = ${t.floorFailed}, details = ${JSON.stringify(items)}::jsonb, comment = ${i.comment ?? sc.comment},
         graded_by = ${done ? ctx.actor.userId : sc.graded_by}::uuid, graded_at = ${done ? now.toISOString() : null}::timestamptz WHERE response_id = ${sc.response_id}::uuid`);
       if (sc.row_id && f.tableId) {
         const { acc, schema } = await ownerAccess(ctx, f);
@@ -276,7 +276,7 @@ export const gradeOperations = [
     handler: async (ctx, i) => {
       const f = await loadFormRow(ctx.db, sql`code = ${i.code}`);
       if (!f) throw new AppError("not_found", "Không tìm thấy form.");
-      const rs = (await ctx.db.execute(sql`SELECT s.response_id, s.attempt_no, s.created_at FROM form_scores s WHERE s.form_id = ${f.id}::uuid AND s.user_id = ${ctx.actor.userId}::uuid ORDER BY s.attempt_no`)).rows as { response_id: string; attempt_no: number; created_at: Date }[];
+      const rs = (await ctx.db.execute(sql`/*scope:system*/ SELECT s.response_id, s.attempt_no, s.created_at FROM form_scores s WHERE s.form_id = ${f.id}::uuid AND s.user_id = ${ctx.actor.userId}::uuid ORDER BY s.attempt_no`)).rows as { response_id: string; attempt_no: number; created_at: Date }[];
       const cfg = await versionConfig(ctx.db, f.id, f.publishedVersion);
       const attempts = [];
       for (const r of rs) {
@@ -310,7 +310,7 @@ export const gradeOperations = [
       const res = await listRows(ctx.db, acc, schema, { limit: i.limit, cursor: i.cursor, search: i.search, labels: true, includeTotal: true, sort: "_created_at:desc", fields: ["_created_at", "_created_by", ...qs.map((q) => q.column_id!)].join(",") });
       const scores = new Map<string, Raw>();
       const ids = res.items.map((r) => r.id as string);
-      if (ids.length) for (const s of (await ctx.db.execute(sql`SELECT row_id, score, max_score, result, floor_failed, attempt_no, form_version FROM form_scores WHERE form_id = ${f.id}::uuid AND row_id = ANY(${`{${ids.join(",")}}`}::uuid[])`)).rows as Raw[]) scores.set(s.row_id as string, s);
+      if (ids.length) for (const s of (await ctx.db.execute(sql`/*scope:system*/ SELECT row_id, score, max_score, result, floor_failed, attempt_no, form_version FROM form_scores WHERE form_id = ${f.id}::uuid AND row_id = ANY(${`{${ids.join(",")}}`}::uuid[])`)).rows as Raw[]) scores.set(s.row_id as string, s);
       const quiz = pub.quiz?.enabled ? pub.quiz : null;
       const items = res.items.map((r) => {
         const s = scores.get(r.id as string);

@@ -1,3 +1,4 @@
+import { registerOwnedTable } from "../../auth/query-guard";
 import { sql } from "drizzle-orm";
 import { AppError, ROLE_PERMISSIONS, toActorRef, type Actor, type Role } from "@soe/shared";
 import { newId, type Executor } from "@soe/db";
@@ -456,3 +457,5 @@ export async function listMine(ctx: Ctx, k: PostKind, o: { state?: string; limit
     next: rows.length > o.limit ? o.offset + o.limit : null,
   };
 }
+
+for (const t of ["posts", "post_versions"]) registerOwnedTable(t);

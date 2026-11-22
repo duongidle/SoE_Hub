@@ -53,15 +53,15 @@ async function writeStructure(ctx: Ctx, plan: PlanRow, s: Structure): Promise<vo
     }
   }
   if (formIds.size) {
-    const ok = await ctx.db.execute(sql`SELECT id FROM forms WHERE id = ANY(${`{${[...formIds].join(",")}}`}::uuid[]) AND owner_id = ${plan.ownerId}::uuid AND deleted_at IS NULL`);
+    const ok = await ctx.db.execute(sql`/*scope:system*/ SELECT id FROM forms WHERE id = ANY(${`{${[...formIds].join(",")}}`}::uuid[]) AND owner_id = ${plan.ownerId}::uuid AND deleted_at IS NULL`);
     if (ok.rows.length !== formIds.size) throw new AppError("validation_error", "Form gắn vào việc phải là form của người tạo lộ trình.", { reason: "form_not_owned" });
   }
   if (itemIds.size) {
-    const have = await ctx.db.execute(sql`SELECT id FROM onb_items WHERE plan_id = ${plan.id}::uuid AND id = ANY(${`{${[...itemIds].join(",")}}`}::uuid[])`);
+    const have = await ctx.db.execute(sql`/*scope:system*/ SELECT id FROM onb_items WHERE plan_id = ${plan.id}::uuid AND id = ANY(${`{${[...itemIds].join(",")}}`}::uuid[])`);
     if (have.rows.length !== itemIds.size) throw new AppError("validation_error", "Có mã việc không thuộc lộ trình này.", { reason: "item_unknown" });
   }
-  await ctx.db.execute(sql`DELETE FROM onb_weeks WHERE plan_id = ${plan.id}::uuid`);
-  await ctx.db.execute(sql`DELETE FROM onb_stages WHERE plan_id = ${plan.id}::uuid`);
+  await ctx.db.execute(sql`/*scope:system*/ DELETE FROM onb_weeks WHERE plan_id = ${plan.id}::uuid`);
+  await ctx.db.execute(sql`/*scope:system*/ DELETE FROM onb_stages WHERE plan_id = ${plan.id}::uuid`);
   const stageIds = s.stages.map(() => newId());
   for (const [i, st] of s.stages.entries()) await ctx.db.execute(sql`INSERT INTO onb_stages (id, plan_id, name, position) VALUES (${stageIds[i]!}::uuid, ${plan.id}::uuid, ${st.name}, ${i}::int)`);
   const keep: string[] = [];
@@ -74,7 +74,7 @@ async function writeStructure(ctx: Ctx, plan: PlanRow, s: Structure): Promise<vo
       await upsertItem(ctx.db, plan.id, id, no, pos++, it, !!it.id);
     }
   }
-  await ctx.db.execute(sql`DELETE FROM onb_items WHERE plan_id = ${plan.id}::uuid AND NOT (id = ANY(${`{${keep.join(",")}}`}::uuid[]))`);
+  await ctx.db.execute(sql`/*scope:system*/ DELETE FROM onb_items WHERE plan_id = ${plan.id}::uuid AND NOT (id = ANY(${`{${keep.join(",")}}`}::uuid[]))`);
 }
 
 async function upsertItem(db: Executor, planId: string, id: string, weekNo: number, position: number, it: ItemInput, exists: boolean): Promise<void> {
@@ -82,7 +82,7 @@ async function upsertItem(db: Executor, planId: string, id: string, weekNo: numb
   const needForm = it.need_form ?? false;
   const v = { name: it.name, description: it.description ?? null, kind: it.kind, weekday: it.weekday, repeat: it.repeat, due: it.due_time ?? null, remind: it.remind_before_min ?? null, form: it.form_id ?? null, share: it.share_table ?? false, filler: it.filler_column ?? null, leader: `{${(it.leader_columns ?? []).map((c) => `"${c.replace(/(["\\])/g, "\\$1")}"`).join(",")}}`, link: it.link ?? null };
   if (exists) {
-    await db.execute(sql`UPDATE onb_items SET week_no = ${weekNo}::int, position = ${position}::int, name = ${v.name}, description = ${v.description}, kind = ${v.kind}, weekday = ${v.weekday}::int, repeat = ${v.repeat}, until_week_no = ${until}::int, due_time = ${v.due},
+    await db.execute(sql`/*scope:system*/ UPDATE onb_items SET week_no = ${weekNo}::int, position = ${position}::int, name = ${v.name}, description = ${v.description}, kind = ${v.kind}, weekday = ${v.weekday}::int, repeat = ${v.repeat}, until_week_no = ${until}::int, due_time = ${v.due},
       remind_before_min = ${v.remind}::int, form_id = ${v.form}::uuid, need_form = ${needForm}, share_table = ${v.share}, filler_column = ${v.filler}, leader_columns = ${v.leader}::text[], link = ${v.link} WHERE id = ${id}::uuid AND plan_id = ${planId}::uuid`);
   } else {
     await db.execute(sql`INSERT INTO onb_items (id, plan_id, week_no, position, name, description, kind, weekday, repeat, until_week_no, due_time, remind_before_min, form_id, need_form, share_table, filler_column, leader_columns, link)
@@ -92,10 +92,10 @@ async function upsertItem(db: Executor, planId: string, id: string, weekNo: numb
 
 /** The structure of a plan as the `Structure` input shape (ids kept), used by `get`, clone and copy. */
 async function readStructure(db: Executor, planId: string): Promise<{ stages: { id: string; name: string; weeks: { week_no: number; name: string; goal: string | null; is_break: boolean; items: Record<string, unknown>[] }[] }[]}> {
-  const stages = (await db.execute(sql`SELECT id, name FROM onb_stages WHERE plan_id = ${planId}::uuid ORDER BY position`)).rows as { id: string; name: string }[];
-  const weeks = (await db.execute(sql`SELECT stage_id, week_no, name, goal, is_break FROM onb_weeks WHERE plan_id = ${planId}::uuid ORDER BY week_no`)).rows as { stage_id: string | null; week_no: number; name: string; goal: string | null; is_break: boolean }[];
-  const items = (await db.execute(sql`SELECT * FROM onb_items WHERE plan_id = ${planId}::uuid ORDER BY week_no, position`)).rows as Record<string, unknown>[];
-  const occ = (await db.execute(sql`SELECT id, item_id, on_date, due_at, done_at FROM onb_occurrences WHERE plan_id = ${planId}::uuid ORDER BY on_date`)).rows as Record<string, unknown>[];
+  const stages = (await db.execute(sql`/*scope:system*/ SELECT id, name FROM onb_stages WHERE plan_id = ${planId}::uuid ORDER BY position`)).rows as { id: string; name: string }[];
+  const weeks = (await db.execute(sql`/*scope:system*/ SELECT stage_id, week_no, name, goal, is_break FROM onb_weeks WHERE plan_id = ${planId}::uuid ORDER BY week_no`)).rows as { stage_id: string | null; week_no: number; name: string; goal: string | null; is_break: boolean }[];
+  const items = (await db.execute(sql`/*scope:system*/ SELECT * FROM onb_items WHERE plan_id = ${planId}::uuid ORDER BY week_no, position`)).rows as Record<string, unknown>[];
+  const occ = (await db.execute(sql`/*scope:system*/ SELECT id, item_id, on_date, due_at, done_at FROM onb_occurrences WHERE plan_id = ${planId}::uuid ORDER BY on_date`)).rows as Record<string, unknown>[];
   const occBy = new Map<string, Record<string, unknown>[]>();
   for (const o of occ) {
     const l = occBy.get(o.item_id as string) ?? [];
@@ -144,7 +144,7 @@ async function insertPlan(ctx: Ctx, p: { name: string; isTemplate: boolean; sour
   await ctx.db.execute(sql`INSERT INTO onb_plans (id, created_by, updated_by, owner_id, tree_id, name, is_template, source_plan_id) VALUES (${id}::uuid, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid, ${tree}::uuid, ${p.name}, ${p.isTemplate}, ${p.sourcePlanId ?? null}::uuid)`);
   return loadPlan(ctx.db, id);
 }
-const touch = (ctx: Ctx, id: string) => ctx.db.execute(sql`UPDATE onb_plans SET version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${id}::uuid`);
+const touch = (ctx: Ctx, id: string) => ctx.db.execute(sql`/*scope:system*/ UPDATE onb_plans SET version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${id}::uuid`);
 
 export const onboardingOperations = [
   ...checkpointOperations,
@@ -181,7 +181,7 @@ export const onboardingOperations = [
       const plan = await requirePlan(ctx, i.plan_id, "edit");
       if (plan.status === "completed" || plan.status === "stopped") throw new AppError("conflict", "Lộ trình đã kết thúc, không sửa được.", { reason: "plan_ended" });
       if (i.name !== undefined || i.followers !== undefined) {
-        await ctx.db.execute(sql`UPDATE onb_plans SET name = ${i.name ?? plan.name}, followers = ${`{${(i.followers ?? plan.followers).join(",")}}`}::uuid[] WHERE id = ${plan.id}::uuid`);
+        await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_plans SET name = ${i.name ?? plan.name}, followers = ${`{${(i.followers ?? plan.followers).join(",")}}`}::uuid[] WHERE id = ${plan.id}::uuid`);
       }
       if (i.structure) {
         await writeStructure(ctx, plan, i.structure);
@@ -215,7 +215,7 @@ export const onboardingOperations = [
         : i.scope === "template" ? (can ? sql`p.is_template AND p.tree_id = ${treeOf(me) ?? a}::uuid` : sql`false`)
         : i.scope === "following" ? sql`${a}::uuid = ANY(p.followers)`
         : sql`p.staff_id IS NOT NULL AND (s.leader_id = ${a}::uuid OR (${me.roles.includes("manager")} AND p.tree_id = ${a}::uuid))`;
-      const res = await ctx.db.execute(sql`SELECT p.*, u.full_name AS staff_name,
+      const res = await ctx.db.execute(sql`/*scope:system*/ SELECT p.*, u.full_name AS staff_name,
           (SELECT count(*) FROM onb_occurrences o WHERE o.plan_id = p.id)::int AS total, (SELECT count(*) FROM onb_occurrences o WHERE o.plan_id = p.id AND o.done_at IS NOT NULL)::int AS done,
           (SELECT count(*) FROM onb_weeks w WHERE w.plan_id = p.id)::int AS weeks
         FROM onb_plans p LEFT JOIN users u ON u.id = p.staff_id LEFT JOIN org_memberships s ON s.user_id = p.staff_id AND s.valid_to IS NULL
@@ -236,7 +236,7 @@ export const onboardingOperations = [
       const plan = await requirePlan(ctx, i.plan_id, "view");
       const r = await rights(ctx.db, plan, ctx.actor.userId);
       const st = await readStructure(ctx.db, plan.id);
-      const [c] = (await ctx.db.execute(sql`SELECT count(*)::int AS total, count(done_at)::int AS done FROM onb_occurrences WHERE plan_id = ${plan.id}::uuid`)).rows as { total: number; done: number }[];
+      const [c] = (await ctx.db.execute(sql`/*scope:system*/ SELECT count(*)::int AS total, count(done_at)::int AS done FROM onb_occurrences WHERE plan_id = ${plan.id}::uuid`)).rows as { total: number; done: number }[];
       return planOut(plan, { stages: st.stages, checkpoints: await readCheckpoints(ctx.db, plan.id), can_edit: r.edit, occurrences_total: c?.total ?? 0, occurrences_done: c?.done ?? 0 });
     },
   }),
@@ -256,9 +256,9 @@ export const onboardingOperations = [
       let forms: Map<string, string> | "drop" = "drop";
       if (src.ownerId === ctx.actor.userId) {
         forms = new Map();
-        const ids = (await ctx.db.execute(sql`SELECT DISTINCT form_id FROM onb_items WHERE plan_id = ${src.id}::uuid AND form_id IS NOT NULL`)).rows as { form_id: string }[];
+        const ids = (await ctx.db.execute(sql`/*scope:system*/ SELECT DISTINCT form_id FROM onb_items WHERE plan_id = ${src.id}::uuid AND form_id IS NOT NULL`)).rows as { form_id: string }[];
         for (const { form_id } of ids) {
-          const live = await ctx.db.execute(sql`SELECT published_version FROM forms WHERE id = ${form_id}::uuid AND owner_id = ${ctx.actor.userId}::uuid AND deleted_at IS NULL`);
+          const live = await ctx.db.execute(sql`/*scope:system*/ SELECT published_version FROM forms WHERE id = ${form_id}::uuid AND owner_id = ${ctx.actor.userId}::uuid AND deleted_at IS NULL`);
           if (!live.rows.length) continue;
           const copy = (await cloneForm(ctx, { form_id })).form_id;
           // A copy of a published form is published too, so the person on the plan can fill it at once (Opus rà 9A).
@@ -293,7 +293,7 @@ export const onboardingOperations = [
       if (treeOf(staff) !== plan.treeId) throw new AppError("forbidden", "Nhân sự không thuộc cây của lộ trình.", { reason: "other_tree" });
       if (plan.staffId) throw new AppError("conflict", "Lộ trình này đã gắn cho một nhân sự. Nhân bản để gắn cho người khác.", { reason: "plan_assigned" });
       if (!isMonday(i.start_date)) throw new AppError("validation_error", "Ngày bắt đầu phải là thứ Hai.", { reason: "start_not_monday" });
-      const busy = await ctx.db.execute(sql`SELECT id FROM onb_plans WHERE staff_id = ${staff.id}::uuid AND status = 'active'`);
+      const busy = await ctx.db.execute(sql`/*scope:system*/ SELECT id FROM onb_plans WHERE staff_id = ${staff.id}::uuid AND status = 'active'`);
       if (busy.rows.length) throw new AppError("conflict", "Nhân sự này đang có một lộ trình chạy. Dừng lộ trình đó trước.", { reason: "staff_has_active_plan", plan_id: (busy.rows[0] as { id: string }).id });
       if (plan.isTemplate) {
         const copy = await insertPlan(ctx, { name: plan.name, isTemplate: false, sourcePlanId: plan.id, treeId: plan.treeId });
@@ -301,7 +301,7 @@ export const onboardingOperations = [
         await copyCheckpoints(ctx.db, plan.id, copy.id, "keep");
         plan = copy;
       }
-      await ctx.db.execute(sql`UPDATE onb_plans SET staff_id = ${staff.id}::uuid, start_date = ${i.start_date}::date, status = 'active', followers = ${`{${(i.followers ?? plan.followers).join(",")}}`}::uuid[] WHERE id = ${plan.id}::uuid`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_plans SET staff_id = ${staff.id}::uuid, start_date = ${i.start_date}::date, status = 'active', followers = ${`{${(i.followers ?? plan.followers).join(",")}}`}::uuid[] WHERE id = ${plan.id}::uuid`);
       plan = await loadPlan(ctx.db, plan.id);
       await syncOccurrences(ctx.db, plan);
       await applyGrants(ctx, plan, staff.id, "up");
@@ -326,27 +326,27 @@ export const onboardingOperations = [
       if (plan.status === "completed" || plan.status === "stopped") throw new AppError("conflict", "Lộ trình đã kết thúc, không sửa được.", { reason: "plan_ended" });
       const pid = plan.id;
       const dir = i.is_break ? 1 : -1;
-      const wk = (await ctx.db.execute(sql`SELECT stage_id, is_break FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no = ${i.week_no}::int`)).rows[0] as { stage_id: string | null; is_break: boolean } | undefined;
+      const wk = (await ctx.db.execute(sql`/*scope:system*/ SELECT stage_id, is_break FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no = ${i.week_no}::int`)).rows[0] as { stage_id: string | null; is_break: boolean } | undefined;
       if (i.is_break) {
-        const prev = (await ctx.db.execute(sql`SELECT stage_id FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no < ${i.week_no}::int ORDER BY week_no DESC LIMIT 1`)).rows[0] as { stage_id: string | null } | undefined;
+        const prev = (await ctx.db.execute(sql`/*scope:system*/ SELECT stage_id FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no < ${i.week_no}::int ORDER BY week_no DESC LIMIT 1`)).rows[0] as { stage_id: string | null } | undefined;
         if (!wk && !prev) throw new AppError("validation_error", `Tuần ${i.week_no} không có trong lộ trình.`, { reason: "week_unknown" });
       } else {
         if (!wk?.is_break) throw new AppError("validation_error", `Tuần ${i.week_no} không phải tuần nghỉ.`, { reason: "not_break_week" });
-        const busy = await ctx.db.execute(sql`SELECT 1 FROM onb_items WHERE plan_id = ${pid}::uuid AND week_no = ${i.week_no}::int LIMIT 1`);
+        const busy = await ctx.db.execute(sql`/*scope:system*/ SELECT 1 FROM onb_items WHERE plan_id = ${pid}::uuid AND week_no = ${i.week_no}::int LIMIT 1`);
         if (busy.rows.length) throw new AppError("conflict", "Tuần nghỉ còn việc, chuyển hoặc xoá việc trước.", { reason: "break_week_has_items" });
       }
       const from = i.is_break ? i.week_no : i.week_no + 1;
       // Move from the far end so the unique (plan, week) never collides.
-      const later = (await ctx.db.execute(sql`SELECT week_no FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no >= ${from}::int ORDER BY week_no ${i.is_break ? sql`DESC` : sql`ASC`}`)).rows as { week_no: number }[];
-      if (!i.is_break) await ctx.db.execute(sql`DELETE FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no = ${i.week_no}::int`);
-      for (const { week_no } of later) await ctx.db.execute(sql`UPDATE onb_weeks SET week_no = ${week_no + dir}::int WHERE plan_id = ${pid}::uuid AND week_no = ${week_no}::int`);
-      await ctx.db.execute(sql`UPDATE onb_items SET week_no = week_no + ${dir}::int WHERE plan_id = ${pid}::uuid AND week_no >= ${from}::int`);
-      await ctx.db.execute(sql`UPDATE onb_items SET until_week_no = until_week_no + ${dir}::int WHERE plan_id = ${pid}::uuid AND until_week_no >= ${from}::int`);
-      await ctx.db.execute(sql`UPDATE onb_checkpoints SET week_no = week_no + ${dir}::int WHERE plan_id = ${pid}::uuid AND week_no >= ${from}::int`);
+      const later = (await ctx.db.execute(sql`/*scope:system*/ SELECT week_no FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no >= ${from}::int ORDER BY week_no ${i.is_break ? sql`DESC` : sql`ASC`}`)).rows as { week_no: number }[];
+      if (!i.is_break) await ctx.db.execute(sql`/*scope:system*/ DELETE FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no = ${i.week_no}::int`);
+      for (const { week_no } of later) await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_weeks SET week_no = ${week_no + dir}::int WHERE plan_id = ${pid}::uuid AND week_no = ${week_no}::int`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_items SET week_no = week_no + ${dir}::int WHERE plan_id = ${pid}::uuid AND week_no >= ${from}::int`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_items SET until_week_no = until_week_no + ${dir}::int WHERE plan_id = ${pid}::uuid AND until_week_no >= ${from}::int`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_checkpoints SET week_no = week_no + ${dir}::int WHERE plan_id = ${pid}::uuid AND week_no >= ${from}::int`);
       if (!i.is_break) {
-        await ctx.db.execute(sql`UPDATE onb_items SET until_week_no = GREATEST(until_week_no, week_no) WHERE plan_id = ${pid}::uuid AND until_week_no IS NOT NULL`);
+        await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_items SET until_week_no = GREATEST(until_week_no, week_no) WHERE plan_id = ${pid}::uuid AND until_week_no IS NOT NULL`);
       } else {
-        const stage = wk?.stage_id ?? ((await ctx.db.execute(sql`SELECT stage_id FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no < ${i.week_no}::int ORDER BY week_no DESC LIMIT 1`)).rows[0] as { stage_id: string | null }).stage_id;
+        const stage = wk?.stage_id ?? ((await ctx.db.execute(sql`/*scope:system*/ SELECT stage_id FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no < ${i.week_no}::int ORDER BY week_no DESC LIMIT 1`)).rows[0] as { stage_id: string | null }).stage_id;
         await ctx.db.execute(sql`INSERT INTO onb_weeks (id, plan_id, stage_id, week_no, name, goal, is_break) VALUES (${newId()}::uuid, ${pid}::uuid, ${stage}::uuid, ${i.week_no}::int, ${i.name ?? "Tuần nghỉ"}, NULL, true)`);
       }
       if (plan.staffId) await syncOccurrences(ctx.db, plan);
@@ -368,7 +368,7 @@ export const onboardingOperations = [
       await guardAi(ctx);
       const plan = await requirePlan(ctx, i.plan_id, "edit");
       if (plan.status !== "active" || !plan.staffId) throw new AppError("conflict", "Chỉ dừng được lộ trình đang chạy.", { reason: "plan_not_active" });
-      await ctx.db.execute(sql`UPDATE onb_plans SET status = 'stopped', stop_reason = ${i.reason}, ended_at = now() WHERE id = ${plan.id}::uuid`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_plans SET status = 'stopped', stop_reason = ${i.reason}, ended_at = now() WHERE id = ${plan.id}::uuid`);
       await applyGrants(ctx, plan, plan.staffId, "down");
       await touch(ctx, plan.id);
       ctx.audit({ type: "onboarding_plan", id: plan.id, details: { reason: i.reason } });
@@ -388,7 +388,7 @@ export const onboardingOperations = [
       await guardAi(ctx);
       const plan = await requirePlan(ctx, i.plan_id, "edit");
       if (plan.status === "active") throw new AppError("conflict", "Dừng lộ trình trước khi xoá.", { reason: "plan_active" });
-      await ctx.db.execute(sql`DELETE FROM onb_plans WHERE id = ${plan.id}::uuid`);
+      await ctx.db.execute(sql`/*scope:system*/ DELETE FROM onb_plans WHERE id = ${plan.id}::uuid`);
       ctx.audit({ type: "onboarding_plan", id: plan.id });
       return { id: plan.id, deleted: true as const };
     },
@@ -404,17 +404,17 @@ export const onboardingOperations = [
     output: Out,
     http: { method: "POST", path: "/onboarding/occurrences/:occurrence_id/tick" },
     handler: async (ctx, i) => {
-      const r = await ctx.db.execute(sql`SELECT o.id, o.plan_id, p.staff_id, p.status FROM onb_occurrences o JOIN onb_plans p ON p.id = o.plan_id WHERE o.id = ${i.occurrence_id}::uuid`);
+      const r = await ctx.db.execute(sql`/*scope:system*/ SELECT o.id, o.plan_id, p.staff_id, p.status FROM onb_occurrences o JOIN onb_plans p ON p.id = o.plan_id WHERE o.id = ${i.occurrence_id}::uuid`);
       const o = r.rows[0] as { id: string; plan_id: string; staff_id: string | null; status: string } | undefined;
       if (!o || o.staff_id !== ctx.actor.userId) throw new AppError("not_found", "Không tìm thấy việc.");
       if (o.status !== "active") throw new AppError("conflict", "Lộ trình không còn chạy.", { reason: "plan_not_active" });
-      await ctx.db.execute(sql`UPDATE onb_occurrences SET done_at = ${i.done ? sql`now()` : sql`NULL`}, done_by = ${i.done ? ctx.actor.userId : null}::uuid WHERE id = ${o.id}::uuid`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_occurrences SET done_at = ${i.done ? sql`now()` : sql`NULL`}, done_by = ${i.done ? ctx.actor.userId : null}::uuid WHERE id = ${o.id}::uuid`);
       ctx.audit({ type: "onboarding_plan", id: o.plan_id, details: { occurrence_id: o.id, done: i.done } });
       if (i.done) {
         const me = await loadPerson(ctx.db, ctx.actor.userId);
         await ctx.emit("onboarding.item.ticked", { aggregateType: "onboarding_plan", aggregateId: o.plan_id, payload: { plan_id: o.plan_id, staff_id: ctx.actor.userId, notify_id: me?.leaderId ?? me?.managerId ?? null } });
       }
-      const [x] = (await ctx.db.execute(sql`SELECT id, plan_id, item_id, on_date, due_at, done_at FROM onb_occurrences WHERE id = ${o.id}::uuid`)).rows as Record<string, unknown>[];
+      const [x] = (await ctx.db.execute(sql`/*scope:system*/ SELECT id, plan_id, item_id, on_date, due_at, done_at FROM onb_occurrences WHERE id = ${o.id}::uuid`)).rows as Record<string, unknown>[];
       return { ...x, on_date: x!.on_date instanceof Date ? (x!.on_date as Date).toISOString().slice(0, 10) : String(x!.on_date).slice(0, 10) };
     },
   }),

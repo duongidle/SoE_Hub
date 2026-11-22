@@ -89,7 +89,7 @@ export function quotaExceeded(what: string, limit: number): never {
 
 /** The column limit of one table: tables that a live form writes to get `form.table_max_columns` when it is higher than the person's own limit. */
 export async function tableColumnCap(ex: Executor, ownLimit: number, tableId: string): Promise<number> {
-  const r = await ex.execute(sql`SELECT 1 FROM forms WHERE table_id = ${tableId}::uuid AND deleted_at IS NULL LIMIT 1`);
+  const r = await ex.execute(sql`/*scope:system*/ SELECT 1 FROM forms WHERE table_id = ${tableId}::uuid AND deleted_at IS NULL LIMIT 1`);
   if (r.rows.length === 0) return ownLimit;
   return Math.min(Math.max(ownLimit, await readSetting(ex, FORM_SETTINGS.tableMaxColumns)), DH_COLUMN_CEILING);
 }

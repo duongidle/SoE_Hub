@@ -21,7 +21,7 @@ const boss = (o: { leader_id: string | null; manager_id: string | null }): strin
 /** Every 5 minutes: an item reaching its reminder time and not ticked reminds the person; past its deadline it tells the person and the Leader. Once per occurrence (unique source id). */
 export async function runOnboardingDue(db: Db, now = new Date()): Promise<{ reminded: number; overdue: number }> {
   const at = now.toISOString();
-  const rows = (await db.execute(sql`SELECT o.id, o.plan_id, o.item_id, o.due_at, i.name, p.staff_id, u.full_name AS staff_name, m.leader_id, m.manager_id
+  const rows = (await db.execute(sql`/*scope:system*/ SELECT o.id, o.plan_id, o.item_id, o.due_at, i.name, p.staff_id, u.full_name AS staff_name, m.leader_id, m.manager_id
     FROM onb_occurrences o JOIN onb_items i ON i.id = o.item_id JOIN onb_plans p ON p.id = o.plan_id AND p.status = 'active'
     JOIN users u ON u.id = p.staff_id LEFT JOIN org_memberships m ON m.user_id = p.staff_id AND m.valid_to IS NULL
     WHERE o.done_at IS NULL AND o.due_at IS NOT NULL AND o.due_at > ${at}::timestamptz - make_interval(days => ${OVERDUE_DAYS})
@@ -50,7 +50,7 @@ export async function runOnboardingDue(db: Db, now = new Date()): Promise<{ remi
 }
 
 async function activePlans(db: Db): Promise<(PlanRow & { staffName: string; leaderId: string | null; managerId: string | null })[]> {
-  const rows = (await db.execute(sql`SELECT p.*, u.full_name AS staff_name, m.leader_id, m.manager_id FROM onb_plans p JOIN users u ON u.id = p.staff_id
+  const rows = (await db.execute(sql`/*scope:system*/ SELECT p.*, u.full_name AS staff_name, m.leader_id, m.manager_id FROM onb_plans p JOIN users u ON u.id = p.staff_id
     LEFT JOIN org_memberships m ON m.user_id = p.staff_id AND m.valid_to IS NULL WHERE p.status = 'active' AND p.staff_id IS NOT NULL AND p.start_date IS NOT NULL`)).rows as Record<string, unknown>[];
   return rows.map((r) => ({ ...planFrom(r), staffName: r.staff_name as string, leaderId: (r.leader_id as string | null) ?? null, managerId: (r.manager_id as string | null) ?? null }));
 }
@@ -62,7 +62,7 @@ export async function runCheckpointsPassed(db: Db): Promise<number> {
     const todo = await evaluatePlan(calc(db), plan, (c) => !c.passedNotifiedAt);
     for (const { cp, status } of todo) {
       if (status !== "passed" && status !== "passed_late") continue;
-      const hit = await db.execute(sql`UPDATE onb_checkpoints SET passed_notified_at = now() WHERE id = ${cp.id}::uuid AND passed_notified_at IS NULL RETURNING id`);
+      const hit = await db.execute(sql`/*scope:system*/ UPDATE onb_checkpoints SET passed_notified_at = now() WHERE id = ${cp.id}::uuid AND passed_notified_at IS NULL RETURNING id`);
       if (!hit.rows.length) continue;
       n++;
       await enqueueOutbox(db, { event: "onboarding.checkpoint.passed", aggregateType: "onboarding_plan", aggregateId: plan.id, payload: { plan_id: plan.id, staff_id: plan.staffId, notify_id: plan.leaderId ?? plan.managerId, checkpoint_id: cp.id } });

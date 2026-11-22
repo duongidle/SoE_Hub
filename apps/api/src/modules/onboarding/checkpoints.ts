@@ -49,7 +49,7 @@ export const CheckpointIn = z.object({
 export type CheckpointInput = z.infer<typeof CheckpointIn>;
 
 export async function writeCheckpoints(ctx: Pick<Ctx, "db">, plan: PlanRow, list: CheckpointInput[]): Promise<void> {
-  const weeks = new Set(((await ctx.db.execute(sql`SELECT week_no FROM onb_weeks WHERE plan_id = ${plan.id}::uuid`)).rows as { week_no: number }[]).map((r) => r.week_no));
+  const weeks = new Set(((await ctx.db.execute(sql`/*scope:system*/ SELECT week_no FROM onb_weeks WHERE plan_id = ${plan.id}::uuid`)).rows as { week_no: number }[]).map((r) => r.week_no));
   const formIds = new Set<string>();
   for (const c of list) {
     if (c.week_no != null && !weeks.has(c.week_no)) throw new AppError("validation_error", `Checkpoint "${c.name}": tuần ${c.week_no} không có trong lộ trình.`, { reason: "checkpoint_week_unknown" });
@@ -61,12 +61,12 @@ export async function writeCheckpoints(ctx: Pick<Ctx, "db">, plan: PlanRow, list
     }
   }
   if (formIds.size) {
-    const ok = await ctx.db.execute(sql`SELECT id FROM forms WHERE id = ANY(${`{${[...formIds].join(",")}}`}::uuid[]) AND owner_id = ${plan.ownerId}::uuid AND deleted_at IS NULL`);
+    const ok = await ctx.db.execute(sql`/*scope:system*/ SELECT id FROM forms WHERE id = ANY(${`{${[...formIds].join(",")}}`}::uuid[]) AND owner_id = ${plan.ownerId}::uuid AND deleted_at IS NULL`);
     if (ok.rows.length !== formIds.size) throw new AppError("validation_error", "Form của điều kiện phải là form của người tạo lộ trình.", { reason: "form_not_owned" });
   }
   const ids = list.map((c) => c.id).filter((x): x is string => !!x);
   if (ids.length) {
-    const have = await ctx.db.execute(sql`SELECT id FROM onb_checkpoints WHERE plan_id = ${plan.id}::uuid AND id = ANY(${`{${ids.join(",")}}`}::uuid[])`);
+    const have = await ctx.db.execute(sql`/*scope:system*/ SELECT id FROM onb_checkpoints WHERE plan_id = ${plan.id}::uuid AND id = ANY(${`{${ids.join(",")}}`}::uuid[])`);
     if (have.rows.length !== ids.length) throw new AppError("validation_error", "Có mã checkpoint không thuộc lộ trình này.", { reason: "checkpoint_unknown" });
   }
   const keep: string[] = [];
@@ -74,15 +74,15 @@ export async function writeCheckpoints(ctx: Pick<Ctx, "db">, plan: PlanRow, list
     const id = c.id ?? newId();
     keep.push(id);
     const cond = JSON.stringify(c.conditions);
-    if (c.id) await ctx.db.execute(sql`UPDATE onb_checkpoints SET week_no = ${c.week_no ?? null}::int, position = ${i}::int, name = ${c.name}, is_final = ${c.is_final}, group_key = ${c.group ?? null}, conditions = ${cond}::jsonb WHERE id = ${id}::uuid`);
+    if (c.id) await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_checkpoints SET week_no = ${c.week_no ?? null}::int, position = ${i}::int, name = ${c.name}, is_final = ${c.is_final}, group_key = ${c.group ?? null}, conditions = ${cond}::jsonb WHERE id = ${id}::uuid`);
     else await ctx.db.execute(sql`INSERT INTO onb_checkpoints (id, plan_id, week_no, position, name, is_final, group_key, conditions) VALUES (${id}::uuid, ${plan.id}::uuid, ${c.week_no ?? null}::int, ${i}::int, ${c.name}, ${c.is_final}, ${c.group ?? null}, ${cond}::jsonb)`);
   }
-  await ctx.db.execute(sql`DELETE FROM onb_checkpoints WHERE plan_id = ${plan.id}::uuid AND NOT (id = ANY(${`{${keep.join(",")}}`}::uuid[]))`);
+  await ctx.db.execute(sql`/*scope:system*/ DELETE FROM onb_checkpoints WHERE plan_id = ${plan.id}::uuid AND NOT (id = ANY(${`{${keep.join(",")}}`}::uuid[]))`);
 }
 
 interface CpRow { id: string; weekNo: number | null; name: string; isFinal: boolean; group: string | null; conditions: Condition[]; confirmedAt: Date | null; confirmedBy: string | null; passedNotifiedAt: Date | null }
 async function loadCheckpoints(db: Executor, planId: string): Promise<CpRow[]> {
-  const rows = (await db.execute(sql`SELECT * FROM onb_checkpoints WHERE plan_id = ${planId}::uuid ORDER BY position`)).rows as Record<string, unknown>[];
+  const rows = (await db.execute(sql`/*scope:system*/ SELECT * FROM onb_checkpoints WHERE plan_id = ${planId}::uuid ORDER BY position`)).rows as Record<string, unknown>[];
   return rows.map((r) => ({ id: r.id as string, weekNo: (r.week_no as number | null) ?? null, name: r.name as string, isFinal: !!r.is_final, group: (r.group_key as string | null) ?? null, conditions: r.conditions as Condition[], confirmedAt: r.confirmed_at ? new Date(r.confirmed_at as string) : null, confirmedBy: (r.confirmed_by as string | null) ?? null, passedNotifiedAt: r.passed_notified_at ? new Date(r.passed_notified_at as string) : null }));
 }
 /** Definitions (what the editor needs), with the confirmation of the manual ones. */
@@ -93,7 +93,7 @@ export async function readCheckpoints(db: Executor, planId: string) {
 export async function copyCheckpoints(db: Executor, fromId: string, toId: string, forms: Map<string, string> | "keep" | "drop"): Promise<void> {
   for (const c of await loadCheckpoints(db, fromId)) {
     const conds = c.conditions.map((k) => (k.type === "manual" ? k : { ...k, form_id: forms === "keep" ? k.form_id : forms === "drop" || !k.form_id ? null : (forms.get(k.form_id) ?? null) }));
-    await db.execute(sql`INSERT INTO onb_checkpoints (id, plan_id, week_no, position, name, is_final, group_key, conditions) SELECT ${newId()}::uuid, ${toId}::uuid, week_no, position, name, is_final, group_key, ${JSON.stringify(conds)}::jsonb FROM onb_checkpoints WHERE id = ${c.id}::uuid`);
+    await db.execute(sql`/*scope:system*/ INSERT INTO onb_checkpoints (id, plan_id, week_no, position, name, is_final, group_key, conditions) SELECT ${newId()}::uuid, ${toId}::uuid, week_no, position, name, is_final, group_key, ${JSON.stringify(conds)}::jsonb FROM onb_checkpoints WHERE id = ${c.id}::uuid`);
   }
 }
 
@@ -169,7 +169,7 @@ async function evalCondition(env: Env, k: Condition): Promise<CondResult> {
     }
     const rowsN = (await agg(env, k, "count", undefined)) ?? 0;
     const w = windowOf(env, k);
-    const [n] = (await env.ctx.db.execute(sql`SELECT count(*)::int AS n FROM onb_occurrences o JOIN onb_items i ON i.id = o.item_id WHERE o.plan_id = ${env.plan.id}::uuid AND i.kind = ${k.item_kind} AND o.on_date >= ${w.from}::date AND o.on_date <= ${w.to}::date`)).rows as { n: number }[];
+    const [n] = (await env.ctx.db.execute(sql`/*scope:system*/ SELECT count(*)::int AS n FROM onb_occurrences o JOIN onb_items i ON i.id = o.item_id WHERE o.plan_id = ${env.plan.id}::uuid AND i.kind = ${k.item_kind} AND o.on_date >= ${w.from}::date AND o.on_date <= ${w.to}::date`)).rows as { n: number }[];
     return { type: "vs_items", label: k.label ?? `Số dòng so với số việc ${k.item_kind} đã qua`, value: rowsN, op: "gte", threshold: n?.n ?? 0, met: rowsN >= (n?.n ?? 0) };
   } catch (e) {
     if (e instanceof AppError) return { type: k.type, label: k.label ?? k.type, value: null, op: "gte", threshold: null, met: false, note: e.message };
@@ -208,7 +208,7 @@ export async function evaluatePlan(ctx: Calc, plan: PlanRow, only?: (c: CpRow) =
   const cps = (await loadCheckpoints(ctx.db, plan.id)).filter((c) => !only || only(c));
   const formIds = [...new Set(cps.flatMap((c) => c.conditions.flatMap((k) => (k.type !== "manual" && k.form_id ? [k.form_id] : []))))];
   const forms: Env["forms"] = new Map();
-  if (formIds.length) for (const r of (await ctx.db.execute(sql`SELECT id, owner_id, table_id FROM forms WHERE id = ANY(${`{${formIds.join(",")}}`}::uuid[]) AND deleted_at IS NULL`)).rows as { id: string; owner_id: string; table_id: string | null }[]) forms.set(r.id, { ownerId: r.owner_id, tableId: r.table_id });
+  if (formIds.length) for (const r of (await ctx.db.execute(sql`/*scope:system*/ SELECT id, owner_id, table_id FROM forms WHERE id = ANY(${`{${formIds.join(",")}}`}::uuid[]) AND deleted_at IS NULL`)).rows as { id: string; owner_id: string; table_id: string | null }[]) forms.set(r.id, { ownerId: r.owner_id, tableId: r.table_id });
   const out = [];
   for (const c of cps) out.push({ cp: c, ...(await statusOf(ctx, plan, c, forms)) });
   return out;
@@ -235,10 +235,10 @@ export const checkpointOperations = [
       const plan = await requirePlan(ctx, i.plan_id, "view");
       if (!plan.staffId || !plan.startDate) throw new AppError("conflict", "Lộ trình chưa gắn cho nhân sự.", { reason: "plan_not_assigned" });
       const out = (await evaluatePlan(ctx, plan)).map(({ cp: c, status, results }) => ({ id: c.id, week_no: c.weekNo, name: c.name, is_final: c.isFinal, group: groupOf(c), status, conditions: results, confirmed_at: c.confirmedAt?.toISOString() ?? null }));
-      const kinds = (await ctx.db.execute(sql`SELECT i.kind, count(*)::int AS total, count(o.done_at)::int AS done,
+      const kinds = (await ctx.db.execute(sql`/*scope:system*/ SELECT i.kind, count(*)::int AS total, count(o.done_at)::int AS done,
           count(*) FILTER (WHERE o.done_at IS NULL AND o.due_at IS NOT NULL AND o.due_at < now())::int AS overdue
         FROM onb_occurrences o JOIN onb_items i ON i.id = o.item_id WHERE o.plan_id = ${plan.id}::uuid GROUP BY i.kind`)).rows as { kind: string; total: number; done: number; overdue: number }[];
-      const [wk] = (await ctx.db.execute(sql`SELECT count(*)::int AS total FROM onb_weeks WHERE plan_id = ${plan.id}::uuid`)).rows as { total: number }[];
+      const [wk] = (await ctx.db.execute(sql`/*scope:system*/ SELECT count(*)::int AS total FROM onb_weeks WHERE plan_id = ${plan.id}::uuid`)).rows as { total: number }[];
       const todayWeek = Math.max(1, Math.floor((new Date(`${businessDate(new Date())}T00:00:00Z`).getTime() - new Date(`${plan.startDate}T00:00:00Z`).getTime()) / 604800000) + 1);
       const r = await rights(ctx.db, plan, ctx.actor.userId);
       return {
@@ -259,12 +259,12 @@ export const checkpointOperations = [
     output: Out,
     http: { method: "POST", path: "/onboarding/checkpoints/:checkpoint_id/confirm" },
     handler: async (ctx, i) => {
-      const r = (await ctx.db.execute(sql`SELECT plan_id, conditions FROM onb_checkpoints WHERE id = ${i.checkpoint_id}::uuid`)).rows[0] as { plan_id: string; conditions: Condition[] } | undefined;
+      const r = (await ctx.db.execute(sql`/*scope:system*/ SELECT plan_id, conditions FROM onb_checkpoints WHERE id = ${i.checkpoint_id}::uuid`)).rows[0] as { plan_id: string; conditions: Condition[] } | undefined;
       if (!r) throw new AppError("not_found", "Không tìm thấy checkpoint.");
       const plan = await requirePlan(ctx, r.plan_id, "edit");
       if (plan.status !== "active") throw new AppError("conflict", "Lộ trình không còn chạy.", { reason: "plan_not_active" });
       if (!r.conditions.some((k) => k.type === "manual")) throw new AppError("validation_error", "Checkpoint này không có điều kiện xác nhận tay.", { reason: "not_manual" });
-      await ctx.db.execute(sql`UPDATE onb_checkpoints SET confirmed_at = ${i.confirmed ? sql`now()` : sql`NULL`}, confirmed_by = ${i.confirmed ? ctx.actor.userId : null}::uuid WHERE id = ${i.checkpoint_id}::uuid`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_checkpoints SET confirmed_at = ${i.confirmed ? sql`now()` : sql`NULL`}, confirmed_by = ${i.confirmed ? ctx.actor.userId : null}::uuid WHERE id = ${i.checkpoint_id}::uuid`);
       ctx.audit({ type: "onboarding_plan", id: plan.id, details: { checkpoint_id: i.checkpoint_id, confirmed: i.confirmed } });
       return { checkpoint_id: i.checkpoint_id, confirmed: i.confirmed };
     },
@@ -282,9 +282,9 @@ export const checkpointOperations = [
     handler: async (ctx, i) => {
       const plan = await requirePlan(ctx, i.plan_id, "edit");
       if (plan.status !== "active" || !plan.staffId) throw new AppError("conflict", "Chỉ chốt được lộ trình đang chạy.", { reason: "plan_not_active" });
-      await ctx.db.execute(sql`UPDATE onb_plans SET status = 'completed', ended_at = now(), final_result = ${i.result}, final_note = ${i.note ?? null}, finished_by = ${ctx.actor.userId}::uuid WHERE id = ${plan.id}::uuid`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_plans SET status = 'completed', ended_at = now(), final_result = ${i.result}, final_note = ${i.note ?? null}, finished_by = ${ctx.actor.userId}::uuid WHERE id = ${plan.id}::uuid`);
       await applyGrants(ctx, plan, plan.staffId, "down");
-      await ctx.db.execute(sql`UPDATE onb_plans SET version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${plan.id}::uuid`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE onb_plans SET version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${plan.id}::uuid`);
       ctx.audit({ type: "onboarding_plan", id: plan.id, details: { result: i.result } });
       await ctx.emit("onboarding.plan.ended", { aggregateType: "onboarding_plan", aggregateId: plan.id, payload: { plan_id: plan.id, staff_id: plan.staffId, status: "completed" } });
       const after = await loadPlan(ctx.db, plan.id);

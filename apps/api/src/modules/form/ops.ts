@@ -70,7 +70,7 @@ async function summary(db: Executor, f: FormRow, extra: { responses?: number; la
   }
   let last = extra.last;
   if (last === undefined) {
-    const r = await db.execute(sql`SELECT max(created_at) AS at FROM form_responses WHERE form_id = ${f.id}::uuid`);
+    const r = await db.execute(sql`/*scope:system*/ SELECT max(created_at) AS at FROM form_responses WHERE form_id = ${f.id}::uuid`);
     const at = (r.rows[0] as { at: Date | string | null }).at;
     last = at ? new Date(at).toISOString() : null;
   }
@@ -158,7 +158,7 @@ function patchQuestion(cfg: FormConfig, qid: string, patch: Partial<Question>): 
 }
 
 async function saveDraft(ctx: Ctx, f: FormRow, cfg: FormConfig): Promise<void> {
-  await ctx.db.execute(sql`UPDATE forms SET draft = ${JSON.stringify(cfg)}::jsonb, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
+  await ctx.db.execute(sql`/*scope:system*/ UPDATE forms SET draft = ${JSON.stringify(cfg)}::jsonb, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -290,7 +290,7 @@ function checkQuiz(cfg: FormConfig, access: string | undefined, disabled: Set<st
 
 /** Publishes the draft of a form of the caller (the body of `form.form.publish`; `onboarding.plan.clone` publishes the copy of a published form with it). */
 export async function publishForm(ctx: Ctx, formId: string): Promise<{ id: string; published_version: number; status: (typeof FORM_STATUSES)[number] }> {
-  await ctx.db.execute(sql`SELECT 1 FROM forms WHERE id = ${formId}::uuid FOR UPDATE`);
+  await ctx.db.execute(sql`/*scope:system*/ SELECT 1 FROM forms WHERE id = ${formId}::uuid FOR UPDATE`);
   const f = await loadOwnForm(ctx.db, ctx.actor.userId, formId);
   const cols = await liveColumns(ctx.db, f.tableId);
   if (f.tableId && !(await tableAlive(ctx.db, f.tableId))) throw new AppError("conflict", "Bảng đích đã bị xoá. Khôi phục bảng trước khi xuất bản.", { reason: "table_deleted" });
@@ -304,7 +304,7 @@ export async function publishForm(ctx: Ctx, formId: string): Promise<{ id: strin
   const next = f.publishedVersion + 1;
   await ctx.db.execute(sql`INSERT INTO form_versions (form_id, version, config, published_by) VALUES (${f.id}::uuid, ${next}::int, ${JSON.stringify(f.draft)}::jsonb, ${ctx.actor.userId}::uuid)`);
   const status = f.status === "draft" ? "open" : f.status;
-  await ctx.db.execute(sql`UPDATE forms SET published_version = ${next}::int, status = ${status}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
+  await ctx.db.execute(sql`/*scope:system*/ UPDATE forms SET published_version = ${next}::int, status = ${status}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
   ctx.audit({ type: "form", id: f.id, details: { name: f.name, published_version: next } });
   return { id: f.id, published_version: next, status };
 }
@@ -322,7 +322,7 @@ export async function createFormIn(ctx: Ctx, i: { name: string; datahub_id?: str
   const id = newId();
   let code = newCode();
   for (let n = 0; n < 5; n++) {
-    const clash = await ctx.db.execute(sql`SELECT 1 FROM forms WHERE code = ${code}`);
+    const clash = await ctx.db.execute(sql`/*scope:system*/ SELECT 1 FROM forms WHERE code = ${code}`);
     if (clash.rows.length === 0) break;
     code = newCode();
   }
@@ -456,7 +456,7 @@ export const formManageOperations = [
       }
       if (access === "public" && options.one_per_user) throw new AppError("validation_error", "\"Mỗi người một phản hồi\" chỉ dùng cho form nội bộ.", { reason: "one_per_user_public" });
       if (options.open_at && options.close_at && new Date(options.open_at) >= new Date(options.close_at)) throw new AppError("validation_error", "Giờ đóng phải sau giờ mở.");
-      await ctx.db.execute(sql`UPDATE forms SET name = ${i.name ?? f.name}, access = ${access}, audience = ${JSON.stringify(i.audience ?? f.audience)}::jsonb, options = ${JSON.stringify(options)}::jsonb,
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE forms SET name = ${i.name ?? f.name}, access = ${access}, audience = ${JSON.stringify(i.audience ?? f.audience)}::jsonb, options = ${JSON.stringify(options)}::jsonb,
         notify_new_response = ${i.notify_new_response ?? f.notifyNewResponse}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
       touch(ctx, f);
       return summary(ctx.db, (await loadOwnForm(ctx.db, ctx.actor.userId, f.id))!);
@@ -616,8 +616,8 @@ export const formManageOperations = [
     handler: async (ctx, i) => {
       const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id);
       let code = newCode();
-      while ((await ctx.db.execute(sql`SELECT 1 FROM forms WHERE code = ${code}`)).rows.length) code = newCode();
-      await ctx.db.execute(sql`UPDATE forms SET code = ${code}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
+      while ((await ctx.db.execute(sql`/*scope:system*/ SELECT 1 FROM forms WHERE code = ${code}`)).rows.length) code = newCode();
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE forms SET code = ${code}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
       touch(ctx, f);
       return { id: f.id, code, link_path: `/f/${code}` };
     },
@@ -633,7 +633,7 @@ export const formManageOperations = [
     handler: async (ctx, i) => {
       const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id);
       if (f.publishedVersion === 0) throw new AppError("conflict", "Form chưa xuất bản.", { reason: "not_published" });
-      await ctx.db.execute(sql`UPDATE forms SET status = ${i.status}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE forms SET status = ${i.status}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
       touch(ctx, f);
       return summary(ctx.db, (await loadOwnForm(ctx.db, ctx.actor.userId, f.id))!);
     },
@@ -648,7 +648,7 @@ export const formManageOperations = [
     http: { method: "DELETE", path: "/forms/:form_id" },
     handler: async (ctx, i) => {
       const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id);
-      await ctx.db.execute(sql`UPDATE forms SET deleted_at = now(), deleted_by = ${ctx.actor.userId}::uuid, version = version + 1, updated_at = now() WHERE id = ${f.id}::uuid`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE forms SET deleted_at = now(), deleted_by = ${ctx.actor.userId}::uuid, version = version + 1, updated_at = now() WHERE id = ${f.id}::uuid`);
       touch(ctx, f);
       return { id: f.id, deleted: true as const };
     },
@@ -663,7 +663,7 @@ export const formManageOperations = [
     http: { method: "POST", path: "/forms/:form_id/restore" },
     handler: async (ctx, i) => {
       const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id, { trashed: true });
-      await ctx.db.execute(sql`UPDATE forms SET deleted_at = NULL, deleted_by = NULL, version = version + 1, updated_at = now() WHERE id = ${f.id}::uuid`);
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE forms SET deleted_at = NULL, deleted_by = NULL, version = version + 1, updated_at = now() WHERE id = ${f.id}::uuid`);
       touch(ctx, f);
       return summary(ctx.db, (await loadOwnForm(ctx.db, ctx.actor.userId, f.id))!);
     },

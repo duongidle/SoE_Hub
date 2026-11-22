@@ -141,11 +141,11 @@ describe("knowledge and the post engine", () => {
   });
 
   it("check_only runs the rules and creates nothing", async () => {
-    const before = (await t.c.db.db.execute(sql`SELECT count(*)::int AS n FROM posts`)).rows[0] as { n: number };
+    const before = (await t.c.db.db.execute(sql`/*scope:system*/ SELECT count(*)::int AS n FROM posts`)).rows[0] as { n: number };
     const bad = await userA1("knowledge.article.submit", { ...art({ title: "" }), check_only: true });
     expect(bad).toMatchObject({ check_only: true, ok: false });
     expect(await userA1("knowledge.article.submit", { ...art(), check_only: true })).toMatchObject({ ok: true });
-    expect((await t.c.db.db.execute(sql`SELECT count(*)::int AS n FROM posts`)).rows[0]).toEqual(before);
+    expect((await t.c.db.db.execute(sql`/*scope:system*/ SELECT count(*)::int AS n FROM posts`)).rows[0]).toEqual(before);
   });
 });
 

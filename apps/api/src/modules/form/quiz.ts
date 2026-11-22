@@ -194,6 +194,6 @@ export function scoreCells(cols: Map<string, LiveColumn>, s: { score: number; ma
 }
 
 export async function attemptsOf(db: Executor, formId: string, userId: string): Promise<number> {
-  const r = await db.execute(sql`SELECT count(*)::int AS n FROM form_responses WHERE form_id = ${formId}::uuid AND user_id = ${userId}::uuid`);
+  const r = await db.execute(sql`/*scope:system*/ SELECT count(*)::int AS n FROM form_responses WHERE form_id = ${formId}::uuid AND user_id = ${userId}::uuid`);
   return (r.rows[0] as { n: number }).n;
 }

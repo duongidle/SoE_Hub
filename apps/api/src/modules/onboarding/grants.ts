@@ -22,7 +22,7 @@ interface FormUse {
 
 /** Forms attached to the items of a plan, with what to do to their tables. One entry per form (the same form may serve many items). */
 async function formsOf(ctx: Ctx, plan: PlanRow): Promise<FormUse[]> {
-  const rows = (await ctx.db.execute(sql`SELECT i.form_id, i.share_table, i.filler_column, i.leader_columns, f.owner_id, f.table_id, f.access
+  const rows = (await ctx.db.execute(sql`/*scope:system*/ SELECT i.form_id, i.share_table, i.filler_column, i.leader_columns, f.owner_id, f.table_id, f.access
     FROM onb_items i JOIN forms f ON f.id = i.form_id AND f.deleted_at IS NULL WHERE i.plan_id = ${plan.id}::uuid AND i.form_id IS NOT NULL`)).rows as Record<string, unknown>[];
   const by = new Map<string, FormUse>();
   for (const r of rows) {
@@ -50,7 +50,7 @@ export async function applyGrants(ctx: Ctx, plan: PlanRow, staffId: string, mode
   for (const f of await formsOf(ctx, plan)) {
     const o = ownerOf(ctx, f.ownerId);
     if (f.access === "selected") {
-      await ctx.db.execute(sql`UPDATE forms SET audience = jsonb_set(audience, '{user_ids}', (
+      await ctx.db.execute(sql`/*scope:system*/ UPDATE forms SET audience = jsonb_set(audience, '{user_ids}', (
           SELECT COALESCE(jsonb_agg(DISTINCT x), '[]'::jsonb) FROM jsonb_array_elements_text(COALESCE(audience->'user_ids', '[]'::jsonb)) x WHERE x <> ${staffId}) ${mode === "up" ? sql`|| to_jsonb(${staffId}::text)` : sql``}, true),
         version = version + 1, updated_at = now() WHERE id = ${f.formId}::uuid`);
     }

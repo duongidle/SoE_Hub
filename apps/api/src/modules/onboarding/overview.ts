@@ -29,7 +29,7 @@ export const overviewOperations = [
       const me = await loadPerson(ctx.db, ctx.actor.userId);
       if (!me) return [];
       const a = ctx.actor.userId;
-      const plans = (await ctx.db.execute(sql`SELECT p.*, u.full_name AS staff_name, m.leader_id, l.full_name AS leader_name
+      const plans = (await ctx.db.execute(sql`/*scope:system*/ SELECT p.*, u.full_name AS staff_name, m.leader_id, l.full_name AS leader_name
         FROM onb_plans p JOIN users u ON u.id = p.staff_id LEFT JOIN org_memberships m ON m.user_id = p.staff_id AND m.valid_to IS NULL LEFT JOIN users l ON l.id = m.leader_id
         WHERE p.staff_id IS NOT NULL AND p.start_date IS NOT NULL AND (m.leader_id = ${a}::uuid OR (${me.roles.includes("manager")} AND p.tree_id = ${a}::uuid) OR ${a}::uuid = ANY(p.followers))
           ${i.status === "all" ? sql`` : sql`AND p.status = ${i.status}`} ${i.leader_id ? sql`AND m.leader_id = ${i.leader_id}::uuid` : sql``}
@@ -37,9 +37,9 @@ export const overviewOperations = [
         ORDER BY u.full_name LIMIT 300`)).rows as Record<string, unknown>[];
       if (plans.length === 0) return [];
       const ids = `{${plans.map((p) => p.id as string).join(",")}}`;
-      const occ = new Map(((await ctx.db.execute(sql`SELECT plan_id, count(*)::int AS total, count(done_at)::int AS done,
+      const occ = new Map(((await ctx.db.execute(sql`/*scope:system*/ SELECT plan_id, count(*)::int AS total, count(done_at)::int AS done,
           count(*) FILTER (WHERE done_at IS NULL AND due_at IS NOT NULL AND due_at < now())::int AS overdue FROM onb_occurrences WHERE plan_id = ANY(${ids}::uuid[]) GROUP BY plan_id`)).rows as { plan_id: string; total: number; done: number; overdue: number }[]).map((r) => [r.plan_id, r]));
-      const weeks = new Map(((await ctx.db.execute(sql`SELECT plan_id, count(*)::int AS n FROM onb_weeks WHERE plan_id = ANY(${ids}::uuid[]) GROUP BY plan_id`)).rows as { plan_id: string; n: number }[]).map((r) => [r.plan_id, r.n]));
+      const weeks = new Map(((await ctx.db.execute(sql`/*scope:system*/ SELECT plan_id, count(*)::int AS n FROM onb_weeks WHERE plan_id = ANY(${ids}::uuid[]) GROUP BY plan_id`)).rows as { plan_id: string; n: number }[]).map((r) => [r.plan_id, r.n]));
       const today = new Date(`${businessDate(new Date())}T00:00:00Z`).getTime();
       const out: Record<string, unknown>[] = [];
       const BATCH = 5;

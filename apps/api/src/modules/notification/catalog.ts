@@ -521,8 +521,8 @@ defineNotification({
     const p = ev.payload as { plan_id: string; staff_id: string };
     const day = businessDate(ev.createdAt);
     const [u] = (await db.execute(sql`SELECT full_name FROM users WHERE /*scope:system*/ id = ${p.staff_id}::uuid`)).rows as { full_name: string }[];
-    const [t] = (await db.execute(sql`SELECT count(*)::int AS n FROM onb_occurrences WHERE plan_id = ${p.plan_id}::uuid AND (done_at AT TIME ZONE ${BUSINESS_TIMEZONE})::date = ${day}::date`)).rows as { n: number }[];
-    const cps = (await db.execute(sql`SELECT name FROM onb_checkpoints WHERE plan_id = ${p.plan_id}::uuid AND (passed_notified_at AT TIME ZONE ${BUSINESS_TIMEZONE})::date = ${day}::date ORDER BY position`)).rows as { name: string }[];
+    const [t] = (await db.execute(sql`/*scope:system*/ SELECT count(*)::int AS n FROM onb_occurrences WHERE plan_id = ${p.plan_id}::uuid AND (done_at AT TIME ZONE ${BUSINESS_TIMEZONE})::date = ${day}::date`)).rows as { n: number }[];
+    const cps = (await db.execute(sql`/*scope:system*/ SELECT name FROM onb_checkpoints WHERE plan_id = ${p.plan_id}::uuid AND (passed_notified_at AT TIME ZONE ${BUSINESS_TIMEZONE})::date = ${day}::date ORDER BY position`)).rows as { name: string }[];
     const parts = [`xong ${t?.n ?? 0} việc`];
     if (cps.length) parts.push(`checkpoint đạt: ${cps.map((c) => `"${c.name}"`).join(", ")}`);
     return { title: `${u?.full_name ?? "Nhân sự"} hôm nay`, body: `${u?.full_name ?? "Nhân sự"}: ${parts.join("; ")}.`, link: "/onboarding/theo-doi", data: { plan_id: p.plan_id, staff_id: p.staff_id, day, items_done: t?.n ?? 0, checkpoints: cps.map((c) => c.name) } };

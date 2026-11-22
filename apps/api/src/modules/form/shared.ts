@@ -144,7 +144,7 @@ export function stateOf(f: FormRow, o: { now: Date; responses: number; tableAliv
 }
 
 export async function responseCount(db: Executor, formId: string): Promise<number> {
-  const r = await db.execute(sql`SELECT count(*)::int AS n FROM form_responses WHERE form_id = ${formId}::uuid`);
+  const r = await db.execute(sql`/*scope:system*/ SELECT count(*)::int AS n FROM form_responses WHERE form_id = ${formId}::uuid`);
   return (r.rows[0] as { n: number }).n;
 }
 
@@ -155,7 +155,7 @@ export async function latestConfig(db: Executor, f: FormRow): Promise<FormConfig
   return versionConfig(db, f.id, f.publishedVersion);
 }
 export async function versionConfig(db: Executor, formId: string, version: number): Promise<FormConfig | null> {
-  const r = await db.execute(sql`SELECT config FROM form_versions WHERE form_id = ${formId}::uuid AND version = ${version}::int`);
+  const r = await db.execute(sql`/*scope:system*/ SELECT config FROM form_versions WHERE form_id = ${formId}::uuid AND version = ${version}::int`);
   return r.rows[0] ? FormConfigSchema.parse((r.rows[0] as { config: unknown }).config) : null;
 }
 

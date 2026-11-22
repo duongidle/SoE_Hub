@@ -83,7 +83,7 @@ export function planFrom(r: Record<string, unknown>): PlanRow {
   };
 }
 export async function loadPlan(db: Executor, id: string): Promise<PlanRow> {
-  const r = await db.execute(sql`SELECT * FROM onb_plans WHERE id = ${id}::uuid`);
+  const r = await db.execute(sql`/*scope:system*/ SELECT * FROM onb_plans WHERE id = ${id}::uuid`);
   if (!r.rows[0]) throw new AppError("not_found", "Không tìm thấy lộ trình.");
   return planFrom(r.rows[0] as Record<string, unknown>);
 }
@@ -150,18 +150,18 @@ export function expand(start: string, it: ItemRow): { date: string; due: Date | 
 /** Brings the occurrences of a plan in line with its items (assign, structure change): new ones are added, moved ones are dropped unless done, done ones are kept. */
 export async function syncOccurrences(db: Executor, plan: PlanRow): Promise<void> {
   if (!plan.staffId || !plan.startDate) return;
-  const items = ((await db.execute(sql`SELECT id, week_no, weekday, repeat, until_week_no, due_time FROM onb_items WHERE plan_id = ${plan.id}::uuid`)).rows as Record<string, unknown>[]).map((r) => ({ id: r.id as string, weekNo: r.week_no as number, weekday: r.weekday as number, repeat: r.repeat as ItemRow["repeat"], untilWeekNo: (r.until_week_no as number | null) ?? null, dueTime: (r.due_time as string | null) ?? null }));
+  const items = ((await db.execute(sql`/*scope:system*/ SELECT id, week_no, weekday, repeat, until_week_no, due_time FROM onb_items WHERE plan_id = ${plan.id}::uuid`)).rows as Record<string, unknown>[]).map((r) => ({ id: r.id as string, weekNo: r.week_no as number, weekday: r.weekday as number, repeat: r.repeat as ItemRow["repeat"], untilWeekNo: (r.until_week_no as number | null) ?? null, dueTime: (r.due_time as string | null) ?? null }));
   const want = new Map<string, { item: string; date: string; due: Date | null }>();
   for (const it of items) for (const o of expand(plan.startDate, it)) want.set(`${it.id}|${o.date}`, { item: it.id, date: o.date, due: o.due });
-  const have = (await db.execute(sql`SELECT id, item_id, on_date, done_at FROM onb_occurrences WHERE plan_id = ${plan.id}::uuid`)).rows as { id: string; item_id: string; on_date: unknown; done_at: unknown }[];
+  const have = (await db.execute(sql`/*scope:system*/ SELECT id, item_id, on_date, done_at FROM onb_occurrences WHERE plan_id = ${plan.id}::uuid`)).rows as { id: string; item_id: string; on_date: unknown; done_at: unknown }[];
   const seen = new Set<string>();
   for (const h of have) {
     const key = `${h.item_id}|${ds(h.on_date)}`;
     const w = want.get(key);
     if (w) {
       seen.add(key);
-      await db.execute(sql`UPDATE onb_occurrences SET due_at = ${w.due ? w.due.toISOString() : null}::timestamptz WHERE id = ${h.id}::uuid`);
-    } else if (!h.done_at) await db.execute(sql`DELETE FROM onb_occurrences WHERE id = ${h.id}::uuid`);
+      await db.execute(sql`/*scope:system*/ UPDATE onb_occurrences SET due_at = ${w.due ? w.due.toISOString() : null}::timestamptz WHERE id = ${h.id}::uuid`);
+    } else if (!h.done_at) await db.execute(sql`/*scope:system*/ DELETE FROM onb_occurrences WHERE id = ${h.id}::uuid`);
   }
   for (const [key, w] of want) {
     if (seen.has(key)) continue;

@@ -130,7 +130,7 @@ async function submitResponse(ctx: AnyCtx, f: FormRow, input: Submit, publicMode
   if (!cfg || !f.tableId) throw new AppError("conflict", "Form này không nhận phản hồi.", { reason: "no_table" });
   const thankYou = (cfg.appearance as { thank_you?: unknown }).thank_you ?? null;
   const filler = publicMode ? null : ctx.actor;
-  const [seen] = (await ctx.db.execute(sql`SELECT id, row_id, form_version FROM form_responses WHERE form_id = ${f.id}::uuid AND attempt_id = ${input.attempt_id}`)).rows as { id: string; row_id: string | null; form_version: number }[];
+  const [seen] = (await ctx.db.execute(sql`/*scope:system*/ SELECT id, row_id, form_version FROM form_responses WHERE form_id = ${f.id}::uuid AND attempt_id = ${input.attempt_id}`)).rows as { id: string; row_id: string | null; form_version: number }[];
   const quiz = cfg.quiz?.enabled ? cfg.quiz : null;
   if (seen) return { id: seen.id, row_id: seen.row_id, form_version: seen.form_version, replayed: true, thank_you: thankYou, quiz: quiz ? await quizView(ctx.db, f, seen.id) : null };
   const st = await currentState(ctx.db, f);
@@ -147,7 +147,7 @@ async function submitResponse(ctx: AnyCtx, f: FormRow, input: Submit, publicMode
     attemptNo = done + 1;
   }
   if (!quiz && !publicMode && f.options.one_per_user && filler) {
-    const r = await ctx.db.execute(sql`SELECT 1 FROM form_responses WHERE form_id = ${f.id}::uuid AND user_id = ${filler.userId}::uuid LIMIT 1`);
+    const r = await ctx.db.execute(sql`/*scope:system*/ SELECT 1 FROM form_responses WHERE form_id = ${f.id}::uuid AND user_id = ${filler.userId}::uuid LIMIT 1`);
     if (r.rows.length) throw new AppError("conflict", "Bạn đã gửi form này rồi.", { reason: "one_per_user" });
   }
   const cols = await liveColumns(ctx.db, f.tableId);
@@ -201,8 +201,8 @@ async function submitResponse(ctx: AnyCtx, f: FormRow, input: Submit, publicMode
       VALUES (${id}::uuid, ${f.id}::uuid, ${f.publishedVersion}::int, ${rowId}::uuid, ${filler!.userId}::uuid, ${attemptNo}::int, ${graded.score}, ${graded.max}, ${sum.result}, ${graded.floorFailed}, ${JSON.stringify(graded.items)}::jsonb, ${graded.pending ? null : new Date().toISOString()}::timestamptz)`);
     if (graded.pending) await notifyGraders(ctx, f, id, filler!.userId);
   }
-  if (!publicMode && filler) await ctx.db.execute(sql`DELETE FROM form_drafts WHERE form_id = ${f.id}::uuid AND user_id = ${filler.userId}::uuid`);
-  if (f.options.max_responses && (await responseCount(ctx.db, f.id)) >= f.options.max_responses) await ctx.db.execute(sql`UPDATE forms SET status = 'closed', updated_at = now() WHERE id = ${f.id}::uuid AND status = 'open'`);
+  if (!publicMode && filler) await ctx.db.execute(sql`/*scope:system*/ DELETE FROM form_drafts WHERE form_id = ${f.id}::uuid AND user_id = ${filler.userId}::uuid`);
+  if (f.options.max_responses && (await responseCount(ctx.db, f.id)) >= f.options.max_responses) await ctx.db.execute(sql`/*scope:system*/ UPDATE forms SET status = 'closed', updated_at = now() WHERE id = ${f.id}::uuid AND status = 'open'`);
   ctx.audit({ type: "form", id: f.id, details: { code: f.code, form_version: f.publishedVersion, ...(publicMode ? { public: true, ip: ctx.client?.ip ?? null } : {}) } });
   return { id, row_id: rowId, form_version: f.publishedVersion, replayed: false, thank_you: thankYou, quiz: quiz ? await quizView(ctx.db, f, id) : null };
 }
@@ -236,7 +236,7 @@ async function checkUploads(db: Executor, f: FormRow, attempt: string, questions
     const max = f.options.files_per_question ?? SPAM.filesPerQuestion;
     if (list.length > max) issues.push({ question_id: q.id, message: `Tối đa ${max} file.` });
     if (list.length === 0) continue;
-    const ok = await db.execute(sql`SELECT file_id FROM form_uploads WHERE form_id = ${f.id}::uuid AND attempt_id = ${attempt} AND question_id = ${q.id} AND file_id = ANY(${`{${list.join(",")}}`}::uuid[])`);
+    const ok = await db.execute(sql`/*scope:system*/ SELECT file_id FROM form_uploads WHERE form_id = ${f.id}::uuid AND attempt_id = ${attempt} AND question_id = ${q.id} AND file_id = ANY(${`{${list.join(",")}}`}::uuid[])`);
     if (ok.rows.length !== new Set(list).size) issues.push({ question_id: q.id, message: "File không hợp lệ cho lượt điền này." });
   }
 }
@@ -264,7 +264,7 @@ export function fillOperations(cfg: Config, storage: StorageDriver) {
     if (opts.fill) {
       if (age < SPAM.minFillMs) throw spamError("too_fast", { ip, form: f.code });
       const daily = Math.min(f.options.daily_limit ?? SPAM.dailyPerForm, SPAM.dailyPerForm);
-      const r = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM form_responses WHERE form_id = ${f.id}::uuid AND created_at > now() - interval '1 day'`);
+      const r = await ctx.db.execute(sql`/*scope:system*/ SELECT count(*)::int AS n FROM form_responses WHERE form_id = ${f.id}::uuid AND created_at > now() - interval '1 day'`);
       if ((r.rows[0] as { n: number }).n >= daily) throw spamError("daily_limit", { form: f.code });
     }
   }
@@ -291,7 +291,7 @@ export function fillOperations(cfg: Config, storage: StorageDriver) {
         const pubCfg = await versionConfig(ctx.db, f.id, f.publishedVersion);
         if (!pubCfg) throw new AppError("not_found", "Form chưa xuất bản.");
         const v = await fillView(ctx.db, f, pubCfg, ctx.actor.userId, secret);
-        const [d] = (await ctx.db.execute(sql`SELECT answers, form_version FROM form_drafts WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid`)).rows as { answers: Record<string, unknown>; form_version: number }[];
+        const [d] = (await ctx.db.execute(sql`/*scope:system*/ SELECT answers, form_version FROM form_drafts WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid`)).rows as { answers: Record<string, unknown>; form_version: number }[];
         let draft: Record<string, unknown> | null = null;
         let updated = false;
         if (d) {
@@ -299,11 +299,11 @@ export function fillOperations(cfg: Config, storage: StorageDriver) {
           const live = new Set(questionsOf(pubCfg).map((q) => q.id));
           draft = Object.fromEntries(Object.entries(d.answers).filter(([k]) => live.has(k)));
           updated = d.form_version !== f.publishedVersion;
-          if (updated) await ctx.db.execute(sql`UPDATE form_drafts SET answers = ${JSON.stringify(draft)}::jsonb, form_version = ${f.publishedVersion}::int WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid`);
+          if (updated) await ctx.db.execute(sql`/*scope:system*/ UPDATE form_drafts SET answers = ${JSON.stringify(draft)}::jsonb, form_version = ${f.publishedVersion}::int WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid`);
         }
         const q = pubCfg.quiz?.enabled ? pubCfg.quiz : null;
         const used = q ? await attemptsOf(ctx.db, f.id, ctx.actor.userId) : 0;
-        const done = q ? used >= q.max_attempts : f.options.one_per_user ? (await ctx.db.execute(sql`SELECT 1 FROM form_responses WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid LIMIT 1`)).rows.length > 0 : false;
+        const done = q ? used >= q.max_attempts : f.options.one_per_user ? (await ctx.db.execute(sql`/*scope:system*/ SELECT 1 FROM form_responses WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid LIMIT 1`)).rows.length > 0 : false;
         ctx.audit({ type: "form", id: f.id });
         const { userId: _u, ...rest } = v;
         return { ...rest, draft, form_updated: updated, already_submitted: done, quiz: q ? { max_attempts: q.max_attempts, attempts_used: used, show: q.show } : null };
@@ -357,7 +357,7 @@ export function fillOperations(cfg: Config, storage: StorageDriver) {
       http: { method: "DELETE", path: "/fill/:code/draft" },
       handler: async (ctx, i) => {
         const f = await internalForm(ctx, i.code);
-        await ctx.db.execute(sql`DELETE FROM form_drafts WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid`);
+        await ctx.db.execute(sql`/*scope:system*/ DELETE FROM form_drafts WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid`);
         return { deleted: true as const };
       },
     }),
@@ -416,7 +416,7 @@ export function fillOperations(cfg: Config, storage: StorageDriver) {
         if (i.size_bytes > maxBytes) throw new AppError("payload_too_large", `Mỗi file tối đa ${Math.floor(maxBytes / 1024 / 1024)} MB.`, { max_bytes: maxBytes });
         if (!cfg.allowedFileTypes.includes(i.content_type)) throw new AppError("unsupported_media_type", "Loại file này không được chấp nhận.", { allowed: cfg.allowedFileTypes });
         const per = f.options.files_per_question ?? SPAM.filesPerQuestion;
-        const n = (await ctx.db.execute(sql`SELECT count(*)::int AS n FROM form_uploads WHERE form_id = ${f.id}::uuid AND attempt_id = ${i.attempt_id} AND question_id = ${q.id}`)).rows[0] as { n: number };
+        const n = (await ctx.db.execute(sql`/*scope:system*/ SELECT count(*)::int AS n FROM form_uploads WHERE form_id = ${f.id}::uuid AND attempt_id = ${i.attempt_id} AND question_id = ${q.id}`)).rows[0] as { n: number };
         if (n.n >= Math.min(per, SPAM.filesPerQuestion)) throw new AppError("validation_error", `Mỗi câu tối đa ${per} file.`, { reason: "too_many_files" });
         const used = (await ctx.db.execute(sql`SELECT coalesce(sum(size_bytes), 0)::float8 AS total FROM files WHERE /*scope:system*/ owner_id = ${f.ownerId}::uuid AND deleted_at IS NULL`)).rows[0] as { total: number };
         if (used.total + i.size_bytes > cfg.FILE_USER_QUOTA_BYTES) throw new AppError("quota_exceeded", "Không tải file lên được lúc này.", { reason: "owner_quota" });
