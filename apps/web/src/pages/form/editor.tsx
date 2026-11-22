@@ -32,9 +32,12 @@ const PLAIN: { type: Block["type"]; label: string }[] = [
 const BLOCK_NAME: Record<string, string> = { heading: "Tiêu đề", text: "Đoạn chữ", image: "Ảnh", divider: "Đường kẻ", page_break: "Ngắt trang", group: "Nhóm câu" };
 
 function newBlock(type: string): Block {
+  if (type.startsWith("q:")) return newQuestion(type.slice(2));
   if (type === "group") return { id: rid("g"), type: "group", title: "Nhóm câu", blocks: [] } as unknown as Block;
   if (type === "heading" || type === "text") return { id: rid(), type, text: type === "heading" ? "Tiêu đề mới" : "Đoạn chữ" } as Block;
-  if (PLAIN.some((p) => p.type === type)) return { id: rid(), type } as Block;
+  return { id: rid(), type } as Block;
+}
+function newQuestion(type: string): Block {
   const q: Question = { id: rid("q"), type: "question", input: type, label: "" };
   if (isSelect(type)) q.options = [{ id: rid("o_"), label: "Lựa chọn 1" }, { id: rid("o_"), label: "Lựa chọn 2" }];
   if (type === "scale") q.scale = { min: 1, max: 5, min_label: "Rất kém", max_label: "Rất tốt" };
@@ -184,9 +187,9 @@ function EditorInner({ id, d, refetch }: { id: string; d: FormDetail; refetch: (
             <div className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)_320px]">
               <aside className="flex flex-col gap-1" aria-label="Thêm khối" data-testid="block-bar">
                 <p className="text-xs font-medium text-muted-foreground">Câu hỏi</p>
-                {QUESTION_KINDS.map((k) => <Button key={k.input} variant="secondary" className="justify-start" onClick={() => add(k.input)} data-testid={`add-${k.input}`}><Plus size={14} aria-hidden /> {k.label}</Button>)}
+                {QUESTION_KINDS.map((k) => <Button key={k.input} variant="secondary" className="justify-start" onClick={() => add(`q:${k.input}`)} data-testid={`add-${k.input}`}><Plus size={14} aria-hidden /> {k.label}</Button>)}
                 <p className="mt-2 text-xs font-medium text-muted-foreground">Khối khác</p>
-                {PLAIN.map((k) => <Button key={k.type} variant="secondary" className="justify-start" onClick={() => add(k.type)} data-testid={`add-${k.type}`}><Plus size={14} aria-hidden /> {k.label}</Button>)}
+                {PLAIN.map((k) => <Button key={k.type} variant="secondary" className="justify-start" onClick={() => add(k.type)} data-testid={`add-block-${k.type}`}><Plus size={14} aria-hidden /> {k.label}</Button>)}
               </aside>
               <section className="flex min-w-0 flex-col gap-2" aria-label="Form" data-testid="canvas">
                 <Input value={cfg.title} placeholder="Tiêu đề form" aria-label="Tiêu đề form" onChange={(e) => change({ ...cfg, title: e.target.value })} data-testid="form-title" />
