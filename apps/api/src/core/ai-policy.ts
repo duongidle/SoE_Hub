@@ -75,7 +75,7 @@ const RULES: Rule[] = [
   { match: /^org\./, menu: "admin", forbidden: "org" },
   { match: /^guest\.grant\.mine$/, menu: "datahub" },
   { match: /^guest\./, menu: "admin", forbidden: "guest_grant" },
-  { match: /^(notification|reminder)\./, menu: "notify" },
+  { match: /^(notification|reminder|announcement)\./, menu: "notify" },
   { match: /^file\./, menu: "datahub" },
   { match: /^datahub\.limit\.mine$/, menu: "none" },
   { match: /^datahub\.limit\./, menu: "admin", forbidden: "settings" },

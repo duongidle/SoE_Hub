@@ -42,6 +42,7 @@ export const PERMISSIONS = {
   "auth:self": "Quản lý tài khoản của mình (mật khẩu, thiết bị, token)",
   "notification:read": "Xem thông báo của mình",
   "notification:manage": "Cài đặt thông báo và nhắc hẹn của mình",
+  "notification:announce": "Gửi thông báo chung (Admin, Manager, Leader theo phạm vi)",
   "org:member:read": "Xem org chart",
   "org:member:write": "Sửa org chart (thêm, sửa, khoá người)",
   "org:role:elevated": "Gán vai trò Manager, Admin",
@@ -94,6 +95,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   // Admin runs the system and has NO business permissions, except reading Deals of every tree (read only).
   admin: [
     ...MEMBER,
+    "notification:announce",
     "system:setting:write",
     "system:audit:read",
     "org:member:write",
@@ -110,6 +112,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   manager: [
     ...MEMBER,
     ...OWN_WORK,
+    "notification:announce",
     "org:member:write",
     "org:permission:grant",
     "guest:grant:manage",
@@ -125,7 +128,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "review:reviewer:choose",
     "onboarding:path:create",
   ],
-  leader: [...MEMBER, ...OWN_WORK, "deal:forecast:read", "deal:column:push", "datahub:template:write", "onboarding:path:create"],
+  leader: [...MEMBER, ...OWN_WORK, "notification:announce", "deal:forecast:read", "deal:column:push", "datahub:template:write", "onboarding:path:create"],
   user: [...MEMBER, ...OWN_WORK],
   // Guests get nothing beyond being signed in; the preset and data grants add the rest.
   guest: [...SIGNED_IN],

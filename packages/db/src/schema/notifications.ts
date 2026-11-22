@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { newId } from "./columns";
 import { users } from "./users";
 
@@ -86,4 +86,39 @@ export const reminders = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (t) => [index("reminders_due_idx").on(t.dueAt).where(sql`${t.status} = 'pending'`), index("reminders_user_idx").on(t.userId, t.status, t.dueAt)],
+);
+
+/** A general announcement sent by hand (design module6 7). The recipients are fixed at the time of sending; `recalled_at` set = withdrawn from every inbox. */
+export const announcements = pgTable(
+  "announcements",
+  {
+    id: uuid("id").primaryKey().$defaultFn(newId),
+    senderId: uuid("sender_id")
+      .notNull()
+      .references(() => users.id),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    important: boolean("important").notNull().default(false),
+    /** What the sender chose: `{ all?, trees?: manager ids, teams?: leader ids, user_ids? }`. */
+    scope: jsonb("scope")
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    recipientCount: integer("recipient_count").notNull().default(0),
+    recalledAt: timestamp("recalled_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("announcements_sender_idx").on(t.senderId, t.createdAt.desc())],
+);
+
+export const announcementRecipients = pgTable(
+  "announcement_recipients",
+  {
+    announcementId: uuid("announcement_id")
+      .notNull()
+      .references(() => announcements.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+  },
+  (t) => [primaryKey({ columns: [t.announcementId, t.userId] }), index("announcement_recipients_user_idx").on(t.userId)],
 );

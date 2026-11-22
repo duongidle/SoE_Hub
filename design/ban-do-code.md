@@ -423,7 +423,7 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Admin: `apps/web/src/pages/admin.tsx` `TokenApprovalPage` (Duyệt bớt quyền `ApproveNarrow`, chính sách `AiPolicyCard` ghi `ai.killed`, `ai.groups_enabled` qua `PUT /system/settings/:key`); nhật ký hiện `details.connection_name` ở `ActorCell`.
 - e2e: `apps/web/e2e/stage5.spec.ts`.
 
-## Module 6: Thông báo (6A1: cửa vào, loại, nhắc hẹn)
+## Module 6: Thông báo (6A1: cửa vào, loại, nhắc hẹn; 6A2: bản tin, nhắc hạn, thông báo chung)
 
 **Chỗ gọi vào**
 - Một cửa vào: `apps/api/src/modules/notification/notify.ts`. `notify.send(db, { type, recipients, render, object?, priority?, actor?, via?, canView?, sourceEventId? })` tạo thông báo và đưa tín hiệu SSE vào outbox. Cửa lọc theo thứ tự: không phải `person` hoặc `Đã khoá` thì bỏ; người gây ra (`actor`) không nhận, trừ loại `selfNotify` (nhắc hẹn); loại không bắt buộc mà người nhận đã tắt thì bỏ; `canView` trả false (mất quyền xem đối tượng) thì bỏ. `render(recipient, by, ctx)` sinh nội dung **riêng cho từng người nhận**; `by` là "Tên" hoặc "Tên (qua <kết nối>)" (tên kết nối đọc từ `actor.connectionId`). `recipients` là id hoặc `{ userId, key, ctx }` (`key` phân biệt nhiều thông báo cùng loại cho một người từ một sự kiện, ví dụ mỗi deal một cái). `sourceEventId` + người nhận (+ `key`) là khoá chống trùng.
@@ -439,6 +439,13 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Job `notification-reminders` mỗi phút: `runDueReminders` gửi qua `notify.send` (priority `important`, `selfNotify`), id chống trùng = nhắc hẹn + thời điểm, rồi dời `due_at` có điều kiện (`due_at` còn đúng lần vừa gửi) nên chạy hai lần không gửi trùng hay bỏ sót.
 - Job khác (`apps/api/src/jobs/index.ts`): `notification-purge` 03:40, `notification-ai-expiring` 08:00 (`notifyExpiringConnections`, một lần cho mỗi kết nối).
 - MCP: `reminder_create`, `notifications_list` ở `apps/api/src/http/mcp-tools.ts`. Test: `apps/api/test/notify.test.ts`.
+
+**6A2: bản tin, nhắc hạn Deal, thông báo chung**
+- Bản tin 08:00 và nhắc hạn 08:30: `apps/api/src/modules/deal/due.ts` `runMorningDigest(db, now)`, `runDueRules(db, now)` (job `notification-morning-digest`, `deal-due-rules` ở `apps/api/src/jobs/index.ts`). Đọc bảng Deals/Đợt thanh toán của cây Manager theo **vai trò cột** bằng `roleTable` (`forecast.ts`), quyền xem người nhận qua `visibility` (khoá phân chia: `loadReader`), gửi qua `notify.send` (`canView`). Ngày đọc bằng `dateOfCell` (giờ Việt Nam). Chống trùng: `sourceEventId` = `stableId("deal.due", quy tắc, mốc, ngày)` + dấu chạy theo ngày ở `system_settings` `deal.due_rules.last_run:<manager>` (chạy bù hôm qua).
+- Quy tắc nhắc hạn: `DEFAULT_RULES`, lưu ở `system_settings` `deal.due_rules:<manager>` (`rulesOf`); lệnh `deal.due_rules.get` (`deal:deal:read`) và `.set` (`deal:payment:write`, chỉ Manager của cây). Thêm quy tắc mới: thêm vào `RULE_KEYS`, `DEFAULT_RULES`, `rowsDue`, `TEXT` (cùng file).
+- "Leading" = thuộc tính `vai_tro` = Leading của người trong cột `nguoi_tham_gia`, hoặc cột `nguoi_tham_gia` tên "Leading" (`dealOf`).
+- Thông báo chung: `apps/api/src/modules/notification/announcements.ts` (bảng `announcements`, `announcement_recipients`, migration 0025), lệnh `announcement.send/.recall/.list_sent/.list_received/.read_status` (quyền `notification:announce`; `aiAllowed: false`). Phạm vi kiểm ở `expand`. Đã đọc = thông báo của người đó không còn `read_at` rỗng.
+- Test: `apps/api/test/notify-digest-due.test.ts`.
 
 **Luật cấm**
 - Không `INSERT` thẳng vào `notifications` (trừ `notify.send`). Không đưa giá trị ô hay com của người khác vào nội dung. Không dùng `window` của người gây ra để lọc người nhận ở nơi khác: lọc ở cửa vào.

@@ -176,6 +176,13 @@
       "when": 1795623575332,
       "tag": "0024_notify",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795709975332,
+      "tag": "0025_announcements",
+      "breakpoints": true
     }
   ]
 }

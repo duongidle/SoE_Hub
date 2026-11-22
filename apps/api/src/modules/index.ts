@@ -11,11 +11,11 @@ import { datahubEvents, datahubOperations, exportOperations, importOperations, j
 import { attachmentOperations } from "./datahub/attachment-ops";
 // Registers the Admin setting `deal.default_templates` in the API process too (the settings page and `system.setting.set` read the catalog here).
 import "./deal";
-import { cycleOperations, dealDashboardOperations, policyDiffOperations, forecastOperations, paymentOperations, periodOperations } from "./deal";
+import { dueRuleOperations, cycleOperations, dealDashboardOperations, policyDiffOperations, forecastOperations, paymentOperations, periodOperations } from "./deal";
 import { authOperations } from "./auth/operations";
 import { tokenOperations } from "./auth/tokens";
 import { guestEvents, guestOperations } from "./guest";
-import { notificationEvents, notificationOperations, reminderOperations } from "./notification";
+import { announcementOperations, notificationEvents, notificationOperations, reminderOperations } from "./notification";
 import { orgOperations } from "./org/operations";
 import { registerDatahubTrash } from "./datahub/trash";
 import { systemEvents } from "./system/events";
@@ -39,6 +39,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...orgOperations,
     ...notificationOperations,
     ...reminderOperations,
+    ...announcementOperations,
     ...guestOperations,
     ...transferOperations,
     ...datahubOperations,
@@ -49,6 +50,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...metricOperations,
     ...paymentOperations,
     ...periodOperations,
+    ...dueRuleOperations,
     ...forecastOperations,
     ...cycleOperations,
     ...dealDashboardOperations,

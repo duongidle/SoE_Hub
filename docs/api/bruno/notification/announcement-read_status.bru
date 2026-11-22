@@ -1,0 +1,20 @@
+meta {
+  name: announcement.read_status
+  type: http
+  seq: 24
+}
+
+get {
+  url: {{baseUrl}}/api/v1/announcements/{{id}}/read-status
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Đã đọc x/y và danh sách chưa đọc. Người gửi hoặc Admin.
+  Quyền: `notification:announce`.
+}

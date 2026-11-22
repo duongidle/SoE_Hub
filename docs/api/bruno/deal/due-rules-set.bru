@@ -1,0 +1,37 @@
+meta {
+  name: deal.due_rules.set
+  type: http
+  seq: 31
+}
+
+put {
+  url: {{baseUrl}}/api/v1/deals/due-rules
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "rules": [
+      {
+        "key": "payment_due",
+        "enabled": true,
+        "milestones": [
+          { "kind": "before", "days": 3, "to": ["leading"] },
+          { "kind": "after", "days": 7, "to": ["leading", "leader"] }
+        ]
+      }
+    ]
+  }
+}
+
+docs {
+  Manager của cây bật/tắt và sửa mốc (tối đa 5 mỗi quy tắc).
+  Quyền: `deal:payment:write`.
+}

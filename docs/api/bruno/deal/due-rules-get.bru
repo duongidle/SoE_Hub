@@ -1,0 +1,20 @@
+meta {
+  name: deal.due_rules.get
+  type: http
+  seq: 30
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deals/due-rules
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Hai quy tắc nhắc hạn của cây (deal_expected_close, payment_due): bật/tắt, mốc, người nhận.
+  Quyền: `deal:deal:read`.
+}

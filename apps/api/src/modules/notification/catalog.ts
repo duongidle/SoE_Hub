@@ -30,6 +30,9 @@ export const NOTIFICATION_TYPES = {
   importDone: "datahub.import.done",
   exportDone: "datahub.export.done",
   reminderDue: "reminder.due",
+  morningDigest: "digest.morning",
+  dealDue: "deal.due",
+  announcement: "announcement",
 } as const;
 
 const vnTime = (iso: string): string =>
@@ -395,3 +398,12 @@ export async function notifyJobEnd(db: Db, job: JobRow): Promise<void> {
 }
 
 export type { NotifyDeps };
+
+// ---- 6A2: morning digest, deal due reminders, announcements (sent directly with `notify.send`, no outbox event) ------------------------------
+
+/** Morning digest (design module6 5.5): one per person per day, can be switched off with the digest flag (not with the type list). */
+defineNotification({ type: NOTIFICATION_TYPES.morningDigest, category: "digest", render: () => null });
+/** A due-date reminder of the tree's rules (6.4): the Manager's rule, so the people it names cannot switch it off. */
+defineNotification({ type: NOTIFICATION_TYPES.dealDue, category: "deal", mandatory: true, render: () => null });
+/** A general announcement sent by hand (7): cannot be switched off. */
+defineNotification({ type: NOTIFICATION_TYPES.announcement, category: "announcement", mandatory: true, render: () => null });

@@ -5,7 +5,7 @@ import type { Logger } from "pino";
 import type { Config } from "../config";
 import { purgeSessions } from "../auth/sessions";
 import { datahubJobs } from "../modules/datahub";
-import { addIndexMonths, snapshotAllTrees } from "../modules/deal";
+import { addIndexMonths, runDueRules, runMorningDigest, snapshotAllTrees } from "../modules/deal";
 import { notifyExpiringConnections, purgeNotifications, runDueReminders, scrubExpiredCodes } from "../modules/notification";
 
 /** The internal system account (a row of `users`, kind `system`, created by migration 0003). */
@@ -135,6 +135,26 @@ export const jobs: JobDef[] = [
     async run({ db, logger }) {
       const n = await purgeNotifications(db);
       logger.info({ job: "notification-purge", purged: n }, "notifications purged");
+    },
+  },
+  {
+    name: "notification-morning-digest",
+    cron: "0 8 * * *",
+    tz: BUSINESS_TIMEZONE,
+    description: "08:00 mỗi ngày gửi bản tin buổi sáng (deal cần chấm lại, sắp chốt, đợt đến hạn, nhắc hẹn trong ngày) cho người bật; không có gì thì không gửi.",
+    async run({ db, logger }) {
+      const n = await runMorningDigest(db);
+      logger.info({ job: "notification-morning-digest", sent: n }, "morning digests sent");
+    },
+  },
+  {
+    name: "deal-due-rules",
+    cron: "30 8 * * *",
+    tz: BUSINESS_TIMEZONE,
+    description: "08:30 mỗi ngày chạy các quy tắc nhắc hạn Deal của từng cây (mỗi quy tắc một câu SQL), chạy bù ngày hôm qua nếu lỡ; mỗi mốc gửi một lần.",
+    async run({ db, logger }) {
+      const n = await runDueRules(db);
+      logger.info({ job: "deal-due-rules", sent: n }, "deal due reminders sent");
     },
   },
   {

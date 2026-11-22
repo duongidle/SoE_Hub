@@ -1,0 +1,24 @@
+meta {
+  name: announcement.list_received
+  type: http
+  seq: 23
+}
+
+get {
+  url: {{baseUrl}}/api/v1/announcements/received
+  body: none
+  auth: none
+}
+
+params:query {
+  ~limit: 50
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Thông báo chung đã nhận (chưa bị thu hồi).
+  Quyền: `notification:read`.
+}

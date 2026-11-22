@@ -1,0 +1,26 @@
+meta {
+  name: announcement.recall
+  type: http
+  seq: 21
+}
+
+post {
+  url: {{baseUrl}}/api/v1/announcements/{{id}}/recall
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {}
+}
+
+docs {
+  Thu hồi: thông báo biến mất khỏi hộp người nhận. Người gửi hoặc Admin.
+  Quyền: `notification:announce`.
+}

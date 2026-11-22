@@ -1,0 +1,24 @@
+meta {
+  name: announcement.list_sent
+  type: http
+  seq: 22
+}
+
+get {
+  url: {{baseUrl}}/api/v1/announcements/sent
+  body: none
+  auth: none
+}
+
+params:query {
+  ~limit: 50
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Thông báo chung đã gửi, kèm số người đã đọc.
+  Quyền: `notification:announce`.
+}

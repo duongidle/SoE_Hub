@@ -12,9 +12,11 @@ import { NOTIFICATION_TYPES } from "./catalog";
 import { defsForEvent, deliverEvent, notificationDefs } from "./notify";
 
 import "./reminders";
+import "./announcements";
 export { NOTIFICATION_TYPES, notifyExpiringConnections, notifyJobEnd } from "./catalog";
 export { notify, defineNotification, sendNotification, adminIds, stableId } from "./notify";
 export { reminderOperations, runDueReminders } from "./reminders";
+export { announcementOperations } from "./announcements";
 
 /** Settings of a person; no row = defaults (nothing off, digest on). The morning digest (6A2) reads `morningDigest`. */
 export async function readSettings(db: Db, userId: string): Promise<{ disabledTypes: string[]; morningDigest: boolean }> {

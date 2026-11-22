@@ -18,3 +18,15 @@
 - Nhắc gắn dòng không kiểm quyền lúc tạo, route mở link tự kiểm: chấp nhận (nhắc chỉ cho chính mình, nội dung do người đó viết).
 - Subscriber thông báo chạy thêm truy vấn cho mỗi `datahub.row.created/updated`: 6A2 thêm lối thoát sớm theo `role_set` của bảng (chỉ bảng Deals, Probation KPI mới đọc tiếp; nhớ đệm theo bảng) và đo một lần import 5.000 dòng vào bảng thường (ghi số vào `progress.md`).
 - Mốc typecheck: apps/api 15 lỗi có sẵn (`http/app.ts`, `auth/google.ts`), không phải 0.
+
+## 6A2 (22/11/2026)
+
+- **Subscriber thoát sớm:** `roleSetOfTable` (nhớ đệm 60 giây theo bảng): người tham gia chỉ đọc khi bảng `role_set = deals`, Probation KPI chỉ khi `kpi`. Bảng Đợt thanh toán (cũng có cột vai trò `nguoi_tham_gia`) không còn báo "được thêm vào deal" (đã có ở Deals).
+- **Đọc bảng của cây:** bản tin và nhắc hạn đọc bảng gốc của template cây Manager (`roleTable`, quyền hệ thống) rồi lọc theo người nhận như khoá phân chia (Manager thấy hết; người khác thấy dòng có người mình hoặc người mình quản lý trong cột khoá). Không gọi lệnh bằng quyền từng người (một câu SQL cho cả cây).
+- **Deal đang mở** = Status không thuộc lựa chọn có `meaning` khác `open` (như forecast); **đợt chưa về** = cột `ngay_tien_ve` trống.
+- **Leading:** thuộc tính `vai_tro` = Leading (không phân biệt hoa thường) hoặc cột người tham gia tên "Leading". Deal không có Leading thì không ai nhận mốc `leading` (chưa có quy tắc dự phòng).
+- **Người nhận mốc `leader`/`manager`:** Leader hiện tại của người Leading (org hiện tại); Manager của cây. `participants` = mọi người trong các cột người tham gia.
+- **Cấu hình theo cây:** `system_settings` (không thêm bảng); quy tắc chưa lưu dùng mặc định. Mốc `on` luôn 0 ngày. Quy tắc nhắc hạn là loại `mandatory`.
+- **Chạy bù:** dấu chạy theo ngày mỗi cây; lỡ thì lần sau chạy từ hôm qua. Nội dung ghi ngày hạn, không ghi "N ngày" cố định nên thông báo bù vẫn đúng. Bảng "đã gửi" là khoá duy nhất `notifications(source_event_id, user_id)` (không tạo bảng riêng); thông báo gom có `key = all`.
+- **Bản tin:** dùng `morning_digest` (mặc định bật); người không thuộc cây chỉ có phần nhắc hẹn trong ngày. Link bản tin tới `/quan-ly-deal/<bảng Deals>?quick=priority` (6B nối đúng tham số mở view "Ưu tiên hôm nay").
+- **Thông báo chung:** quyền mới `notification:announce` (Admin, Manager, Leader); người nhận = người đang hoạt động (kể cả Guest nằm trong cây), trừ người gửi; số người nhận chốt lúc gửi (`announcement_recipients`); thu hồi xoá thông báo khỏi hộp nhưng giữ bản ghi; "đã đọc" tính theo thông báo của người nhận còn `read_at` rỗng (thông báo đã bị dọn thì tính đã đọc). Chưa có giới hạn 10 thông báo/ngày (mục 7), đính kèm, hẹn giờ, sửa (dời).
