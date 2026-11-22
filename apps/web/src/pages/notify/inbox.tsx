@@ -110,7 +110,7 @@ export function BellButton({ me }: { me: Me }) {
     for (const r of rows) {
       if (seen.current.has(r.id)) continue;
       seen.current.add(r.id);
-      if (r.priority === "important" && !r.read_at) notify.ok(r.title, r.link ? { label: "Mở", onClick: () => void nav({ href: r.link! }) } : undefined);
+      if (r.priority === "important" && !r.read_at) notify.ok(r.body ? `${r.title}: ${r.body}` : r.title, r.link ? { label: "Mở", onClick: () => void nav({ href: r.link! }) } : undefined);
     }
   }, [list.data, nav]);
 

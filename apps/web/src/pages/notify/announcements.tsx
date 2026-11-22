@@ -25,11 +25,13 @@ function Compose({ onSent }: { onSent: () => void }) {
   const [teams, setTeams] = useState<string[]>([]);
   const [people, setPeople] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const list = (members.data ?? []).filter((m) => m.status === "active" && !m.roles.includes("guest") && m.id !== me.user.id);
-  const mgrs = ids(list, (m) => m.roles.includes("manager"));
-  const leaders = ids(list, (m) => m.roles.includes("leader"));
+  const active = (members.data ?? []).filter((m) => m.status === "active" && !m.roles.includes("guest"));
+  const list = active.filter((m) => m.id !== me.user.id);
+  // Your own tree or team is a target too (you are not a recipient yourself).
+  const mgrs = ids(active, (m) => m.roles.includes("manager"));
+  const leaders = ids(active, (m) => m.roles.includes("leader"));
   const toggle = (s: string[], set: (v: string[]) => void, id: string) => set(s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
-  const name = (id: string) => list.find((m) => m.id === id)?.full_name ?? id;
+  const name = (id: string) => active.find((m) => m.id === id)?.full_name ?? id;
   const send = useMutation({
     mutationFn: () => api("POST", "/announcements", { title, body, important, scope: { ...(all ? { all: true } : {}), ...(trees.length ? { trees } : {}), ...(teams.length ? { teams } : {}), ...(people.length ? { user_ids: people } : {}) } }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["announcements"] }); notify.ok("Đã gửi thông báo chung"); setTitle(""); setBody(""); setImportant(false); setAll(false); setTrees([]); setTeams([]); setPeople([]); onSent(); },
