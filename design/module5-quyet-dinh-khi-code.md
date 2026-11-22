@@ -36,3 +36,11 @@
 - **`rows_write` ghi từng phần bằng một lệnh `datahub.row.batch`:** lô cả bó; lỗi có số dòng (`details.issues[].row`, `details.row`, `row_id`, xung đột) thì bỏ dòng đó rồi gửi lại phần còn lại (tối đa 5 vòng); lỗi không chỉ ra dòng thì báo nguyên lỗi. Nhờ vậy 500 dòng chỉ tính 1–5 lần vào hạn 30 ghi/phút. Dòng sửa phải có `version` (từ `_version`) hoặc `base`, thiếu thì bỏ dòng, không đoán. Xoá dòng qua `soe_call` (`datahub.row.delete`, nhiều dòng cần mức Toàn quyền).
 - **`metrics_query`:** nguồn là mã bảng mà không có `datahub_id` thì tool tự lấy `datahub_id` của bảng (`menuOfTarget` chỉ tìm ra bảng Deal ở `source` lồng, bảng thường phải có `datahub_id`). Không đợi `consistent` cho chỉ số (engine metric không có tham số này): chỉ `rows_query`/`deals_list`/`deal_get` đợi tối đa 5 giây.
 - **Tên người ở ô Người dùng:** tool tra `users` theo id để trả `{name, email, ...thuộc tính}`; các id này đã nằm trong dòng người đó đọc được.
+
+## Opus rà 5A2 (22/11/2026)
+
+- Tự viết JSON-RPC không trạng thái thay cho `@modelcontextprotocol/sdk`: giữ (ít phụ thuộc, Claude Code đã chạy thật). Xem lại khi làm OAuth.
+- Lệnh mới `deal.dashboard` (menu `deal`, Xem) để `deal_metrics` đọc dashboard hệ thống Deals: giữ, đúng mục 4.3 (một nơi tính).
+- `rows_write` bỏ dòng lỗi rồi gửi lại tối đa 5 vòng; lỗi không gắn dòng (hoặc quá 5 vòng) thì báo lỗi cả lô, không ghi nửa: chấp nhận.
+- `soe_call` kiểm đầu vào trước quyền (thao tác cấm với đầu vào sai trả `validation_error`): chấp nhận, không lộ dữ liệu.
+- **Import qua AI mở lại ở 5B** (Dương hỏi 22/11): `datahub.import.analyze`, `.sheet`, `.preview` menu cố định `datahub` (chưa ghi dữ liệu); `.start` lấy menu theo các bảng đích trong mapping (có bảng "Quản lý Deal" → `deal`), mức theo chế độ (thay toàn bộ → `full`).
