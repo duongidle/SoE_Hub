@@ -137,10 +137,10 @@ function ClosePanel() {
       <ErrorText error={errorOf(confirmClose.error)} />
       {done && (
         <Notice>
-          <div data-testid="confirm-result">
+          <span data-testid="confirm-result">
             Đã xác nhận <strong>{done.confirmed.payments}</strong> đợt, <strong>{done.confirmed.won_deal_ids.length}</strong> deal chuyển Won, <strong>{done.confirmed.ledger_ids.length}</strong> dòng Sổ com mới
             {done.confirmed.skipped_ledger > 0 ? `, ${done.confirmed.skipped_ledger} đợt đã có dòng Sổ com nên không sinh thêm` : ""}. Kỳ {monthLabel(done.closed.month)} đã chốt{done.closed.blank_com_ids.length ? `, ${done.closed.blank_com_ids.length} dòng com trống` : ""}.
-          </div>
+          </span>
         </Notice>
       )}
 

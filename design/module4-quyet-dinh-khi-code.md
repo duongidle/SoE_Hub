@@ -311,3 +311,11 @@ Việc 1-3 là phần còn của 4.6E (Opus quyết ở mục trên), 4-7 là ph
 3. Upsert theo **một cột Duy nhất** là đủ (`nguồn:mã`). Không làm khoá ghép nhiều cột.
 4. `period.confirm_received` không kiểm trần %. Mục `com_cap_mismatch` của màn chốt kỳ báo là đủ (dữ liệu lịch sử).
 5. Migration 0021 và 0022 viết tay: ghi vào việc của 4.8 là "sinh lại snapshot drizzle khi `drizzle-kit` chạy được, kiểm `db:generate` không sinh diff thừa".
+
+
+### 4.7B (web, 22/11/2026)
+
+- **Trần `Tỉ lệ SoE` cho `com_split` gửi tay:** `assertComTotal` (participants.ts) kiểm tổng `pct` của `com_split` trước mọi lệnh ghi, ở `payment.schedule` và `payment.confirm` (lỗi `com_over_cap`). Test ở `deal-flexible-layout.test.ts`.
+- **Guest không thấy `created_by`, `updated_by`:** `rows-read.ts` `metaOf` bỏ hai trường này khỏi dòng khi `access.guest` (list, get; export đi qua `listRows`). Người khác (chủ bảng, thành viên) vẫn thấy.
+- **Chốt kỳ "Xác nhận rồi chốt":** màn gọi `period.confirm_received`, chờ `period.review.stale` hết (tối đa khoảng 60 giây), rồi `period.close` (thử lại khi `recalc_pending`, tối đa 20 lần cách 1,5 giây); `close_anyway` = còn mục khác trong review. Không mở hộp xuất XLSX sau luồng này (hiện khung kết quả). `period_already_closed` hiện "Kỳ ... đã được chốt rồi".
+- **Vai trò đa cột (Template):** `datahub.template.get` trả thêm cho mỗi vai trò `columns` (mọi cột giữ vai trò) và `multi`; `column` vẫn là cột đầu tiên. Web dựng nhãn từ `columns`, không coi vai trò là của một cột. OpenAPI đã sinh lại.
