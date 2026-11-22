@@ -399,6 +399,7 @@ test("chuyển giao dữ liệu: chọn nguồn + đích -> xem trước -> xác
   await expect(admin.page.getByText(/Token cá nhân: 1/)).toBeVisible();
   await admin.shot("18-transfer-preview");
   await admin.page.getByRole("button", { name: "Xác nhận chuyển giao" }).click();
+  await admin.page.getByRole("dialog").getByRole("button", { name: "Chuyển giao" }).click();
   await expect(admin.page.getByText("Đã chuyển giao xong")).toBeVisible();
   await admin.shot("19-transfer-result");
 

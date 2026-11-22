@@ -93,8 +93,8 @@ export function BellButton({ me }: { me: Me }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"all" | "unread">("all");
   const mark = useMarkRead();
-  const count = useQuery({ queryKey: ["unread"], queryFn: () => api<{ unread: number }>("GET", "/notifications/unread-count"), enabled });
-  const list = useQuery({ queryKey: ["notifications", "bell"], queryFn: () => apiList<NotificationRow>(`/notifications${qs({ limit: 20 })}`), enabled });
+  const count = useQuery({ queryKey: ["unread"], queryFn: () => api<{ unread: number }>("GET", "/notifications/unread-count"), enabled, retry: false });
+  const list = useQuery({ queryKey: ["notifications", "bell"], queryFn: () => apiList<NotificationRow>(`/notifications${qs({ limit: 20 })}`), enabled, retry: false });
   const n = count.data?.unread ?? 0;
 
   // A new important notification pops a toast. The first load only records what is already there.

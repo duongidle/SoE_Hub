@@ -153,7 +153,9 @@ export class Session {
       .poll(
         async () => {
           await this.page.goto("/thong-bao");
-          const card = this.page.locator("div.rounded-lg", { hasText: email }).filter({ has: this.page.locator(".font-mono") }).first();
+          const card = this.page.getByTestId("notification-item").filter({ hasText: email }).filter({ has: this.page.locator(".font-mono") }).first();
+          // The list loads after the page does: wait for the card instead of looking once.
+          await card.waitFor({ timeout: 4000 }).catch(() => undefined);
           if (!(await card.isVisible())) return "";
           found = ((await card.locator(".font-mono").first().textContent()) ?? "").trim();
           return this.seenCodes.has(found) ? "" : found;
