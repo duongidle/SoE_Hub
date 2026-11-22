@@ -5,6 +5,7 @@ import { defaultSubscribers } from "./core/subscribers";
 import { jobs } from "./jobs";
 import { registerTrashTables } from "./modules";
 import { ensureAllTrees, startDealDefaultsLoop } from "./modules/deal";
+import { startSamplePlanLoop } from "./modules/onboarding";
 import { markVolatilePending, resetRunningColumns, resetRunningJobs, startJobLoop, startMergeLoop, startRecalcLoop, startRefillLoop } from "./modules/datahub";
 
 const c = createContainer({}, "worker");
@@ -40,6 +41,8 @@ await markVolatilePending(c.db.db);
 const recalc = startRecalcLoop(c.db.db, c.logger, c.config.WORKER_OUTBOX_POLL_MS);
 
 const dealDefaults = startDealDefaultsLoop(c.db.db, c.logger, c.config.WORKER_OUTBOX_POLL_MS);
+// Every Manager and Leader gets the sample onboarding plan with forms of their own (Module 9 mục 1).
+const samplePlans = startSamplePlanLoop(c.db.db, c.executor, c.logger, 30_000);
 
 // Organization changed: refill the autofill ("gửi xuống") columns of the tables marked by the `datahub.refill` subscriber.
 const refills = startRefillLoop(c.db.db, c.logger, c.config.WORKER_OUTBOX_POLL_MS);
@@ -59,6 +62,7 @@ const shutdown = async (signal: string) => {
   await dispatcher.stop();
   await recalc.stop();
   await dealDefaults.stop();
+  await samplePlans.stop();
   await refills.stop();
   await merges.stop();
   await jobLoop.stop();

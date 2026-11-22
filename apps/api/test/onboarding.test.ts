@@ -369,4 +369,37 @@ describe("onboarding 9C", () => {
     expect(((await staff("onboarding.overview", {})) as any[]).length).toBe(0);
     expect(((await leader("onboarding.overview", { q: "Nhân sự 3" })) as any[]).length).toBe(1);
   });
+
+  it("the sample plan is built for a Leader (once); cloned and assigned, its forms are published and the person can fill them", async () => {
+    const { ensureSamplePlan } = await import("../src/modules/onboarding/sample");
+    await unlimit(t, org.leaderA.id, { datahubs: 500, tables: 500 });
+    const id = await ensureSamplePlan(t.c.db.db, t.c.executor, org.leaderA.id);
+    expect(id).toBeTruthy();
+    expect(await ensureSamplePlan(t.c.db.db, t.c.executor, org.leaderA.id)).toBeNull();
+    const tpl = (await leader("onboarding.plan.get", { plan_id: id })) as any;
+    expect(tpl.is_template).toBe(true);
+    expect(tpl.stages).toHaveLength(4);
+    expect(tpl.stages.flatMap((x: any) => x.weeks)).toHaveLength(18);
+    expect(tpl.checkpoints.filter((c: any) => c.is_final)).toHaveLength(6);
+    expect(JSON.stringify(tpl.checkpoints)).toContain("\"threshold\":4");
+    // another Leader gets their own forms; the sample of the first is not theirs
+    const mine2 = await ensureSamplePlan(t.c.db.db, t.c.executor, leader2Id);
+    expect(mine2).toBeTruthy();
+    expect(mine2).not.toBe(id);
+    // clone, then assign
+    const copy = (await leader("onboarding.plan.clone", { plan_id: id })) as any;
+    await t.c.db.db.execute(sql`/*scope:system*/ UPDATE onb_plans SET status = 'stopped' WHERE staff_id = ${org.userA1.id}::uuid AND status = 'active'`);
+    const run = (await leader("onboarding.plan.assign", { plan_id: copy.id, staff_id: org.userA1.id, start_date: monday() })) as any; // a template is assigned as a copy of its own
+    const got = (await leader("onboarding.plan.get", { plan_id: run.id })) as any;
+    const qna = got.stages.flatMap((x: any) => x.weeks.flatMap((w: any) => w.items)).find((i: any) => i.name.startsWith("Gửi câu hỏi Q&A"));
+    expect(qna.form_id).not.toBe(tpl.stages[0].weeks[0].items.find((i: any) => i.name.startsWith("Gửi câu hỏi Q&A")).form_id); // the copy has forms of its own
+    const [f] = (await t.c.db.db.execute(sql`/*scope:system*/ SELECT code, published_version FROM forms WHERE id = ${qna.form_id}::uuid`)).rows as { code: string; published_version: number }[];
+    expect(f!.published_version).toBeGreaterThan(0);
+    const r = await staff("form.response.submit", { code: f!.code, answers: { ngay: monday(), app: "Ứng dụng A", cau_hoi: "Câu hỏi mẫu", tra_loi: "Trả lời mẫu" }, attempt_id: randomUUID() });
+    expect(r.row_id).toBeTruthy();
+    resetMetricCache();
+    const pr = (await leader("onboarding.progress.get", { plan_id: run.id })) as any;
+    const q1 = pr.checkpoints.find((c: any) => c.name === "Q&A 10 câu");
+    expect(q1.conditions[0].value).toBe(1);
+  });
 });

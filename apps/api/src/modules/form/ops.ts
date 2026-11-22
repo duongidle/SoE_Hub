@@ -288,6 +288,27 @@ function checkQuiz(cfg: FormConfig, access: string | undefined, disabled: Set<st
 // commands
 // ---------------------------------------------------------------------------------------------
 
+/** Publishes the draft of a form of the caller (the body of `form.form.publish`; `onboarding.plan.clone` publishes the copy of a published form with it). */
+export async function publishForm(ctx: Ctx, formId: string): Promise<{ id: string; published_version: number; status: (typeof FORM_STATUSES)[number] }> {
+  await ctx.db.execute(sql`SELECT 1 FROM forms WHERE id = ${formId}::uuid FOR UPDATE`);
+  const f = await loadOwnForm(ctx.db, ctx.actor.userId, formId);
+  const cols = await liveColumns(ctx.db, f.tableId);
+  if (f.tableId && !(await tableAlive(ctx.db, f.tableId))) throw new AppError("conflict", "Bảng đích đã bị xoá. Khôi phục bảng trước khi xuất bản.", { reason: "table_deleted" });
+  const issues = checkPublish(f.draft, cols, !!f.tableId, f.access);
+  if (issues.length) throw new AppError("validation_error", `Chưa xuất bản được: ${issues[0]!.message}`, { issues });
+  if (f.tableId) {
+    const acc = await ownTable(ctx, f.tableId);
+    await ensureVersionColumn(ctx, acc);
+    if (f.draft.quiz?.enabled) await ensureQuizColumns(ctx, acc, await liveColumns(ctx.db, f.tableId));
+  }
+  const next = f.publishedVersion + 1;
+  await ctx.db.execute(sql`INSERT INTO form_versions (form_id, version, config, published_by) VALUES (${f.id}::uuid, ${next}::int, ${JSON.stringify(f.draft)}::jsonb, ${ctx.actor.userId}::uuid)`);
+  const status = f.status === "draft" ? "open" : f.status;
+  await ctx.db.execute(sql`UPDATE forms SET published_version = ${next}::int, status = ${status}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
+  ctx.audit({ type: "form", id: f.id, details: { name: f.name, published_version: next } });
+  return { id: f.id, published_version: next, status };
+}
+
 /** Creates a form (a new table in `datahub_id`, or the owner's own table `table_id`, or none) with an optional first draft. Returns the id. */
 export async function createFormIn(ctx: Ctx, i: { name: string; datahub_id?: string; table_id?: string }, draft?: FormConfig): Promise<string> {
   if (i.datahub_id && i.table_id) throw new AppError("validation_error", "Chọn một trong hai: bảng có sẵn hoặc datahub để tạo bảng mới.");
@@ -566,25 +587,7 @@ export const formManageOperations = [
     input: FormId,
     output: z.object({ id: Id, published_version: z.number().int(), status: z.enum(FORM_STATUSES) }),
     http: { method: "POST", path: "/forms/:form_id/publish" },
-    handler: async (ctx, i) => {
-      await ctx.db.execute(sql`SELECT 1 FROM forms WHERE id = ${i.form_id}::uuid FOR UPDATE`);
-      const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id);
-      const cols = await liveColumns(ctx.db, f.tableId);
-      if (f.tableId && !(await tableAlive(ctx.db, f.tableId))) throw new AppError("conflict", "Bảng đích đã bị xoá. Khôi phục bảng trước khi xuất bản.", { reason: "table_deleted" });
-      const issues = checkPublish(f.draft, cols, !!f.tableId, f.access);
-      if (issues.length) throw new AppError("validation_error", `Chưa xuất bản được: ${issues[0]!.message}`, { issues });
-      if (f.tableId) {
-        const acc = await ownTable(ctx, f.tableId);
-        await ensureVersionColumn(ctx, acc);
-        if (f.draft.quiz?.enabled) await ensureQuizColumns(ctx, acc, await liveColumns(ctx.db, f.tableId));
-      }
-      const next = f.publishedVersion + 1;
-      await ctx.db.execute(sql`INSERT INTO form_versions (form_id, version, config, published_by) VALUES (${f.id}::uuid, ${next}::int, ${JSON.stringify(f.draft)}::jsonb, ${ctx.actor.userId}::uuid)`);
-      const status = f.status === "draft" ? "open" : f.status;
-      await ctx.db.execute(sql`UPDATE forms SET published_version = ${next}::int, status = ${status}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${f.id}::uuid`);
-      ctx.audit({ type: "form", id: f.id, details: { name: f.name, published_version: next } });
-      return { id: f.id, published_version: next, status };
-    },
+    handler: async (ctx, i) => publishForm(ctx, i.form_id),
   }),
 
   defineCommand({
