@@ -1,7 +1,7 @@
 import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError, COOKIES, type Actor } from "@soe/shared";
-import { authCodes, recordRowHistory, sessions, users, type Executor, type UserRow } from "@soe/db";
+import { authCodes, enqueueOutbox, recordRowHistory, sessions, users, type Executor, type UserRow } from "@soe/db";
 import { effectivePermissions } from "../../auth/access";
 import { safeEqual } from "../../auth/crypto";
 import { assertPasswordPolicy, hashPassword, verifyDummy, verifyPassword } from "../../auth/password";
@@ -90,6 +90,8 @@ export function authOperations(cfg: Config) {
           const fails = u.failedLoginCount + 1;
           if (fails >= LOGIN_MAX_FAILURES) {
             await ctx.outside.update(users).set({ failedLoginCount: 0, lockedUntil: sql`now() + make_interval(mins => ${LOGIN_LOCK_MINUTES})` }).where(eq(users.id, u.id));
+            // The command fails, so the event goes outside its transaction (like the counter above).
+            await enqueueOutbox(ctx.outside, { event: "auth.account.locked", aggregateType: "user", aggregateId: u.id, payload: { user_id: u.id, minutes: LOGIN_LOCK_MINUTES } });
             throw new AppError("account_locked", `Sai mật khẩu ${LOGIN_MAX_FAILURES} lần. Tài khoản tạm khoá ${LOGIN_LOCK_MINUTES} phút.`);
           }
           await ctx.outside.update(users).set({ failedLoginCount: fails }).where(eq(users.id, u.id));

@@ -365,6 +365,7 @@ export const chartOperations = [
     description: "Người nhận phải là thành viên (không phải Guest; Guest được Manager cấp ở mục cấp dữ liệu, rồi chủ bật `guest_visible` cho dashboard). Chia sẻ lại cho người đã được chia sẻ thì không đổi gì. Ghi nhật ký.",
     permission: "datahub:datahub:use",
     aiAllowed: true,
+    emits: ["metrics.dashboard.share.changed"],
     input: z.object({ dashboard_id: Id, grantee_id: Id }),
     output: z.object({ id: Id, grantee_id: Id, full_name: z.string().nullable(), email: z.string().nullable(), created_at: Ts }),
     http: { method: "PUT", path: "/dashboards/:dashboard_id/shares" },
@@ -381,6 +382,7 @@ export const chartOperations = [
         ON CONFLICT (dashboard_id, grantee_id) DO NOTHING RETURNING id, created_at`);
       const row = (ins.rows[0] ?? (await ctx.db.execute(sql`SELECT id, created_at FROM mt_dashboard_shares WHERE /*scope*/ dashboard_id = ${i.dashboard_id}::uuid AND grantee_id = ${i.grantee_id}::uuid`)).rows[0]) as { id: string; created_at: Date };
       ctx.audit({ type: "dashboard_share", id: row.id, details: { datahub_id: d.datahub_id, dashboard_id: i.dashboard_id, dashboard: d.name, grantee_id: i.grantee_id, shared: !!ins.rows[0] } });
+      if (ins.rows[0]) await ctx.emit("metrics.dashboard.share.changed", { aggregateType: "dashboard", aggregateId: i.dashboard_id, payload: { dashboard_id: i.dashboard_id, name: d.name as string, grantee_id: i.grantee_id } });
       return { id: row.id, grantee_id: u.id, full_name: u.full_name, email: u.email, created_at: row.created_at };
     },
   }),

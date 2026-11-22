@@ -1,107 +1,48 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
-import { BUSINESS_TIMEZONE, listParamsShape } from "@soe/shared";
-import { enqueueOutbox, listPage, notifications, type Db, type FieldMap, type OutboxRow } from "@soe/db";
+import { AppError, listParamsShape } from "@soe/shared";
+import { listPage, notificationSettings, notifications, type Db, type FieldMap } from "@soe/db";
 import { ownedBy, systemScope } from "../../auth/access";
-import { decrypt } from "../../auth/crypto";
 import type { EventDef } from "../../core/events";
 import type { Subscriber } from "../../core/outbox-dispatcher";
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { ListOutput } from "../../core/types";
 import { CODE_TTL_HOURS } from "../auth/codes";
+import { NOTIFICATION_TYPES } from "./catalog";
+import { defsForEvent, deliverEvent, notificationDefs } from "./notify";
 
-/** Notification types created in Stage 1. Module 6 adds more. */
-export const NOTIFICATION_TYPES = { authCode: "auth.code", datahubReconcile: "datahub.reconcile", datahubTemplateConflict: "datahub.template.conflict" } as const;
+import "./reminders";
+export { NOTIFICATION_TYPES, notifyExpiringConnections, notifyJobEnd } from "./catalog";
+export { notify, defineNotification, sendNotification, adminIds, stableId } from "./notify";
+export { reminderOperations, runDueReminders } from "./reminders";
+
+/** Settings of a person; no row = defaults (nothing off, digest on). The morning digest (6A2) reads `morningDigest`. */
+export async function readSettings(db: Db, userId: string): Promise<{ disabledTypes: string[]; morningDigest: boolean }> {
+  const [r] = await db.select().from(notificationSettings).where(and(ownedBy(notificationSettings.userId, userId))).limit(1);
+  return { disabledTypes: r?.disabledTypes ?? [], morningDigest: r?.morningDigest ?? true };
+}
+
+/** Days a read notification is kept, and an unread one (design module6 2.2; constants for now, Admin setting later). */
+export const KEEP_READ_DAYS = 90;
+export const KEEP_UNREAD_DAYS = 180;
+
+/** Nightly: removes notifications past their keeping time. Returns how many. */
+export async function purgeNotifications(db: Db): Promise<number> {
+  const res = await db.delete(notifications).where(and(systemScope(), sql`((${notifications.readAt} IS NOT NULL AND ${notifications.readAt} < now() - make_interval(days => ${KEEP_READ_DAYS})) OR ${notifications.createdAt} < now() - make_interval(days => ${KEEP_UNREAD_DAYS}))`));
+  return res.rowCount ?? 0;
+}
 
 const CODE_MASK = "••••••";
 
-export interface NewNotification {
-  userId: string;
-  type: string;
-  title: string;
-  body: string;
-  data?: Record<string, unknown>;
-}
-
-/** Builds notifications from an outbox event. Registered per event name; Module 6 adds its own. */
-export type Notifier = (ev: OutboxRow, deps: { secret: string }) => NewNotification[] | Promise<NewNotification[]>;
-
-function vnTime(iso: string): string {
-  return new Intl.DateTimeFormat("vi-VN", { timeZone: BUSINESS_TIMEZONE, hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }).format(new Date(iso));
-}
-
-const codeRequested: Notifier = (ev, { secret }) => {
-  const p = ev.payload as { purpose: string; email: string; full_name: string; requested_at: string; expires_at: string; recipient_ids: string[]; code_enc: string; code_id: string };
-  const code = decrypt(secret, p.code_enc);
-  const what = p.purpose === "activate" ? "kích hoạt tài khoản" : "đặt lại mật khẩu";
-  return p.recipient_ids.map((userId) => ({
-    userId,
-    type: NOTIFICATION_TYPES.authCode,
-    title: p.purpose === "activate" ? "Yêu cầu kích hoạt tài khoản" : "Yêu cầu đặt lại mật khẩu",
-    body: `${p.full_name} (${p.email}) yêu cầu ${what} lúc ${vnTime(p.requested_at)}. Mã: ${code}. Mã hết hạn sau ${CODE_TTL_HOURS} giờ. Chỉ đưa mã khi chắc chắn đúng người.`,
-    data: { code, email: p.email, purpose: p.purpose, code_id: p.code_id, expires_at: p.expires_at },
-  }));
-};
-
-/** Nightly reconciliation found stored values that a full recomputation does not give (design module2 section 6.7). Column names only, never values. */
-const reconcileMismatch: Notifier = (ev) => {
-  const p = ev.payload as { cells: number; columns: { table_id: string; column_key: string; column_name: string; cells: number }[]; recipient_ids: string[] };
-  const list = p.columns.slice(0, 10).map((c) => `"${c.column_name}" (${c.cells} ô)`).join(", ");
-  const more = p.columns.length > 10 ? ` và ${p.columns.length - 10} cột khác` : "";
-  return p.recipient_ids.map((userId) => ({
-    userId,
-    type: NOTIFICATION_TYPES.datahubReconcile,
-    title: "Đối soát Datahub phát hiện ô tính sai",
-    body: `${p.cells} ô công thức khác kết quả tính lại cả cột, ở ${p.columns.length} cột: ${list}${more}. Giá trị đã được sửa lại cho đúng. Cần tìm nguyên nhân gốc.`,
-    data: { cells: p.cells, columns: p.columns },
-  }));
-};
-
-/** A template table or column took the name of the person's own: theirs was renamed `<tên> (riêng)` (design module4 3.1, 3.5). Names only. */
-const templateConflict: Notifier = (ev) => {
-  const p = ev.payload as { recipient_id: string; template_name: string; object: "table" | "column" | "datahub"; old_name: string; new_name: string; table_name?: string };
-  const what = p.object === "table" ? "Bảng" : p.object === "column" ? "Cột" : "Datahub";
-  const where = p.object === "column" && p.table_name ? ` trong bảng "${p.table_name}"` : "";
-  return [
-    {
-      userId: p.recipient_id,
-      type: NOTIFICATION_TYPES.datahubTemplateConflict,
-      title: `${what} của bạn được đổi tên`,
-      body: `${what} "${p.old_name}"${where} trùng tên với template "${p.template_name}" nên được đổi thành "${p.new_name}". Dữ liệu và công thức giữ nguyên.`,
-      data: { object: p.object, old_name: p.old_name, new_name: p.new_name, template_name: p.template_name },
-    },
-  ];
-};
-
-export const notifiers: Record<string, Notifier> = { "auth.code.requested": codeRequested, "datahub.reconcile.mismatch": reconcileMismatch, "datahub.template.conflict": templateConflict };
-
 /**
- * Outbox subscriber: creates one notification per recipient (idempotent by `source_event_id`), then queues a
- * `notification.notification.created` event so the recipient's bell updates over SSE.
+ * Outbox subscriber: every type declared with `defineNotification` for the event creates its notifications through `notify.send`
+ * (idempotent by a stable source id), which also queues the SSE signal that updates the recipient's bell.
  */
 export function createNotificationSubscriber(secret: string): Subscriber {
   return {
     name: "notification.deliver",
-    match: (event) => event in notifiers,
-    async handle(ev, db: Db) {
-      const items = await notifiers[ev.event]!(ev, { secret });
-      await db.transaction(async (tx) => {
-        for (const n of items) {
-          const [row] = await tx
-            .insert(notifications)
-            .values({ userId: n.userId, type: n.type, title: n.title, body: n.body, data: n.data ?? {}, sourceEventId: ev.id })
-            .onConflictDoNothing()
-            .returning({ id: notifications.id });
-          if (!row) continue;
-          await enqueueOutbox(tx, {
-            event: "notification.notification.created",
-            aggregateType: "notification",
-            aggregateId: row.id,
-            payload: { notification_id: row.id, user_id: n.userId, type: n.type },
-          });
-        }
-      });
-    },
+    match: (event) => defsForEvent(event).length > 0,
+    handle: (ev, db: Db) => deliverEvent(ev, { db, secret }),
   };
 }
 
@@ -110,8 +51,30 @@ export const notificationEvents: EventDef[] = [
     name: "notification.notification.created",
     version: 1,
     description: "Một thông báo mới cho một người (chuông cập nhật qua SSE).",
-    schema: z.object({ notification_id: z.uuid(), user_id: z.uuid(), type: z.string() }),
+    schema: z.object({ notification_id: z.uuid(), user_id: z.uuid(), type: z.string(), priority: z.string().optional() }),
     audience: (p: { user_id: string }) => ({ users: [p.user_id] }),
+  },
+  // Events that only exist to be turned into notifications: no SSE signal (the notification itself raises the bell).
+  {
+    name: "auth.account.locked",
+    version: 1,
+    description: "Tài khoản bị khoá tạm vì nhập sai mật khẩu quá nhiều lần.",
+    schema: z.object({ user_id: z.uuid(), minutes: z.number().int() }),
+    audience: () => null,
+  },
+  {
+    name: "deal.payment.confirmed",
+    version: 1,
+    description: "Tiền về được xác nhận cho đợt thanh toán của các deal. Mang sẵn danh sách người tham gia và tên deal, không mang số tiền.",
+    schema: z.object({ table_id: z.uuid(), deals: z.array(z.object({ deal_id: z.uuid(), deal: z.string(), user_ids: z.array(z.uuid()), payments: z.number().int() })) }),
+    audience: () => null,
+  },
+  {
+    name: "metrics.dashboard.share.changed",
+    version: 1,
+    description: "Dashboard được chia sẻ cho một người.",
+    schema: z.object({ dashboard_id: z.uuid(), name: z.string(), grantee_id: z.uuid() }),
+    audience: () => null,
   },
 ];
 
@@ -143,6 +106,12 @@ export async function scrubExpiredCodes(db: Db): Promise<number> {
 const fields: FieldMap = {
   id: { type: "uuid", expr: sql`id` },
   type: { type: "text", expr: sql`type` },
+  category: { type: "text", expr: sql`category` },
+  priority: { type: "text", expr: sql`priority` },
+  link: { type: "text", expr: sql`link`, sortable: false },
+  object_type: { type: "text", expr: sql`object_type`, sortable: false },
+  object_id: { type: "text", expr: sql`object_id`, sortable: false },
+  via: { type: "text", expr: sql`via`, sortable: false },
   title: { type: "text", expr: sql`title` },
   body: { type: "text", expr: sql`body`, sortable: false },
   data: { type: "text", expr: sql`data`, sortable: false },
@@ -157,14 +126,14 @@ export const notificationOperations = [
     permission: "notification:read",
     aiAllowed: true,
     list: true,
-    input: z.object({ ...listParamsShape, unread_only: z.enum(["true", "false"]).default("false").transform((v) => v === "true") }),
+    input: z.object({ ...listParamsShape, unread_only: z.enum(["true", "false"]).default("false").transform((v) => v === "true"), category: z.string().max(40).optional() }),
     output: z.record(z.string(), z.unknown()),
     http: { method: "GET", path: "/notifications" },
     handler: async (ctx, i): Promise<ListOutput> => {
       const page = await listPage(ctx.db, {
         from: sql`notifications`,
         fields,
-        baseWhere: i.unread_only ? sql`${ownedBy(sql`user_id`, ctx.actor.userId)} AND read_at IS NULL` : ownedBy(sql`user_id`, ctx.actor.userId),
+        baseWhere: sql`${ownedBy(sql`user_id`, ctx.actor.userId)}${i.unread_only ? sql` AND read_at IS NULL` : sql``}${i.category ? sql` AND category = ${i.category}` : sql``}`,
         filter: i.filter,
         sort: i.sort,
         defaultSort: [{ field: "created_at", dir: "desc" }],
@@ -210,6 +179,51 @@ export const notificationOperations = [
         .set({ readAt: sql`now()` })
         .where(and(ownedBy(notifications.userId, ctx.actor.userId), isNull(notifications.readAt), i.all ? undefined : inArray(notifications.id, i.ids!)));
       return { marked: res.rowCount ?? 0 };
+    },
+  }),
+
+  defineQuery({
+    name: "notification.settings.get",
+    summary: "Cài đặt thông báo của mình: loại nào đang tắt và bản tin buổi sáng.",
+    permission: "notification:manage",
+    aiAllowed: true,
+    input: z.object({}),
+    output: z.object({
+      morning_digest: z.boolean(),
+      types: z.array(z.object({ type: z.string(), category: z.string(), mandatory: z.boolean(), enabled: z.boolean() })),
+    }),
+    http: { method: "GET", path: "/notifications/settings" },
+    handler: async (ctx) => {
+      const s = await readSettings(ctx.db, ctx.actor.userId);
+      const off = new Set(s.disabledTypes);
+      return { morning_digest: s.morningDigest, types: notificationDefs().filter((d) => d.on).map((d) => ({ type: d.type, category: d.category, mandatory: !!d.mandatory, enabled: !!d.mandatory || !off.has(d.type) })) };
+    },
+  }),
+
+  defineCommand({
+    name: "notification.settings.set",
+    summary: "Tắt hoặc bật loại thông báo (trừ loại bắt buộc) và bản tin buổi sáng.",
+    permission: "notification:manage",
+    aiAllowed: true,
+    audit: "none",
+    input: z.object({ disabled_types: z.array(z.string().max(80)).max(100).optional().describe("Danh sách đầy đủ các loại tắt."), morning_digest: z.boolean().optional() }),
+    output: z.object({ morning_digest: z.boolean(), disabled_types: z.array(z.string()) }),
+    http: { method: "PUT", path: "/notifications/settings" },
+    handler: async (ctx, i) => {
+      const known = new Map(notificationDefs().map((d) => [d.type, d]));
+      for (const t of i.disabled_types ?? []) {
+        const d = known.get(t);
+        if (!d || !d.on) throw new AppError("validation_error", `Không có loại thông báo "${t}".`, { reason: "unknown_type", type: t });
+        if (d.mandatory) throw new AppError("validation_error", `Loại "${t}" là bắt buộc, không tắt được.`, { reason: "mandatory_type", type: t });
+      }
+      const cur = await readSettings(ctx.db, ctx.actor.userId);
+      const disabled = i.disabled_types ? [...new Set(i.disabled_types)] : cur.disabledTypes;
+      const digest = i.morning_digest ?? cur.morningDigest;
+      await ctx.db
+        .insert(notificationSettings)
+        .values({ userId: ctx.actor.userId, disabledTypes: disabled, morningDigest: digest })
+        .onConflictDoUpdate({ target: notificationSettings.userId, set: { disabledTypes: disabled, morningDigest: digest, updatedAt: sql`now()` } });
+      return { morning_digest: digest, disabled_types: disabled };
     },
   }),
 ];

@@ -15,7 +15,7 @@ import { cycleOperations, dealDashboardOperations, policyDiffOperations, forecas
 import { authOperations } from "./auth/operations";
 import { tokenOperations } from "./auth/tokens";
 import { guestEvents, guestOperations } from "./guest";
-import { notificationEvents, notificationOperations } from "./notification";
+import { notificationEvents, notificationOperations, reminderOperations } from "./notification";
 import { orgOperations } from "./org/operations";
 import { registerDatahubTrash } from "./datahub/trash";
 import { systemEvents } from "./system/events";
@@ -38,6 +38,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...tokenOperations(),
     ...orgOperations,
     ...notificationOperations,
+    ...reminderOperations,
     ...guestOperations,
     ...transferOperations,
     ...datahubOperations,

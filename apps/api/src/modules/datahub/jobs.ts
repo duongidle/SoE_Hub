@@ -7,6 +7,7 @@ import { dhJobs, type Db, type Executor } from "@soe/db";
 import type { Config } from "../../config";
 import type { OperationExecutor } from "../../core/executor";
 import { defineCommand, defineQuery } from "../../core/registry";
+import { notifyJobEnd } from "../notification/catalog";
 import type { StorageDriver } from "../../storage/types";
 import { Id, Ts } from "./shared";
 import { JOB_AGENT } from "./guest-access";
@@ -127,6 +128,7 @@ async function runOne(env: JobEnv, job: JobRow): Promise<void> {
     await run(env, job);
     const [after] = await env.db.select({ status: dhJobs.status }).from(dhJobs).where(eq(dhJobs.id, job.id)).limit(1);
     if (after?.status === "running") await patchJob(env.db, job.id, { status: "done", finishedAt: new Date(), phase: "done" });
+    await tellJobEnd(env, job.id);
   } catch (e) {
     if (e instanceof JobCancelled) {
       await patchJob(env.db, job.id, { status: "cancelled", finishedAt: new Date(), phase: "cancelled" });
@@ -135,6 +137,17 @@ async function runOne(env: JobEnv, job: JobRow): Promise<void> {
     env.logger.error({ err: e, job: job.id, kind: job.kind }, "datahub job failed");
     const msg = e instanceof AppError ? e.message : "Việc bị lỗi ngoài dự kiến. Thử lại; nếu vẫn lỗi hãy báo quản trị.";
     await patchJob(env.db, job.id, { status: "failed", error: msg, finishedAt: new Date() });
+    await tellJobEnd(env, job.id);
+  }
+}
+
+/** Tells the owner an import or export ended (design module6 14). A failure to notify never changes how the job ended. */
+async function tellJobEnd(env: JobEnv, id: string): Promise<void> {
+  try {
+    const [row] = await env.db.select().from(dhJobs).where(eq(dhJobs.id, id)).limit(1);
+    if (row) await notifyJobEnd(env.db, row);
+  } catch (e) {
+    env.logger.error({ err: e, job: id }, "job end notification failed");
   }
 }
 

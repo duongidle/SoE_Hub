@@ -1,4 +1,4 @@
-import { assertComCap, assertComTotal, peopleCell, participantsOf, type Participant } from "./participants";
+import { assertComCap, assertComTotal, peopleCell, peopleIds, participantsOf, type Participant } from "./participants";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError, businessDate } from "@soe/shared";
@@ -483,7 +483,7 @@ export const paymentOperations = [
       "Đợt đầu về của deal đang mở: deal thành Won (hệ thống đặt, không chọn tay). Deal đã đóng (Lost, Disqualified, Convert to POD, Huỷ): từ chối. Đợt đã xác nhận: từ chối. Cần `Idempotency-Key`.",
     permission: "deal:payment:write",
     aiAllowed: true,
-    emits: ROW_EVENTS,
+    emits: [...ROW_EVENTS, "deal.payment.confirmed"],
     input: z.object({
       received_on: ymd.describe("Ngày tiền về."),
       receipt: z.object({
@@ -604,6 +604,7 @@ export const paymentOperations = [
       const late = (await lockedMonth(ctx, tree, i.received_on)) ? await openMonthFrom(ctx, tree, businessDate(new Date())) : null;
       if (late) roleCol(tree.dots, "ky_ghi_nhan");
       const dealNew = new Map<string, string[]>();
+      const confirmedDeals = new Map<string, { deal_id: string; deal: string; user_ids: string[]; payments: number }>();
       const dotSrc = sourceValue(tree.dots, ctx);
       for (const a of i.allocations) {
         const row = dots.get(a.payment_id)!;
@@ -659,6 +660,9 @@ export const paymentOperations = [
           wonDeals.push(dealId);
         }
         firstOf.add(dealId);
+        const mark = confirmedDeals.get(dealId);
+        if (mark) mark.payments++;
+        else confirmedDeals.set(dealId, { deal_id: dealId, deal: String(cellOf(tree.deals, deal, "ten_cong_ty") ?? ""), user_ids: peopleIds(tree.deals, deal), payments: 1 });
         // commission lines (Tạm tính): one per person with a share
         const ops: RowOp[] = split
           .filter((e) => Number(e.attrs?.[COM_ATTR] ?? 0) > 0)
@@ -687,6 +691,7 @@ export const paymentOperations = [
         }
       }
       await linkLedger(ctx, tree, ledgerByDeal);
+      if (confirmedDeals.size) await ctx.emit("deal.payment.confirmed", { aggregateType: "datahub_table", aggregateId: tree.deals.acc.tableId, payload: { table_id: tree.deals.acc.tableId, deals: [...confirmedDeals.values()] } });
       ctx.audit({ type: "deal_payment", id: receiptId!, details: { operation: "confirm", payments: ids.length, won: wonDeals.length } });
       return { receipt_id: receiptId!, payments: outPayments, won_deal_ids: wonDeals, ledger_ids: ledgerIds };
     },

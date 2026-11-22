@@ -6,7 +6,7 @@ import type { Config } from "../config";
 import { purgeSessions } from "../auth/sessions";
 import { datahubJobs } from "../modules/datahub";
 import { addIndexMonths, snapshotAllTrees } from "../modules/deal";
-import { scrubExpiredCodes } from "../modules/notification";
+import { notifyExpiringConnections, purgeNotifications, runDueReminders, scrubExpiredCodes } from "../modules/notification";
 
 /** The internal system account (a row of `users`, kind `system`, created by migration 0003). */
 export { SYSTEM_USER_ID };
@@ -116,6 +116,35 @@ export const jobs: JobDef[] = [
     async run({ db, logger }) {
       const n = await scrubExpiredCodes(db);
       logger.info({ job: "notification-code-scrub", scrubbed: n }, "verification codes scrubbed");
+    },
+  },
+  {
+    name: "notification-reminders",
+    cron: "* * * * *",
+    description: "Mỗi phút gửi các nhắc hẹn đã đến giờ rồi tính lần nhắc kế tiếp (nhắc lặp).",
+    async run({ db, logger }) {
+      const n = await runDueReminders(db);
+      if (n > 0) logger.info({ job: "notification-reminders", sent: n }, "reminders sent");
+    },
+  },
+  {
+    name: "notification-purge",
+    cron: "40 3 * * *",
+    tz: BUSINESS_TIMEZONE,
+    description: "Mỗi đêm xoá thông báo đã đọc quá 90 ngày và chưa đọc quá 180 ngày.",
+    async run({ db, logger }) {
+      const n = await purgeNotifications(db);
+      logger.info({ job: "notification-purge", purged: n }, "notifications purged");
+    },
+  },
+  {
+    name: "notification-ai-expiring",
+    cron: "0 8 * * *",
+    tz: BUSINESS_TIMEZONE,
+    description: "08:00 mỗi ngày báo chủ kết nối AI sắp hết hạn trong 7 ngày (một lần cho mỗi kết nối).",
+    async run({ db, logger }) {
+      const n = await notifyExpiringConnections(db);
+      logger.info({ job: "notification-ai-expiring", notified: n }, "expiring connections notified");
     },
   },
   ...datahubJobs,
