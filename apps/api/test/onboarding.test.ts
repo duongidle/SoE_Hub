@@ -403,6 +403,21 @@ describe("onboarding 9C", () => {
     expect(q1.conditions[0].value).toBe(1);
   });
 
+  it("the sample plan does not use the person's datahub limit (1 of 1 used: the sample is still built, own tables still work, a second own datahub is still refused)", async () => {
+    const { ensureSamplePlan } = await import("../src/modules/onboarding/sample");
+    const db = t.c.db.db;
+    const [u] = await db.insert(users).values({ email: `leader3.${org.tag}@base.vn`, fullName: `Leader3 ${org.tag}`, roles: ["leader"], status: "active", passwordHash: "x" }).returning({ id: users.id });
+    await db.insert(orgMemberships).values({ userId: u!.id, managerId: org.mgrA.id, leaderId: null });
+    await unlimit(t, u!.id, { datahubs: 1, tables: 10 });
+    const l3 = as(t, u!.id, "web");
+    const mine = (await l3("datahub.datahub.create", { name: "Của tôi" })) as any;
+    expect(await ensureSamplePlan(db, t.c.executor, u!.id)).toBeTruthy();
+    await l3("datahub.table.create", { datahub_id: mine.id, name: "Bảng 1" });
+    await expect(l3("datahub.datahub.create", { name: "Thứ hai" })).rejects.toMatchObject({ code: "quota_exceeded" });
+    const used = (await l3("datahub.limit.mine", {})) as any;
+    expect(used.used.datahubs).toBe(1);
+  });
+
   it("a break week pushes the later weeks down by one (items, checkpoints, real dates) and removing it brings them back", async () => {
     const id = await runPlan([{ name: "W1", items: [{ name: "Việc 1", weekday: 1 }] }, { name: "W2", items: [{ name: "Việc 2", weekday: 1 }] }], [{ week_no: 2, name: "CP tuần 2", conditions: [{ type: "manual" }] }]);
     const dateOf = async (item: string) => occurrences(await leader("onboarding.plan.get", { plan_id: id })).find((o: any) => o.item === item).on_date as string;

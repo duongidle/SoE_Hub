@@ -246,6 +246,13 @@
       "when": 1796402175332,
       "tag": "0034_onboarding_builtin",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1796488575332,
+      "tag": "0035_datahub_quota_exempt",
+      "breakpoints": true
     }
   ]
 }

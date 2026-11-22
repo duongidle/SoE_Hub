@@ -128,7 +128,12 @@ export async function ensureSamplePlan(db: Db, executor: OperationExecutor, user
   const made: string[] = [];
   try {
     const hubs = (await db.execute(sql`SELECT id FROM dh_datahubs WHERE /*scope:system*/ owner_id = ${userId}::uuid AND name = ${DATAHUB_NAME} AND deleted_at IS NULL`)).rows as { id: string }[];
-    const dhId = hubs[0]?.id ?? (await run<{ id: string }>("datahub.datahub.create", { name: DATAHUB_NAME })).id;
+    // Built by the system, so it is not counted in the person's datahub limit (`quota_exempt`, like the datahub "Quản lý Deal"); an ordinary datahub otherwise.
+    let dhId = hubs[0]?.id;
+    if (!dhId) {
+      dhId = randomUUID();
+      await db.execute(sql`/*scope:system*/ INSERT INTO dh_datahubs (id, owner_id, name, quota_exempt, created_by, updated_by) VALUES (${dhId}::uuid, ${userId}::uuid, ${DATAHUB_NAME}, true, ${userId}::uuid, ${userId}::uuid)`);
+    }
     const ids: Record<string, string> = {};
     for (const spec of FORM_SPECS) {
       const form = await run<{ id: string; table_id: string }>("form.form.create", { name: spec.name, datahub_id: dhId });
@@ -165,7 +170,7 @@ export async function ensureAllSamplePlans(db: Db, executor: OperationExecutor, 
     try {
       if (await ensureSamplePlan(db, executor, id)) n++;
     } catch (err) {
-      skip.add(id); // not tried again until the worker restarts (limits, missing permission): the error is logged once
+      skip.add(id); // not tried again until the worker restarts (missing permission, errors): the error is logged once
       log?.warn({ err, user: id }, "onboarding sample plan could not be built");
     }
   }

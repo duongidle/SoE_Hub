@@ -22,6 +22,8 @@ export const dhDatahubs = pgTable(
     description: text("description"),
     /** `deal` = the protected datahub "Quản lý Deal" of a person (module4 1.1, Stage 4.1c): not renamed, not deleted, not counted in the limit. Null = ordinary. */
     systemKey: text("system_key"),
+    /** Built by the system for the person (the sample onboarding plan, module 9): not counted in the datahub limit, but otherwise an ordinary datahub. */
+    quotaExempt: boolean("quota_exempt").notNull().default(false),
   },
   (t) => [
     uniqueIndex("dh_datahubs_system_uq").on(t.ownerId, t.systemKey).where(sql`${t.systemKey} IS NOT NULL AND ${t.deletedAt} IS NULL`),

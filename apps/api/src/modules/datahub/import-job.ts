@@ -212,7 +212,7 @@ async function prepare(ctx: Ctx, storage: StorageDriver, job: Pick<JobRow, "sour
     const n = (await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_tables WHERE /*scope*/ datahub_id = ${dh.id}::uuid AND deleted_at IS NULL`)).rows[0] as { n: number };
     datahub = { id: dh.id, level: dh.level, name: dh.name, tableCount: n.n, maxColumns: limits.columns };
   } else {
-    const n = (await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_datahubs WHERE /*scope*/ owner_id = ${ctx.actor.userId}::uuid AND deleted_at IS NULL`)).rows[0] as { n: number };
+    const n = (await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_datahubs WHERE /*scope*/ owner_id = ${ctx.actor.userId}::uuid AND deleted_at IS NULL AND NOT quota_exempt`)).rows[0] as { n: number };
     if (n.n >= limits.datahubs) blocking.push(`Đã đạt giới hạn ${limits.datahubs} datahub; không tạo thêm datahub mới được.`);
     const taken = (await ctx.db.execute(sql`SELECT 1 FROM dh_datahubs WHERE /*scope*/ owner_id = ${ctx.actor.userId}::uuid AND deleted_at IS NULL AND lower(btrim(name)) = lower(btrim(${mapping.datahub.name}))`)).rows.length > 0;
     if (taken) blocking.push(`Bạn đã có datahub tên "${mapping.datahub.name}". Chọn tên khác hoặc nhập vào datahub đó.`);

@@ -364,7 +364,7 @@ export const limitOperations = [
     http: { method: "GET", path: "/datahub/limits" },
     handler: async (ctx) => {
       const me = ctx.actor.userId;
-      const n = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_datahubs WHERE /*scope*/ owner_id = ${me}::uuid AND deleted_at IS NULL`);
+      const n = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_datahubs WHERE /*scope*/ owner_id = ${me}::uuid AND deleted_at IS NULL AND NOT quota_exempt`);
       return { limits: await getLimits(ctx.db, me), used: { datahubs: (n.rows[0] as { n: number }).n }, column_ceiling: DH_COLUMN_CEILING };
     },
   }),

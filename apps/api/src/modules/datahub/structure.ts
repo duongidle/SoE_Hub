@@ -199,7 +199,7 @@ export const structureOperations = [
     handler: async (ctx, i) => {
       const me = ctx.actor.userId;
       const limits = await getLimits(ctx.db, me);
-      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_datahubs WHERE /*scope*/ owner_id = ${me}::uuid AND deleted_at IS NULL AND system_key IS NULL`);
+      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_datahubs WHERE /*scope*/ owner_id = ${me}::uuid AND deleted_at IS NULL AND system_key IS NULL AND NOT quota_exempt`);
       if ((cnt.rows[0] as { n: number }).n >= limits.datahubs) quotaExceeded("datahub", limits.datahubs);
       const id = newId();
       try {
@@ -312,7 +312,7 @@ export const structureOperations = [
     handler: async (ctx, i) => {
       const acc = await loadDatahubAccess(ctx, i.datahub_id, "owner", { state: "trashed" });
       const limits = await getLimits(ctx.db, ctx.actor.userId);
-      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_datahubs WHERE /*scope*/ owner_id = ${ctx.actor.userId}::uuid AND deleted_at IS NULL`);
+      const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_datahubs WHERE /*scope*/ owner_id = ${ctx.actor.userId}::uuid AND deleted_at IS NULL AND NOT quota_exempt`);
       if ((cnt.rows[0] as { n: number }).n >= limits.datahubs) quotaExceeded("datahub", limits.datahubs);
       try {
         await ctx.db.execute(sql`UPDATE dh_datahubs SET deleted_at = NULL, deleted_by = NULL, name = coalesce(${i.name ?? null}, name), version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE /*scope*/ id = ${acc.id}::uuid`);
