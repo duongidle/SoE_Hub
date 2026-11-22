@@ -16,6 +16,9 @@ const NAV: { to: string; label: string; permission: string | null; dealOnly?: bo
   { to: "/du-lieu-duoc-cap", label: "Dữ liệu được cấp", permission: "datahub:datahub:use", guestOnly: true },
   { to: "/quan-ly-deal", label: "Quản lý Deal", permission: "datahub:datahub:use", dealOnly: true },
   { to: "/form", label: "Form", permission: "form:form:create" },
+  { to: "/knowledge", label: "Knowledge", permission: "knowledge:article:read" },
+  { to: "/ai-hub", label: "AI Hub", permission: "aihub:skill:read" },
+  { to: "/duyet", label: "Duyệt bài", permission: "knowledge:article:review|aihub:skill:review" },
   { to: "/dashboard", label: "Dashboard chia sẻ", permission: null },
   { to: "/nhac-hen", label: "Nhắc hẹn", permission: "notification:manage" },
   { to: "/thong-bao-chung", label: "Thông báo chung", permission: "notification:announce" },
@@ -39,6 +42,11 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
   { prefix: "/form/cham-bai", permission: "form:form:create" },
   { prefix: "/form/bai-lam", permission: "form:response:submit" },
   { prefix: "/form", permission: "form:form:create" },
+  { prefix: "/knowledge/soan", permission: "knowledge:article:post" },
+  { prefix: "/knowledge", permission: "knowledge:article:read" },
+  { prefix: "/ai-hub/tai-len", permission: "aihub:skill:post" },
+  { prefix: "/ai-hub", permission: "aihub:skill:read" },
+  { prefix: "/duyet", permission: "knowledge:article:review|aihub:skill:review" },
   { prefix: "/to-chuc", permission: "org:member:read" },
   { prefix: "/cap-du-lieu", permission: "guest:grant:manage" },
   { prefix: "/quan-tri/token", permission: "auth:token:approve" },
@@ -50,6 +58,8 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
   { prefix: "/quan-tri/template-deal", permission: "system:setting:write" },
 ];
 
+/** "a|b" means any one of the permissions. */
+const canAny = (me: Parameters<typeof can>[0], permission: string) => permission.split("|").some((p) => can(me, p));
 const isPublic = (path: string) => PUBLIC_PATHS.includes(path);
 const requiredPermission = (path: string) => ROUTE_PERMISSIONS.find((r) => path === r.prefix || path.startsWith(`${r.prefix}/`))?.permission ?? null;
 
@@ -104,9 +114,9 @@ export function Shell() {
 
   // "Quản lý Deal" is for people who have the datahub (Manager, Leader, User); Admin and Guest have none (Module 4 mục 1.1).
   const hasDeal = me.user.roles.some((r) => ["manager", "leader", "user"].includes(r));
-  const items = NAV.filter((n) => (!n.permission || can(me, n.permission)) && (!n.dealOnly || hasDeal) && (!n.guestOnly || me.user.roles.includes("guest")));
+  const items = NAV.filter((n) => (!n.permission || canAny(me, n.permission)) && (!n.dealOnly || hasDeal) && (!n.guestOnly || me.user.roles.includes("guest")));
   const needed = requiredPermission(shown);
-  const denied = needed !== null && !can(me, needed);
+  const denied = needed !== null && !canAny(me, needed);
   const logout = async () => {
     try {
       await api("POST", "/auth/logout");

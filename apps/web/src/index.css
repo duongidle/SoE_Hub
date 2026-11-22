@@ -130,3 +130,20 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Tiptap documents (Knowledge): the reset removes list and heading styles, so give them back. Line length 65-75 characters. */
+.tiptap-doc { max-width: 72ch; line-height: 1.7; outline: none; overflow-wrap: anywhere; }
+.tiptap-doc h2 { font-size: 1.35rem; font-weight: 600; margin: 1.4em 0 0.4em; }
+.tiptap-doc h3 { font-size: 1.15rem; font-weight: 600; margin: 1.2em 0 0.3em; }
+.tiptap-doc p { margin: 0.6em 0; }
+.tiptap-doc ul { list-style: disc; padding-left: 1.5rem; }
+.tiptap-doc ol { list-style: decimal; padding-left: 1.5rem; }
+.tiptap-doc a { color: var(--color-primary); text-decoration: underline; }
+.tiptap-doc blockquote { border-left: 3px solid var(--color-border); padding-left: 1rem; color: var(--color-muted-foreground); }
+.tiptap-doc pre { background: var(--color-muted); padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; }
+.tiptap-doc code { font-family: ui-monospace, monospace; font-size: 0.9em; }
+.tiptap-doc img { max-width: 100%; height: auto; }
+.tiptap-doc table { border-collapse: collapse; margin: 0.8em 0; }
+.tiptap-doc th, .tiptap-doc td { border: 1px solid var(--color-border); padding: 0.35rem 0.6rem; min-width: 4rem; vertical-align: top; }
+.tiptap-doc th { background: var(--color-muted); font-weight: 600; }
+.tiptap-edit .tiptap-doc { min-height: 16rem; padding: 0.75rem; }
