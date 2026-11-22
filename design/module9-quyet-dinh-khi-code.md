@@ -60,3 +60,16 @@
 ## Opus rà 9C2 (23/11/2026)
 
 - Đạt. Cờ `quota_exempt` riêng (không dùng `system_key` vì nó chặn form ghi vào). 94 truy vấn gắn `/*scope:system*/` hàng loạt: chấp nhận vì mọi truy vấn đã kiểm quyền trước (`loadPlan`/`rights`, `loadOwnForm`, job), bốn truy vấn danh sách có điều kiện chủ trong WHERE; lưu ý chốt chỉ kiểm dấu nên giá trị bảo vệ của lớp này ở Stage 7–9 thấp hơn Module 2 (`scope:rows`). Rà lại ở kiểm thử Stage 12.
+
+## 9D (web, 23/11/2026)
+
+- **Trang và đường dẫn:** `/onboarding` (nhân sự: Hôm nay, Hành trình, Kết quả của tôi), `/onboarding/theo-doi` (Theo dõi), `/onboarding/nhan-su/$planId` (trang nhân sự của Leader/Manager, dùng lại `PlanView` với `manage`), `/onboarding/lo-trinh` (danh sách), `/onboarding/lo-trinh/$planId` (trình sửa). Mã ở `apps/web/src/pages/onboarding/`.
+- **Menu "Onboarding"** hiện khi có quyền `onboarding:path:create`, hoặc có lộ trình (của mình hay đang theo dõi, hỏi `plan.list` scope `mine` và `following`). Trang tự ẩn tab không dùng được (Theo dõi, Lộ trình chỉ cho người có quyền tạo hoặc có lộ trình theo dõi).
+- **Server chỉ đổi một chỗ:** `onboarding.plan.get` trả thêm `form_code, form_name, form_table_id, form_datahub_id` cho mỗi việc (nhân sự không đọc được danh sách form của chủ, nên cần mã form để mở `/f/<mã>` và mã bảng để mở link bảng). Không đổi quyền: dữ liệu chỉ có khi đã qua `requirePlan(view)`.
+- **"Hôm nay"** lọc ở web từ `plan.get` (`occurrences[].on_date` = hôm nay theo giờ VN); việc trễ = ngày trước hôm nay chưa tick. Nhân sự mới tick được; Leader xem trang nhân sự thì checkbox bị khoá.
+- **Trạng thái tuần** (web tính): Nghỉ (`is_break`), Chưa tới, Đang làm, Xong, Trễ (tuần đã qua mà còn việc chưa tick).
+- **Chốt đánh giá cuối:** hộp thoại hai bước (chọn kết quả và ghi chú, rồi xác nhận lại). Ghi chú bắt buộc khi Không đạt (web kiểm trước; server vẫn là nơi quyết). Không dùng `ConfirmDialog` vì cần ô ghi chú.
+- **Link chấm mockup:** `/f/<mã form>?nguoi_duoc_cham=<id nhân sự>&buoi=<tên việc>` cho mọi việc loại Mockup có form (tên tham số khớp câu ẩn của form mẫu).
+- **Trình sửa:** gửi lại cả cấu trúc bằng `plan.save`, số tuần đánh theo thứ tự (kể cả checkpoint), lỗi theo trường lấy từ `details.issues[].path` của server. Mỗi lần lưu xong, trình sửa dựng lại từ bản vừa lưu (`key = version`). Điều kiện checkpoint: tên cột nhập tay (chưa chọn từ danh sách cột của bảng; để sau nếu Dương cần). Bộ lọc thêm của điều kiện (`filter`) giữ nguyên khi sửa nhưng chưa có ô sửa.
+- **"Tạo form mới":** `form.form.create` (bảng mới trong datahub chọn) rồi `form.form.save_draft` với bản nháp theo loại (form thường / bài kiểm tra / phiếu chấm, có sẵn câu ẩn "Người điền" hoặc `nguoi_duoc_cham` + `buoi`), mở `/form/<id>` ở tab mới; việc tự chọn form vừa tạo, bấm "Làm mới" để thấy form xuất bản.
+- **Lỗi tìm thấy khi chạy e2e:** nhân bản lộ trình mẫu (7 form, bảng nằm trong datahub "Onboarding mẫu") lần đầu cộng 7 bảng cùng datahub, vượt hạn mức 10 bảng/datahub (`quota_exceeded`, HTTP 422). Cờ `quota_exempt` của 9C2 chỉ miễn đếm số datahub, chưa miễn hạn mức bảng. Chưa sửa (đổi hành vi Datahub dùng chung), xem `progress.md` "Câu hỏi còn mở".

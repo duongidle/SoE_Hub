@@ -57,6 +57,7 @@ function CpCard({ cp, manual, canConfirm, onConfirm, busy }: { cp: ProgressCp; m
         {cp.conditions.length === 0 && <li className="text-sm text-muted-foreground">Chưa tới tuần này.</li>}
         {cp.conditions.map((c, i) => <CondLine key={i} c={c} />)}
       </ul>
+      {manual && cp.confirmed_at && <p className="mt-1 text-sm text-ok">Leader đã xác nhận.</p>}
       {manual && canConfirm && (
         <Button className="mt-2" variant="secondary" loading={busy} onClick={onConfirm} data-testid="cp-confirm">{cp.confirmed_at ? "Bỏ xác nhận" : "Xác nhận"}</Button>
       )}
