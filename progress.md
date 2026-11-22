@@ -43,6 +43,7 @@ Chi tiết quyết định: `design/module4-quyet-dinh-khi-code.md` mục "4.7A"
 **Mốc test 4.7A (mã cca0f3b, sau đó chỉ thêm tài liệu và Bruno):** `pnpm exec vitest run apps packages` 1233 pass, 9 skip, 1 fail (`openapi.test.ts` thiếu Bruno cho `period.confirm_received`; đã thêm `docs/api/bruno/deal/period-confirm_received.bru`, chạy lại `openapi` + `ban-do-code` 8/8 pass), 101 file pass, 2 skip, khoảng 10 phút. Không chạy e2e (4.7B làm). `typecheck`: chỉ còn lỗi có sẵn (`apps/api` 15 lỗi ở `http/app.ts`, `auth/google.ts`; `apps/web` 31 lỗi) ; `lint` sạch.
 
 **4.7B2 xong** (commit c9c807e và các commit sau chỉ sửa tài liệu): màn import chọn cột Người/Liên kết + ô `link_by`; form cấp Guest loại "Bảng Datahub" (`guest.tsx`); trang Guest xem bảng `/du-lieu-duoc-cap` (`guest-data.tsx`); e2e `4.7B2 Import`, `4.7B2 Guest bảng` trong `stage4-7.spec.ts`. e2e desktop `stage4-7` 7 pass; cùng `stage4-5`, `stage4-3`, `stage2d`, `stage3c2`, `stage1`: 52 pass, 0 fail. Chưa e2e: lỗi `grant_*` dịch sang câu dễ hiểu (UI ẩn cột cá nhân/đính kèm nên khó tái hiện). Quyết định: `module4-quyet-dinh-khi-code.md` "4.7B".
+Vitest cả bộ (mã c9c807e): 1235 pass, 9 skip, 0 fail, 102 file pass 2 skip. typecheck: apps/api 15 lỗi, apps/web 31 lỗi (bằng mốc); lint sạch; không thêm endpoint.
 **Việc cho 4.8:** sinh lại snapshot drizzle cho migration 0021, 0022 (viết tay) khi `drizzle-kit` chạy được, kiểm `db:generate` không sinh diff thừa.
 
 ## Còn nợ / ghi nhận để sau
