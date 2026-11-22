@@ -140,6 +140,17 @@ npx vitest run apps/api/test/datahub-formulas-perf.test.ts --reporter=verbose   
 npx vitest run apps/api/test/datahub-perf.test.ts --reporter=verbose
 ```
 
+## Dữ liệu demo
+
+Dựng một cây mẫu trên database **dev** (không dùng cho test hay production): 1 Manager, 2 Leader, 2 User và khoảng 29 deal bịa (tên công ty không có thật) trải ba tháng gần đây, đủ trạng thái, có lịch thanh toán, đợt đã về tiền (deal chuyển Won, sinh Sổ com), đợt quá hạn, BANT cho deal mở. Cần một Admin đã kích hoạt và migration mới nhất (`pnpm db:migrate`).
+
+```bash
+pnpm --filter @soe/api demo:seed            # tạo phần còn thiếu; chạy lại khi cây đã có deal thì không làm gì
+pnpm --filter @soe/api demo:seed --reset    # xoá dữ liệu Deal của cây demo rồi dựng lại (khoảng 1 phút)
+```
+
+Mặc định script dùng 5 người giả (`demo-seed.*@base.vn`). Muốn dùng tên và email thật thì đặt file JSON **ngoài repo** (không commit), đường dẫn mặc định là `SoE_hub_demo-people.json` cạnh thư mục repo, hoặc biến `DEMO_PEOPLE_FILE`: `{"people":[{"key":"mgr","name":"…","email":"…","role":"manager"},{"key":"ld1","role":"leader","manager":"mgr",…},{"key":"us1","role":"user","leader":"ld1",…}]}` (đủ 1 Manager, 2 Leader, 2 User, theo thứ tự đó). Mật khẩu sinh ngẫu nhiên lúc tạo tài khoản và được **thêm** vào file ngoài repo `SoE_hub_tai-khoan-dev.txt` (hoặc biến `DEMO_ACCOUNTS_FILE`). Phân bổ deal: Leader đầu có hai User dưới, Leader thứ hai không có User; Manager có vài deal riêng.
+
 ## Cấu trúc
 
 ```
