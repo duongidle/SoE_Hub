@@ -25,3 +25,7 @@
 - **Cờ bắt buộc:** nhóm (`group_required`) và phiên bản dạng `1.0.0` (mặc định `1.0.0`). `clients` có thể trống.
 - **Tham chiếu trong SKILL.md:** liên kết markdown tương đối và `references|scripts|assets/...` trong dấu huyền; thiếu file thì `reference_missing`.
 - **Dời:** cảnh báo "tên người cụ thể" (chỉ dò email); giao diện chọn skill để đặt `replaces`.
+
+## Opus rà 8B (22/11/2026)
+
+- Đạt. Đồng ý: file gói lưu trong nội dung bản (chữ utf8, ảnh base64; gói tối đa 5 MB, quyền đọc theo bài); tải zip trả base64 trong JSON; bộ đọc YAML tự viết; `group` bắt buộc; `replaces` lưu trữ skill cũ khi bản mới được duyệt (người duyệt quyết). Cảnh báo "tên người cụ thể" chỉ dò email: chấp nhận.
