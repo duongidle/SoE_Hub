@@ -1,6 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { sql } from "drizzle-orm";
-import type { ActorRef } from "@soe/shared";
+import { businessDate, type ActorRef } from "@soe/shared";
 import { enqueueOutbox, reminders, users } from "@soe/db";
 import { as, drainOutbox, fails, makeTable, unlimit } from "./dh-helpers";
 import { activeToken, seedOrg, type Org } from "./fixtures";
@@ -209,18 +209,26 @@ describe("reminders", () => {
     expect(((await a1("reminder.list", { status: "done" })) as { id: string }[]).some((x) => x.id === r.id)).toBe(true);
   });
 
-  it("a daily reminder moves to the next day and stops after its end date", async () => {
-    const r = (await a1("reminder.create", { content: "Báo cáo ngày", due_at: future(1), repeat: "daily", until: new Date(Date.now() + 86400_000).toISOString().slice(0, 10) })) as { id: string };
-    await pull(r.id, new Date(Date.now() - 1000));
-    await runDueReminders(db());
-    const after = (await rows(a1)).find((x) => x.id === r.id)!;
-    expect(after.status).toBe("pending");
-    expect(new Date(after.due_at).getTime()).toBeGreaterThan(Date.now());
-    // Xong on a repeating reminder keeps it running.
-    expect(((await a1("reminder.done", { id: r.id })) as { status: string }).status).toBe("pending");
-    await a1("reminder.delete", { id: r.id });
-    expect((await rows(a1)).some((x) => x.id === r.id)).toBe(false);
-  });
+  /** The end date is a Vietnam date (not UTC): between 00:00 and 07:00 Vietnam time the UTC date is still yesterday. `at` fakes the clock (Date only). */
+  const dailyMovesOn = async (at?: string) => {
+    if (at) vi.useFakeTimers({ toFake: ["Date"], now: new Date(at) });
+    try {
+      const r = (await a1("reminder.create", { content: "Báo cáo ngày", due_at: future(1), repeat: "daily", until: businessDate(new Date(Date.now() + 86400_000)) })) as { id: string };
+      await pull(r.id, new Date(Date.now() - 1000));
+      await runDueReminders(db());
+      const after = (await rows(a1)).find((x) => x.id === r.id)!;
+      expect(after.status).toBe("pending");
+      expect(new Date(after.due_at).getTime()).toBeGreaterThan(Date.now());
+      // Xong on a repeating reminder keeps it running.
+      expect(((await a1("reminder.done", { id: r.id })) as { status: string }).status).toBe("pending");
+      await a1("reminder.delete", { id: r.id });
+      expect((await rows(a1)).some((x) => x.id === r.id)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  };
+  it("a daily reminder moves to the next day and stops after its end date", () => dailyMovesOn());
+  it("the same at 00:30 Vietnam time (the UTC date is still yesterday)", () => dailyMovesOn("2026-11-24T00:30:00+07:00"));
 
   it("snooze moves a fired reminder; on a repeating one it makes a one-off copy", async () => {
     const r = (await a1("reminder.create", { content: "Hoãn thử", due_at: future(1) })) as { id: string };

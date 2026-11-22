@@ -507,7 +507,7 @@ export const columnOperations = [
 
   defineCommand({
     name: "datahub.column.update",
-    summary: "Sửa cột: tên, mô tả, bắt buộc, duy nhất, mặc định, cấu hình (lựa chọn), định dạng hiển thị, vị trí. Không đổi kiểu ở đây.",
+    summary: "Sửa cột: tên, mô tả, bắt buộc, duy nhất, mặc định, cấu hình (lựa chọn), định dạng hiển thị, vị trí, và tuỳ chọn báo người khi cột được sửa (`notify_on_change: { people_column }`, chỉ chủ bảng; `null` = tắt). Không đổi kiểu ở đây.",
     description: "Cột gọi bằng mã hoặc tên. Đổi kiểu dùng `datahub.column.type_change` (có xem trước).",
     permission: "datahub:datahub:use",
     aiAllowed: true,

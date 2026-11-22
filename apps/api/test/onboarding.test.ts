@@ -402,4 +402,18 @@ describe("onboarding 9C", () => {
     const q1 = pr.checkpoints.find((c: any) => c.name === "Q&A 10 câu");
     expect(q1.conditions[0].value).toBe(1);
   });
+
+  it("a break week pushes the later weeks down by one (items, checkpoints, real dates) and removing it brings them back", async () => {
+    const id = await runPlan([{ name: "W1", items: [{ name: "Việc 1", weekday: 1 }] }, { name: "W2", items: [{ name: "Việc 2", weekday: 1 }] }], [{ week_no: 2, name: "CP tuần 2", conditions: [{ type: "manual" }] }]);
+    const dateOf = async (item: string) => occurrences(await leader("onboarding.plan.get", { plan_id: id })).find((o: any) => o.item === item).on_date as string;
+    const before = await dateOf("Việc 2");
+    await leader("onboarding.plan.week_break", { plan_id: id, week_no: 2, is_break: true });
+    const got = (await leader("onboarding.plan.get", { plan_id: id })) as any;
+    expect(got.stages[0].weeks.map((w: any) => [w.week_no, w.is_break])).toEqual([[1, false], [2, true], [3, false]]);
+    expect(got.checkpoints[0].week_no).toBe(3);
+    const after = await dateOf("Việc 2");
+    expect((new Date(`${after}T00:00:00Z`).getTime() - new Date(`${before}T00:00:00Z`).getTime()) / 86400000).toBe(7);
+    await leader("onboarding.plan.week_break", { plan_id: id, week_no: 2, is_break: false });
+    expect(await dateOf("Việc 2")).toBe(before);
+  });
 });

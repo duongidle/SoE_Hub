@@ -28,12 +28,14 @@ body:json {
     "display": {},
     "position": 0,
     "version": 1,
-    "update_formulas": false
+    "update_formulas": false,
+    "notify_on_change": { "people_column": "Người điền" }
   }
 }
 
 docs {
   Sửa cột: tên, mô tả, bắt buộc, duy nhất, mặc định, cấu hình (lựa chọn), định dạng hiển thị, vị trí. Không đổi kiểu ở đây.
   `update_formulas: true` (khi đổi tên lựa chọn): viết lại cả các công thức đang so chữ với tên cũ (xem `datahub.column.option_impact`).
+  `notify_on_change` (chỉ chủ bảng): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` của dòng đó (không báo khi công thức tính lại; gom theo dòng trong 10 phút). `null` = tắt.
   Quyền: `datahub:datahub:use`.
 }
