@@ -5,9 +5,9 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1–4.6 xong (Opus rà đạt, 4.6E chờ rà); 4.7A server xong 22/11 (xem "4.7 BÀN GIAO"); 4.7B web + e2e xong (chờ Opus rà); tiếp 4.8.
+- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1–4.6 xong (Opus rà đạt, 4.6E chờ rà); 4.7 xong 22/11 (4.7A, 4.7B1, 4.7B2; Opus rà đạt); tiếp 4.8.
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
-- **Mốc test** (không chạy hai lệnh vitest song song, chung DB): xem dòng "Mốc test 4.7A" bên dưới; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
+- **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 
 ## Đã xong
 
@@ -20,7 +20,7 @@ Cập nhật: 22/11/2026
 
 **4.7 đã chốt (Dương 22/11):** phần chung Datahub (email ở ô Người dùng, import cột Liên kết và Người, upsert theo cột khoá, cấp bảng cho Guest kèm chọn cột) và phần Deal (lệnh tiền nhận mã ngoài của đợt, chốt kỳ xác nhận đợt import). Com cũ import dạng `Com cố định` + Đã chốt, không đổi engine. Dời: bảng ánh xạ BPM, `deal.upsert` riêng. Ước 25–30M, hai agent (A server, B web).
 
-### 4.7 BÀN GIAO (4.7A, 4.7B1, 4.7B2 xong 22/11, chờ Opus rà; tiếp 4.8)
+### 4.7 BÀN GIAO (4.7A, 4.7B1, 4.7B2 xong 22/11, Opus rà đạt; tiếp 4.8)
 
 **4.7B1 xong** (commit c76a440 trần com_split gửi tay; 5b74252 Guest ẩn created_by/updated_by; e5aa886 web Chốt kỳ + Template vai trò đa cột, cộng spec e2e và tài liệu ở commit sau). Chi tiết: `design/module4-quyet-dinh-khi-code.md` mục "4.7B". Test: `vitest` deal-flexible-layout + deal-payments 27 pass; datahub-guest-table/export/access/view-query 68 pass; datahub-template + openapi 32 pass; e2e desktop `stage4-7` + `stage4-5` + `stage4-3` 20 pass (chạy bằng `node apps/web/e2e/run.mjs e2e/stage4-7.spec.ts ... --project=desktop`). typecheck không tăng lỗi, lint sạch. 
 **Cho B2:** spec `apps/web/e2e/stage4-7.spec.ts` đã có setup chung ở mức file (Manager, Leader, User một; `tbl` bảng Deals/Đợt/Tiền về/Sổ com; hàm `patchRow`, `waitFor`, `toast`); B2 thêm `test.describe("4.7B2 ...")` mới, cần Guest thì tạo thêm trong `beforeAll` (seedPeople). Phiên Manager `mgrS` đã `allow(400)`; lỗi 409 cố ý thì `mgrS.allow(409, /url/)` trong test. 
