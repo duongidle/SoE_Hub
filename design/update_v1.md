@@ -58,3 +58,10 @@
 | Rà đủ chuẩn giao diện, bộ skill giao diện, `break-ui` cho trình soạn và form công khai | CLAUDE.md ngoại lệ Stage 7 | Stage 12 |
 | Đổi kiểu câu đã tạo (hiện xoá và tạo lại); chọn từng Guest trong "Chọn người" (hiện chỉ có mẫu Sale/Data); tải ảnh bìa/logo lên (hiện chỉ nhận URL); "Đặt tên cột theo câu hỏi" | 7B1 | Khi người dùng cần |
 | Ô tải file cho form nội bộ (hiện chỉ form công khai có tải file); câu Người dùng / Dòng liên kết trên trang điền (hiện ô khoá) | 7B2 | Khi cần |
+
+## Module 8 — Knowledge, AI Hub (Dương chốt 22/11)
+
+| Việc | Thiết kế gốc | Lý do dời / khi nào cần |
+|---|---|---|
+| Loại bài **Bài học deal** và **Hỏi đáp** | Module 8 mục 3.1 | Dương thiết kế Bài học deal cá nhân trong Quản lý Deal trước |
+| API Knowledge (tìm, đọc bài) trong danh sách API nội bộ cho Nguồn dữ liệu của Form | Module 7 mục 2.5 | Làm cùng Nguồn dữ liệu |

@@ -5,7 +5,7 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** Stage 0–7 xong (Stage 4: 4.8 bản cơ bản; Stage 5, 6, 7: bản rút gọn, mục 12/14/14 của thiết kế; Opus rà đạt 22/11). Mốc test: vitest cả bộ 1328 pass 10 skip (mã b4149a5; 1 fail tài liệu bản đồ đã sửa), e2e desktop stage7/6/5/1 28 pass. Typecheck 0 lỗi. Tiếp: Stage 8 (Module 8, Knowledge + AI Hub): **thiết kế chưa có**, đề xuất thiết kế trước. Việc dời: `design/update_v1.md`.
+- **Code:** Stage 0–7 xong (Stage 4: 4.8 bản cơ bản; Stage 5, 6, 7: bản rút gọn, mục 12/14/14 của thiết kế; Opus rà đạt 22/11). Mốc test: vitest cả bộ 1328 pass 10 skip (mã b4149a5; 1 fail tài liệu bản đồ đã sửa), e2e desktop stage7/6/5/1 28 pass. Typecheck 0 lỗi. Đang làm: Stage 8 (Module 8 chốt 22/11, `design/module8-knowledge-aihub.md`): 8A engine chung + Knowledge + tìm kiếm → 8B gói skill + luật kiểm tra + MCP → 8C giao diện, kiểm thử cuối stage. Việc dời: `design/update_v1.md`.
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 
