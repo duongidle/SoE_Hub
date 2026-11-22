@@ -73,3 +73,4 @@
 |---|---|---|
 | Nhập đề bài test từ Excel/Google Sheet (mẫu cột: Câu hỏi, Loại câu, Lựa chọn A–F, Đáp án, Điểm) | Module 9 mục 2 | Hiện dựng bằng AI (`form_save`) hoặc JSON |
 | Bình luận theo dòng cho Datahub (luồng trao đổi, nhắc tên) | Module 9 mục 5 | Hiện chữa bài bằng cột "Nhận xét", "Đánh giá" |
+| **Nhân bản kiểu Lark cho datahub, bảng, form** (Dương chốt 22/11): chủ nhân bản kèm dữ liệu; người được chia sẻ nhân bản cấu trúc về datahub của mình (kèm dữ liệu chỉ những dòng đang thấy, nếu cho phép); nhân bản lộ trình của người khác kéo theo form | Module 9 mục 2 | Update v1 |

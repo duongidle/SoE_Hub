@@ -26,7 +26,7 @@ Nguồn: brief mục Onboarding; `examples/Lộ trình onboard Dương.xlsx` (sh
 - Bài test, phiếu chấm, bài thu hoạch, Q&A, báo cáo ngày đều là **form nội bộ của Dynamic Form** (Module 7), thuộc **người tạo lộ trình**, ghi vào bảng Datahub của người đó.
 - Một form dùng cho **nhiều lộ trình** của cùng người tạo: kết quả mọi nhân sự nằm chung một bảng, lọc theo người (Dương chốt dùng chung; muốn tách thì lọc và lưu view như Lark Base).
 - Trong trình sửa lộ trình, ô chọn form có nút **"Tạo form mới"**: tạo sẵn form đúng loại (bài kiểm tra / phiếu chấm / form thường), mở trình soạn, xuất bản xong quay lại lộ trình với form đã gắn.
-- **Nhân bản lộ trình** kéo theo form: form gắn kèm được sao thành form của người nhân bản (bảng mới cùng cấu trúc, dùng `form.form.clone`). Bản sao không tự cập nhật khi bản gốc sửa.
+- **Nhân bản lộ trình** kéo theo form **của chính mình**: form mình sở hữu được sao (bảng mới cùng cấu trúc, `form.form.clone`). Nhân bản lộ trình của người khác: chép cấu trúc lộ trình, form của người khác bị bỏ gắn và trình sửa báo "Chọn hoặc tạo form của bạn" (chưa nhân bản được form/bảng của người khác cho tới khi có nhân bản chung ở update v1). Lộ trình mẫu được tạo sẵn cho từng người kèm form của chính họ nên nhân bản đủ.
 - Đề bài test dài: leader nhờ AI dựng bằng `form_save` (Module 7), hoặc nhập JSON. Nhập đề từ Excel: để sau (`update_v1.md`).
 - **Câu ẩn "Người điền"** (thêm vào Module 7): câu ẩn kiểu Người dùng tự điền người đang đăng nhập, ghi vào cột Người dùng. Form do Onboarding tạo luôn có câu này.
 - **Gắn lộ trình cho nhân sự** thì Onboarding tự:
@@ -51,17 +51,16 @@ Checkpoint **hoàn toàn tự đặt**, không có checkpoint viết cứng (l�
 - Phiếu chấm mockup: link chấm do Onboarding tạo cho từng buổi, điền sẵn ẩn **"Người được chấm"** và **"Buổi"**; một form phiếu chấm dùng cho mọi buổi, mọi người. Cột "Tính vào trung bình" (Checkbox) leader bật/tắt trên lưới.
 - Trạng thái: Chưa tới / Đang chạy / Đạt / Chưa đạt (hết tuần mà chưa đạt) / Đạt muộn.
 
-## 4. Báo cáo cuối ngày
+## 4. Công việc trong quy trình onboard
 
-- Leader tạo form "Báo cáo ngày" (câu hỏi do leader đặt, ví dụ 4 câu).
-- Lộ trình có **việc lặp mỗi ngày làm việc**, gắn form đó, hạn **18:00**.
-- Nhắc lúc **17:00** nếu chưa nộp; quá 18:00 chưa nộp → báo nhân sự và leader.
-- Checkpoint đếm số ngày đã nộp (dạng chỉ số).
+- Mọi việc của lộ trình (mục 1) là **công việc trong quy trình onboard** (Dương đổi tên 22/11): tên tuỳ ý; một lần hoặc lặp (mỗi ngày làm việc, mỗi tuần, trong một khoảng tuần); **hạn riêng** từng việc (ví dụ 18:00 mỗi ngày, thứ Sáu 12:00); **giờ nhắc riêng** (ví dụ trước hạn 1 giờ); form gắn kèm tuỳ chọn.
+- Chưa xong lúc nhắc → nhắc nhân sự; quá hạn → báo nhân sự và leader.
+- Ví dụ: báo cáo cuối ngày 4 câu do leader đặt (form), hạn 18:00, nhắc 17:00; checkpoint đếm số ngày đã nộp (dạng chỉ số).
 
 ## 5. Chữa bài thu hoạch và Q&A
 
 - Bảng thu hoạch và Q&A có hai cột của leader: **"Nhận xét của leader"** (Văn bản dài) và **"Đánh giá"** (Một lựa chọn: Đúng / Cần sửa / Sai). Cho phép sửa theo cột: chỉ chủ bảng (leader) sửa hai cột này; nhân sự sửa cột câu trả lời.
-- Leader đổi hai cột này → người điền dòng đó nhận thông báo.
+- Leader đổi hai cột này → người điền dòng đó nhận thông báo, bằng **tuỳ chọn chung của cột Datahub** (Dương chốt 22/11, làm ở Stage 9): trên một cột bất kỳ, chủ bảng bật "Khi cột này được sửa, báo cho người ở cột [cột Người dùng]". Mọi bảng dùng được (ví dụ báo sale khi Manager sửa ghi chú deal). Đi qua `notify.send` (kiểm quyền xem dòng, không báo cho chính người sửa, không chép giá trị ô vào nội dung đẩy); không báo khi thay đổi do công thức tính lại; gom theo dòng trong 10 phút.
 - "Đánh giá" đếm được, nên làm được checkpoint kiểu "không còn câu nào ở trạng thái Cần sửa". Lọc "Cần sửa" thành view để nhân sự biết câu nào phải làm lại.
 - Bình luận theo dòng cho Datahub: để sau (`update_v1.md`).
 
@@ -112,7 +111,7 @@ Admin không tạo lộ trình (không có quyền nghiệp vụ).
 - **AI của ai cũng không được**: tick việc, xác nhận checkpoint, chốt đánh giá cuối, làm bài test (bài test đã cấm ở Module 7 mục 6.5).
 - Dựng đề bài test bằng AI đi qua `form_save` (Module 7).
 
-## 11. Kiểm thử (tối giản)
+## 11. Kiểm thử (tối giản: "test đủ dùng", Dương 22/11)
 
 - Unit: tính ngày thật từ ngày bắt đầu, việc lặp; checkpoint dạng chỉ số (đếm Q&A theo tuần, điểm cao nhất bài test, phiếu chấm trọng số + ngưỡng từng tiêu chí với số của sheet chấm mockup: 3,96 < 4 chưa đạt, mọi tiêu chí ≥ 3); so với số việc On-job; gắn lộ trình tự chia sẻ bảng với khoá phân chia (nhân sự chỉ thấy dòng của mình, không sửa cột Nhận xét); quyền (Leader khác chỉ nhân bản; nhân sự không dùng AI; AI không tick); báo cáo ngày quá hạn báo nhân sự và leader.
 - e2e: leader tạo lộ trình có test + Q&A → gắn cho nhân sự → nhân sự thấy Hôm nay, làm bài, gửi Q&A → checkpoint đạt → trang Theo dõi hiện đúng; màn Hành trình ổn ở 375px.
@@ -124,4 +123,5 @@ Admin không tạo lộ trình (không có quyền nghiệp vụ).
 | Module 5 mục 3.3: mọi `onboarding.*` là cấm cứng AI; `registry.ts` chặn `onboarding.*` có `aiAllowed` | Leader, Manager dùng AI cho lộ trình (tạo, sửa, đọc); vẫn cấm cứng: tick việc, xác nhận checkpoint, chốt đánh giá cuối; nhân sự onboard không dùng AI với Onboarding | Module 5, `quy-dinh-chung.md` mục AI, `apps/api/src/core/registry.ts` |
 | CLAUDE.md: Stage 9 là ngoại lệ rà đủ chuẩn giao diện, `break-ui` | Kiểm thử giao diện đơn giản như Stage 7 | CLAUDE.md |
 | Module 7: form không có câu ẩn tự điền người đang đăng nhập | Thêm câu ẩn "Người điền" (kiểu Người dùng) | Module 7 |
+| Module 6 mục 3.2: không báo khi người khác sửa ô thường | Thêm tuỳ chọn cột "báo cho người ở cột X khi cột này được sửa" (chủ bảng tự bật, mặc định tắt) | Module 2, Module 6 |
 | CLAUDE.md bảng Stage: M9 cần 6, 7 | Cần 1, 2, 3, 5, 6, 7 | CLAUDE.md |
