@@ -84,6 +84,7 @@ test.beforeAll(async ({ browser }, info) => {
   mgrS = await Session.open(browser, p, "mgr").then((x) => x.allow(400, /\/api\/v1\//));
   guestS = await Session.open(browser, p, "guest").then((x) => x.allow(403, /\/api\/v1\//).allow(404, /\/api\/v1\//));
   sessions = [mgrS, guestS];
+  await guestS.context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: process.env.E2E_WEB_URL ?? "http://localhost:5273" });
   await guestS.login(email("guest"), PASSWORD());
   await mgrS.login(email("mgr"), PASSWORD());
   await expect(mgrS.page.getByRole("button", { name: "Đăng xuất" })).toBeVisible();
@@ -186,6 +187,7 @@ test.describe("4.7B2 Import: cột Người và Liên kết", () => {
     keys["Tên KH"] = (await mgrApi.call<{ key: string }>("POST", `/tables/${custId}/columns`, { name: "Tên KH", type: "text" })).key;
     await mgrApi.call("POST", `/tables/${custId}/rows`, { data: { "Mã KH": "KH1", "Tên KH": "Khách Một" } });
     projId = (await mgrApi.call<{ id: string }>("POST", `/datahubs/${dhId}/tables`, { name: "Dự án 47" })).id;
+    await mgrApi.call("PUT", `/datahubs/${dhId}/shares`, { grantee_id: uid("u1"), table_id: null, permission: "view" });
     await mgrApi.call("POST", `/tables/${projId}/columns`, { name: "Tên dự án", type: "text" });
     await mgrApi.call("POST", `/tables/${projId}/columns`, { name: "Phụ trách", type: "user" });
     await mgrApi.call("POST", `/tables/${projId}/columns`, { name: "Khách", type: "relation", config: { target_table_id: custId } });
@@ -253,7 +255,7 @@ test.describe("4.7B2 Guest bảng", () => {
     await page.getByRole("button", { name: "Cấp dữ liệu" }).click();
     const d = page.getByRole("dialog", { name: "Cấp dữ liệu cho Guest" });
     await d.getByLabel("Guest").selectOption({ label: `Guest 47 ${p} (${email("guest")})` });
-    await d.getByLabel("Dữ liệu", { exact: true }).selectOption({ label: "Bảng Datahub (chọn cột được thấy)" });
+    await d.getByRole("combobox", { name: "Dữ liệu", exact: true }).selectOption({ label: "Bảng Datahub (chọn cột được thấy)" });
     await expect(d.getByRole("button", { name: "Cấp", exact: true })).toBeDisabled();
     await d.getByLabel("Datahub", { exact: true }).selectOption({ label: `Guest 47 ${p}` });
     await d.getByLabel("Bảng được cấp").selectOption({ label: "Báo giá 47" });
