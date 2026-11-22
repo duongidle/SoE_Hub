@@ -15,6 +15,8 @@ import { dueRuleOperations, cycleOperations, dealDashboardOperations, policyDiff
 import { authOperations } from "./auth/operations";
 import { tokenOperations } from "./auth/tokens";
 import { formOperations } from "./form";
+import { knowledgeOperations } from "./knowledge/ops";
+import { publishOperations } from "./publish/ops";
 import { guestEvents, guestOperations } from "./guest";
 import { announcementOperations, notificationEvents, notificationOperations, reminderOperations } from "./notification";
 import { orgOperations } from "./org/operations";
@@ -42,6 +44,8 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...reminderOperations,
     ...announcementOperations,
     ...formOperations(deps.config, deps.storage),
+    ...publishOperations(deps.config, deps.storage),
+    ...knowledgeOperations,
     ...guestOperations,
     ...transferOperations,
     ...datahubOperations,

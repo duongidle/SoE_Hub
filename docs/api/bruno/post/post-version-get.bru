@@ -1,0 +1,19 @@
+meta {
+  name: post.version.get
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/v1/posts/{{postId}}/versions/{{version}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Đọc một bản cũ.
+}

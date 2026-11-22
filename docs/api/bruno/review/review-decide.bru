@@ -1,0 +1,28 @@
+meta {
+  name: review.decide
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/review/posts/{{postId}}/decide
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "decision": "return",
+    "reason": "Thiếu ví dụ."
+  }
+}
+
+docs {
+  Duyệt (`approve`) hoặc trả lại (`return`, cần `reason`). Qua AI cần mức Toàn quyền. Quyền: người duyệt.
+}

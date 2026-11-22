@@ -11,7 +11,7 @@ import type { Db } from "@soe/db";
 import type { Config } from "../config";
 import { SessionTokenResolver } from "../auth/sessions";
 import { loadConnection, type ConnectionInfo } from "../core/ai-gate";
-import { AI_LEVELS, MENU_LABELS, type AiAccess, type AiMenu } from "../core/ai-policy";
+import { AI_LEVELS, LIBRARY_OPS, MENU_LABELS, type AiAccess, type AiMenu } from "../core/ai-policy";
 import type { OperationExecutor } from "../core/executor";
 import type { Registry } from "../core/registry";
 import type { Operation } from "../core/types";
@@ -56,6 +56,7 @@ export function operationOpen(op: Operation, conn: ConnectionInfo, groups: strin
   if (ai.forbidden && !groups.includes(ai.forbidden)) return false;
   if (ai.menu === "none") return true;
   if (ai.menu === "by_target") return holds(conn, ["deal", "datahub"], ai.access);
+  if (LIBRARY_OPS.test(op.name)) return holds(conn, ["knowledge", "aihub"], ai.access);
   return holds(conn, [ai.menu], ai.access);
 }
 

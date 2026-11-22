@@ -14,3 +14,4 @@ export * from "./grants";
 export * from "./datahub";
 export * from "./metrics";
 export * from "./forms";
+export * from "./posts";

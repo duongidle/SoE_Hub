@@ -1,0 +1,19 @@
+meta {
+  name: review.queue
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/review/queue
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Hàng chờ duyệt chung, lọc `kind`. Quyền: người duyệt.
+}

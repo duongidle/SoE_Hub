@@ -1,0 +1,19 @@
+meta {
+  name: knowledge.tag.suggest
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/knowledge/tags?q=de
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Gợi ý thẻ. Quyền: `knowledge:article:read`.
+}

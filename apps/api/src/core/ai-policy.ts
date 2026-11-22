@@ -78,6 +78,7 @@ const RULES: Rule[] = [
   { match: /^(notification|reminder|announcement)\./, menu: "notify" },
   { match: /^file\./, menu: "datahub" },
   { match: /^form\./, menu: "form" },
+  { match: /^(knowledge|review|post)\./, menu: "knowledge" },
   { match: /^datahub\.limit\.mine$/, menu: "none" },
   { match: /^datahub\.limit\./, menu: "admin", forbidden: "settings" },
   { match: /^datahub\.prefs\.get$/, menu: "none" },
@@ -111,6 +112,12 @@ export function accessOfInput(name: string, input: unknown): AiAccess | null {
   if (name === "datahub.row.restore_batch") return null;
   return null;
 }
+
+/**
+ * Operations on the shared library (Knowledge, AI Hub): the menu follows the KIND of the post the call names, so they are declared under
+ * `knowledge` here and `libraryMenu` (`ai-gate.ts`) decides at call time. Lists of open operations accept either menu.
+ */
+export const LIBRARY_OPS = /^(review|post)\./;
 
 export interface AiOverrides {
   menu?: MenuRef;

@@ -1,0 +1,25 @@
+meta {
+  name: post.unpublish
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/v1/posts/{{postId}}/unpublish
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {}
+}
+
+docs {
+  Gỡ xuất bản (người duyệt).
+}

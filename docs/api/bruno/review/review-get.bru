@@ -1,0 +1,19 @@
+meta {
+  name: review.get
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/review/posts/{{postId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Bài chờ duyệt kèm mọi cảnh báo và bản đang xuất bản. Quyền: người duyệt.
+}

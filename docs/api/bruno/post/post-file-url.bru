@@ -1,0 +1,19 @@
+meta {
+  name: post.file.url
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/api/v1/posts/{{postId}}/files/{{fileId}}/download-url
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Link tải file đính kèm của bài.
+}

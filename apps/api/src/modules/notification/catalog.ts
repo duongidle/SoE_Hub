@@ -36,6 +36,9 @@ export const NOTIFICATION_TYPES = {
   formGradePending: "form.grade.pending",
   formGraded: "form.graded",
   formQuestionOff: "form.question.off",
+  postPending: "post.pending",
+  postApproved: "post.approved",
+  postReturned: "post.returned",
 } as const;
 
 const vnTime = (iso: string): string =>
@@ -416,6 +419,11 @@ defineNotification({ type: NOTIFICATION_TYPES.announcement, category: "announcem
 defineNotification({ type: NOTIFICATION_TYPES.formGradePending, category: "form", priority: "important", render: () => null });
 /** A quiz was graded and the person may see the score (design module7 7). */
 defineNotification({ type: NOTIFICATION_TYPES.formGraded, category: "form", render: () => null });
+
+/** Knowledge / AI Hub posts (design module8 2): waiting for a reviewer, approved, returned with a reason. Sent by the post engine (`publish/engine.ts`). */
+defineNotification({ type: NOTIFICATION_TYPES.postPending, category: "library", priority: "important", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.postApproved, category: "library", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.postReturned, category: "library", priority: "important", render: () => null });
 
 /** A column a question writes to was deleted: the question is switched off and the owner must know (design module7 1.3, mandatory). */
 defineNotification({

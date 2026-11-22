@@ -1,0 +1,34 @@
+meta {
+  name: knowledge.article.save
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/knowledge/articles
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "title": "Hướng dẫn tạo deal",
+    "summary": "Các bước tạo deal mới.",
+    "body": "## Các bước\\n\\nNội dung Markdown...",
+    "category": "business",
+    "type": "guide",
+    "tags": [
+      "deal"
+    ]
+  }
+}
+
+docs {
+  Tạo bài (nháp) hoặc sửa nháp của mình (có `id`). Chỉ gửi trường cần đổi. Quyền: `knowledge:article:post`.
+}

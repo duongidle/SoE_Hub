@@ -8,7 +8,7 @@ import { AppError, type Actor } from "@soe/shared";
 import { apiTokens, type Executor } from "@soe/db";
 import { eq } from "drizzle-orm";
 import { readSetting, SETTINGS } from "../modules/system/settings-catalog";
-import { AI_LEVELS, GROUP_LABELS, LEVEL_LABELS, MENU_LABELS, accessOfInput, type AiAccess, type AiMenu } from "./ai-policy";
+import { AI_LEVELS, GROUP_LABELS, LEVEL_LABELS, LIBRARY_OPS, MENU_LABELS, accessOfInput, type AiAccess, type AiMenu } from "./ai-policy";
 import type { Operation } from "./types";
 
 export const AI_RATE_CALLS_PER_MIN = 120;
@@ -112,6 +112,16 @@ export async function menuOfTarget(ex: Executor, input: unknown): Promise<"deal"
   return found;
 }
 
+/** The menu of a call on a post (review, unpublish, archive...): `aihub` for a skill, `knowledge` for the rest. Looks at `post_id`, else `kind`. */
+export async function libraryMenu(ex: Executor, input: unknown): Promise<"knowledge" | "aihub"> {
+  const i = (input ?? {}) as Record<string, unknown>;
+  if (typeof i.post_id === "string" && UUID_RE.test(i.post_id)) {
+    const res = await ex.execute(sql`SELECT kind FROM posts WHERE /*scope:system*/ id = ${i.post_id}::uuid`);
+    return (res.rows[0] as { kind: string } | undefined)?.kind === "skill" ? "aihub" : "knowledge";
+  }
+  return i.kind === "skill" ? "aihub" : "knowledge";
+}
+
 /** Per-connection counters of the current minute (in memory: one API process; a restart resets them, which is harmless). */
 export class AiRateLimiter {
   private readonly buckets = new Map<string, { minute: number; calls: number; writes: number }>();
@@ -163,7 +173,8 @@ export async function checkMenuAndLevel(ex: Executor, c: ConnectionInfo, op: Ope
     const m = await menuOfTarget(ex, input);
     if (!m) throw new AppError("forbidden", "Không xác định được datahub của lệnh gọi này, nên kết nối không được phép. Gửi kèm table_id hoặc datahub_id hợp lệ.", { reason: "connection_target" });
     menu = m;
-  } else menu = ai.menu;
+  } else if (LIBRARY_OPS.test(op.name)) menu = await libraryMenu(ex, input);
+  else menu = ai.menu;
   const needed = accessOfInput(op.name, input) ?? ai.access;
   const held = c.menus[menu];
   const label = MENU_LABELS[menu];

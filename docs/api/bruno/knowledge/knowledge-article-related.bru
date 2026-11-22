@@ -1,0 +1,19 @@
+meta {
+  name: knowledge.article.related
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/knowledge/articles/{{postId}}/related
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Bài liên quan. Quyền: `knowledge:article:read`.
+}

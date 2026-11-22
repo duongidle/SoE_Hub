@@ -1,0 +1,19 @@
+meta {
+  name: knowledge.article.search
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/knowledge/search?q=huong dan
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Tìm bài đã xuất bản (không dấu vẫn ra), lọc `category`, `type`, `tag`, `author_id`, `for_sale`. Quyền: `knowledge:article:read`.
+}

@@ -1,0 +1,28 @@
+meta {
+  name: knowledge.article.submit
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/knowledge/articles/submit
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "id": "{{postId}}",
+    "check_only": true
+  }
+}
+
+docs {
+  Gửi bài chờ duyệt; `check_only: true` chỉ kiểm tra, không lưu. Quyền: `knowledge:article:post`.
+}

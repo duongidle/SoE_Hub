@@ -1,0 +1,19 @@
+meta {
+  name: knowledge.article.mine
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/knowledge/mine
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Bài của tôi. Quyền: `knowledge:article:read`.
+}

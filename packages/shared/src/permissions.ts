@@ -72,6 +72,7 @@ export const PERMISSIONS = {
   "knowledge:article:read": "Đọc Knowledge",
   "knowledge:article:post": "Đăng bài Knowledge",
   "knowledge:article:review": "Duyệt Knowledge",
+  "aihub:skill:read": "Đọc AI Hub",
   "aihub:skill:post": "Đăng skill AI Hub",
   "aihub:skill:review": "Duyệt AI Hub",
   "review:reviewer:choose": "Chọn người duyệt Knowledge / AI Hub",
@@ -88,7 +89,7 @@ export function isPermission(s: string): s is Permission {
 /** Every signed-in person, guests included (module1 section 3.4). */
 const SIGNED_IN: Permission[] = ["system:whoami", "system:setting:read", "file:read", "file:write", "events:subscribe", "auth:self", "notification:read", "notification:manage", "form:response:submit"];
 /** Every signed-in person except guests. */
-const MEMBER: Permission[] = [...SIGNED_IN, "docs:read", "org:member:read", "knowledge:article:read", "datahub:datahub:use"];
+const MEMBER: Permission[] = [...SIGNED_IN, "docs:read", "org:member:read", "knowledge:article:read", "aihub:skill:read", "datahub:datahub:use"];
 /** Work every member role can do with their own data (module1 section 3.2). */
 const OWN_WORK: Permission[] = ["deal:deal:read", "datahub:datahub:create", "form:form:create", "knowledge:article:post", "aihub:skill:post"];
 
@@ -128,6 +129,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "datahub:template:write",
     "review:reviewer:choose",
     "onboarding:path:create",
+    // Every Manager reviews the shared library (design module8 1).
+    "knowledge:article:review",
+    "aihub:skill:review",
   ],
   leader: [...MEMBER, ...OWN_WORK, "notification:announce", "deal:forecast:read", "deal:column:push", "datahub:template:write", "onboarding:path:create"],
   user: [...MEMBER, ...OWN_WORK],
