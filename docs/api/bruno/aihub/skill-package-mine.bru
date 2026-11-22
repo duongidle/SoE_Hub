@@ -1,0 +1,19 @@
+meta {
+  name: skill.package.mine
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/aihub/mine
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Skill của tôi kèm trạng thái bản đang sửa. Quyền: `aihub:skill:read`.
+}

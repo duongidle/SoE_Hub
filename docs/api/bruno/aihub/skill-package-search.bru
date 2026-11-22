@@ -1,0 +1,19 @@
+meta {
+  name: skill.package.search
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/aihub/search?q=email&group=sales
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Tìm và lọc skill đã xuất bản (nhóm, client, thẻ). Quyền: `aihub:skill:read`.
+}

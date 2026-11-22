@@ -56,7 +56,7 @@ export function normFiles(input: InFile[]): SkillFile[] {
     return file;
   });
   if (total > MAX_BYTES) bad("files", `Gói nặng ${(total / 1048576).toFixed(1)} MB, tối đa 5 MB.`);
-  return out.sort((a, b) => a.path.localeCompare(b.path));
+  return out.sort((a, b) => Number(b.path === "SKILL.md") - Number(a.path === "SKILL.md") || a.path.localeCompare(b.path));
 }
 
 /**
@@ -74,7 +74,8 @@ export async function unpackZip(b64: string): Promise<InFile[]> {
   if (entries.length > MAX_FILES) bad("zip", `Gói có ${entries.length} file, tối đa ${MAX_FILES}.`);
   const declared = entries.reduce((n, e) => n + ((e as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0), 0);
   if (declared > MAX_BYTES) bad("zip", `Gói giải nén nặng ${(declared / 1048576).toFixed(1)} MB, tối đa 5 MB.`);
-  const names = entries.map((e) => cleanPath(e.name, "zip"));
+  // JSZip resolves ".." in `name`; the original spelling is what must be checked.
+  const names = entries.map((e) => cleanPath((e as unknown as { unsafeOriginalName?: string }).unsafeOriginalName ?? e.name, "zip"));
   const tops = new Set(names.map((n) => n.split("/")[0]));
   const strip = tops.size === 1 && names.every((n) => n.includes("/")) && !names.includes("SKILL.md") ? `${[...tops][0]}/` : "";
   const out: InFile[] = [];

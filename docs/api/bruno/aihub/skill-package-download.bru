@@ -1,0 +1,20 @@
+meta {
+  name: skill.package.download
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/aihub/skills/{{postId}}/download
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Tải gói skill dạng zip (base64), tăng lượt tải. Quyền: `aihub:skill:read`.
+}

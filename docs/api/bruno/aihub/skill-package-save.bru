@@ -1,0 +1,31 @@
+meta {
+  name: skill.package.save
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/aihub/skills
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "files": [
+      { "path": "SKILL.md", "content": "---\nname: email-chao-hang\ndescription: Soạn email chào hàng. Dùng khi cần viết email đầu cho khách.\n---\n# Email" }
+    ],
+    "group": "sales",
+    "version": "1.0.0"
+  }
+}
+
+docs {
+  Tạo/sửa nháp skill. Gửi `files` [{path, content, encoding?}] hoặc `zip_base64`. Quyền: `aihub:skill:post`.
+}

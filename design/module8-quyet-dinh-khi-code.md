@@ -15,3 +15,13 @@
 ## Opus rà 8A (22/11/2026)
 
 - Đạt. Đồng ý các quyết định nhỏ: sửa bài đang chờ duyệt thì về nháp; `submit` lỗi không lưu gì; gỡ xuất bản không báo tác giả; chưa có xoá bài (chỉ lưu trữ). Test tối giản theo Dương.
+
+## 8B (22/11/2026, Sonnet)
+- **Lưu file của gói:** mọi file nằm trong `content` của bản (chữ `utf8`, ảnh `base64`), không dùng bảng `files` Module 0. Lý do: `PostKind.parse` chạy đồng bộ, không có storage; gói tối đa 5 MB; quyền đọc file đi theo quyền đọc bài, không cần luật riêng. `fileIds` của skill luôn rỗng. Nếu sau này gói lớn hơn thì chuyển sang storage.
+- **Tải zip:** `skill.package.download` trả `content_base64` (JSON), không phải luồng nhị phân; web tạo Blob. Chỉ tải qua lệnh này mới tăng `download_count` (`skill_get` của AI không tăng). Không cho AI gọi (`aiAllowed: false`).
+- **`name`/`description`:** đọc từ đầu YAML của SKILL.md ở `parse`, bộ đọc tự viết (khoá: giá trị, nháy, khối `>`/`|`), không thêm thư viện yaml. Đầu YAML sai thì `name` rỗng và `check` báo `frontmatter_invalid`.
+- **Zip:** bỏ `__MACOSX/`, `.DS_Store`; nếu mọi file nằm trong một thư mục gốc duy nhất và không có `SKILL.md` ở gốc thì bỏ thư mục đó. JSZip tự gọt `..`, nên kiểm trên `unsafeOriginalName`.
+- **Trùng tên:** `check` chỉ cảnh báo `similar_skill` (trùng tên hoặc tên/mô tả giống ≥ 0,6). Chặn thật ở lúc xuất bản (`beforePublish`): trùng `name` với skill khác đang xuất bản thì `conflict` `skill_name_taken` (người duyệt trả lại). `replaces` = "phiên bản mới của skill X": xuất bản thì skill X bị lưu trữ. Chưa kiểm "cùng tác giả hoặc người duyệt đồng ý": người duyệt bấm duyệt là đồng ý.
+- **Cờ bắt buộc:** nhóm (`group_required`) và phiên bản dạng `1.0.0` (mặc định `1.0.0`). `clients` có thể trống.
+- **Tham chiếu trong SKILL.md:** liên kết markdown tương đối và `references|scripts|assets/...` trong dấu huyền; thiếu file thì `reference_missing`.
+- **Dời:** cảnh báo "tên người cụ thể" (chỉ dò email); giao diện chọn skill để đặt `replaces`.
