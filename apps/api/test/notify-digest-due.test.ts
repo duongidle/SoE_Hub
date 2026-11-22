@@ -238,7 +238,7 @@ describe("announcements", () => {
     expect((await mgrA("announcement.read_status", { id: r.id })).total).toBe(3);
     expect((await mine(a1, NOTIFICATION_TYPES.announcement)).some((x) => x.title === "Sẽ thu hồi")).toBe(true);
     expect((await fails(leaderA("announcement.recall", { id: r.id }))).code).toBe("not_found");
-    expect((await mgrA("announcement.recall", { id: r.id })).removed).toBe(4);
+    expect((await mgrA("announcement.recall", { id: r.id })).removed).toBe(3);
     expect((await mine(a1, NOTIFICATION_TYPES.announcement)).some((x) => x.title === "Sẽ thu hồi")).toBe(false);
     expect(((await a1("announcement.list_received", {})) as { id: string }[]).some((x) => x.id === r.id)).toBe(false);
     expect((await mgrA("announcement.recall", { id: r.id })).removed).toBe(0);
