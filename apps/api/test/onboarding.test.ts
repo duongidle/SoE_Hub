@@ -260,4 +260,37 @@ describe("onboarding 9B", () => {
     expect((await progress(id, staff)).final).toEqual({ result: "passed", note: "Làm tốt" });
     expect((await fails(leader("onboarding.plan.finish", { plan_id: id, result: "failed" }))).details.reason).toBe("plan_not_active");
   });
+  it("column option \"tell the person when edited\": the leader's comment tells the person of the row; a recalculation does not; grouped; no value in the text", async () => {
+    const f = await leaderForm();
+    await shareView(f.tableId);
+    await leader("datahub.column.create", { table_id: f.tableId, name: "Điểm", type: "number" });
+    await leader("datahub.column.create", { table_id: f.tableId, name: "Gấp đôi", type: "formula", config: { formula: "=[Điểm]*2" } });
+    const me = (await leader("datahub.row.create", { table_id: f.tableId, data: { "Người điền": org.userA1.id, "Câu trả lời": "bài của tôi", "Điểm": 1 } })) as { id: string };
+    const other = (await leader("datahub.row.create", { table_id: f.tableId, data: { "Người điền": org.userA2.id, "Câu trả lời": "bài của người khác", "Điểm": 1 } })) as { id: string };
+    // only the owner of the table sets the option; the person column must be a user column
+    expect((await fails(staff("datahub.column.update", { table_id: f.tableId, column: "Nhận xét của leader", notify_on_change: { people_column: "Người điền" } }))).code).toMatch(/forbidden|not_found/);
+    expect((await fails(leader("datahub.column.update", { table_id: f.tableId, column: "Nhận xét của leader", notify_on_change: { people_column: "Câu trả lời" } }))).details.reason).toBe("notify_people_column");
+    const set = await leader("datahub.column.update", { table_id: f.tableId, column: "Nhận xét của leader", notify_on_change: { people_column: "Người điền" } });
+    expect(set.notify_on_change).toMatchObject({ people_column: expect.any(String) });
+    await leader("datahub.column.update", { table_id: f.tableId, column: "Gấp đôi", notify_on_change: { people_column: "Người điền" } });
+    const mineN = async (who: typeof staff) => ((await who("notification.list", { limit: 100 })) as { items: { type: string; body: string }[] }).items.filter((n) => n.type === "datahub.cell.changed");
+    const edit = async (rowId: string, data: Record<string, unknown>) => {
+      const cur = (await leader("datahub.row.get", { table_id: f.tableId, row_id: rowId })) as { version: number };
+      await leader("datahub.row.update", { table_id: f.tableId, row_id: rowId, version: cur.version, data });
+      await drainOutbox(t);
+    };
+    await edit(me.id, { "Điểm": 5 }); // plain column, and "Gấp đôi" is recalculated: nobody is told
+    expect(await mineN(staff)).toHaveLength(0);
+    await edit(me.id, { "Nhận xét của leader": "Cần sửa câu 2 (bí mật 12345)" });
+    const got = await mineN(staff);
+    expect(got).toHaveLength(1);
+    expect(got[0]!.body).toContain("Nhận xét của leader");
+    expect(got[0]!.body).not.toContain("12345");
+    await edit(me.id, { "Nhận xét của leader": "Đã xem lại" }); // same row within 10 minutes: one notification
+    expect(await mineN(staff)).toHaveLength(1);
+    expect(await mineN(as(t, org.userA2.id, "web"))).toHaveLength(0); // the other person's row is not theirs to be told about... until it is edited
+    await edit(other.id, { "Nhận xét của leader": "Ổn" });
+    expect(await mineN(as(t, org.userA2.id, "web"))).toHaveLength(1);
+    expect(await mineN(staff)).toHaveLength(1);
+  });
 });

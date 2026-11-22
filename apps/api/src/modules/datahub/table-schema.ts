@@ -32,6 +32,7 @@ export function columnFromDb(r: Raw): DhColumn {
     defaultValue: r.default_value ?? null,
     description: (r.description as string | null) ?? null,
     display: (r.display as Record<string, unknown>) ?? {},
+    notifyOnChange: (r.notify_on_change as DhColumn["notifyOnChange"] | null | undefined) ?? null,
     version: r.version as number,
     deletedAt: (r.deleted_at as Date | null) ?? null,
     calcStatus: (r.calc_status as string | undefined) ?? "ready",

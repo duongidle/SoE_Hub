@@ -42,6 +42,8 @@ export interface DhColumn {
   defaultValue: unknown;
   description: string | null;
   display: Record<string, unknown>;
+  /** Common option (design module9 5): when a person, the API or a form edits this column, tell the people in the user column `people_column` (a column key) of the same row. */
+  notifyOnChange: { people_column: string } | null;
   version: number;
   deletedAt: Date | null;
   /** Recalculation state of a computed column: `ready`, `pending` (waiting for the worker) or `running`. */

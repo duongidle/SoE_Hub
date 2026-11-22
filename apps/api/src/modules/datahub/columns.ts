@@ -11,6 +11,7 @@ import { DH_REASON, pgError, rethrowNameConflict } from "./errors";
 import { getLimits, quotaExceeded, tableColumnCap } from "./limits";
 import { emitStructure, Id, STRUCTURE_EVENT } from "./shared";
 import { columnOut, ColumnOut, indexFor } from "./structure";
+import { forgetNotifyOptions } from "./notify-option";
 import { isComputedType } from "./cell-values";
 import { resolveLinkTarget } from "./link-targets";
 import { backfillTracker, releaseWatchedColumn, resolveWatch } from "./field-modified";
@@ -231,7 +232,7 @@ async function loadColumnForTypeChange(ctx: Ctx, tableId: string, ref: string): 
   return { acc, schema, col };
 }
 
-type UpdateInput = { update_formulas?: boolean; name?: string; config?: Record<string, unknown>; required?: boolean; allow_edit?: boolean; unique?: boolean; default_value?: unknown; description?: string | null; display?: Record<string, unknown>; position?: number; version?: number };
+type UpdateInput = { update_formulas?: boolean; name?: string; config?: Record<string, unknown>; required?: boolean; allow_edit?: boolean; unique?: boolean; default_value?: unknown; description?: string | null; display?: Record<string, unknown>; notify_on_change?: { people_column: string } | null; position?: number; version?: number };
 
 /** Changes a column (same rules for the column command and the template command; authorisation is the caller's). */
 /** A Relation may point to a template table the owner reads (design module4 1.1): let `prepareComputed` accept it. */
@@ -259,6 +260,16 @@ export async function updateColumn(ctx: Ctx, acc: TableAccess, col: DhColumn, i:
   // Keep the internal counter of an auto-number column.
   if (col.type === "auto_number" && i.config !== undefined && col.config.seq !== undefined) config.seq = col.config.seq;
   const display = i.display !== undefined ? normalizeDisplay(i.display) : col.display;
+  let notifyOnChange = col.notifyOnChange;
+  if (i.notify_on_change !== undefined) {
+    if (i.notify_on_change === null) notifyOnChange = null;
+    else {
+      const people = (await TableSchema.load(ctx.db, acc)).tryResolve(i.notify_on_change.people_column);
+      if (!people || people.deletedAt || people.type !== "user") throw new AppError("validation_error", `"${i.notify_on_change.people_column}" không phải cột Người dùng của bảng.`, { reason: "notify_people_column" });
+      if (people.key === col.key) throw new AppError("validation_error", "Cột người nhận phải khác cột được theo dõi.", { reason: "notify_people_column" });
+      notifyOnChange = { people_column: people.key };
+    }
+  }
   const name = i.name ?? col.name;
   const unique = i.unique ?? col.isUnique;
   if (unique && (!def.uniqueable || hasAttrs({ type: col.type, config }))) throw new AppError("validation_error", `Cột kiểu "${def.label}" không đặt được "duy nhất".`);
@@ -266,11 +277,12 @@ export async function updateColumn(ctx: Ctx, acc: TableAccess, col: DhColumn, i:
   if (i.default_value !== undefined || i.config !== undefined) dflt = parseDefault(col.type, config, name, col.key, i.default_value !== undefined ? i.default_value : col.defaultValue);
   try {
     await ctx.db.execute(sql`UPDATE dh_columns SET name = ${name}, config = ${JSON.stringify(config)}::jsonb, required = ${i.required ?? col.required}, allow_edit = ${i.allow_edit ?? col.allowEdit}, is_unique = ${unique},
-      default_value = ${dflt === null ? null : JSON.stringify(dflt)}::jsonb, description = ${i.description === undefined ? col.description : i.description}, display = ${JSON.stringify(display)}::jsonb,
+      default_value = ${dflt === null ? null : JSON.stringify(dflt)}::jsonb, description = ${i.description === undefined ? col.description : i.description}, display = ${JSON.stringify(display)}::jsonb, notify_on_change = ${notifyOnChange ? JSON.stringify(notifyOnChange) : null}::jsonb,
       position = ${i.position ?? col.position}::int, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
   } catch (e) {
     rethrowNameConflict(e);
   }
+  if (i.notify_on_change !== undefined) forgetNotifyOptions(acc.tableId);
   if (watchChanged) await backfillTracker(ctx.db, acc, col.key, config.watch as string[]);
   // Renamed options: formulas that compare this column with the old name as text are rewritten with the new one when the caller asks (never silently).
   if (i.update_formulas && (col.type === "single_select" || col.type === "multi_select") && i.config !== undefined) {
@@ -511,6 +523,7 @@ export const columnOperations = [
       default_value: z.unknown().optional(),
       description: z.string().trim().max(1000).nullable().optional(),
       display: z.record(z.string(), z.unknown()).optional(),
+      notify_on_change: z.object({ people_column: z.string().trim().min(1) }).nullable().optional().describe("Chỉ chủ bảng đặt. Khi cột này được sửa (người, API, form; không phải công thức tính lại), báo cho người ở cột Người dùng `people_column` của dòng đó. `null` = tắt."),
       position: z.number().int().min(0).max(1000).optional(),
       version: z.number().int().min(1).optional(),
       update_formulas: z.boolean().optional().describe("Khi đổi tên lựa chọn: viết lại cả các công thức đang so chữ với tên cũ (xem `datahub.column.option_impact`). Mặc định không."),
@@ -519,7 +532,7 @@ export const columnOperations = [
     http: { method: "PATCH", path: "/tables/:table_id/columns/:column" },
     handler: async (ctx, i) => {
       const { acc, col, mine } = await loadColumnForWrite(ctx, i.table_id, i.column, "alive", "sửa");
-      if (mine && (i.required !== undefined || i.unique !== undefined || i.allow_edit !== undefined || (i.config !== undefined && col.type !== "single_select" && col.type !== "multi_select"))) {
+      if (mine && (i.required !== undefined || i.unique !== undefined || i.allow_edit !== undefined || i.notify_on_change !== undefined || (i.config !== undefined && col.type !== "single_select" && col.type !== "multi_select"))) {
         throw new AppError("validation_error", "Cột riêng chỉ đổi được tên, mô tả, lựa chọn, giá trị mặc định, định dạng và vị trí.", { reason: "custom_column_type" });
       }
       if (mine && i.name !== undefined && i.name.trim() !== col.name) await assertNameFree(ctx.db, acc, i.name);

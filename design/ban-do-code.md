@@ -230,6 +230,8 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 - Không ghi thẳng vào bảng gộp (chỉ worker).
 
 
+- Tuỳ chọn cột `notify_on_change` (9B, cột `dh_columns.notify_on_change`, migration 0032): `{ people_column: <mã cột Người dùng> }`, chỉ chủ bảng đặt qua `datahub.column.update` (`updateColumn` trong `columns.ts`). Đọc có nhớ đệm 60 giây theo bảng ở `datahub/notify-option.ts` (`notifyOptionsOf`, `forgetNotifyOptions`); người nghe: loại `datahub.cell.changed` ở `notification/catalog.ts` (sự kiện `datahub.row.updated`, gom 10 phút theo người + dòng, người nhận phải xem được dòng qua `rowAudience`). Thêm kiểu cấu hình cột dùng chung thì sửa `DhColumn`, `columnFromDb`, `ColumnOut`/`columnOut`.
+
 ## Module 3: Chỉ số, dashboard
 
 **Chỗ gọi vào**
@@ -529,5 +531,5 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Test: `apps/api/test/onboarding.test.ts` (leader gọi bằng `as(t, id, "web")`, kết nối AI dựng bằng `activeToken` + `actorOf(..., "mcp")`).
 
 **Luật cấm**
-- Không viết SQL tổng hợp riêng cho checkpoint: chỉ qua `runDefinition`. Không cấp quyền bảng cho nhân sự bằng đường khác `applyGrants`. Không để AI tick việc, xác nhận checkpoint, chốt đánh giá cuối.
+- Tuỳ chọn cột "báo khi cột này được sửa" (9B): xem Module 2 và Module 6 (loại `datahub.cell.changed` ở `catalog.ts`). Không viết SQL tổng hợp riêng cho checkpoint: chỉ qua `runDefinition`. Không cấp quyền bảng cho nhân sự bằng đường khác `applyGrants`. Không để AI tick việc, xác nhận checkpoint, chốt đánh giá cuối.
 - Lộ trình đang chạy chỉ một cho mỗi nhân sự (chỉ mục duy nhất một phần), kiểm ở `plan.assign`.

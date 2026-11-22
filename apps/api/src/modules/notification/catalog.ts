@@ -3,6 +3,8 @@ import { BUSINESS_TIMEZONE } from "@soe/shared";
 import type { Db, OutboxRow } from "@soe/db";
 import { decrypt } from "../../auth/crypto";
 import { CODE_TTL_HOURS } from "../auth/codes";
+import { rowAudience } from "../datahub/access";
+import { notifyOptionsOf } from "../datahub/notify-option";
 import { entriesOf, userIdsOf } from "../datahub/user-values";
 import { adminIds, defineNotification, notify, stableId, type NotifyDeps } from "./notify";
 
@@ -24,6 +26,7 @@ export const NOTIFICATION_TYPES = {
   dealParticipantChanged: "deal.participant.changed",
   dealParticipantRemoved: "deal.participant.removed",
   kpiEditedAfterCommit: "deal.kpi.edited_after_commit",
+  cellChanged: "datahub.cell.changed",
   dealPaymentConfirmed: "deal.payment.confirmed",
   datahubShared: "datahub.shared",
   dashboardShared: "dashboard.shared",
@@ -306,6 +309,48 @@ defineNotification({
   render: (_ev, _r, by, c) => {
     const x = c as { table: string; tableId: string; rowId: string };
     return { title: "Kế hoạch KPI đã commit của bạn bị sửa", body: `${by} đã sửa kế hoạch đã commit của bạn (bảng "${x.table}"). Xem lịch sử dòng để biết chi tiết.`, link: `/datahub`, data: { row_id: x.rowId, table_id: x.tableId } };
+  },
+});
+
+/**
+ * Common column option "tell the people in column X when this column is edited" (design module9 5). Only a write of a person, the API or a form
+ * reaches `datahub.row.updated` (a recalculation has its own event). A table without the option costs one remembered lookup. The body names the
+ * columns, never a value; one notification per person and row within 10 minutes.
+ */
+const CELL_GROUP_MINUTES = 10;
+defineNotification({
+  type: NOTIFICATION_TYPES.cellChanged,
+  category: "datahub",
+  on: "datahub.row.updated",
+  recipients: async (ev, { db }) => {
+    const payload = ev.payload as RowEvent;
+    const opts = await notifyOptionsOf(db, payload.table_id);
+    if (opts.length === 0) return [];
+    const history = (await historyOf(ev, db)).filter((h) => h.op === "update" && h.changes.some((c) => opts.some((o) => o.key === c.field)));
+    if (history.length === 0) return [];
+    const rows = (await db.execute(sql`SELECT id, data FROM dh_rows WHERE /*scope:system*/ id = ANY(${`{${history.map((h) => h.row_id).join(",")}}`}::uuid[])`)).rows as { id: string; data: Record<string, unknown> }[];
+    const data = new Map(rows.map((r) => [r.id, r.data]));
+    const [t] = (await db.execute(sql`SELECT name, datahub_id FROM dh_tables WHERE /*scope:system*/ id = ${payload.table_id}::uuid`)).rows as { name: string; datahub_id: string }[];
+    const out: { userId: string; key: string; ctx: unknown }[] = [];
+    for (const h of history) {
+      const changed = opts.filter((o) => h.changes.some((c) => c.field === o.key));
+      const row = data.get(h.row_id);
+      if (!row) continue;
+      const people = new Set(changed.flatMap((o) => userIdsOf(row[o.peopleKey])));
+      if (people.size === 0) continue;
+      const seeing = new Set(await rowAudience(db, payload.table_id, [h.row_id]));
+      const ids = [...people].filter((id) => seeing.has(id));
+      if (ids.length === 0) continue;
+      const recent = (await db.execute(sql`SELECT user_id FROM notifications WHERE /*scope:system*/ type = ${NOTIFICATION_TYPES.cellChanged} AND user_id = ANY(${`{${ids.join(",")}}`}::uuid[]) AND data->>'row_id' = ${h.row_id}
+        AND created_at > now() - make_interval(mins => ${CELL_GROUP_MINUTES}::int)`)).rows as { user_id: string }[];
+      const skip = new Set(recent.map((r) => r.user_id));
+      for (const id of ids) if (!skip.has(id)) out.push({ userId: id, key: h.row_id, ctx: { table: t?.name ?? "", datahubId: t?.datahub_id ?? "", tableId: payload.table_id, rowId: h.row_id, columns: changed.map((o) => o.name) } });
+    }
+    return out;
+  },
+  render: (_ev, _r, by, c) => {
+    const x = c as { table: string; datahubId: string; tableId: string; rowId: string; columns: string[] };
+    return { title: "Một dòng của bạn vừa được cập nhật", body: `${by} đã sửa ${x.columns.length === 1 ? "cột" : "các cột"} ${x.columns.map((n) => `"${n}"`).join(", ")} ở một dòng của bạn (bảng "${x.table}").`, link: `/datahub/${x.datahubId}/${x.tableId}`, data: { row_id: x.rowId, table_id: x.tableId } };
   },
 });
 

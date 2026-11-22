@@ -31834,6 +31834,26 @@
                                 },
                                 "additionalProperties": {}
                               },
+                              "notify_on_change": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "people_column": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "people_column"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                              },
                               "version": {
                                 "type": "integer",
                                 "minimum": -9007199254740991,
@@ -31933,6 +31953,7 @@
                               "default_value",
                               "description",
                               "display",
+                              "notify_on_change",
                               "version",
                               "calc"
                             ],
@@ -33253,6 +33274,26 @@
                           },
                           "additionalProperties": {}
                         },
+                        "notify_on_change": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "people_column": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "people_column"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                        },
                         "version": {
                           "type": "integer",
                           "minimum": -9007199254740991,
@@ -33352,6 +33393,7 @@
                         "default_value",
                         "description",
                         "display",
+                        "notify_on_change",
                         "version",
                         "calc"
                       ],
@@ -33548,6 +33590,26 @@
                     },
                     "additionalProperties": {}
                   },
+                  "notify_on_change": {
+                    "description": "Chỉ chủ bảng đặt. Khi cột này được sửa (người, API, form; không phải công thức tính lại), báo cho người ở cột Người dùng `people_column` của dòng đó. `null` = tắt.",
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "people_column": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "people_column"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "position": {
                     "type": "integer",
                     "minimum": 0,
@@ -33727,6 +33789,26 @@
                           },
                           "additionalProperties": {}
                         },
+                        "notify_on_change": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "people_column": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "people_column"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                        },
                         "version": {
                           "type": "integer",
                           "minimum": -9007199254740991,
@@ -33826,6 +33908,7 @@
                         "default_value",
                         "description",
                         "display",
+                        "notify_on_change",
                         "version",
                         "calc"
                       ],
@@ -34320,6 +34403,26 @@
                           },
                           "additionalProperties": {}
                         },
+                        "notify_on_change": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "people_column": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "people_column"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                        },
                         "version": {
                           "type": "integer",
                           "minimum": -9007199254740991,
@@ -34419,6 +34522,7 @@
                         "default_value",
                         "description",
                         "display",
+                        "notify_on_change",
                         "version",
                         "calc"
                       ],
@@ -35071,6 +35175,26 @@
                               },
                               "additionalProperties": {}
                             },
+                            "notify_on_change": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "people_column": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "people_column"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                            },
                             "version": {
                               "type": "integer",
                               "minimum": -9007199254740991,
@@ -35170,6 +35294,7 @@
                             "default_value",
                             "description",
                             "display",
+                            "notify_on_change",
                             "version",
                             "calc"
                           ],
@@ -48773,6 +48898,26 @@
                                 },
                                 "additionalProperties": {}
                               },
+                              "notify_on_change": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "people_column": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "people_column"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                              },
                               "version": {
                                 "type": "integer",
                                 "minimum": -9007199254740991,
@@ -48872,6 +49017,7 @@
                               "default_value",
                               "description",
                               "display",
+                              "notify_on_change",
                               "version",
                               "calc"
                             ],
@@ -50212,6 +50358,26 @@
                           },
                           "additionalProperties": {}
                         },
+                        "notify_on_change": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "people_column": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "people_column"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                        },
                         "version": {
                           "type": "integer",
                           "minimum": -9007199254740991,
@@ -50311,6 +50477,7 @@
                         "default_value",
                         "description",
                         "display",
+                        "notify_on_change",
                         "version",
                         "calc"
                       ],
@@ -50686,6 +50853,26 @@
                               },
                               "additionalProperties": {}
                             },
+                            "notify_on_change": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "people_column": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "people_column"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                            },
                             "version": {
                               "type": "integer",
                               "minimum": -9007199254740991,
@@ -50785,6 +50972,7 @@
                             "default_value",
                             "description",
                             "display",
+                            "notify_on_change",
                             "version",
                             "calc"
                           ],
@@ -51609,6 +51797,26 @@
                               },
                               "additionalProperties": {}
                             },
+                            "notify_on_change": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "people_column": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "people_column"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                            },
                             "version": {
                               "type": "integer",
                               "minimum": -9007199254740991,
@@ -51708,6 +51916,7 @@
                             "default_value",
                             "description",
                             "display",
+                            "notify_on_change",
                             "version",
                             "calc"
                           ],
@@ -52184,6 +52393,26 @@
                           },
                           "additionalProperties": {}
                         },
+                        "notify_on_change": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "people_column": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "people_column"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                        },
                         "version": {
                           "type": "integer",
                           "minimum": -9007199254740991,
@@ -52283,6 +52512,7 @@
                         "default_value",
                         "description",
                         "display",
+                        "notify_on_change",
                         "version",
                         "calc"
                       ],
@@ -52619,6 +52849,26 @@
                               },
                               "additionalProperties": {}
                             },
+                            "notify_on_change": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "people_column": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "people_column"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                            },
                             "version": {
                               "type": "integer",
                               "minimum": -9007199254740991,
@@ -52718,6 +52968,7 @@
                             "default_value",
                             "description",
                             "display",
+                            "notify_on_change",
                             "version",
                             "calc"
                           ],
@@ -52874,6 +53125,26 @@
                                   },
                                   "additionalProperties": {}
                                 },
+                                "notify_on_change": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "people_column": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "people_column"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."
+                                },
                                 "version": {
                                   "type": "integer",
                                   "minimum": -9007199254740991,
@@ -52973,6 +53244,7 @@
                                 "default_value",
                                 "description",
                                 "display",
+                                "notify_on_change",
                                 "version",
                                 "calc"
                               ],

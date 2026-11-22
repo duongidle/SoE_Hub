@@ -123,6 +123,7 @@ export const ColumnOut = z.object({
   default_value: z.unknown(),
   description: z.string().nullable(),
   display: z.record(z.string(), z.unknown()),
+  notify_on_change: z.object({ people_column: z.string() }).nullable().describe("Tuỳ chọn chung (chỉ chủ bảng đặt): khi cột này được sửa bởi người, API hay form, báo cho người ở cột Người dùng `people_column` (mã cột) của dòng đó."),
   version: z.number().int(),
   /** Recalculation state of a formula, lookup or rollup column (null for other columns). `pending` / `running` cells show the "calculating" icon. */
   calc: z.object({ status: z.enum(["ready", "pending", "running"]), done: z.number().int().nullable(), total: z.number().int().nullable(), at: Ts.nullable(), seq: z.number().int().describe("Số thứ tự thay đổi cột đã tính tới.") }).nullable(),
@@ -141,7 +142,7 @@ export function columnOut(c: ReturnType<typeof columnFromDb>, ix: OwnerIndex | n
   if (def.type === "auto_number") delete config.seq;
   if (isComputedType(c.type) || c.type === "relation") config = displayConfig({ type: c.type, config, tableId: c.tableId }, ix);
   const calc = isComputedType(c.type) ? { status: c.calcStatus as "ready" | "pending" | "running", done: c.calcDone, total: c.calcTotal, at: c.calcAt, seq: c.calcSeq } : null;
-  return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, allow_edit: c.allowEdit, layer: c.layer, layer_ref: c.layerRef, layer_roles: c.layerRoles, storage: c.storage, role: c.role, protected: c.protected, autofill: c.autofill, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, version: c.version, calc };
+  return { id: c.id, key: c.key, name: c.name, type: c.type, config, position: c.position, required: c.required, allow_edit: c.allowEdit, layer: c.layer, layer_ref: c.layerRef, layer_roles: c.layerRoles, storage: c.storage, role: c.role, protected: c.protected, autofill: c.autofill, unique: c.isUnique, default_value: c.defaultValue, description: c.description, display: c.display, notify_on_change: c.notifyOnChange, version: c.version, calc };
 }
 
 /** Index of the owner's tables, loaded only when a column needs names of other objects. */

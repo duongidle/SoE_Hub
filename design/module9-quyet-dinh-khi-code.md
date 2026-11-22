@@ -28,3 +28,4 @@
 - **Xác nhận tay** (`checkpoint.confirm`) chỉ Leader trực tiếp / Manager (như sửa lộ trình); nhân sự bị `forbidden`. Điều kiện tay đạt khi đã xác nhận (và xác nhận trước mốc tính).
 - **Chốt đánh giá cuối** (`plan.finish`): `result` Đạt / Không đạt, ghi chú tuỳ chọn; không bắt buộc các checkpoint cuối phải đạt (Leader quyết). Ghi chú nằm ở `onb_plans.final_note`, chỉ có sau khi chốt nên nhân sự thấy khi lộ trình đã Hoàn thành.
 - **`progress.get`** trả cả `items_by_kind` (tổng, xong, trễ theo loại việc), `current_week`, `total_weeks` để 9C làm bảng Theo dõi.
+- **Tuỳ chọn cột** (xem Module 2 quyết định khi code): thông báo `datahub.cell.changed` (không bắt buộc, người nhận tắt được); nội dung chỉ nêu tên cột và tên bảng, không chép giá trị. Gom 10 phút = mỗi người nhận tối đa một thông báo cho mỗi dòng trong 10 phút (lần sửa sau trong khoảng đó không báo thêm). Người nhận phải xem được dòng (`rowAudience`).
