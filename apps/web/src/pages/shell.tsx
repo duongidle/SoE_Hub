@@ -69,7 +69,7 @@ export function Shell() {
   useLiveUpdates(!!me);
 
   useEffect(() => {
-  if (meQ.isLoading) return;
+  if (meQ.isLoading || path.startsWith("/f/")) return;
     if (!me) {
       if (!isPublic(path)) void nav({ href: `/dang-nhap?next=${encodeURIComponent(path + location.searchStr)}`, replace: true });
     } else if (me.must_set_password) {
@@ -79,6 +79,8 @@ export function Shell() {
     }
   }, [me, meQ.isLoading, path, location.searchStr, nav]);
 
+  // The page of a person filling a form stands alone, with or without a login.
+  if (path.startsWith("/f/") && shown.startsWith("/f/")) return <div className="min-h-dvh bg-muted/30 px-3 py-3"><Outlet /></div>;
   if (meQ.isLoading) return <p className="p-6 text-sm text-muted-foreground">Đang tải...</p>;
   if (meQ.error) return <p className="p-6 text-sm text-bad" role="alert">Không kết nối được máy chủ. Hãy tải lại trang sau ít phút.</p>;
 

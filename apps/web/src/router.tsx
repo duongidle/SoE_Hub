@@ -45,6 +45,7 @@ export const router = createRouter({
     lazyPage("/quan-ly-deal/thanh-toan", () => import("@/pages/deal/payments"), "PaymentsPage"),
     lazyPage("/quan-ly-deal/chot-ky", () => import("@/pages/deal/period"), "PeriodPage"),
     lazyPage("/quan-ly-deal/$tableId", () => import("@/pages/deal/home"), "DealHomePage"),
+    lazyPage("/f/$code", () => import("@/pages/form/fill"), "FillPage"),
     lazyPage("/form", () => import("@/pages/form/list"), "FormListPage"),
     lazyPage("/form/cham-bai", () => import("@/pages/form/grading"), "GradingPage"),
     lazyPage("/form/bai-lam", () => import("@/pages/form/grading"), "MyQuizPage"),
