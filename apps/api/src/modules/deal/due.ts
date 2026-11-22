@@ -8,6 +8,7 @@ import { defineCommand, defineQuery } from "../../core/registry";
 import { NOTIFICATION_TYPES } from "../notification/catalog";
 import { notify, stableId } from "../notification/notify";
 import { roleTable, type RoleTable } from "./forecast";
+import { entryRole, isLeadingRole } from "./participants";
 
 /**
  * Deal due-date reminders and the morning digest (design module6 5.5, 6.4, 6.5, 14).
@@ -119,7 +120,7 @@ interface Dealt {
 }
 const norm = (s: string) => s.normalize("NFC").trim().toLowerCase();
 
-/** The people of a deal row, and who is Leading (attribute `vai_tro` = Leading, or a people column named Leading). */
+/** The people of a deal row, and who is Leading (the role of the person's entry, read as the money commands read it). */
 function dealOf(tree: Tree, id: string, data: Record<string, unknown>): Dealt {
   const nameKey = tree.deals.key("ten_cong_ty");
   const people = new Set<string>();
@@ -127,7 +128,7 @@ function dealOf(tree: Tree, id: string, data: Record<string, unknown>): Dealt {
   for (const c of tree.peopleCols)
     for (const e of entriesOf(data[c.key])) {
       people.add(e.id);
-      if (norm(String(e.attrs?.vai_tro ?? "")) === "leading" || norm(c.name) === "leading") leading.add(e.id);
+      if (isLeadingRole(entryRole(e.attrs))) leading.add(e.id);
     }
   return { id, name: nameKey && typeof data[nameKey] === "string" && data[nameKey] ? (data[nameKey] as string) : "(chưa đặt tên)", people: [...people], leading: [...leading] };
 }

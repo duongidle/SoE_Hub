@@ -44,7 +44,7 @@ async function reachOf(ctx: HandlerCtx): Promise<Reach> {
 
 const ids = (arr: string[]) => `{${arr.join(",")}}`;
 
-/** Checks the scope against what the sender may reach, and expands it into the people (active persons, not the sender). */
+/** Checks the scope against what the sender may reach, and expands it into the people (active persons, not Guests, not the sender). */
 async function expand(ctx: HandlerCtx, reach: Reach, s: Scope): Promise<string[]> {
   if (!reach.admin && !reach.tree && !reach.team) throw new AppError("forbidden", "Chỉ Admin, Manager và Leader gửi thông báo chung.");
   if (s.all && !reach.admin) throw forbidden("mọi người");
@@ -56,7 +56,7 @@ async function expand(ctx: HandlerCtx, reach: Reach, s: Scope): Promise<string[]
   }
   const people = new Set<string>();
   const add = (rows: unknown[]) => (rows as { id: string }[]).forEach((r) => people.add(r.id));
-  const active = sql`u.kind = 'person' AND u.status = 'active'`;
+  const active = sql`u.kind = 'person' AND u.status = 'active' AND NOT ('guest' = ANY(u.roles))`; // Guests never get a general announcement
   if (s.all) add((await ctx.db.execute(sql`SELECT u.id FROM users u WHERE ${active}`)).rows);
   if (s.trees?.length) add((await ctx.db.execute(sql`SELECT u.id FROM users u JOIN org_memberships m ON m.user_id = u.id AND m.valid_to IS NULL WHERE ${active} AND m.manager_id = ANY(${ids(s.trees)}::uuid[])`)).rows);
   if (s.teams?.length)

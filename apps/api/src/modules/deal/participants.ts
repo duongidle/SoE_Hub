@@ -30,6 +30,13 @@ export interface Participant {
 
 const ROLES = { role: "vai_tro_cua_toi", rev: "pct_doanh_thu_cua_toi", com: "pct_com_cua_toi", deal: "tinh_deal_cua_toi" } as const;
 const LEGACY = { role: "vai_tro", rev: "ty_le_dt", com: "ty_le_com", deal: "tinh_deal" } as const;
+/** The role a people entry carries in its attributes (the base the `vai_tro_cua_toi` formula reads): one place that reads it, for the money commands and the due-date rules. */
+export const entryRole = (attrs: Record<string, unknown> | undefined | null): string | null => {
+  const r = attrs?.[LEGACY.role];
+  return typeof r === "string" && r.trim() ? r : null;
+};
+/** Is this role Leading (any letter case, any Unicode form)? */
+export const isLeadingRole = (role: string | null): boolean => !!role && role.normalize("NFC").trim().toLowerCase() === "leading";
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
 /** People columns of a table, in table order. */
@@ -119,7 +126,7 @@ export async function participantsOf(ctx: Ctx, deals: T, row: RowData): Promise<
   }
   const read = async (role: keyof typeof ROLES): Promise<(id: string) => unknown> => {
     const c = roleCol(deals, ROLES[role], false);
-    if (!c) return (id) => legacy.get(id)?.[LEGACY[role]];
+    if (!c) return (id) => (role === "role" ? entryRole(legacy.get(id)) : legacy.get(id)?.[LEGACY[role]]);
     if (c.type === "formula") return (id) => live.get(id)?.[c.key] ?? null;
     const m = await valuesAsPeople(ctx, deals, row, c, ids);
     return (id) => m.get(id) ?? null;

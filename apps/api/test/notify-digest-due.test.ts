@@ -199,6 +199,9 @@ describe("announcements", () => {
     expect(r.recipient_count).toBe(1); // UserA1 (the sender is not a recipient)
     expect((await mine(a1, NOTIFICATION_TYPES.announcement)).map((x) => x.title)).toContain("Team A họp");
     expect(await mine(a2, NOTIFICATION_TYPES.announcement)).toHaveLength(0);
+    // A Guest is never a recipient, by tree, by team or by name.
+    expect((await fails(send(mgrA, { user_ids: [org.guestData.id] }))).details.reason).toBe("out_of_scope");
+    expect(await mine(as(t, org.guestData.id), NOTIFICATION_TYPES.announcement)).toHaveLength(0);
     const one = await send(leaderA, { user_ids: [org.userA1.id] }, { title: "Riêng A1" });
     expect(one.recipient_count).toBe(1);
   });
@@ -208,17 +211,17 @@ describe("announcements", () => {
     expect((await fails(send(mgrA, { teams: [org.leaderB.id] }))).details.reason).toBe("out_of_scope");
     expect((await fails(send(mgrA, { user_ids: [org.userB1.id] }))).details.reason).toBe("out_of_scope");
     const r = await send(mgrA, { trees: [org.mgrA.id] }, { title: "Chính sách com mới", important: true });
-    expect(r.recipient_count).toBe(4); // LeaderA, UserA1, UserA2, GuestData (the sender is not one)
+    expect(r.recipient_count).toBe(3); // LeaderA, UserA1, UserA2 (not the sender, not GuestData)
     const got = (await mine(a2, NOTIFICATION_TYPES.announcement)).find((x) => x.title === "Chính sách com mới")!;
     expect(got.priority).toBe("important");
     expect(await mine(b1, NOTIFICATION_TYPES.announcement)).toHaveLength(0);
     // Nobody has read it yet; after UserA1 reads it, 1 of 4.
-    expect(await mgrA("announcement.read_status", { id: r.id })).toMatchObject({ read: 0, total: 4 });
+    expect(await mgrA("announcement.read_status", { id: r.id })).toMatchObject({ read: 0, total: 3 });
     const n1 = (await mine(a1, NOTIFICATION_TYPES.announcement)).length;
     await a1("notification.mark_read", { all: true });
     expect(n1).toBeGreaterThan(0);
     const st = await mgrA("announcement.read_status", { id: r.id });
-    expect(st).toMatchObject({ read: 1, total: 4 });
+    expect(st).toMatchObject({ read: 1, total: 3 });
     expect(st.unread.map((u: { user_id: string }) => u.user_id)).not.toContain(org.userA1.id);
     expect((await fails(a2("announcement.read_status", { id: r.id }))).code).toBe("forbidden");
     // The sent tab, and the received tab of a recipient.
@@ -232,7 +235,7 @@ describe("announcements", () => {
     const [late] = await db().insert(users).values({ email: `late.${org.tag}@base.vn`, fullName: `Late ${org.tag}`, roles: ["user"], status: "active" }).returning({ id: users.id });
     await db().insert(orgMemberships).values({ userId: late!.id, managerId: org.mgrA.id, leaderId: null });
     expect(await mine(as(t, late!.id), NOTIFICATION_TYPES.announcement)).toHaveLength(0);
-    expect((await mgrA("announcement.read_status", { id: r.id })).total).toBe(4);
+    expect((await mgrA("announcement.read_status", { id: r.id })).total).toBe(3);
     expect((await mine(a1, NOTIFICATION_TYPES.announcement)).some((x) => x.title === "Sẽ thu hồi")).toBe(true);
     expect((await fails(leaderA("announcement.recall", { id: r.id }))).code).toBe("not_found");
     expect((await mgrA("announcement.recall", { id: r.id })).removed).toBe(4);
