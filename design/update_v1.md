@@ -65,3 +65,4 @@
 |---|---|---|
 | Loại bài **Bài học deal** và **Hỏi đáp** | Module 8 mục 3.1 | Dương thiết kế Bài học deal cá nhân trong Quản lý Deal trước |
 | API Knowledge (tìm, đọc bài) trong danh sách API nội bộ cho Nguồn dữ liệu của Form | Module 7 mục 2.5 | Làm cùng Nguồn dữ liệu |
+| Ảnh tải lên trong bài Knowledge (hiện chèn bằng link https); phân trang danh sách Knowledge/AI Hub (hiện 50–100); tìm skill theo tên khi chọn "phiên bản mới của skill X"; cảnh báo "tên người cụ thể" trong skill (hiện chỉ dò email); render Markdown cho SKILL.md (hiện văn bản thô) | Module 8 mục 3.1, 4.1, 4.2, 7 | Stage 12 / khi dùng thật thấy cần |
