@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-/** Channels a command can come through. `automation` is reserved; nothing uses it yet (design section 19). */
-export const VIA_VALUES = ["web", "api", "mcp", "worker", "automation"] as const;
+/** Channels a command can come through. `automation` is reserved; nothing uses it yet (design section 19). `form` = a row written by someone filling a form (design module7 5.1). */
+export const VIA_VALUES = ["web", "api", "mcp", "worker", "automation", "form"] as const;
 export type Via = (typeof VIA_VALUES)[number];
 
 /**

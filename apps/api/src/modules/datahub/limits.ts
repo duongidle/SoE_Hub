@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError, DH_COLUMN_CEILING, DH_LIMIT_DEFAULTS } from "@soe/shared";
 import { dhUserLimits, type Executor } from "@soe/db";
@@ -57,6 +57,17 @@ export const DH_SETTINGS = {
   } satisfies SettingDef<number>,
 } as const;
 
+/** Columns of a table that has a form (design module7 1.1a): the larger of the person's limit and this setting, never above the ceiling. */
+export const FORM_SETTINGS = {
+  tableMaxColumns: {
+    key: "form.table_max_columns",
+    label: "Cột tối đa của bảng có form",
+    description: `Bảng có ít nhất một form ghi vào được mở giới hạn cột lên mức này (không vượt trần ${DH_COLUMN_CEILING}).`,
+    schema: z.number().int().min(1).max(DH_COLUMN_CEILING),
+    default: 150,
+  } satisfies SettingDef<number>,
+} as const;
+
 export interface DhLimits {
   datahubs: number;
   tables: number;
@@ -74,4 +85,11 @@ export async function getLimits(ex: Executor, userId: string): Promise<DhLimits>
 
 export function quotaExceeded(what: string, limit: number): never {
   throw new AppError("quota_exceeded", `Đã đạt giới hạn ${limit} ${what}. Liên hệ Admin nếu cần thêm.`, { limit });
+}
+
+/** The column limit of one table: tables that a live form writes to get `form.table_max_columns` when it is higher than the person's own limit. */
+export async function tableColumnCap(ex: Executor, ownLimit: number, tableId: string): Promise<number> {
+  const r = await ex.execute(sql`SELECT 1 FROM forms WHERE table_id = ${tableId}::uuid AND deleted_at IS NULL LIMIT 1`);
+  if (r.rows.length === 0) return ownLimit;
+  return Math.min(Math.max(ownLimit, await readSetting(ex, FORM_SETTINGS.tableMaxColumns)), DH_COLUMN_CEILING);
 }

@@ -1,0 +1,20 @@
+meta {
+  name: form.question.link_options
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}/questions/{{questionId}}/link-options
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Cột của bảng đích một câu hỏi nối được: chưa nối với câu khác của form này và có kiểu hợp.
+  Quyền: `form:form:create`.
+}

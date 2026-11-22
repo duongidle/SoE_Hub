@@ -1,0 +1,31 @@
+meta {
+  name: form.public.upload_init
+  type: http
+  seq: 21
+}
+
+post {
+  url: {{baseUrl}}/api/v1/public/forms/{{code}}/uploads
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "fill_token": "{{fillToken}}",
+    "attempt_id": "{{attemptId}}",
+    "question_id": "q2",
+    "filename": "cv.pdf",
+    "content_type": "application/pdf",
+    "size_bytes": 1024
+  }
+}
+
+docs {
+  Xin link tải file lên cho một câu Đính kèm của form công khai (link có hạn, chỉ cho lượt điền này; 10 MB, 5 file mỗi câu, tính dung lượng của chủ form).
+  Quyền: công khai, không cần đăng nhập.
+}

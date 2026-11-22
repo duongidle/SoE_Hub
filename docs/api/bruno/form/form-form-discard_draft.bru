@@ -1,0 +1,21 @@
+meta {
+  name: form.form.discard_draft
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}/discard-draft
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Bỏ thay đổi chưa xuất bản: bản nháp quay về bản đang chạy.
+  Quyền: `form:form:create`.
+}

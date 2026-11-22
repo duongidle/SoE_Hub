@@ -3,8 +3,9 @@ import { z } from "zod";
 import { AppError, DhNameSchema } from "@soe/shared";
 import { newId, type Executor } from "@soe/db";
 import { defineCommand, defineQuery } from "../../core/registry";
-import { keyMatch, LEVEL_SQL, loadDatahubAccess, loadReader, loadTableAccess } from "./access";
-import { getLimits, quotaExceeded } from "./limits";
+import type { HandlerCtx } from "../../core/types";
+import { keyMatch, LEVEL_SQL, loadDatahubAccess, loadReader, loadTableAccess, type DatahubAccess, type TableAccess } from "./access";
+import { getLimits, quotaExceeded, tableColumnCap } from "./limits";
 import { rethrowNameConflict } from "./errors";
 import { emitStructure, Id, STRUCTURE_EVENT, Ts } from "./shared";
 import { columnFromDb } from "./table-schema";
@@ -155,6 +156,32 @@ function protectedDatahub(what: string): AppError {
 
 function protectedTable(name: string, what: string): AppError {
   return new AppError("forbidden", `Bảng "${name}" là bảng template, không ${what} ở đây. Chỉ người sửa template làm được, ở trang Template.`, { reason: "template_protected" });
+}
+
+/** Creates a table (and its first grid view) in a datahub the actor owns. The command and the forms (module 7) both use it; the caller emits nothing else. */
+export async function createTableIn(ctx: Pick<HandlerCtx, "db" | "actor" | "emit" | "audit">, dh: DatahubAccess, name: string, description?: string): Promise<TableAccess> {
+  const limits = await getLimits(ctx.db, ctx.actor.userId);
+  const cnt = await ctx.db.execute(sql`SELECT count(*) FILTER (WHERE template_id IS NULL)::int AS n, coalesce(max(position), -1) + 1 AS next FROM dh_tables WHERE /*scope*/ datahub_id = ${dh.id}::uuid AND deleted_at IS NULL`);
+  const { n, next } = cnt.rows[0] as { n: number; next: number };
+  if (n >= limits.tables) quotaExceeded("bảng trong một datahub", limits.tables);
+  // In the datahub "Quản lý Deal" a template table of the same name (yours or shared with you) already holds the name (module4 3.5).
+  if (dh.systemKey) {
+    const clash = await ctx.db.execute(sql`SELECT 1 FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
+      WHERE /*scope*/ t.template_id IS NOT NULL AND t.deleted_at IS NULL AND t.name_norm = lower(btrim(${name})) AND (t.datahub_id = ${dh.id}::uuid OR EXISTS (SELECT 1 FROM dh_shares s WHERE s.grantee_id = ${ctx.actor.userId}::uuid AND s.datahub_id = t.datahub_id AND (s.table_id IS NULL OR s.table_id = t.id)))`);
+    if (clash.rows.length) throw new AppError("conflict", "Đã có một bảng template tên này. Hãy đặt tên khác.", { reason: "duplicate_name" });
+  }
+  const id = newId();
+  try {
+    await ctx.db.execute(sql`INSERT INTO dh_tables (id, datahub_id, name, description, position, created_by, updated_by) VALUES (${id}::uuid, ${dh.id}::uuid, ${name}, ${description ?? null}, ${next}::int, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
+  } catch (e) {
+    rethrowNameConflict(e);
+  }
+  // Every table starts with one shared grid view, so there is always something to open.
+  await ctx.db.execute(sql`INSERT INTO dh_views (id, table_id, owner_id, name, kind, position, config, created_by, updated_by) VALUES (${newId()}::uuid, ${id}::uuid, NULL, 'Dạng bảng', 'grid', 0, '{}'::jsonb, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
+  ctx.audit({ type: "datahub_table", id, details: { datahub_id: dh.id, name: name } });
+  await emitStructure(ctx, dh.id, id, "table_created");
+  const acc = await loadTableAccess(ctx, id);
+  return acc;
 }
 
 export const structureOperations = [
@@ -309,27 +336,7 @@ export const structureOperations = [
     http: { method: "POST", path: "/datahubs/:datahub_id/tables", status: 201 },
     handler: async (ctx, i) => {
       const dh = await loadDatahubAccess(ctx, i.datahub_id, "owner");
-      const limits = await getLimits(ctx.db, ctx.actor.userId);
-      const cnt = await ctx.db.execute(sql`SELECT count(*) FILTER (WHERE template_id IS NULL)::int AS n, coalesce(max(position), -1) + 1 AS next FROM dh_tables WHERE /*scope*/ datahub_id = ${dh.id}::uuid AND deleted_at IS NULL`);
-      const { n, next } = cnt.rows[0] as { n: number; next: number };
-      if (n >= limits.tables) quotaExceeded("bảng trong một datahub", limits.tables);
-      // In the datahub "Quản lý Deal" a template table of the same name (yours or shared with you) already holds the name (module4 3.5).
-      if (dh.systemKey) {
-        const clash = await ctx.db.execute(sql`SELECT 1 FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id
-          WHERE /*scope*/ t.template_id IS NOT NULL AND t.deleted_at IS NULL AND t.name_norm = lower(btrim(${i.name})) AND (t.datahub_id = ${dh.id}::uuid OR EXISTS (SELECT 1 FROM dh_shares s WHERE s.grantee_id = ${ctx.actor.userId}::uuid AND s.datahub_id = t.datahub_id AND (s.table_id IS NULL OR s.table_id = t.id)))`);
-        if (clash.rows.length) throw new AppError("conflict", "Đã có một bảng template tên này. Hãy đặt tên khác.", { reason: "duplicate_name" });
-      }
-      const id = newId();
-      try {
-        await ctx.db.execute(sql`INSERT INTO dh_tables (id, datahub_id, name, description, position, created_by, updated_by) VALUES (${id}::uuid, ${dh.id}::uuid, ${i.name}, ${i.description ?? null}, ${next}::int, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
-      } catch (e) {
-        rethrowNameConflict(e);
-      }
-      // Every table starts with one shared grid view, so there is always something to open.
-      await ctx.db.execute(sql`INSERT INTO dh_views (id, table_id, owner_id, name, kind, position, config, created_by, updated_by) VALUES (${newId()}::uuid, ${id}::uuid, NULL, 'Dạng bảng', 'grid', 0, '{}'::jsonb, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
-      ctx.audit({ type: "datahub_table", id, details: { datahub_id: dh.id, name: i.name } });
-      await emitStructure(ctx, dh.id, id, "table_created");
-      const acc = await loadTableAccess(ctx, id);
+      const acc = await createTableIn(ctx, dh, i.name, i.description);
       return tableOut(ctx.db, acc);
     },
   }),
@@ -351,7 +358,7 @@ export const structureOperations = [
         // Only the owner sees names of other tables inside formulas; people the table is shared with see values only.
         const ix = acc.level === "owner" ? await indexFor(ctx.db, acc.datahub.ownerId, list) : null;
         return list.map((c) => columnOut(c, ix));
-      })(), max_columns: limits.columns };
+      })(), max_columns: await tableColumnCap(ctx.db, limits.columns, acc.tableId) };
     },
   }),
 

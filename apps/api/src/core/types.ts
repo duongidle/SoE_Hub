@@ -54,6 +54,8 @@ export interface HandlerCtx<A = Actor> {
    * fails afterwards (failed-login counter, wrong-code attempts). Never use it for the command's own data.
    */
   outside: Db;
+  /** Channel, IP and user agent of the request (also when there is no actor: a public form). Absent for the worker and MCP-less callers. */
+  client?: { via: string; ip: string | null; userAgent: string | null };
 }
 
 /** Lets an operation adjust the HTTP response (cookies, file download). Ignored by other channels. */

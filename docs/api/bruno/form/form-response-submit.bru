@@ -1,0 +1,31 @@
+meta {
+  name: form.response.submit
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/fill/{{code}}/submit
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "answers": {
+      "q1": "Thuận Phát"
+    },
+    "attempt_id": "{{$guid}}"
+  }
+}
+
+docs {
+  Gửi một phản hồi của form nội bộ (một dòng ở bảng đích, có lịch sử dòng). Qua token hoặc kết nối có menu Form mức Sửa cũng được.
+  Quyền: `form:response:submit`.
+}

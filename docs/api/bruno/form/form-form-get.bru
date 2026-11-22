@@ -1,0 +1,20 @@
+meta {
+  name: form.form.get
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Chi tiết form của tôi: thông tin, bản nháp (cấu hình `soe-form/1`), bản đã xuất bản, các câu bị tắt vì cột đã bị xoá.
+  Quyền: `form:form:create`.
+}

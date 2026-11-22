@@ -5,7 +5,7 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** Stage 0–6 xong (Stage 4: 4.8 bản cơ bản; Stage 5, 6: bản rút gọn, `design/module5-ket-noi-ai.md` mục 12, `design/module6-thong-bao.md` mục 14; Opus rà đạt 22/11). Mốc test sau cùng: vitest cả bộ 1290 pass 10 skip (mã 111990c); sau sửa Leading (8335423) test Deal + notify 108 pass 1 skip. Đang làm: Stage 7 bản rút gọn (Dương chốt 22/11, `design/module7-dynamic-form.md` mục 14): 7A1 → 7A2 → 7B1 → 7B2. Việc dời của thiết kế: `design/update_v1.md`.
+- **Code:** Stage 0–6 xong (Stage 4: 4.8 bản cơ bản; Stage 5, 6: bản rút gọn, `design/module5-ket-noi-ai.md` mục 12, `design/module6-thong-bao.md` mục 14; Opus rà đạt 22/11). Mốc test sau cùng: vitest cả bộ 1290 pass 10 skip (mã 111990c); sau sửa Leading (8335423) test Deal + notify 108 pass 1 skip. Đang làm: Stage 7 bản rút gọn (Dương chốt 22/11, `design/module7-dynamic-form.md` mục 14): 7A1 xong (chờ Opus rà) → 7A2 → 7B1 → 7B2. Việc dời của thiết kế: `design/update_v1.md`.
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 
@@ -58,3 +58,11 @@ Không chặn bước con; gom sửa một đợt. `stage1.spec.ts` phone "cài 
 - Module 4 (4.4A): cây đã tạo trước 4.4 giữ `Đã thu` là cột thường; bảng Tiền về "chỉ Manager" làm bằng khoá phân chia theo cột `Người xem` luôn trống.
 - Stage 9 Onboarding: hỏi Dương có kiểm giao diện kỹ như ngoại lệ không. (Danh sách token chưa phân trang: dời, xem "Còn nợ".)
 
+
+## Stage 7 (bản rút gọn): 7A1 xong 22/11, chờ Opus rà
+
+**Đã xong (server):** migration 0026 (`forms`, `form_versions`, `form_drafts`, `form_responses`, `form_uploads`, tài khoản "Form công khai"); module `apps/api/src/modules/form/` (config `soe-form/1`, lệnh chủ form, nối câu với cột, xuất bản có kiểm, gửi bài qua `applyRowOps`, endpoint công khai + chống spam + file, nháp khi điền); `via = form`; quyền `form:response:submit` (mọi người đăng nhập); menu AI `form`; 150 cột (`form.table_max_columns`); `createTableIn` tách khỏi `datahub.table.create`. Bản đồ: `design/ban-do-code.md` "Module 7"; quyết định: `design/module7-quyet-dinh-khi-code.md`. OpenAPI sinh lại, Bruno `docs/api/bruno/form/`.
+**Test:** `apps/api/test/form.test.ts` 20 pass. Chạy thêm datahub-rows/columns/split-lock/infra, ai-connections, mcp, openapi, ban-do-code: tổng 116 pass. Typecheck api 15 (bằng mốc), web 31, lint sạch. Chưa chạy cả bộ vitest (7A2).
+**Bàn giao 7A2:** chấm điểm móc ở `fill.ts` `submitResponse` (sau `visibleBlocks`, trước `applyRowOps`; `cfg` là bản đã xuất bản, đáp án nằm trong câu hỏi `answer`/`points`, `publicConfig` đã bỏ `answer`, `points`, `quiz`; thêm cột kết quả vào `data` cùng lệnh). Lệnh thêm: ghi tên mới ở `ops.ts` `formManageOperations`, người điền ở `fill.ts` `fillOperations`. JSON xuất/nhập dùng `FormConfigSchema`. MCP `form_get`/`form_save`/`form_responses`: gọi các lệnh `form.form.get`, `.save_draft`; chưa có lệnh liệt kê phản hồi (thêm `form.response.list`, đọc `form_responses` + `datahub.row`). Nhân bản form: sao `draft`, tạo bảng mới cùng cấu trúc (cột theo `column_id`). Test chạy: `pnpm exec vitest run apps/api/test/form.test.ts`.
+**Ghi chú 7B:** web cần `form.form.list/get/create/update/save_draft/publish/discard_draft/rotate_link/set_status/delete/restore`, `form.question.link/create_columns/link_options`, người điền `form.fill.get` + `form.response.submit` + `form.draft.save`, công khai `form.public.get` (`fill_token`, `attempt_id`) + `form.public.submit` (`website` để trống) + upload; lỗi theo câu ở `details.issues[].question_id`, lỗi xuất bản ở `details.issues[]{code,block_id,column}`; `state`/`message` cho form đóng. Nút "Nhận thông báo" mờ: cờ `notify_new_response` chỉ lưu.
+**Dở/ghi nhận:** thông báo cho chủ khi cột bị xoá, chuyển giao form, xoá cứng bảng có form (khoá ngoại), danh sách phản hồi: chưa làm (7A2/7B).

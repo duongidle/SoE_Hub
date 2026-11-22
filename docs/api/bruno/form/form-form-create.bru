@@ -1,0 +1,29 @@
+meta {
+  name: form.form.create
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/forms
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "name": "Khảo sát sau showcase",
+    "datahub_id": "{{datahubId}}"
+  }
+}
+
+docs {
+  Tạo form. Có `table_id` thì ghi vào bảng sẵn có của bạn; có `datahub_id` thì tạo bảng mới (tên = tên form) trong datahub đó; không có cả hai thì form chưa có bảng đích.
+  Quyền: `form:form:create`.
+}

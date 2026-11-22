@@ -14,6 +14,7 @@ import "./deal";
 import { dueRuleOperations, cycleOperations, dealDashboardOperations, policyDiffOperations, forecastOperations, paymentOperations, periodOperations } from "./deal";
 import { authOperations } from "./auth/operations";
 import { tokenOperations } from "./auth/tokens";
+import { formOperations } from "./form";
 import { guestEvents, guestOperations } from "./guest";
 import { announcementOperations, notificationEvents, notificationOperations, reminderOperations } from "./notification";
 import { orgOperations } from "./org/operations";
@@ -40,6 +41,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...notificationOperations,
     ...reminderOperations,
     ...announcementOperations,
+    ...formOperations(deps.config, deps.storage),
     ...guestOperations,
     ...transferOperations,
     ...datahubOperations,
@@ -62,6 +64,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
 /** Tables that have a trash. Used by the purge job. Deals (Stage 4) will register with `neverHardDelete: true`. */
 export function registerTrashTables(deps: ModuleDeps): void {
   registerDatahubTrash();
+  registerTrashTable({ name: "forms" });
   registerTrashTable({
     name: "files",
     beforePurge: async (ex, cutoff) => {

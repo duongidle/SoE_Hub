@@ -1,0 +1,27 @@
+meta {
+  name: form.public.upload_complete
+  type: http
+  seq: 22
+}
+
+post {
+  url: {{baseUrl}}/api/v1/public/forms/{{code}}/uploads/{{fileId}}/complete
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "fill_token": "{{fillToken}}",
+    "attempt_id": "{{attemptId}}"
+  }
+}
+
+docs {
+  Xác nhận file đã tải lên xong (form công khai).
+  Quyền: công khai, không cần đăng nhập.
+}

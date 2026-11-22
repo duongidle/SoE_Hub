@@ -1,0 +1,31 @@
+meta {
+  name: form.public.submit
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{baseUrl}}/api/v1/public/forms/{{code}}/submit
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "answers": {
+      "q1": "Thuận Phát"
+    },
+    "attempt_id": "{{$guid}}",
+    "fill_token": "{{fillToken}}",
+    "website": ""
+  }
+}
+
+docs {
+  Gửi phản hồi của form công khai (không cần đăng nhập). Chống spam: ô bẫy, dưới 3 giây, 10 lần/phút mỗi IP, 1.000 phản hồi/ngày mỗi form.
+  Quyền: công khai, không cần đăng nhập.
+}

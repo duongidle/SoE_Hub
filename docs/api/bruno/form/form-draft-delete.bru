@@ -1,0 +1,21 @@
+meta {
+  name: form.draft.delete
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/fill/{{code}}/draft
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xoá bản nháp câu trả lời của tôi.
+  Quyền: `form:response:submit`.
+}

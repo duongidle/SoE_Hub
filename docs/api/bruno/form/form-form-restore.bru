@@ -1,0 +1,21 @@
+meta {
+  name: form.form.restore
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}/restore
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Khôi phục form từ thùng rác.
+  Quyền: `form:form:create`.
+}

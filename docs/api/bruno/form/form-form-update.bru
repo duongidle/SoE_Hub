@@ -1,0 +1,32 @@
+meta {
+  name: form.form.update
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "access": "public",
+    "options": {
+      "max_responses": 500,
+      "closed_message": "Form đã đóng"
+    }
+  }
+}
+
+docs {
+  Đổi tên, cách mở (công khai / mọi tài khoản / chọn người), người được điền, tuỳ chọn (mở/đóng lúc, số phản hồi tối đa, mỗi người một phản hồi, câu khi đóng).
+  Quyền: `form:form:create`.
+}

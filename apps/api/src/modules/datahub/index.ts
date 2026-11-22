@@ -6,7 +6,7 @@ import { viewOperations, shareOperations, limitOperations, trashOperations } fro
 import { datahubEvents } from "./events";
 import { formulaOperations } from "./formula-ops";
 import { lookupOperations } from "./lookup-ops";
-import { DH_SETTINGS } from "./limits";
+import { DH_SETTINGS, FORM_SETTINGS } from "./limits";
 import { duplicateOperations } from "./duplicates";
 import { mergeOperations } from "./merge-ops";
 import { rowOperations } from "./row-ops";
@@ -23,7 +23,7 @@ import "./import-job";
 registerPrivateAuditTarget("datahub_row");
 for (const t of ["dh_datahubs", "dh_tables", "dh_columns", "dh_views", "dh_view_overrides", "dh_table_state", "dh_shares", "dh_formula_deps", "dh_personal_rows", "dh_person_cells", "dh_templates", "dh_merges", "dh_merge_rows"]) registerOwnedTable(t);
 registerOwnedTable("dh_rows", { rows: true });
-registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.maxColumns, DH_SETTINGS.recalcParallel, DH_SETTINGS.consistentWaitMs, DH_SETTINGS.fiscalStartMonth, DH_SETTINGS.templatesPerScope);
+registerSettings(DH_SETTINGS.maxDatahubs, DH_SETTINGS.maxTables, DH_SETTINGS.maxColumns, DH_SETTINGS.recalcParallel, DH_SETTINGS.consistentWaitMs, DH_SETTINGS.fiscalStartMonth, DH_SETTINGS.templatesPerScope, FORM_SETTINGS.tableMaxColumns);
 
 export { datahubEvents };
 export const datahubOperations = [...structureOperations, ...columnOperations, ...rowOperations, ...duplicateOperations, ...viewOperations, ...shareOperations, ...limitOperations, ...trashOperations, ...formulaOperations, ...lookupOperations, ...mergeOperations, ...splitOperations, ...optionRenameOperations, ...templateOperations];

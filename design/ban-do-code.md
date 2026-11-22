@@ -454,3 +454,23 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 
 **Luật cấm**
 - Không `INSERT` thẳng vào `notifications` (trừ `notify.send`). Không đưa giá trị ô hay com của người khác vào nội dung. Không dùng `window` của người gây ra để lọc người nhận ở nơi khác: lọc ở cửa vào.
+
+## Module 7: Dynamic Form (7A1: form, bảng đích, xuất bản, gửi bài, endpoint công khai, nháp)
+
+**Chỗ gọi vào**
+- Module: `apps/api/src/modules/form/` (đăng ký ở `apps/api/src/modules/index.ts` qua `formOperations`). `config.ts` = cấu hình `soe-form/1` (zod `FormConfigSchema`, `QuestionSchema`), `flatten`, `visibleBlocks` (server tính lại điều kiện), `evalCondition` (cú pháp lọc Module 0, bỏ phép ngày tương đối), `publicConfig` (bản gửi người điền, bỏ `column_id`, đáp án, điểm, `quiz`). `shared.ts` = `loadOwnForm`, `liveColumns`, `stateOf` (trạng thái người điền thấy: nháp/đang nhận/tạm dừng/đóng/chưa mở; bảng đích bị xoá thì tạm dừng, khôi phục bảng thì tự chạy lại). `ops.ts` = lệnh của chủ form (`form.form.*`, `form.question.*`), `checkPublish` kiểm khi xuất bản. `fill.ts` = người điền (`form.fill.get`, `form.response.submit`, `form.draft.*`, `form.public.*`).
+- Muốn ghi một phản hồi → `apps/api/src/modules/form/fill.ts` `submitResponse` (không tự gọi `applyRowOps` ở nơi khác): nó dựng `TableAccess` của CHỦ bảng, gọi `applyRowOps` với actor `via = form` (hoặc `api`/`mcp` khi nộp bằng token), người tạo = người điền hoặc tài khoản "Form công khai" (`PUBLIC_FORM_USER_ID`, `packages/db/src/schema/forms.ts`). Lỗi của bảng (thiếu bắt buộc, trùng cột Duy nhất) được đổi sang `details.question_id` ở `remapError`.
+- Muốn thêm kiểu câu hỏi → thêm vào `INPUTS` và `compatibleTypes` (`config.ts`); kiểu ô nhập bằng kiểu cột Module 2.
+- Muốn tạo cột từ câu hỏi → `apps/api/src/modules/form/ops.ts` `columnNameFor` (tên làm sạch, trùng thêm ` (2)`) và `createColumnFor` (gọi `createColumn` của Module 2). Cột `Phiên bản form`: `ensureVersionColumn`.
+- Tạo bảng cho form: `apps/api/src/modules/datahub/structure.ts` `createTableIn` (lệnh `datahub.table.create` dùng chung). Giới hạn 150 cột: `apps/api/src/modules/datahub/limits.ts` `tableColumnCap`, `FORM_SETTINGS` (`form.table_max_columns`), áp ở `createColumn`, `restoreColumn`, `datahub.table.get`.
+- Công khai (không đăng nhập, `permission: null`, `aiAllowed: false`): chống spam ở `fill.ts` `SPAM`, `publicGate` (ô bẫy `website`, token giờ mở `fillToken` ký HMAC, 10 lần/phút mỗi IP trong bộ nhớ `resetSpamState`, giới hạn ngày theo `form_responses`). IP lấy từ `ctx.client` (`apps/api/src/core/types.ts` `HandlerCtx` (trường `client`), đặt ở `executor.ts` `makeCtx`).
+- Bảng: `forms` (chủ, bảng đích, trạng thái, mã link, cách mở, người được chọn, tuỳ chọn, bản nháp `draft`, `published_version`), `form_versions`, `form_drafts`, `form_responses` (khoá chống trùng `form_id + attempt_id`), `form_uploads`. Migration `0026_forms.sql`.
+
+**Mẫu làm theo**
+- Thêm lệnh của chủ form: một phần tử trong `formManageOperations` (`ops.ts`); chủ = `loadOwnForm`. Menu AI `form` ở `apps/api/src/core/ai-policy.ts` (`/^form\./`), xoá form là mức `full`.
+- Test: `apps/api/test/form.test.ts` (gọi công khai bằng `t.c.executor.execute(..., { actor: null, client })`, token mở form `fillToken(t.c.config.AUTH_SECRET, code, Date.now() - 10_000)`).
+
+**Luật cấm**
+- Người điền không bao giờ nhận mã bảng, mã cột, tên datahub, đáp án: mọi đường trả cấu hình cho người điền qua `publicConfig`.
+- Không ghi dòng của form bằng đường khác `applyRowOps`. Không cấp quyền bảng cho người điền.
+- Điều kiện hiện/ẩn chỉ tin server (`visibleBlocks`), không tin trình duyệt.

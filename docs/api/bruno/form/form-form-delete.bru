@@ -1,0 +1,21 @@
+meta {
+  name: form.form.delete
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xoá form (vào thùng rác 7 ngày). Link ngừng nhận phản hồi; bảng đích và phản hồi đã có giữ nguyên.
+  Quyền: `form:form:create`.
+}

@@ -8,7 +8,7 @@ import type { HandlerCtx } from "../../core/types";
 import { loadTableAccess, type TableAccess } from "./access";
 import { buildSearchText, columnTypeDef, convertValue, listColumnTypes, newColumnKey, newOptionId, normalizeConfig, normalizeDisplay, normalizeOptions } from "./column-types";
 import { DH_REASON, pgError, rethrowNameConflict } from "./errors";
-import { getLimits, quotaExceeded } from "./limits";
+import { getLimits, quotaExceeded, tableColumnCap } from "./limits";
 import { emitStructure, Id, STRUCTURE_EVENT } from "./shared";
 import { columnOut, ColumnOut, indexFor } from "./structure";
 import { isComputedType } from "./cell-values";
@@ -148,7 +148,8 @@ export async function createColumn(ctx: Ctx, acc: TableAccess, i: ColumnInput, e
   }
   const limits = await getLimits(ctx.db, extra.custom ? ctx.actor.userId : acc.datahub.ownerId);
   const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NULL AND (layer IS DISTINCT FROM 'custom' OR layer_ref = ${ctx.actor.userId}::uuid)`);
-  if ((cnt.rows[0] as { n: number }).n >= limits.columns) quotaExceeded("cột trong một bảng", limits.columns);
+  const colCap = extra.custom ? limits.columns : await tableColumnCap(ctx.db, limits.columns, acc.tableId);
+  if ((cnt.rows[0] as { n: number }).n >= colCap) quotaExceeded("cột trong một bảng", colCap);
   const layer = extra.custom ? "custom" : (extra.layer ?? null);
   const storage = extra.custom ? "person" : (extra.storage ?? "shared");
   const layerRef = extra.custom ? ctx.actor.userId : (extra.layerRef ?? null);
@@ -309,7 +310,8 @@ export async function restoreColumn(ctx: Ctx, acc: TableAccess, col: DhColumn, n
       if (acc.table.kind === "merged" && !isComputedType(col.type)) throw new AppError("forbidden", "Không khôi phục cột dữ liệu của bảng gộp. Thêm lại cột ở phần cấu hình ghép cột.", { reason: "merged_table_columns" });
   const limits = await getLimits(ctx.db, ctx.actor.userId);
   const cnt = await ctx.db.execute(sql`SELECT count(*)::int AS n FROM dh_columns WHERE ${acc.scope()} AND deleted_at IS NULL`);
-  if ((cnt.rows[0] as { n: number }).n >= limits.columns) quotaExceeded("cột trong một bảng", limits.columns);
+  const colCap = await tableColumnCap(ctx.db, limits.columns, acc.tableId);
+  if ((cnt.rows[0] as { n: number }).n >= colCap) quotaExceeded("cột trong một bảng", colCap);
   try {
     await ctx.db.execute(sql`UPDATE dh_columns SET deleted_at = NULL, deleted_by = NULL, name = ${name ?? col.name}, version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE ${acc.scope()} AND id = ${col.id}::uuid`);
   } catch (e) {

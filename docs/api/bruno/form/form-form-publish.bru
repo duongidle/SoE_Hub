@@ -1,0 +1,21 @@
+meta {
+  name: form.form.publish
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}/publish
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xuất bản bản nháp: kiểm rồi lưu thành phiên bản mới. Lỗi trả danh sách `issues` có cấu trúc (câu chưa nối cột, cột bắt buộc thiếu, điều kiện sai).
+  Quyền: `form:form:create`.
+}

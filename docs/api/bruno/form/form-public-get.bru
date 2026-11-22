@@ -1,0 +1,16 @@
+meta {
+  name: form.public.get
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/api/v1/public/forms/{{code}}
+  body: none
+  auth: none
+}
+
+docs {
+  Mở form công khai theo mã link (không cần đăng nhập): cấu hình bản đã xuất bản, đã lọc.
+  Quyền: công khai, không cần đăng nhập.
+}

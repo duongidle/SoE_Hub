@@ -1,0 +1,20 @@
+meta {
+  name: form.form.list
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/forms
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Form của tôi: số phản hồi, phản hồi mới nhất, trạng thái. `trashed=true` xem thùng rác.
+  Quyền: `form:form:create`.
+}

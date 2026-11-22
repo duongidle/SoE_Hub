@@ -77,6 +77,7 @@ const RULES: Rule[] = [
   { match: /^guest\./, menu: "admin", forbidden: "guest_grant" },
   { match: /^(notification|reminder|announcement)\./, menu: "notify" },
   { match: /^file\./, menu: "datahub" },
+  { match: /^form\./, menu: "form" },
   { match: /^datahub\.limit\.mine$/, menu: "none" },
   { match: /^datahub\.limit\./, menu: "admin", forbidden: "settings" },
   { match: /^datahub\.prefs\.get$/, menu: "none" },
@@ -90,7 +91,7 @@ const RULES: Rule[] = [
 ];
 
 /** Operations that need the top level even though they are commands. */
-const FULL = new Set(["datahub.datahub.delete", "datahub.table.delete", "datahub.column.delete", "datahub.column.type_change"]);
+const FULL = new Set(["form.form.delete", "datahub.datahub.delete", "datahub.table.delete", "datahub.column.delete", "datahub.column.type_change"]);
 
 /**
  * Input-dependent level: many deletes at once need `full` (module5 3.2). Returns null when the input does not raise the level.

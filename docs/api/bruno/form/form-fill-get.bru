@@ -1,0 +1,20 @@
+meta {
+  name: form.fill.get
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/fill/{{code}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Mở form nội bộ để điền (theo mã link): cấu hình đã lọc (không mã bảng, mã cột, đáp án), bản nháp của tôi, đã gửi chưa.
+  Quyền: `form:response:submit`.
+}

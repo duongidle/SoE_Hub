@@ -140,6 +140,7 @@ export class OperationExecutor {
       log,
       access: new AccessContext(opts.actor, ex, this.deps.principals),
       outside: this.deps.db,
+      client: opts.client ? { via: String(opts.client.via ?? ""), ip: opts.client.ip ?? null, userAgent: opts.client.userAgent ?? null } : undefined,
       audit: (t) => {
         state.target = t;
       },

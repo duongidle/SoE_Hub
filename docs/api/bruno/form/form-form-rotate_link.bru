@@ -1,0 +1,21 @@
+meta {
+  name: form.form.rotate_link
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}/rotate-link
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Đổi link của form: link cũ chết ngay.
+  Quyền: `form:form:create`.
+}
