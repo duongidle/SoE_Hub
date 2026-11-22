@@ -16,3 +16,11 @@
 - **Nguồn nhập:** cột chọn của template giữ Tay/AI/API (không có `AI (tên)`); cột text ghi `AI (tên kết nối)`. Tên kết nối nằm ở nhật ký (`details.connection_name`) và `connection_id`. **Câu hỏi cho Opus:** muốn thêm cột `Kết nối` hay đổi cột chọn thành text để view "Do AI nhập chưa kiểm" thấy tên?
 - **Tốc độ:** bộ đếm trong bộ nhớ theo kết nối, 120 gọi/phút, 30 ghi/phút (cố định theo phút), quá thì `rate_limited` 429 kèm `retry_after_seconds`. Chưa có 5.000 dòng/giờ (mục 12 không giữ).
 - **Test cũ sửa vì scope thành menu:** `tokens.test.ts`, `permissions.test.ts` (ma trận bật mọi nhóm trong `beforeAll`, tắt lại ở `afterAll`), `org.test.ts` (token theo vai trò), `datahub-access.test.ts` (một ca), `fixtures.ts` (`activeToken` nhận `menus`, mặc định mọi menu mức `full`).
+
+## Opus rà 5A1 (22/11/2026)
+
+- Thao tác thuộc nhóm cấm mặc định (`system.setting.set`, `system.audit.*`, `org.member.*`, `org.permission.*`, `guest.*`, `data.transfer.*`, `org.tree.transfer`, `datahub.limit.user.*`) để `aiAllowed: true`, đóng bằng nhóm: đúng mục 3.3.
+- `period.confirm_received` cấm AI cùng luồng chốt kỳ: giữ. `datahub.import.*` cấm AI (chưa tìm chắc menu đích của mapping nhiều sheet): giữ tạm, AI ghi dòng bằng `rows_write`; ghi vào "Còn nợ", mở lại khi có nhu cầu.
+- Nguồn nhập: cột lựa chọn giữ `AI` / `API`; tên kết nối đọc ở nhật ký. Không thêm cột `Kết nối`, không đổi cột lựa chọn thành chữ (view "Do AI nhập chưa kiểm" lọc theo lựa chọn là đủ).
+- Hạn 5.000 dòng ghi/giờ: không làm (mục 12 chỉ giữ 120 gọi, 30 ghi mỗi phút).
+- Thao tác `menu: by_target` mà đầu vào không có đích (ví dụ liệt kê) bị đóng. 5A2 kiểm các thao tác mà 7 tool gọi tới; thao tác liệt kê datahub khai menu cố định `datahub` và lọc bỏ datahub "Quản lý Deal" (mục 3.1).
