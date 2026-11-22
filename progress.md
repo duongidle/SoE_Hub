@@ -5,7 +5,7 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** (Stage 6 xong bản rút gọn 22/11, 6B chờ Opus rà.) Stage 0–3 xong. Stage 4 xong 22/11 (4.8 bản cơ bản, Opus rà đạt). Tiếp: Stage 5 bản rút gọn (Dương chốt 22/11, `design/module5-ket-noi-ai.md` mục 12): 5A1 registry + kết nối + executor → 5A2 `/mcp` + tool (xong) → 5B giao diện, tài liệu, kiểm thử cuối stage. Stage 5 xong 22/11 (Opus rà đạt). Stage 6 xong 22/11 (bản rút gọn, Opus rà đạt; test Deal + notify sau sửa Leading: 108 pass 1 skip, mã 8335423). Tiếp: Stage 7 (Module 7, Dynamic Form): rà phạm vi trước khi giao. Việc dời của thiết kế: `design/update_v1.md`.
+- **Code:** Stage 0–6 xong (Stage 4: 4.8 bản cơ bản; Stage 5, 6: bản rút gọn, `design/module5-ket-noi-ai.md` mục 12, `design/module6-thong-bao.md` mục 14; Opus rà đạt 22/11). Mốc test sau cùng: vitest cả bộ 1290 pass 10 skip (mã 111990c); sau sửa Leading (8335423) test Deal + notify 108 pass 1 skip. Tiếp: Stage 7 (Module 7, Dynamic Form): rà phạm vi trước khi giao. Việc dời của thiết kế: `design/update_v1.md`.
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 
