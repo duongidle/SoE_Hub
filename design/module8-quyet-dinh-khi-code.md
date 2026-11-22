@@ -11,3 +11,7 @@
 - **Nội dung gửi qua AI:** `body` nhận Markdown (đổi sang Tiptap bằng `fromMarkdown`: đề mục, đoạn, danh sách, trích dẫn, code, đậm/nghiêng/link) hoặc tài liệu Tiptap. Thẻ chuyển chữ thường, tối đa 10 thẻ, mỗi thẻ 30 ký tự.
 - **Tải file đính kèm:** `post.file.url` (không dùng `file.download.url` vì file riêng của chủ).
 - **Dời:** lệnh xoá bài; thông báo khi gỡ xuất bản; test riêng từng luật, sai chính tả, từng bộ lọc (Dương 22/11: test gọn).
+
+## Opus rà 8A (22/11/2026)
+
+- Đạt. Đồng ý các quyết định nhỏ: sửa bài đang chờ duyệt thì về nháp; `submit` lỗi không lưu gì; gỡ xuất bản không báo tác giả; chưa có xoá bài (chỉ lưu trữ). Test tối giản theo Dương.
