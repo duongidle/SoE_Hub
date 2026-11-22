@@ -11,3 +11,10 @@
 - **Gắn đối tượng:** nhắc hẹn lưu `object_type` (`deal` | `row`) và id dòng; link dựng lúc gửi từ dòng (route tự kiểm quyền khi mở), không kiểm quyền xem lúc tạo.
 - **Kết nối AI sắp hết hạn:** job 08:00 hằng ngày báo kết nối `active` còn dưới 7 ngày, một lần cho mỗi kết nối.
 - **Chưa làm (để 6A2/6B):** cờ `morning_digest` đã có, bản tin chưa đọc nó; giao diện chuông và trang Nhắc hẹn; kiểm quyền xem dòng khi dựng link nhắc hẹn; các loại "Kỳ bị khoá", "Template đổi", "Chính sách com mới", "Deal Won chưa chia đủ" (dời theo mục 14).
+
+## Opus rà 6A1 (22/11/2026)
+
+- Nhắc hẹn: nhắc không lặp sau khi gửi ở trạng thái `fired` tới khi bấm Xong, không tính vào giới hạn 200; nhắc lặp bấm Xong thì chuỗi vẫn chạy (dừng = xoá); snooze nhắc lặp tạo bản sao một lần: đồng ý.
+- Nhắc gắn dòng không kiểm quyền lúc tạo, route mở link tự kiểm: chấp nhận (nhắc chỉ cho chính mình, nội dung do người đó viết).
+- Subscriber thông báo chạy thêm truy vấn cho mỗi `datahub.row.created/updated`: 6A2 thêm lối thoát sớm theo `role_set` của bảng (chỉ bảng Deals, Probation KPI mới đọc tiếp; nhớ đệm theo bảng) và đo một lần import 5.000 dòng vào bảng thường (ghi số vào `progress.md`).
+- Mốc typecheck: apps/api 15 lỗi có sẵn (`http/app.ts`, `auth/google.ts`), không phải 0.
