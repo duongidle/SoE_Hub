@@ -29,3 +29,8 @@
 - **Chốt đánh giá cuối** (`plan.finish`): `result` Đạt / Không đạt, ghi chú tuỳ chọn; không bắt buộc các checkpoint cuối phải đạt (Leader quyết). Ghi chú nằm ở `onb_plans.final_note`, chỉ có sau khi chốt nên nhân sự thấy khi lộ trình đã Hoàn thành.
 - **`progress.get`** trả cả `items_by_kind` (tổng, xong, trễ theo loại việc), `current_week`, `total_weeks` để 9C làm bảng Theo dõi.
 - **Tuỳ chọn cột** (xem Module 2 quyết định khi code): thông báo `datahub.cell.changed` (không bắt buộc, người nhận tắt được); nội dung chỉ nêu tên cột và tên bảng, không chép giá trị. Gom 10 phút = mỗi người nhận tối đa một thông báo cho mỗi dòng trong 10 phút (lần sửa sau trong khoảng đó không báo thêm). Người nhận phải xem được dòng (`rowAudience`).
+
+## Opus rà 9B (22–23/11/2026)
+
+- Đạt: 4 dạng điều kiện tính bằng `runDefinition` Module 3; "Đạt muộn" tính khi đọc; điều kiện `week` chỉ đếm dòng trong tuần (nộp muộn dùng `plan`/`since`); tuỳ chọn cột `notify_on_change` (nhớ đệm 60 s).
+- Giao 9C: sửa test nhắc hẹn lặp fail sau 00:00 giờ VN (lấy ngày theo giờ VN, không UTC) — test chập chờn là lỗi; trang Theo dõi chung cần lệnh tổng hợp nhiều nhân sự (đo với 10 lộ trình × 20 checkpoint; quá 2 s thì gộp truy vấn chỉ số theo người cho các checkpoint cùng form/điều kiện); Bruno cho `notify_on_change`.
