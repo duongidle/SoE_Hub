@@ -27,7 +27,7 @@ export function AiHubPage() {
   const [f, setF] = useState({ q: "", group: "", client: "", tag: "", sort: "relevance" });
   const p = new URLSearchParams({ limit: "50", sort: f.q ? f.sort : f.sort === "relevance" ? "newest" : f.sort });
   for (const k of ["q", "group", "client", "tag"] as const) if (f[k]) p.set(k, f[k]);
-  const q = useQuery({ queryKey: ["aihub", "search", p.toString()], queryFn: () => api<{ items: SkillCard[] }>("GET", `/aihub/search?${p}`) });
+  const q = useQuery({ queryKey: ["aihub", "search", p.toString()], queryFn: () => api<SkillCard[]>("GET", `/aihub/search?${p}`) });
   return (
     <div>
       <PageTitle
@@ -60,9 +60,9 @@ export function AiHubPage() {
         <Button type="submit">Tìm</Button>
       </form>
       <ErrorText error={q.error} />
-      {q.data?.items.length === 0 && <EmptyState title="Chưa có skill nào" hint="Đổi bộ lọc, hoặc tải lên skill đầu tiên." />}
+      {q.data?.length === 0 && <EmptyState title="Chưa có skill nào" hint="Đổi bộ lọc, hoặc tải lên skill đầu tiên." />}
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="skill-list">
-        {q.data?.items.map((s) => (
+        {q.data?.map((s) => (
           <li key={s.id} className="flex flex-col gap-1 rounded-lg border border-border bg-card p-3" data-testid="skill-card">
             <Link to="/ai-hub/$id" params={{ id: s.id }} className="font-medium text-primary underline [overflow-wrap:anywhere]">{s.name}</Link>
             {s.snippet ? <Snippet html={s.snippet} /> : <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{s.description}</p>}

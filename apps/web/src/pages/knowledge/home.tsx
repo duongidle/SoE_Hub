@@ -50,13 +50,13 @@ export function ArticleItem({ a }: { a: ArticleCard }) {
 }
 
 function Section({ title, s, testid }: { title: string; s: Search; testid: string }) {
-  const q = useQuery({ queryKey: ["knowledge", "list", title, s], queryFn: () => api<{ items: ArticleCard[] }>("GET", `/knowledge/search?${qs(s, 6)}`) });
+  const q = useQuery({ queryKey: ["knowledge", "list", title, s], queryFn: () => api<ArticleCard[]>("GET", `/knowledge/search?${qs(s, 6)}`) });
   return (
     <section data-testid={testid}>
       <h2 className="mb-2 text-base font-semibold">{title}</h2>
       <ErrorText error={q.error} />
-      {q.data?.items.length === 0 && <p className="text-sm text-muted-foreground">Chưa có bài nào.</p>}
-      <ul className="flex flex-col gap-2">{q.data?.items.map((a) => <ArticleItem key={a.id} a={a} />)}</ul>
+      {q.data?.length === 0 && <p className="text-sm text-muted-foreground">Chưa có bài nào.</p>}
+      <ul className="flex flex-col gap-2">{q.data?.map((a) => <ArticleItem key={a.id} a={a} />)}</ul>
     </section>
   );
 }
@@ -66,7 +66,7 @@ export function KnowledgeHomePage() {
   const [text, setText] = useState("");
   const [s, setS] = useState<Search>({ q: "", category: "", type: "", tag: "", sort: "relevance" });
   const filtering = !!(s.q || s.category || s.type || s.tag);
-  const res = useQuery({ queryKey: ["knowledge", "search", s], enabled: filtering, queryFn: () => api<{ items: ArticleCard[] }>("GET", `/knowledge/search?${qs(s, 30)}`) });
+  const res = useQuery({ queryKey: ["knowledge", "search", s], enabled: filtering, queryFn: () => api<ArticleCard[]>("GET", `/knowledge/search?${qs(s, 30)}`) });
   const set = (p: Partial<Search>) => setS((x) => ({ ...x, ...p }));
   return (
     <div>
@@ -103,8 +103,8 @@ export function KnowledgeHomePage() {
       {filtering ? (
         <>
           <ErrorText error={res.error} />
-          {res.data?.items.length === 0 && <EmptyState title="Không có bài nào khớp" hint="Thử bỏ bớt bộ lọc hoặc đổi từ khoá." />}
-          <ul className="flex flex-col gap-2" data-testid="kn-results">{res.data?.items.map((a) => <ArticleItem key={a.id} a={a} />)}</ul>
+          {res.data?.length === 0 && <EmptyState title="Không có bài nào khớp" hint="Thử bỏ bớt bộ lọc hoặc đổi từ khoá." />}
+          <ul className="flex flex-col gap-2" data-testid="kn-results">{res.data?.map((a) => <ArticleItem key={a.id} a={a} />)}</ul>
         </>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">

@@ -52,7 +52,7 @@ export function SkillUploadPage() {
   const [check, setCheck] = useState<CheckResult | null>(null);
   const [readErr, setReadErr] = useState<string | null>(null);
   const folder = useRef<HTMLInputElement>(null);
-  const published = useQuery({ queryKey: ["aihub", "published-names"], queryFn: () => api<{ items: { id: string; name: string }[] }>("GET", "/aihub/search?limit=50&sort=newest") });
+  const published = useQuery({ queryKey: ["aihub", "published-names"], queryFn: () => api<{ id: string; name: string }[]>("GET", "/aihub/search?limit=50&sort=newest") });
   const set = (p: Partial<typeof form>) => setForm((f) => ({ ...f, ...p }));
   const body = () => ({
     ...(pkg ? (pkg.kind === "zip" ? { zip_base64: pkg.zip_base64 } : { files: pkg.files }) : {}),
@@ -136,7 +136,7 @@ export function SkillUploadPage() {
         <Field label="Phiên bản mới của skill đã có" hint="Chọn nếu đây là bản cập nhật: skill cũ được lưu trữ khi bản này xuất bản">
           <Select value={form.replaces} onChange={(e) => set({ replaces: e.target.value })} data-testid="f-replaces">
             <option value="">Không, đây là skill mới</option>
-            {published.data?.items.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {published.data?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
         </Field>
         <Field label="Ghi chú thay đổi"><Textarea rows={2} value={form.change_note} onChange={(e) => set({ change_note: e.target.value })} /></Field>

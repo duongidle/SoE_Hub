@@ -132,8 +132,8 @@ export function ReviewQueuePage() {
   const [kind, setKind] = useState("");
   const [sel, setSel] = useState<{ id: string; version: number } | null>(null);
   const initial = new URLSearchParams(window.location.search).get("post");
-  const q = useQuery({ queryKey: ["review", "queue", kind], queryFn: () => api<{ items: QueueItem[] }>("GET", `/review/queue?limit=100${kind ? `&kind=${kind}` : ""}`) });
-  const items = q.data?.items ?? [];
+  const q = useQuery({ queryKey: ["review", "queue", kind], queryFn: () => api<QueueItem[]>("GET", `/review/queue?limit=100${kind ? `&kind=${kind}` : ""}`) });
+  const items = q.data ?? [];
   const current = sel ?? (initial ? items.find((i) => i.post_id === initial) ? { id: initial, version: items.find((i) => i.post_id === initial)!.version } : null : null);
   return (
     <div>

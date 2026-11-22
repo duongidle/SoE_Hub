@@ -21,7 +21,7 @@ export function MineList({ kind }: { kind: "article" | "skill" }) {
   const qc = useQueryClient();
   const isArticle = kind === "article";
   const base = isArticle ? "/knowledge" : "/aihub";
-  const q = useQuery({ queryKey: [kind, "mine"], queryFn: () => api<{ items: MineItem[] }>("GET", `${base}/mine?limit=100`) });
+  const q = useQuery({ queryKey: [kind, "mine"], queryFn: () => api<MineItem[]>("GET", `${base}/mine?limit=100`) });
   const act = useMutation({
     mutationFn: (v: { id: string; op: "archive" | "restore" }) => api("POST", `/posts/${v.id}/${v.op}`, {}),
     onSuccess: () => void qc.invalidateQueries({ queryKey: [kind] }),
@@ -33,9 +33,9 @@ export function MineList({ kind }: { kind: "article" | "skill" }) {
         {isArticle ? "Bài của tôi" : "Skill của tôi"}
       </PageTitle>
       <ErrorText error={q.error ?? act.error} />
-      {q.data?.items.length === 0 && <EmptyState title={isArticle ? "Chưa có bài nào" : "Chưa có skill nào"} />}
+      {q.data?.length === 0 && <EmptyState title={isArticle ? "Chưa có bài nào" : "Chưa có skill nào"} />}
       <ul className="flex flex-col gap-2">
-        {q.data?.items.map((p) => {
+        {q.data?.map((p) => {
           const shown = p.state === "archived" ? "archived" : p.working?.status ?? p.state;
           return (
             <li key={p.id} data-testid="mine-item" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3 text-sm">
