@@ -142,14 +142,15 @@ npx vitest run apps/api/test/datahub-perf.test.ts --reporter=verbose
 
 ## Dữ liệu demo
 
-Dựng một cây mẫu trên database **dev** (không dùng cho test hay production): 1 Manager, 2 Leader, 2 User và khoảng 29 deal bịa (tên công ty không có thật) trải ba tháng gần đây, đủ trạng thái, có lịch thanh toán, đợt đã về tiền (deal chuyển Won, sinh Sổ com), đợt quá hạn, BANT cho deal mở. Cần một Admin đã kích hoạt và migration mới nhất (`pnpm db:migrate`).
+Dựng một cây mẫu trên database **dev** (không dùng cho test hay production): 1 Manager, 2 Leader, 2 User. Deal và chính sách com lấy từ file mẫu trên máy `examples/Quản lý Deal SoE (Dương TVD).xlsx` (sheet Raw PODPS, BC-ML Com Policy, BC-SH Com Policy; đường dẫn khác: biến `DEMO_DEALS_FILE`). Script **đọc file lúc chạy**, không chép số hay tên nào vào repo; thiếu file thì báo lỗi và dừng. Tên công ty, tên sale và tên đơn vị trả được thay bằng tên sinh tự động; người SoE trong file ánh xạ sang 5 tài khoản demo theo quy tắc cố định (in bảng ánh xạ ra màn hình). Số tiền, ngày, trạng thái giữ như file. Cột file không có (Nguồn lead, Level BC, Performance BC, BANT) được sinh ổn định theo mã dòng, luôn là tổ hợp có trong chính sách. Tiền về đi qua `payment.schedule` / `payment.confirm`, nên Sổ com do engine sinh (com sale theo chính sách tại Closing date, SoE Leading 15% và Associate 5% của com sale). Cuối lệnh in bảng đối chiếu doanh thu theo tháng và kiểm 5 deal mẫu. Cần một Admin đã kích hoạt và migration mới nhất (`pnpm db:migrate`). Dựng đầy đủ mất vài chục phút.
 
 ```bash
 pnpm --filter @soe/api demo:seed            # tạo phần còn thiếu; chạy lại khi cây đã có deal thì không làm gì
-pnpm --filter @soe/api demo:seed --reset    # xoá dữ liệu Deal của cây demo rồi dựng lại (khoảng 1 phút)
+pnpm --filter @soe/api demo:seed --reset    # xoá dữ liệu Deal và chính sách com của cây demo rồi dựng lại từ file
+pnpm --filter @soe/api demo:seed --check    # không ghi gì: in bảng đối chiếu doanh thu theo tháng và kiểm Sổ com 5 deal mẫu
 ```
 
-Mặc định script dùng 5 người giả (`demo-seed.*@base.vn`). Muốn dùng tên và email thật thì đặt file JSON **ngoài repo** (không commit), đường dẫn mặc định là `SoE_hub_demo-people.json` cạnh thư mục repo, hoặc biến `DEMO_PEOPLE_FILE`: `{"people":[{"key":"mgr","name":"…","email":"…","role":"manager"},{"key":"ld1","role":"leader","manager":"mgr",…},{"key":"us1","role":"user","leader":"ld1",…}]}` (đủ 1 Manager, 2 Leader, 2 User, theo thứ tự đó). Mật khẩu sinh ngẫu nhiên lúc tạo tài khoản và được **thêm** vào file ngoài repo `SoE_hub_tai-khoan-dev.txt` (hoặc biến `DEMO_ACCOUNTS_FILE`). Phân bổ deal: Leader đầu có hai User dưới, Leader thứ hai không có User; Manager có vài deal riêng.
+Mặc định script dùng 5 người giả (`demo-seed.*@base.vn`). Muốn dùng tên và email thật thì đặt file JSON **ngoài repo** (không commit), đường dẫn mặc định là `SoE_hub_demo-people.json` cạnh thư mục repo, hoặc biến `DEMO_PEOPLE_FILE`: `{"people":[{"key":"mgr","name":"…","email":"…","role":"manager"},{"key":"ld1","role":"leader","manager":"mgr",…},{"key":"us1","role":"user","leader":"ld1",…}]}` (đủ 1 Manager, 2 Leader, 2 User, theo thứ tự đó). Mật khẩu sinh ngẫu nhiên lúc tạo tài khoản và được **thêm** vào file ngoài repo `SoE_hub_tai-khoan-dev.txt` (hoặc biến `DEMO_ACCOUNTS_FILE`). Cây: Leader đầu có hai User dưới, Leader thứ hai không có User. Mọi deal do Manager tạo; người SoE trong file thành Leading, SoE Associate thành Associate.
 
 ## Cấu trúc
 

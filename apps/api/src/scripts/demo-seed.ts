@@ -1,5 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import ExcelJS from "exceljs";
 import { and, eq, sql } from "drizzle-orm";
 import { dhUserLimits, users } from "@soe/db";
 import type { Actor } from "@soe/shared";
@@ -12,11 +14,11 @@ import { processPendingColumns, processPendingMerges, processPendingRefills } fr
 import { workerEmit } from "../modules/datahub/template-sync";
 
 /**
- * Demo data for the DEV database (not the test database): five accounts in one tree and about 30 invented deals.
+ * Demo data for the DEV database (not the test database): five accounts in one tree; deals and commission policy come from the sample workbook in examples/ (read at run time, names replaced).
  *   pnpm --filter @soe/api demo:seed            create what is missing (a second run does nothing)
  *   pnpm --filter @soe/api demo:seed --reset    delete the deal data of the demo tree first, then seed again
  * Everything goes through the registry commands (the same ones the web and the API call), so formulas, split lock, commission
- * ledger and row history behave as in real use. Company names are invented. The real names and emails of the people are NOT in
+ * ledger and row history behave as in real use. The real names and emails of the people are NOT in
  * the repository: they are read from the JSON file DEMO_PEOPLE_FILE (default: ../SoE_hub_demo-people.json next to the repo), and
  * without that file the placeholder people below are used. New passwords are appended to DEMO_ACCOUNTS_FILE (outside the repo).
  */
@@ -57,56 +59,101 @@ const day = (offset: number): string => {
   d.setDate(d.getDate() + offset);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
-const M = 1_000_000;
 
 // ------------------------------------------------------------------------------------------------
-// Deals (invented). who: m = Manager, k/p = Leaders, d/l = Users (d, l under k). Offsets are days from today.
-// sched: [amount (million VND), due offset, paid?]. A paid instalment is confirmed on its due date.
+// Deals and commission policy come from the sample workbook on this machine (examples/Quản lý Deal SoE (Dương TVD).xlsx):
+// sheet "Raw PODPS" (deals) and "BC-ML Com Policy", "BC-SH Com Policy" (commission policy). The file is read at run time and
+// nothing from it is stored in the repository. Company names, sale names and payer names are replaced by generated names;
+// the SoE people are mapped to the five demo accounts by a fixed rule (most deals first). Money, dates, status stay as in the file.
 // ------------------------------------------------------------------------------------------------
-type Who = "m" | "k" | "p" | "d" | "l";
-const GOOD = ["Có bằng chứng", "Có bằng chứng", "Có bằng chứng", "Có bằng chứng"];
-const MIXED = ["Có bằng chứng", "Chưa rõ", "Có bằng chứng", "Chưa rõ"];
-const WEAK = ["Chưa rõ", "Âm", "Chưa rõ", "Chưa rõ"];
-interface DealDef { name: string; type: string; lead: Who; assoc?: Who; start: number; exp?: number; rev: number; status?: "Pending" | "Lost" | "Disqualified" | "Huỷ"; closed?: number; bant?: string[]; sched?: [number, number, boolean][]; note?: string }
-const DEALS: DealDef[] = [
-  // Won: first instalment received
-  { name: "CTCP Thép Đại Hưng Thịnh", type: "POD bán mới", lead: "k", assoc: "d", start: -100, rev: 240, sched: [[120, -70, true], [120, -10, true]] },
-  { name: "Công ty TNHH Logistics Sao Việt", type: "POD bán mới", lead: "d", assoc: "l", start: -95, rev: 180, sched: [[90, -60, true], [90, -5, false]] },
-  { name: "CTCP Nội Thất Hoàng Gia Lâm", type: "POD CSM", lead: "l", start: -88, rev: 96, sched: [[96, -50, true]] },
-  { name: "Công ty TNHH Dược Phẩm An Khang Việt", type: "POD bán mới", lead: "p", assoc: "k", start: -80, rev: 300, sched: [[100, -45, true], [100, -8, true], [100, 20, false]] },
-  { name: "CTCP Xây Dựng Bình Minh Xanh", type: "PS kèm POD", lead: "k", start: -70, rev: 60, sched: [[60, -30, true]] },
-  { name: "Công ty TNHH Thực Phẩm Vị Quê", type: "POD Express", lead: "d", start: -45, rev: 48, sched: [[48, -12, true]] },
-  { name: "CTCP Vận Tải Biển Hải Long", type: "POD bán mới", lead: "m", assoc: "p", start: -60, rev: 420, sched: [[210, -25, true], [210, -3, false]] },
-  { name: "Công ty TNHH Điện Lạnh Tân Phong", type: "POD CSM", lead: "l", assoc: "d", start: -52, rev: 84, sched: [[42, -20, true], [42, 10, false]] },
-  // Signed, waiting for the first payment
-  { name: "CTCP Phần Mềm Kim Cương", type: "POD bán mới", lead: "d", start: -40, exp: -6, rev: 150, bant: GOOD, sched: [[75, -6, false], [75, 25, false]] },
-  { name: "Công ty TNHH Bao Bì Phương Nam", type: "POD bán mới", lead: "k", start: -35, exp: 8, rev: 110, bant: GOOD, sched: [[110, 8, false]] },
-  { name: "CTCP Giáo Dục Trí Việt", type: "PS không kèm POD", lead: "l", start: -30, exp: -2, rev: 72, sched: [[36, -2, false], [36, 30, false]] },
-  { name: "Công ty TNHH Cơ Khí Nam Thành", type: "POD Express", lead: "p", start: -28, exp: 14, rev: 55, sched: [[55, 14, false]] },
-  // Open, Processing
-  { name: "CTCP Du Lịch Sông Hương", type: "POD bán mới", lead: "d", start: -25, exp: 20, rev: 200, bant: GOOD },
-  { name: "Công ty TNHH Nông Sản Cửu Long Xanh", type: "POD bán mới", lead: "l", start: -22, exp: 30, rev: 130, bant: MIXED },
-  { name: "CTCP Bất Động Sản An Phú Gia", type: "POD bán mới", lead: "k", assoc: "d", start: -40, exp: 10, rev: 350, bant: GOOD },
-  { name: "Công ty TNHH In Ấn Á Châu Plus", type: "POD CSM", lead: "p", start: -18, exp: 45, rev: 70, bant: MIXED },
-  { name: "CTCP Thương Mại Đông Dương Việt", type: "POD bán mới", lead: "m", start: -15, exp: 60, rev: 500, bant: MIXED },
-  { name: "Công ty TNHH Thiết Bị Y Tế Lạc Hồng", type: "POD bán mới", lead: "k", assoc: "l", start: -12, exp: 25, rev: 160, bant: GOOD },
-  { name: "CTCP Mía Đường Tây Nguyên Xanh", type: "Data", lead: "d", start: -8, exp: 40, rev: 45 },
-  { name: "Công ty TNHH Gỗ Xuất Khẩu Việt Mộc", type: "POD bán mới", lead: "p", start: -5, exp: 50, rev: 220 },
-  { name: "Công ty TNHH Gốm Sứ Bát Tràng Việt", type: "PS kèm POD", lead: "m", start: -20, exp: 30, rev: 40 },
-  // Open, Pending
-  { name: "CTCP Cảng Container Phước An", type: "POD bán mới", lead: "d", start: -55, exp: -5, rev: 380, status: "Pending", bant: WEAK, note: "Khách hoãn quyết định chờ duyệt ngân sách quý sau." },
-  { name: "Công ty TNHH Dệt May Thành Công Việt", type: "POD CSM", lead: "l", start: -48, exp: 15, rev: 90, status: "Pending", bant: MIXED },
-  { name: "CTCP Chứng Khoán Đầu Tư Thiên Long", type: "POD bán mới", lead: "k", start: -30, exp: 35, rev: 270, status: "Pending", bant: MIXED },
-  // Closed without money
-  { name: "CTCP Nhựa Đồng Tâm Phát", type: "POD bán mới", lead: "d", start: -85, rev: 140, status: "Lost", closed: -40, note: "Khách chọn nhà cung cấp khác, giá thấp hơn." },
-  { name: "Công ty TNHH Ô Tô Linh Kiện Sài Gòn", type: "POD bán mới", lead: "p", start: -70, rev: 260, status: "Lost", closed: -28 },
-  { name: "CTCP Mỹ Phẩm Hoa Lan", type: "POD Express", lead: "l", start: -60, rev: 35, status: "Lost", closed: -20 },
-  { name: "Công ty TNHH Cà Phê Cao Nguyên Gold", type: "Data", lead: "k", start: -75, rev: 30, status: "Disqualified", closed: -50, note: "Không đúng đối tượng khách hàng." },
-  { name: "CTCP Vật Liệu Xây Dựng Hòa Bình Mới", type: "POD bán mới", lead: "d", start: -65, rev: 120, status: "Huỷ", closed: -33, note: "Trùng với deal đã có, Manager huỷ." },
+const DEALS_FILE = process.env.DEMO_DEALS_FILE ?? fileURLToPath(new URL("../../../../examples/Quản lý Deal SoE (Dương TVD).xlsx", import.meta.url));
+/** Demo accounts in the order the SoE people are assigned to them (by key of the people file). */
+const SOE_ORDER = ["ld1", "us2", "ld2", "mgr", "us1"];
+const LEAD_COM = 0.15; // Leading SoE: share of the sale's commission
+const ASSOC_COM = 0.05; // Associate SoE
+const POLICY_FROM = "2021-01-01"; // the workbook has no effective date; early enough to cover every deal
+
+const cellValue = (c: ExcelJS.Cell): unknown => {
+  const v = c.value as unknown;
+  if (v && typeof v === "object" && !(v instanceof Date)) {
+    const o = v as { result?: unknown; richText?: { text: string }[]; text?: unknown };
+    if ("result" in o) return o.result;
+    if (o.richText) return o.richText.map((t) => t.text).join("");
+    if ("text" in o) return o.text;
+  }
+  return v;
+};
+const toNum = (v: unknown): number | null => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "number" ? v : Number(String(v).replace(/[,\s]/g, "").replace("%", ""));
+  return Number.isFinite(n) ? n : null;
+};
+const toDate = (v: unknown): string | null => {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0, 10);
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+  return null;
+};
+const toStr = (v: unknown): string | null => (v === null || v === undefined || String(v).trim() === "" ? null : String(v).trim());
+const addDays = (iso: string, n: number): string => { const d = new Date(`${iso}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const hash = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+
+interface PolicyRow { lead: "ML" | "SH"; level: string; perf: string; min: number | null; rate: number }
+interface RawDeal { wf: string; company: string; salesman: string | null; soe: string | null; assoc: string | null; service: string | null; status: string; start: string | null; forecast: number | null; expected: string | null; revenue: number | null; closing: string | null; payCount: number | null; payPct: number | null }
+
+async function readWorkbook(): Promise<{ policy: PolicyRow[]; deals: RawDeal[] }> {
+  if (!existsSync(DEALS_FILE)) throw new Error(`Không thấy file mẫu: ${DEALS_FILE}. Dữ liệu deal demo lấy từ file này (đặt đường dẫn khác bằng DEMO_DEALS_FILE). Dừng, không dựng dữ liệu bịa.`);
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(DEALS_FILE);
+  const policy: PolicyRow[] = [];
+  const seen = new Set<string>();
+  const addPolicy = (lead: "ML" | "SH", level: unknown, perf: unknown, min: unknown, rate: unknown) => {
+    const l = toStr(level), p = toStr(perf), r = toNum(rate);
+    if (!l || !/^Level \d$/.test(l) || !p || r === null || r <= 0) return;
+    const k = `${lead}|${l}|${p}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    policy.push({ lead, level: l, perf: p, min: toNum(min), rate: r });
+  };
+  const ml = wb.getWorksheet("BC-ML Com Policy");
+  const sh = wb.getWorksheet("BC-SH Com Policy");
+  if (!ml || !sh) throw new Error("File mẫu thiếu sheet BC-ML Com Policy hoặc BC-SH Com Policy.");
+  ml.eachRow((row) => addPolicy("ML", cellValue(row.getCell(3)), cellValue(row.getCell(4)), cellValue(row.getCell(5)), cellValue(row.getCell(6))));
+  sh.eachRow((row) => addPolicy("SH", cellValue(row.getCell(2)), cellValue(row.getCell(3)), cellValue(row.getCell(4)), cellValue(row.getCell(5))));
+  const raw = wb.getWorksheet("Raw PODPS");
+  if (!raw) throw new Error("File mẫu thiếu sheet Raw PODPS.");
+  const col: Record<string, number> = {};
+  raw.getRow(1).eachCell((c, i) => { col[String(cellValue(c) ?? "").replace(/\s+/g, " ").trim()] = i; });
+  const need = (n: string) => { const i = col[n]; if (!i) throw new Error(`Raw PODPS thiếu cột "${n}".`); return i; };
+  const idx = {
+    wf: need("Workflow ID"), company: need("Tên công ty"), salesman: need("Salesman"), soe: need("SoE"), assoc: need("SoE Associate"), service: need("Dịch vụ"), status: need("Trạng thái deal"),
+    start: need("Ngày tiếp nhận"), forecast: need("Forecast Revenue"), expected: need("Expected Day"), revenue: need("Total Revenue (Non VAT)"), closing: need("Closing Day"),
+    payCount: need("Số lần thanh toán"), payPct: need("% Thanh toán"),
+  };
+  const deals: RawDeal[] = [];
+  raw.eachRow((row, n) => {
+    if (n === 1) return;
+    const g = (i: number) => cellValue(row.getCell(i));
+    const company = toStr(g(idx.company));
+    const status = toStr(g(idx.status));
+    if (!company || !status) return;
+    deals.push({
+      wf: toStr(g(idx.wf)) ?? `r${n}`, company, salesman: toStr(g(idx.salesman)), soe: toStr(g(idx.soe)), assoc: toStr(g(idx.assoc)), service: toStr(g(idx.service)), status,
+      start: toDate(g(idx.start)), forecast: toNum(g(idx.forecast)), expected: toDate(g(idx.expected)), revenue: toNum(g(idx.revenue)), closing: toDate(g(idx.closing)),
+      payCount: toNum(g(idx.payCount)), payPct: toNum(g(idx.payPct)),
+    });
+  });
+  return { policy, deals };
+}
+
+const BANT_SETS = [
+  ["Có bằng chứng", "Có bằng chứng", "Có bằng chứng", "Có bằng chứng"],
+  ["Có bằng chứng", "Chưa rõ", "Có bằng chứng", "Chưa rõ"],
+  ["Chưa rõ", "Âm", "Chưa rõ", "Chưa rõ"],
 ];
 
 async function main() {
   const reset = process.argv.includes("--reset");
+  const dry = process.argv.includes("--check"); // only the reconciliation: nothing is written
   const defs = loadPeople();
   const c = createContainer({}, "demo-seed");
   const db = c.db.db;
@@ -132,11 +179,7 @@ async function main() {
       console.log(`Đã tạo ${created.length} tài khoản; mật khẩu ghi vào file tài khoản dev (ngoài repo).`);
     }
     const mgrKey = defs.find((x) => x.role === "manager")!.key;
-    const leaders = defs.filter((x) => x.role === "leader");
-    const usersOf = defs.filter((x) => x.role === "user");
-    // who -> user id: k, p = the two Leaders; d, l = the two Users; m = Manager
-    const W: Record<Who, string> = { m: ids[mgrKey]!, k: ids[leaders[0]!.key]!, p: ids[leaders[1]!.key]!, d: ids[usersOf[0]!.key]!, l: ids[usersOf[1]!.key]! };
-
+        const W = { m: ids[mgrKey]! };
     // 2. tree templates ----------------------------------------------------------------------------
     await ensureTreeTemplates(db, workerEmit(db), W.m);
     await drain(c);
@@ -149,12 +192,14 @@ async function main() {
       for (let cursor: string | undefined; ;) {
         const r = await mgr("datahub.row.list", { table_id: t, limit: 200, ...(cursor ? { cursor } : {}) });
         out.push(...r.items);
-        cursor = r.next_cursor ?? undefined;
+        cursor = r.nextCursor ?? r.next_cursor ?? undefined; // the executor returns nextCursor, REST returns next_cursor
         if (!cursor || r.items.length === 0) break;
       }
       return out;
     };
-    if (reset) {
+    if (dry) {
+      // reconciliation only
+    } else if (reset) {
       for (const name of ["Sổ com", "Đợt thanh toán", "Tiền về", "Deals"]) for (const r of await rowsOf(tables[name]!)) await mgr("datahub.row.delete", { table_id: tables[name]!, row_id: r.id });
       await drain(c);
       console.log("Đã xoá dữ liệu Deal của cây demo.");
@@ -163,55 +208,145 @@ async function main() {
       return;
     }
 
-    // 3. commission policy (invented figures) --------------------------------------------------------
-    if ((await rowsOf(tables["Tham số com"]!)).length === 0) {
-      for (const [n, v] of [["Tỉ lệ SoE", 0.5], ["Tỉ lệ PS POD", 0.07]] as const) await mgr("datahub.row.create", { table_id: tables["Tham số com"]!, data: { "Hiệu lực từ": "2026-01-01", "Tên tham số": n, "Giá trị": v } });
-      const base: Record<string, number> = { "Under KPI": 0.08, KPI: 0.12, Goal: 0.16, "Out performance": 0.2 };
-      for (const src of ["ML", "SH"]) for (const lv of [1, 2, 3]) for (const [perf, rate] of Object.entries(base)) {
-        await mgr("datahub.row.create", { table_id: tables["Chính sách com"]!, data: { "Hiệu lực từ": "2026-01-01", "Nguồn lead": src, Level: `Level ${lv}`, Performance: perf, "Tỉ lệ": +(rate + (src === "SH" ? 0.02 : 0) - (lv - 1) * 0.01).toFixed(2) } });
-      }
+    // 3. commission policy from the workbook ------------------------------------------------------
+    const { policy, deals } = await readWorkbook();
+    if (reset && !dry) {
+      for (const name of ["Chính sách com", "Tham số com"]) for (const r of await rowsOf(tables[name]!)) await mgr("datahub.row.delete", { table_id: tables[name]!, row_id: r.id });
+    }
+    if (!dry && (await rowsOf(tables["Tham số com"]!)).length === 0) {
+      // Tỉ lệ SoE is the ceiling of the SoE shares (Leading + Associate). PS has no rate in the workbook, so "Tỉ lệ PS POD" is not set.
+      await mgr("datahub.row.create", { table_id: tables["Tham số com"]!, data: { "Hiệu lực từ": POLICY_FROM, "Tên tham số": "Tỉ lệ SoE", "Giá trị": LEAD_COM + ASSOC_COM } });
+      for (const p of policy) await mgr("datahub.row.create", { table_id: tables["Chính sách com"]!, data: { "Hiệu lực từ": POLICY_FROM, "Nguồn lead": p.lead, Level: p.level, Performance: p.perf, ...(p.min ? { "Doanh thu tối thiểu": p.min } : {}), "Tỉ lệ": p.rate } });
+      console.log(`Đã nạp ${policy.length} dòng chính sách com (ML ${policy.filter((p) => p.lead === "ML").length}, SH ${policy.filter((p) => p.lead === "SH").length}) và Tỉ lệ SoE ${(LEAD_COM + ASSOC_COM) * 100}%.`);
     }
 
-    // 4. deals ------------------------------------------------------------------------------------
-    const perfs = ["KPI", "Goal", "Under KPI", "Out performance"];
+    // 4. deals from the workbook ------------------------------------------------------------------
+    // SoE people -> demo accounts: most deals first, in SOE_ORDER (wraps around when there are more people than accounts).
+    const soeCount = new Map<string, number>();
+    for (const d of deals) for (const p of [d.soe, d.assoc]) if (p) soeCount.set(p, (soeCount.get(p) ?? 0) + 1);
+    const soeRanked = [...soeCount.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([p]) => p);
+    const accountKeys = SOE_ORDER.filter((k) => ids[k]);
+    const nameOf: Record<string, string> = Object.fromEntries(defs.map((p) => [p.key, p.name]));
+    const soeUser = new Map<string, string>();
+    console.log("Ánh xạ người trong file -> tài khoản demo (chỉ in ra màn hình):");
+    soeRanked.forEach((p, i) => {
+      const key = accountKeys[i % accountKeys.length]!;
+      soeUser.set(p, ids[key]!);
+      console.log(`  ${p} (${soeCount.get(p)} deal) -> ${nameOf[key]}`);
+    });
+    const fakeCompany = new Map<string, string>();
+    const fakeSale = new Map<string, string>();
+    const fake = (m: Map<string, string>, key: string, prefix: string) => { if (!m.has(key)) m.set(key, `${prefix} ${String(m.size + 1).padStart(3, "0")}`); return m.get(key)!; };
+
+    const keyOf = async (t: string): Promise<(r: { data: Record<string, unknown> }, name: string) => unknown> => {
+      const cols = (await mgr("datahub.table.get", { table_id: t })).columns as { key: string; name: string }[];
+      const m = new Map(cols.map((x) => [x.name, x.key]));
+      return (r, name) => r.data[m.get(name) ?? name];
+    };
     const person = (id: string, vai_tro: string, dt: number, com: number) => ({ id, attrs: { vai_tro, ty_le_dt: dt, ty_le_com: com, tinh_deal: vai_tro === "Leading" } });
     const closeNow = async (id: string, data: Record<string, unknown>) => {
       const cur = await mgr("datahub.row.get", { table_id: tables["Deals"]!, row_id: id });
       await mgr("datahub.row.update", { table_id: tables["Deals"]!, row_id: id, data, version: cur.version });
     };
-    let n = 0, won = 0, payments = 0;
-    for (const [i, d] of DEALS.entries()) {
-      const pod = d.type.startsWith("POD");
-      const people = d.assoc && d.assoc !== d.lead ? [person(W[d.lead], "Leading", 0.7, 0.3), person(W[d.assoc], "Associate", 0.3, 0.15)] : [person(W[d.lead], "Leading", 1, 0.3)];
+    const byLead = { ML: policy.filter((p) => p.lead === "ML"), SH: policy.filter((p) => p.lead === "SH") };
+    interface Won { rowId: string; company: string; amount: number; closing: string; pod: boolean; lead?: string; level?: string; perf?: string; soe?: string; assoc?: string }
+    const wonList: Won[] = [];
+    const expectedByMonth = new Map<string, { file: number; first: number }>();
+    const stat: Record<string, number> = {};
+    const bump = (k: string) => { stat[k] = (stat[k] ?? 0) + 1; };
+    const dealIdByKey = new Map<string, string>(); // check mode: a company can have several deals, so the key also has Start date and revenue
+    if (dry) { const val = await keyOf(tables["Deals"]!); for (const r of await rowsOf(tables["Deals"]!)) dealIdByKey.set(`${val(r, "Tên công ty")}|${val(r, "Start date")}|${val(r, "Doanh thu dự kiến") ?? ""}`, r.id); }
+    let n = 0, won = 0, payments = 0, skipped = 0;
+    for (const d of deals) {
+      const company = fake(fakeCompany, d.company.toLowerCase(), "Công ty Demo");
+      const isWon = d.status === "Won";
+      const start = d.start ?? d.closing ?? d.expected;
+      const money = d.revenue ?? d.forecast;
+      if (!start || (isWon && (!d.revenue || !d.closing))) { skipped++; continue; } // Won needs money and a date; Start date is required
+      const pod = d.service === "Sale POD";
+      const h = hash(d.wf);
+      const status = isWon ? "Won" : d.status;
+      const people: ReturnType<typeof person>[] = [];
+      const soeId = d.soe ? soeUser.get(d.soe) : undefined;
+      const assocId = d.assoc ? soeUser.get(d.assoc) : undefined;
+      if (soeId) people.push(person(soeId, "Leading", 1, LEAD_COM));
+      if (assocId && assocId !== soeId) people.push(person(assocId, "Associate", 0, ASSOC_COM));
+      const lead = pod ? (h % 2 === 0 ? "ML" : "SH") : undefined;
+      const combo = lead ? byLead[lead][(h >>> 4) % byLead[lead].length]! : undefined;
       const data: Record<string, unknown> = {
-        "Tên công ty": d.name,
-        "Loại deal": d.type,
-        "Start date": day(d.start),
-        "Doanh thu dự kiến": d.rev * M,
-        "Người tham gia": people,
-        Sale: "Sale demo",
-        "Nguồn lead": i % 3 === 0 ? "SH" : "ML",
-        ...(pod ? { "Level BC": `Level ${(i % 3) + 1}`, "Performance BC": perfs[i % 4] } : {}),
-        ...(d.exp !== undefined ? { "Ngày dự kiến chốt": day(d.exp) } : {}),
-        ...(d.note ? { "Ghi chú": d.note } : {}),
+        "Tên công ty": company,
+        "Loại deal": pod ? "POD bán mới" : "PS không kèm POD",
+        "Start date": start,
+        ...(money ? { "Doanh thu dự kiến": money } : {}),
+        ...(people.length ? { "Người tham gia": people } : {}),
+        ...(d.salesman ? { Sale: fake(fakeSale, d.salesman, "Sale") } : {}),
+        ...(combo ? { "Nguồn lead": combo.lead, "Level BC": combo.level, "Performance BC": combo.perf } : {}),
+        ...(d.expected && !isWon && status === "Processing" ? { "Ngày dự kiến chốt": d.expected } : {}),
       };
-      if (d.bant) Object.assign(data, { Budget: d.bant[0], Authority: d.bant[1], Need: d.bant[2], Timeline: d.bant[3] });
-      if (d.status === "Pending") data["Status"] = "Pending";
-      const row = await mgr("datahub.row.create", { table_id: tables["Deals"]!, data });
+      if (pod && status === "Processing") { const b = BANT_SETS[(h >>> 8) % 3]!; Object.assign(data, { Budget: b[0], Authority: b[1], Need: b[2], Timeline: b[3] }); }
+      const row = dry ? { id: dealIdByKey.get(`${company}|${start}|${money ?? ""}`) ?? "none" } : await mgr("datahub.row.create", { table_id: tables["Deals"]!, data });
       n++;
-      if (d.sched) {
-        const s = await mgr("payment.schedule", { deal_id: row.id, payments: d.sched.map(([amt, due], k) => ({ legal_entity: d.name, contract_no: `HD-${2026}-${String(i + 1).padStart(3, "0")}`, seq: k + 1, amount: amt * M, due: day(due) })) });
-        payments += d.sched.length;
-        for (const [k, [amt, due, paid]] of d.sched.entries()) {
-          if (!paid) continue;
-          const r = await mgr("payment.confirm", { received_on: day(due), receipt: { amount: Math.round(amt * M * 1.08), payer_name: d.name.toUpperCase(), bank: "VCB", content: `Thanh toan dot ${k + 1}` }, allocations: [{ payment_id: s.payments[k].id, amount: amt * M, amount_received: Math.round(amt * M * 1.08) }] });
-          won += r.won_deal_ids.length;
-        }
+      bump(status);
+      if (isWon) {
+        const total = d.revenue!, closing = d.closing!;
+        const cnt = Math.max(1, Math.round(d.payCount ?? 1));
+        const first = cnt > 1 && d.payPct && d.payPct > 0 && d.payPct < 1 ? Math.round(total * d.payPct) : Math.round(total / cnt);
+        const amounts = [first];
+        for (let k = 1; k < cnt; k++) amounts.push(k === cnt - 1 ? total - first - Math.round(((total - first) / (cnt - 1)) * (cnt - 2)) : Math.round((total - first) / (cnt - 1)));
+        const s = dry ? null : await mgr("payment.schedule", { deal_id: row.id, payments: amounts.map((amt, k) => ({ legal_entity: company, contract_no: `HD-${d.wf}`, seq: k + 1, amount: amt, due: addDays(closing, 30 * k) })) });
+        payments += amounts.length;
+        const r = dry ? { won_deal_ids: [] } : await mgr("payment.confirm", { received_on: closing, receipt: { amount: Math.round(first * 1.08), payer_name: company.toUpperCase(), bank: "VCB", content: "Thanh toan dot 1" }, allocations: [{ payment_id: s!.payments[0].id, amount: first, amount_received: Math.round(first * 1.08) }] });
+        won += r.won_deal_ids.length;
+        const mo = closing.slice(0, 7);
+        const e = expectedByMonth.get(mo) ?? { file: 0, first: 0 };
+        e.file += total; e.first += first;
+        expectedByMonth.set(mo, e);
+        wonList.push({ rowId: row.id, company, amount: first, closing, pod, ...(combo ? { lead: combo.lead, level: combo.level, perf: combo.perf } : {}), ...(soeId ? { soe: soeId } : {}), ...(assocId && assocId !== soeId ? { assoc: assocId } : {}) });
+      } else if (status !== "Processing" && !dry) {
+        await closeNow(row.id, { Status: status, "Ngày đóng (sửa tay)": d.closing ?? start });
       }
-      if (d.status && d.status !== "Pending") await closeNow(row.id, { Status: d.status, "Ngày đóng (sửa tay)": day(d.closed!) });
-      await drain(c);
+      if (!dry) await drain(c);
+      if (n % 50 === 0) console.log(`  ... ${n} deal`);
     }
-    console.log(`Đã dựng ${n} deal, ${payments} đợt thanh toán, ${won} deal Won.`);
+    console.log(`Đã dựng ${n} deal (${Object.entries(stat).map(([k, v]) => `${k} ${v}`).join(", ")}), ${payments} đợt thanh toán, ${won} deal Won; bỏ qua ${skipped} dòng thiếu ngày hoặc thiếu doanh thu của deal Won.`);
+
+    if (dry) console.log("(chế độ --check: chỉ đối chiếu, không ghi gì)");
+    // 5. reconciliation (printed only) --------------------------------------------------------------
+    const dots = await rowsOf(tables["Đợt thanh toán"]!);
+    const dotVal = await keyOf(tables["Đợt thanh toán"]!);
+    const hubByMonth = new Map<string, number>();
+    for (const r of dots) {
+      const dt = dotVal(r, "Ngày tiền về"), amt = Number(dotVal(r, "Số tiền về (chưa VAT)") ?? 0);
+      if (dt && amt) { const mo = String(dt).slice(0, 7); hubByMonth.set(mo, (hubByMonth.get(mo) ?? 0) + amt); }
+    }
+    console.log("\nĐối chiếu doanh thu Won theo tháng closing (đồng): file = tổng Total Revenue của deal Won; đợt đầu = phần đợt 1 theo file; SoE Hub = tổng Số tiền về của Đợt thanh toán");
+    let bad = 0;
+    for (const mo of [...new Set([...expectedByMonth.keys(), ...hubByMonth.keys()])].sort()) {
+      const e = expectedByMonth.get(mo) ?? { file: 0, first: 0 }, hub = hubByMonth.get(mo) ?? 0;
+      const ok = Math.abs(hub - e.first) < 1;
+      if (!ok) bad++;
+      console.log(`  ${mo}  file ${e.file.toLocaleString("en-US")}  đợt đầu ${e.first.toLocaleString("en-US")}  SoE Hub ${hub.toLocaleString("en-US")}  ${ok ? "khớp" : "LỆCH"}`);
+    }
+    console.log(`  => ${bad === 0 ? "tất cả các tháng khớp" : `${bad} tháng lệch`}`);
+
+    console.log(`Số dòng: Deals ${dealIdByKey.size || (await rowsOf(tables["Deals"]!)).length}, Đợt thanh toán ${dots.length}`);
+    const ledger = await rowsOf(tables["Sổ com"]!);
+    const led = await keyOf(tables["Sổ com"]!);
+    console.log(`\nSổ com: ${ledger.length} dòng. Kiểm 5 deal Won POD mẫu (com sale = tỉ lệ chính sách × số tiền về; SoE Leading ${LEAD_COM * 100}%, Associate ${ASSOC_COM * 100}% của com sale):`);
+    const pool = wonList.filter((w) => w.pod && w.lead && (w.soe || w.assoc));
+    for (const w of pool.filter((_, i) => i % Math.max(1, Math.floor(pool.length / 5)) === 0).slice(0, 5)) {
+      const pol = policy.find((p) => p.lead === w.lead && p.level === w.level && p.perf === w.perf)!;
+      const comSale = Math.round(w.amount * pol.rate);
+      const rows = ledger.filter((r) => JSON.stringify(led(r, "Deal") ?? "").includes(w.rowId));
+      console.log(`  ${w.company}: ${w.lead} ${w.level} ${w.perf}, tiền về ${w.amount.toLocaleString("en-US")}, tỉ lệ ${pol.rate}, com sale kỳ vọng ${comSale.toLocaleString("en-US")}`);
+      if (rows.length === 0) console.log("    (không thấy dòng Sổ com của deal này)");
+      for (const r of rows) {
+        const who = led(r, "Người"), pct = Number(led(r, "% com") ?? 0), com = Number(led(r, "Com") ?? 0);
+        const whoId = Array.isArray(who) ? String((who[0] as { id?: string })?.id ?? who[0]) : String((who as { id?: string })?.id ?? who);
+        const exp = Math.round(comSale * (whoId === w.soe ? LEAD_COM : ASSOC_COM));
+        console.log(`    ${whoId === w.soe ? "Leading" : "Associate"}: % com ${pct}, Com sale ${Number(led(r, "Com sale")).toLocaleString("en-US")}, Com ${com.toLocaleString("en-US")} (kỳ vọng ${exp.toLocaleString("en-US")}) ${Math.abs(com - exp) <= 1 ? "khớp" : "LỆCH"}`);
+      }
+    }
   } finally {
     await c.db.close();
   }
