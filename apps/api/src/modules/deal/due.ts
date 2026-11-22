@@ -118,7 +118,6 @@ interface Dealt {
   people: string[];
   leading: string[];
 }
-const norm = (s: string) => s.normalize("NFC").trim().toLowerCase();
 
 /** The people of a deal row, and who is Leading (the role of the person's entry, read as the money commands read it). */
 function dealOf(tree: Tree, id: string, data: Record<string, unknown>): Dealt {

@@ -1,6 +1,10 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from "@tanstack/react-router";
 import { AuditLogPage, DealDefaultsPage, DatahubLimitsPage, ServiceAccountsPage, SettingsPage, TokenApprovalPage, TransferPage } from "@/pages/admin";
-import { AccountPage, NotificationsPage, TokensPage } from "@/pages/account";
+import { AccountPage, TokensPage } from "@/pages/account";
+import { AnnouncementsPage } from "@/pages/notify/announcements";
+import { NotificationsPage } from "@/pages/notify/inbox";
+import { RemindersPage } from "@/pages/notify/reminders";
+import { NotificationSettingsPage } from "@/pages/notify/settings";
 import { CodeFlowPage, LoginPage, SetPasswordPage } from "@/pages/auth";
 import { SharedDashboardPage, SharedDashboardsPage } from "@/pages/dashboard/shared";
 import { GuestGrantsPage } from "@/pages/guest";
@@ -47,6 +51,9 @@ export const router = createRouter({
     r("/tai-khoan", AccountPage),
     r("/tai-khoan/token", TokensPage),
     r("/thong-bao", NotificationsPage),
+    r("/thong-bao-chung", AnnouncementsPage),
+    r("/nhac-hen", RemindersPage),
+    r("/tai-khoan/thong-bao", NotificationSettingsPage),
     r("/cap-du-lieu", GuestGrantsPage),
     r("/du-lieu-duoc-cap", GuestDataPage),
     r("/du-lieu-duoc-cap/$tableId", GuestTablePage),

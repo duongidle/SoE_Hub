@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PERMISSIONS, SERVICE_ACCOUNT_PERMISSIONS, type Permission } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, DateTimeInput, ErrorText, Field, Input, Modal, Notice, PageTitle, Select, Table, Tabs } from "@/components/ui/form";
+import { Button, ConfirmDialog, DateTimeInput, ErrorText, Field, Input, Modal, Notice, PageTitle, Select, Table, Tabs } from "@/components/ui/form";
 import { ApiError, api, apiList, fmtTime, parseVnDateTime, qs } from "@/lib/api";
 import { listUserLimits, setUserLimit, type UserLimit } from "@/lib/datahub/api";
 import { notify } from "@/components/ui/toast";
@@ -720,6 +720,7 @@ export function TransferPage() {
     gcTime: 0,
   });
   const run = useMutation({ mutationFn: () => api<{ groups: TransferGroup[] }>("POST", "/admin/transfer", { from_user_id: from, to_user_id: to, personal_columns: personal }) });
+  const [ask, setAsk] = useState(false);
   const stale = previewKey !== null && previewKey !== key;
   return (
     <div className="flex flex-col gap-6">
@@ -754,9 +755,10 @@ export function TransferPage() {
             <GroupList groups={preview.data.groups} />
             <ErrorText error={run.error} />
             <div>
-              <Button variant="danger" disabled={run.isPending || stale} onClick={() => { if (window.confirm("Chuyển giao dữ liệu và khoá tài khoản nguồn? Không hoàn tác được.")) run.mutate(); }}>
+              <Button variant="danger" disabled={run.isPending || stale} onClick={() => setAsk(true)}>
                 Xác nhận chuyển giao
               </Button>
+              {ask && <ConfirmDialog title="Chuyển giao dữ liệu?" message="Chuyển giao dữ liệu và khoá tài khoản nguồn. Không hoàn tác được." confirmLabel="Chuyển giao" busy={run.isPending} onClose={() => setAsk(false)} onConfirm={() => { setAsk(false); run.mutate(); }} />}
             </div>
           </CardContent>
         </Card>
@@ -808,6 +810,7 @@ function TreeTransfer() {
   const [to, setTo] = useState("");
   const isManager = { field: "roles", op: "contains", value: "manager" };
   const m = useMutation({ mutationFn: () => api<{ moved: number }>("POST", `/admin/trees/${from}/transfer`, { to_manager_id: to }) });
+  const [ask, setAsk] = useState(false);
   return (
     <Card>
       <CardHeader>
@@ -820,9 +823,10 @@ function TreeTransfer() {
           <ErrorText error={m.error} />
           {m.data && <Notice>Đã chuyển {m.data.moved} người sang cây mới. Lịch sử cây được giữ.</Notice>}
           <div>
-            <Button variant="danger" disabled={!from || !to || from === to || m.isPending} onClick={() => { if (window.confirm("Chuyển cả cây sang Manager khác?")) m.mutate(); }}>
+            <Button variant="danger" disabled={!from || !to || from === to || m.isPending} onClick={() => setAsk(true)}>
               Chuyển cây
             </Button>
+            {ask && <ConfirmDialog title="Chuyển cả cây?" message="Chuyển cả cây sang Manager khác. Lịch sử cây được giữ." confirmLabel="Chuyển cây" busy={m.isPending} onClose={() => setAsk(false)} onConfirm={() => { setAsk(false); m.mutate(); }} />}
           </div>
         </div>
       </CardContent>

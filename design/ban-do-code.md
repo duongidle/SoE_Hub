@@ -443,9 +443,14 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 **6A2: bản tin, nhắc hạn Deal, thông báo chung**
 - Bản tin 08:00 và nhắc hạn 08:30: `apps/api/src/modules/deal/due.ts` `runMorningDigest`, `runDueRules` (job `notification-morning-digest`, `deal-due-rules` ở `apps/api/src/jobs/index.ts`). Đọc bảng Deals/Đợt thanh toán của cây Manager theo **vai trò cột** bằng `roleTable` (`forecast.ts`), quyền xem người nhận qua `visibility` (khoá phân chia: `loadReader`), gửi qua `notify.send` (`canView`). Ngày đọc bằng `dateOfCell` (giờ Việt Nam). Chống trùng: `sourceEventId` = `stableId("deal.due", quy tắc, mốc, ngày)` + dấu chạy theo ngày ở `system_settings` `deal.due_rules.last_run:<manager>` (chạy bù hôm qua).
 - Quy tắc nhắc hạn: `DEFAULT_RULES`, lưu ở `system_settings` `deal.due_rules:<manager>` (`rulesOf`); lệnh `deal.due_rules.get` (`deal:deal:read`) và `.set` (`deal:payment:write`, chỉ Manager của cây). Thêm quy tắc mới: thêm vào `RULE_KEYS`, `DEFAULT_RULES`, `rowsDue`, `TEXT` (cùng file).
-- "Leading" = thuộc tính `vai_tro` = Leading của người trong cột `nguoi_tham_gia`, hoặc cột `nguoi_tham_gia` tên "Leading" (`dealOf`).
+- "Leading" = vai trò của người trong cột `nguoi_tham_gia` đọc bằng `entryRole`/`isLeadingRole` ở `apps/api/src/modules/deal/participants.ts` (một nơi đọc, lệnh tiền cũng dùng; không so tên cột).
 - Thông báo chung: `apps/api/src/modules/notification/announcements.ts` (bảng `announcements`, `announcement_recipients`, migration 0025), lệnh `announcement.send/.recall/.list_sent/.list_received/.read_status` (quyền `notification:announce`; `aiAllowed: false`). Phạm vi kiểm ở `expand`. Đã đọc = thông báo của người đó không còn `read_at` rỗng.
 - Test: `apps/api/test/notify-digest-due.test.ts`.
+
+**6B: giao diện** (`apps/web/src/pages/notify/`)
+- `inbox.tsx`: `BellButton` (đếm chưa đọc, hộp 20 thông báo, toast khi có thông báo `important` mới: so với danh sách đã thấy, vì SSE chỉ mang tín hiệu) và `NotificationsPage` (`/thong-bao`, lọc nhóm, phân trang keyset). `reminders.tsx`: `RemindersPage` (`/nhac-hen`), `RemindMeButton` (gắn vào `RowPanel`, dùng chung cho deal và dòng datahub), `ReminderForm`. `settings.tsx`: `/tai-khoan/thong-bao` (loại thông báo, bản tin, quy tắc nhắc hạn của Manager). `announcements.tsx`: `/thong-bao-chung`.
+- Link thông báo mở thẳng trang đích; trang đích (`DealHomePage`, `DatahubPage`) tự hiện `NoAccessState` khi mất quyền hay đã xoá. `?quick=priority` đọc ở `table-view.tsx`.
+- Xác nhận trong ứng dụng: `ConfirmDialog` (`form.tsx`); luật lint `no-alert` bật cho `apps/web`.
 
 **Luật cấm**
 - Không `INSERT` thẳng vào `notifications` (trừ `notify.send`). Không đưa giá trị ô hay com của người khác vào nội dung. Không dùng `window` của người gây ra để lọc người nhận ở nơi khác: lọc ở cửa vào.

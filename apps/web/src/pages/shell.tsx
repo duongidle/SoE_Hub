@@ -1,10 +1,11 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bell, LogOut, Menu, UserRound } from "lucide-react";
+import { LogOut, Menu, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/form";
 import { api } from "@/lib/api";
-import { can, useLiveUpdates, useMe, type Me } from "@/lib/session";
+import { can, useLiveUpdates, useMe } from "@/lib/session";
+import { BellButton } from "./notify/inbox";
 
 const PUBLIC_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
 
@@ -15,6 +16,8 @@ const NAV: { to: string; label: string; permission: string | null; dealOnly?: bo
   { to: "/du-lieu-duoc-cap", label: "Dữ liệu được cấp", permission: "datahub:datahub:use", guestOnly: true },
   { to: "/quan-ly-deal", label: "Quản lý Deal", permission: "datahub:datahub:use", dealOnly: true },
   { to: "/dashboard", label: "Dashboard chia sẻ", permission: null },
+  { to: "/nhac-hen", label: "Nhắc hẹn", permission: "notification:manage" },
+  { to: "/thong-bao-chung", label: "Thông báo chung", permission: "notification:announce" },
   { to: "/to-chuc", label: "Org chart", permission: "org:member:read" },
   { to: "/cap-du-lieu", label: "Cấp dữ liệu Guest", permission: "guest:grant:manage" },
   { to: "/quan-tri/token", label: "Kết nối AI", permission: "auth:token:approve" },
@@ -153,21 +156,6 @@ export function Shell() {
       </header>
       <main id="noi-dung" tabIndex={-1} className={wide ? "mx-auto flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : <Outlet />}</main>
     </div>
-  );
-}
-
-function BellButton({ me }: { me: Me }) {
-  const q = useQuery({ queryKey: ["unread"], queryFn: () => api<{ unread: number }>("GET", "/notifications/unread-count"), enabled: can(me, "notification:read") });
-  const n = q.data?.unread ?? 0;
-  return (
-    <Link to="/thong-bao" aria-label={`Thông báo, ${n} chưa đọc`} className="relative inline-flex min-h-9 min-w-9 items-center justify-center rounded-md hover:bg-muted">
-      <Bell size={18} />
-      {n > 0 && (
-        <span data-testid="bell-count" className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-bad px-1 text-center text-[10px] font-semibold leading-4 text-white">
-          {n > 99 ? "99+" : n}
-        </span>
-      )}
-    </Link>
   );
 }
 

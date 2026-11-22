@@ -19,6 +19,7 @@ import { OptionChip, PersonPicker, RatingPicker } from "./pickers";
 import { RelationPicker } from "./relation-picker";
 import { PeopleAttrsEditor } from "./people-attrs";
 import { DealPaymentsPanel } from "../deal/payments";
+import { RemindMeButton } from "../notify/reminders";
 
 const OP_LABEL: Record<string, string> = { create: "Tạo dòng", update: "Sửa", delete: "Xoá vào thùng rác", restore: "Khôi phục", upsert: "Cập nhật" };
 const VIA_LABEL: Record<string, string> = { web: "", api: "qua API", mcp: "qua AI", form: "qua form", import: "qua import", automation: "tự động", system: "hệ thống" };
@@ -56,6 +57,7 @@ export function RowPanel({ session, rowId, level, onClose }: { session: TableSes
         <Dialog.Content aria-describedby={undefined} className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-card shadow-lg sm:rounded-l-xl">
           <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <Dialog.Title className="text-lg font-semibold">{row?.row_no ? `Dòng #${row.row_no}` : "Chi tiết dòng"}</Dialog.Title>
+            {row && <RemindMeButton object={{ type: session.table.role_set === "deals" ? "deal" : "row", id: rowId }} />}
             <Button variant="ghost" onClick={onClose} aria-label="Đóng" className="!px-2">
               <X size={20} aria-hidden />
             </Button>

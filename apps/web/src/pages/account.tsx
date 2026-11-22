@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, ErrorText, Field, Input, Modal, Notice, PageTitle, Select, Table } from "@/components/ui/form";
-import { api, apiList, fmtTime, qs } from "@/lib/api";
+import { api, fmtTime } from "@/lib/api";
 import { useMe } from "@/lib/session";
 
 export function AccountPage() {
@@ -19,6 +20,7 @@ export function AccountPage() {
           </CardContent>
         </Card>
       )}
+      <p className="text-sm"><Link to="/tai-khoan/thong-bao" className="text-primary underline">Cài đặt thông báo</Link> · <Link to="/nhac-hen" className="text-primary underline">Nhắc hẹn</Link></p>
       <div className="grid gap-6 lg:grid-cols-2">
         <ChangePassword />
         <Devices />
@@ -393,65 +395,5 @@ export function TokenTable({ rows, onRevoke, owner, actions }: { rows: TokenRow[
         )}
       </tbody>
     </Table>
-  );
-}
-
-interface NotificationRow {
-  id: string;
-  type: string;
-  title: string;
-  body: string;
-  data: { code?: string };
-  read_at: string | null;
-  created_at: string;
-}
-
-export function NotificationsPage() {
-  const qc = useQueryClient();
-  const [unreadOnly, setUnreadOnly] = useState(false);
-  const q = useQuery({ queryKey: ["notifications", unreadOnly], queryFn: () => apiList<NotificationRow>(`/notifications${qs({ limit: 100, unread_only: unreadOnly })}`) });
-  const mark = useMutation({
-    mutationFn: (body: { ids?: string[]; all?: boolean }) => api("POST", "/notifications/read", body),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["notifications"] });
-      void qc.invalidateQueries({ queryKey: ["unread"] });
-    },
-  });
-  return (
-    <div>
-      <PageTitle
-        actions={
-          <>
-            <Button variant="secondary" onClick={() => setUnreadOnly((v) => !v)}>
-              {unreadOnly ? "Xem tất cả" : "Chỉ chưa đọc"}
-            </Button>
-            <Button variant="secondary" onClick={() => mark.mutate({ all: true })}>
-              Đánh dấu đã đọc hết
-            </Button>
-          </>
-        }
-      >
-        Thông báo
-      </PageTitle>
-      <ErrorText error={q.error ?? mark.error} />
-      <div className="flex flex-col gap-2">
-        {q.data?.data.map((n) => (
-          <div key={n.id} className={`rounded-lg border border-border p-3 text-sm ${n.read_at ? "bg-card" : "bg-primary/5"}`}>
-            <div className="flex items-start justify-between gap-2">
-              <div className="font-medium">{n.title}</div>
-              <span className="whitespace-nowrap text-xs text-muted-foreground">{fmtTime(n.created_at)}</span>
-            </div>
-            <p className="mt-1">{n.body}</p>
-            {n.data.code && <p className="mt-1 font-mono text-lg tracking-widest">{n.data.code}</p>}
-            {!n.read_at && (
-              <Button variant="ghost" className="mt-1" onClick={() => mark.mutate({ ids: [n.id] })}>
-                Đánh dấu đã đọc
-              </Button>
-            )}
-          </div>
-        ))}
-        {q.data?.data.length === 0 && <p className="text-sm text-muted-foreground">Không có thông báo.</p>}
-      </div>
-    </div>
   );
 }

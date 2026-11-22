@@ -148,7 +148,9 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   const debounced = useDebounced(search, 350);
   const { dead } = useMemo(() => pruneConfig(config, table.columns), [config, table.columns]);
   const shared = useSharedPeriod();
-  const [quick, setQuick] = useState<QuickView | null>(null);
+  // A morning digest links here with `?quick=priority`.
+  const urlQuick = (useSearch({ strict: false }) as { quick?: string }).quick;
+  const [quick, setQuick] = useState<QuickView | null>(urlQuick === "priority" || urlQuick === "recheck" ? urlQuick : null);
   const query = useMemo(() => overlayQuery(buildQuery(config, table.columns, debounced), table, config, shared, quick), [config, table, debounced, shared, quick]);
   const colLayout = useMemo(() => layoutColumns(config, table.columns), [config, table.columns]);
   const rowHeightName = config.row_height ?? DEFAULT_ROW_HEIGHT;

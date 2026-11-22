@@ -38,3 +38,10 @@
 - **Sửa ở 6B:** tìm Leading không được so tên cột "Leading". Vai trò người tham gia chỉ có một nơi tính: `apps/api/src/modules/deal/participants.ts` (`Participant.role`, cách `participantsOf` đọc cột theo vai trò `nguoi_tham_gia` và thuộc tính). `due.ts` dùng lại đúng logic đó (tách hàm thuần không ném lỗi thành viên nếu cần), không viết lại.
 - **Sửa ở 6B:** thông báo chung gửi theo cây/team **không gồm Guest** (Guest là người ngoài, Module 1 mục 5.2); Guest chỉ nhận khi người gửi thêm lẻ và Guest đó nằm trong phạm vi được cấp của người gửi. Đơn giản nhất: loại Guest khỏi mọi phạm vi, kể cả người lẻ.
 - Giới hạn 10/ngày, phân trang `announcement.list_*`, nút Xem trước của quy tắc: dời (`design/update_v1.md`).
+
+## 6B (22/11/2026)
+- Hai sửa server của Opus rà 6A2 đã làm: `entryRole`/`isLeadingRole` (`participants.ts`) là nơi duy nhất đọc vai trò từ thuộc tính người; `due.ts` bỏ so tên cột. `participantsOf` vẫn tính vai trò bằng công thức `vai_tro_cua_toi` khi cột đó có, chỉ rơi về `entryRole` khi cây cũ chưa có cột (bản tin/nhắc hạn đọc hàng loạt bằng SQL nên không gọi `participantsOf` từng deal: tốn công thức mỗi người). Thông báo chung loại Guest ở mọi phạm vi (gửi lẻ cho Guest bị từ chối `out_of_scope`).
+- Chuông toast: SSE không mang nội dung, nên chuông tải lại danh sách khi có tín hiệu và toast các thông báo `important` chưa đọc mới thấy lần đầu.
+- "Nhắc tôi" nằm ở `RowPanel` (ngăn chi tiết dòng), dùng cho cả deal (`object.type = deal` khi bảng `role_set = deals`) và dòng datahub (`row`).
+- Trang Cài đặt thông báo ở `/tai-khoan/thong-bao`; tên loại thông báo hiện mã kỹ thuật (chưa có nhãn tiếng Việt từng loại: dời Stage 12).
+- Chọn người nhận thông báo chung lấy 200 thành viên đầu của `/org/members` (đủ cho 15–20 người dùng thường xuyên).

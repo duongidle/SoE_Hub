@@ -1,0 +1,179 @@
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Bell, Pin } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Button, ErrorText, PageTitle, Select, Tabs } from "@/components/ui/form";
+import { Popover } from "@/components/ui/popover";
+import { EmptyState } from "@/components/ui/states";
+import { notify } from "@/components/ui/toast";
+import { api, apiList, fmtTime, qs, type Page } from "@/lib/api";
+import { can, type Me } from "@/lib/session";
+import { cn } from "@/lib/utils";
+
+export interface NotificationRow {
+  id: string;
+  type: string;
+  category: string;
+  priority: string;
+  title: string;
+  body: string;
+  link: string | null;
+  data: { code?: string };
+  read_at: string | null;
+  created_at: string;
+}
+
+export const CATEGORY_LABEL: Record<string, string> = { account: "Tài khoản", datahub: "Datahub", ai: "Kết nối AI", deal: "Quản lý Deal", reminder: "Nhắc hẹn", digest: "Bản tin", announcement: "Thông báo chung" };
+
+const vnDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(iso));
+const isPinned = (n: NotificationRow) => n.type === "announcement" && n.priority === "important" && !n.read_at;
+
+/** Pinned important announcements first, then today, then earlier. */
+function groups(rows: NotificationRow[]): { label: string; rows: NotificationRow[] }[] {
+  const today = vnDay(new Date().toISOString());
+  const out = [
+    { label: "Ghim", rows: rows.filter(isPinned) },
+    { label: "Hôm nay", rows: rows.filter((n) => !isPinned(n) && vnDay(n.created_at) === today) },
+    { label: "Trước đó", rows: rows.filter((n) => !isPinned(n) && vnDay(n.created_at) !== today) },
+  ];
+  return out.filter((g) => g.rows.length > 0);
+}
+
+function useMarkRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { ids?: string[]; all?: boolean }) => api("POST", "/notifications/read", body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["notifications"] });
+      void qc.invalidateQueries({ queryKey: ["unread"] });
+    },
+  });
+}
+
+/** One notification: a button that opens its link and marks it read. The page the link opens shows "Không còn quyền xem" or "Đã bị xoá" by itself. */
+function Item({ n, onOpened }: { n: NotificationRow; onOpened?: () => void }) {
+  const nav = useNavigate();
+  const mark = useMarkRead();
+  const open = () => {
+    if (!n.read_at) mark.mutate({ ids: [n.id] });
+    onOpened?.();
+    if (n.link) void nav({ href: n.link });
+  };
+  return (
+    <button type="button" data-testid="notification-item" onClick={open} className={cn("flex w-full flex-col gap-0.5 rounded-md border border-border p-3 text-left text-sm hover:bg-muted", n.read_at ? "bg-card" : "bg-primary/5")}>
+      <span className="flex items-start justify-between gap-2">
+        <span className={cn("[overflow-wrap:anywhere]", !n.read_at && "font-medium")}>
+          {isPinned(n) && <Pin size={12} aria-label="Ghim" className="mr-1 inline" />}
+          {n.title}
+        </span>
+        <span className="whitespace-nowrap text-xs text-muted-foreground">{fmtTime(n.created_at)}</span>
+      </span>
+      {n.body && <span className="text-muted-foreground [overflow-wrap:anywhere]">{n.body}</span>}
+      {n.data?.code && <span className="font-mono text-lg tracking-widest">{n.data.code}</span>}
+    </button>
+  );
+}
+
+function Groups({ rows, onOpened }: { rows: NotificationRow[]; onOpened?: () => void }) {
+  return (
+    <div className="flex flex-col gap-3">
+      {groups(rows).map((g) => (
+        <section key={g.label} aria-label={g.label} className="flex flex-col gap-1.5">
+          <h3 className="text-xs font-semibold uppercase text-muted-foreground">{g.label}</h3>
+          {g.rows.map((n) => <Item key={n.id} n={n} onOpened={onOpened} />)}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+/** The bell: unread count (live through SSE), the last 20 notifications, and a toast for a new important one while the app is open. */
+export function BellButton({ me }: { me: Me }) {
+  const enabled = can(me, "notification:read");
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"all" | "unread">("all");
+  const mark = useMarkRead();
+  const count = useQuery({ queryKey: ["unread"], queryFn: () => api<{ unread: number }>("GET", "/notifications/unread-count"), enabled });
+  const list = useQuery({ queryKey: ["notifications", "bell"], queryFn: () => apiList<NotificationRow>(`/notifications${qs({ limit: 20 })}`), enabled });
+  const n = count.data?.unread ?? 0;
+
+  // A new important notification pops a toast. The first load only records what is already there.
+  const seen = useRef<Set<string> | null>(null);
+  const nav = useNavigate();
+  useEffect(() => {
+    if (!list.data) return;
+    const rows = list.data.data;
+    if (seen.current === null) {
+      seen.current = new Set(rows.map((r) => r.id));
+      return;
+    }
+    for (const r of rows) {
+      if (seen.current.has(r.id)) continue;
+      seen.current.add(r.id);
+      if (r.priority === "important" && !r.read_at) notify.ok(r.title, r.link ? { label: "Mở", onClick: () => void nav({ href: r.link! }) } : undefined);
+    }
+  }, [list.data, nav]);
+
+  const rows = (list.data?.data ?? []).filter((r) => tab === "all" || !r.read_at);
+  const trigger = (
+    <button type="button" aria-label={`Thông báo, ${n} chưa đọc`} className="relative inline-flex min-h-9 min-w-9 items-center justify-center rounded-md hover:bg-muted">
+      <Bell size={18} />
+      {n > 0 && (
+        <span data-testid="bell-count" className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-bad px-1 text-center text-[10px] font-semibold leading-4 text-white">
+          {n > 99 ? "99+" : n}
+        </span>
+      )}
+    </button>
+  );
+  return (
+    <Popover trigger={trigger} label="Thông báo" align="end" width="w-[26rem]" open={open} onOpenChange={setOpen}>
+      <div className="flex items-center justify-between gap-2 pb-2">
+        <Tabs value={tab} onChange={setTab} items={[{ value: "all", label: "Tất cả" }, { value: "unread", label: "Chưa đọc" }]} />
+      </div>
+      {list.isLoading ? <p className="text-muted-foreground">Đang tải...</p> : rows.length === 0 ? <p className="py-4 text-center text-muted-foreground">Không có thông báo.</p> : <Groups rows={rows} onOpened={() => setOpen(false)} />}
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2">
+        <Button variant="ghost" disabled={n === 0 || mark.isPending} onClick={() => mark.mutate({ all: true })}>Đánh dấu tất cả đã đọc</Button>
+        <Link to="/thong-bao" onClick={() => setOpen(false)} className="text-sm text-primary underline">Xem tất cả</Link>
+      </div>
+    </Popover>
+  );
+}
+
+/** The full list: filter by group, unread only, keyset paging. */
+export function NotificationsPage() {
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [category, setCategory] = useState("");
+  const mark = useMarkRead();
+  const q = useInfiniteQuery({
+    queryKey: ["notifications", "page", unreadOnly, category],
+    initialPageParam: "" as string,
+    queryFn: ({ pageParam }): Promise<Page<NotificationRow>> => apiList<NotificationRow>(`/notifications${qs({ limit: 30, unread_only: unreadOnly, category, cursor: pageParam })}`),
+    getNextPageParam: (last) => last.next_cursor ?? undefined,
+  });
+  const rows = q.data?.pages.flatMap((p) => p.data) ?? [];
+  return (
+    <div>
+      <PageTitle
+        actions={
+          <>
+            <Link to="/nhac-hen" className="inline-flex min-h-9 items-center rounded-md px-3 text-sm text-primary underline">Nhắc hẹn</Link>
+            <Link to="/tai-khoan/thong-bao" className="inline-flex min-h-9 items-center rounded-md px-3 text-sm text-primary underline">Cài đặt</Link>
+            <Button variant="secondary" onClick={() => mark.mutate({ all: true })}>Đánh dấu tất cả đã đọc</Button>
+          </>
+        }
+      >
+        Thông báo
+      </PageTitle>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Select aria-label="Nhóm" className="!w-48" value={category} onChange={(e) => setCategory(e.target.value)}>
+          <option value="">Mọi nhóm</option>
+          {Object.entries(CATEGORY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </Select>
+        <Button variant="secondary" aria-pressed={unreadOnly} onClick={() => setUnreadOnly((v) => !v)}>{unreadOnly ? "Xem tất cả" : "Chỉ chưa đọc"}</Button>
+      </div>
+      <ErrorText error={q.error ?? mark.error} />
+      {rows.length === 0 && !q.isLoading ? <EmptyState title="Không có thông báo" /> : <Groups rows={rows} />}
+      {q.hasNextPage && <div className="mt-3 text-center"><Button variant="secondary" loading={q.isFetchingNextPage} onClick={() => void q.fetchNextPage()}>Tải thêm</Button></div>}
+    </div>
+  );
+}
