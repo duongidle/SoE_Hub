@@ -32325,11 +32325,22 @@
                                 }
                               },
                               "column": {
-                                "description": "Mã cột đang giữ vai trò (null = chưa có).",
+                                "description": "Mã cột đầu tiên đang giữ vai trò (null = chưa có).",
                                 "type": [
                                   "string",
                                   "null"
                                 ]
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "Mã mọi cột đang giữ vai trò (vai trò đa cột như Người tham gia có thể có nhiều)."
+                              },
+                              "multi": {
+                                "type": "boolean",
+                                "description": "Vai trò cho phép nhiều cột cùng giữ."
                               }
                             },
                             "required": [
@@ -32338,7 +32349,9 @@
                               "types",
                               "required",
                               "used_by",
-                              "column"
+                              "column",
+                              "columns",
+                              "multi"
                             ],
                             "additionalProperties": false
                           },

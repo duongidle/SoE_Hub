@@ -8,7 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, NoAccessState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { createExport, fetchRowsByIds, jobDownload, lookupPeople, saveFromUrl } from "@/lib/datahub/api";
-import { closePeriod, periodCom, periodKeys, periodList, periodReview, reopenPeriod, snapshotCompare, snapshotCreate, snapshotList, type CompareGroup, type ReviewItem, type ReviewKind } from "@/lib/datahub/period-api";
+import { ApiError } from "@/lib/api";
+import { closePeriod, confirmReceived, periodCom, periodKeys, periodList, periodReview, reopenPeriod, snapshotCompare, snapshotCreate, snapshotList, type CloseResult, type CompareGroup, type ConfirmReceivedResult, type ReviewItem, type ReviewKind } from "@/lib/datahub/period-api";
 import { can, useMe } from "@/lib/session";
 import { useJob, JobBar } from "../datahub/job-progress";
 import { usePaymentTables, useSchema } from "./payments";
@@ -23,6 +24,7 @@ type Tab = "close" | "snapshot";
 const monthNow = () => new Date().toISOString().slice(0, 7);
 const monthLabel = (m: string) => `tháng ${Number(m.slice(5, 7))}/${m.slice(0, 4)}`;
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 export function PeriodPage() {
@@ -47,6 +49,7 @@ export function PeriodPage() {
 
 const KIND_LABEL: Record<ReviewKind, string> = {
   overdue_payment: "Đợt quá hạn chưa xác nhận",
+  received_unconfirmed: "Đợt đã có ngày hoặc số tiền về nhưng chưa xác nhận (thường do import)",
   unmatched_receipt: "Tiền về chưa ghép vào đợt nào",
   com_cap_mismatch: "Tổng % com khác mức trần Tỉ lệ SoE",
   com_blank: "Com trống (thiếu Level BC hoặc Performance BC)",
@@ -57,7 +60,8 @@ const KIND_LABEL: Record<ReviewKind, string> = {
 function detailText(it: ReviewItem): string {
   const d = it.detail;
   const parts: string[] = [];
-  if (it.kind === "overdue_payment") { if (str(d.due)) parts.push(`hạn ${formatDate(str(d.due))}`); if (num(d.planned) !== null) parts.push(formatCurrency(num(d.planned))); }
+  if (it.kind === "received_unconfirmed") { if (str(d.received_on)) parts.push(`về ${formatDate(str(d.received_on))}`); if (num(d.amount) !== null) parts.push(formatCurrency(num(d.amount))); }
+  else if (it.kind === "overdue_payment") { if (str(d.due)) parts.push(`hạn ${formatDate(str(d.due))}`); if (num(d.planned) !== null) parts.push(formatCurrency(num(d.planned))); }
   else if (it.kind === "unmatched_receipt") { if (str(d.received_on)) parts.push(`nhận ${formatDate(str(d.received_on))}`); if (num(d.amount) !== null) parts.push(formatCurrency(num(d.amount))); if (str(d.payer)) parts.push(str(d.payer)); }
   else if (it.kind === "com_cap_mismatch") { if (num(d.total) !== null) parts.push(`đã chia ${formatPercent(num(d.total))}`); if (num(d.cap) !== null) parts.push(`mức trần ${formatPercent(num(d.cap))}`); }
   else if (it.kind === "unchecked_source") { if (str(d.source)) parts.push(`nguồn ${str(d.source)}`); }
@@ -68,7 +72,8 @@ function detailText(it: ReviewItem): string {
 function ClosePanel() {
   const qc = useQueryClient();
   const [month, setMonth] = useState(monthNow());
-  const [confirm, setConfirm] = useState<"close" | null>(null);
+  const [confirm, setConfirm] = useState<"close" | "confirm_close" | null>(null);
+  const [done, setDone] = useState<{ confirmed: ConfirmReceivedResult; closed: CloseResult } | null>(null);
   const [reopen, setReopen] = useState(false);
   const [exportMonth, setExportMonth] = useState<string | null>(null);
   const [person, setPerson] = useState<string | null>(null);
@@ -91,13 +96,29 @@ function ClosePanel() {
       setExportMonth(r.month);
     },
   });
+  // Confirm the imported instalments, wait for the formulas (Kỳ, Com) the server computes after the write, then close; the server decides every number.
+  const confirmClose = useMutation({
+    mutationFn: async () => {
+      const confirmed = await confirmReceived({ month });
+      let fresh = await periodReview(month);
+      for (let i = 0; i < 40 && fresh.stale; i++) { await sleep(1500); fresh = await periodReview(month); }
+      for (let i = 0; ; i++) {
+        try { return { confirmed, closed: await closePeriod({ month, close_anyway: fresh.total > 0 }) }; }
+        catch (e) { if (!(e instanceof ApiError && e.details?.reason === "recalc_pending") || i >= 20) throw e; await sleep(1500); }
+      }
+    },
+    onSuccess: (r) => { setConfirm(null); setDone(r); refresh(); notify.ok(`Đã xác nhận ${r.confirmed.payments} đợt và chốt kỳ ${monthLabel(r.closed.month)}`); },
+    onError: () => { setConfirm(null); refresh(); },
+  });
   const closed = review.data?.closed === true;
   const total = review.data?.total ?? 0;
+  const unconfirmed = review.data?.items.filter((i) => i.kind === "received_unconfirmed").length ?? 0;
+  const errorOf = (e: unknown): unknown => (e instanceof ApiError && e.details?.reason === "period_already_closed" ? new Error(`Kỳ ${monthLabel(month)} đã được chốt rồi. Tải lại trang để xem kết quả, hoặc mở lại kỳ nếu cần sửa.`) : e);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
         <Field label="Tháng">
-          <Input type="month" aria-label="Tháng chốt kỳ" data-testid="period-month" value={month} onChange={(e) => { setMonth(e.target.value); setPerson(null); close.reset(); }} className="!w-44" />
+          <Input type="month" aria-label="Tháng chốt kỳ" data-testid="period-month" value={month} onChange={(e) => { setMonth(e.target.value); setPerson(null); close.reset(); confirmClose.reset(); setDone(null); }} className="!w-44" />
         </Field>
         {valid && review.data && <Badge tone={closed ? "ok" : "warn"} data-testid="period-state">{closed ? "Đã chốt" : "Đang mở"}</Badge>}
         <div className="ml-auto flex flex-wrap gap-2">
@@ -105,11 +126,23 @@ function ClosePanel() {
           {closed ? (
             <Button variant="secondary" data-testid="reopen-period" onClick={() => setReopen(true)}>Mở lại kỳ</Button>
           ) : (
+            <>
+              {unconfirmed > 0 && <Button variant="secondary" data-testid="confirm-and-close" loading={confirmClose.isPending} onClick={() => setConfirm("confirm_close")}>Xác nhận rồi chốt</Button>}
             <Button data-testid="close-period" disabled={!valid || review.isLoading} loading={close.isPending} onClick={() => setConfirm("close")}>Chốt kỳ {valid ? monthLabel(month) : ""}</Button>
+            </>
           )}
         </div>
       </div>
-      <ErrorText error={close.error} />
+      <ErrorText error={errorOf(close.error)} />
+      <ErrorText error={errorOf(confirmClose.error)} />
+      {done && (
+        <Notice>
+          <div data-testid="confirm-result">
+            Đã xác nhận <strong>{done.confirmed.payments}</strong> đợt, <strong>{done.confirmed.won_deal_ids.length}</strong> deal chuyển Won, <strong>{done.confirmed.ledger_ids.length}</strong> dòng Sổ com mới
+            {done.confirmed.skipped_ledger > 0 ? `, ${done.confirmed.skipped_ledger} đợt đã có dòng Sổ com nên không sinh thêm` : ""}. Kỳ {monthLabel(done.closed.month)} đã chốt{done.closed.blank_com_ids.length ? `, ${done.closed.blank_com_ids.length} dòng com trống` : ""}.
+          </div>
+        </Notice>
+      )}
 
       {valid && (
         <section aria-label="Cần xử lý trước khi chốt" className="flex flex-col gap-2" data-testid="period-review">
@@ -145,6 +178,16 @@ function ClosePanel() {
           confirmLabel={total > 0 ? `Chốt dù còn ${total} mục` : "Chốt kỳ"}
           busy={close.isPending}
           onConfirm={() => close.mutate(total > 0)}
+          onClose={() => setConfirm(null)}
+        />
+      )}
+      {confirm === "confirm_close" && (
+        <ConfirmDialog
+          title={`Xác nhận ${unconfirmed} đợt rồi chốt kỳ ${monthLabel(month)}?`}
+          message={<>Các đợt đã có ngày hoặc số tiền về sẽ được xác nhận như đã nhận tiền: tạo dòng Tiền về, chuyển deal đang mở thành Won, sinh dòng Sổ com và Doanh thu theo người. Sau đó kỳ được chốt. Mở lại kỳ được, nhưng dòng com đã chốt không tính lại.</>}
+          confirmLabel="Xác nhận rồi chốt"
+          busy={confirmClose.isPending}
+          onConfirm={() => confirmClose.mutate()}
           onClose={() => setConfirm(null)}
         />
       )}

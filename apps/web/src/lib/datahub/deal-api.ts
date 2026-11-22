@@ -36,7 +36,7 @@ export interface Template {
   archived: boolean;
   members: number;
 }
-export interface TemplateRole { key: string; label: string; types: string[]; required: boolean; used_by: string[]; column: string | null }
+export interface TemplateRole { key: string; label: string; types: string[]; required: boolean; used_by: string[]; column: string | null; columns: string[]; multi: boolean }
 export interface TemplateDetail { template: Template; columns: Column[]; members: { id: string; full_name: string; view_only: boolean }[]; roles: TemplateRole[] }
 export interface Impact { count: number; names: string[] }
 export interface ColumnUsage {

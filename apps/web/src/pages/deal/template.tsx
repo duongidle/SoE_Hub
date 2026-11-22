@@ -199,7 +199,7 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
         <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           <Badge>{typeLabel(c.type)}</Badge>
           {c.storage === "person" && <span>Mỗi người một giá trị</span>}
-          {c.role && <Badge tone="muted">Vai trò: {d.roles.find((r) => r.key === c.role)?.label ?? c.role}</Badge>}
+          {c.role && <Badge tone="muted" data-testid="role-badge">Vai trò: {d.roles.find((r) => r.key === c.role)?.label ?? c.role}</Badge>}
           {c.autofill ? <span>Hệ thống tự điền, không ai sửa ô</span> : c.type === "formula" || c.type === "lookup" || c.type === "rollup" ? <span>Công thức, không ai sửa ô</span> : <span>{c.allow_edit ? "Thành viên sửa được ô" : "Chỉ người tạo bảng sửa ô"}</span>}
           {c.layer === "role" && <span>Hiện cho {(c.layer_roles ?? []).map((r) => ROLE_NAMES[r] ?? r).join(", ")}</span>}
         </span>
@@ -471,6 +471,19 @@ function DeleteColumn({ tpl, col, onClose, onDone }: { tpl: Template; col: Colum
   );
 }
 
+/** Columns that hold a role besides this one. A role of several columns (Người tham gia) lists all of them; this column joins, nobody lets go. */
+function holdersNote(d: TemplateDetail, r: TemplateRole, col: Column): string {
+  const others = r.columns.filter((k) => k !== col.key).map((k) => d.columns.find((c) => c.key === k)?.name ?? k);
+  if (others.length === 0) return "";
+  return r.multi ? ` (đang gắn cho cột ${others.join(", ")})` : ` (đang gắn cột ${others.join(", ")})`;
+}
+
+function holderNames(d: TemplateDetail, role: string, col: Column, includeSelf: boolean): string {
+  const keys = new Set(d.roles.find((r) => r.key === role)?.columns ?? []);
+  if (includeSelf) keys.add(col.key);
+  return d.columns.filter((c) => keys.has(c.key)).map((c) => c.name).join(", ");
+}
+
 function RoleDialog({ tpl, d, col, onClose, onDone }: { tpl: Template; d: TemplateDetail; col: Column; onClose: () => void; onDone: () => Promise<void> }) {
   const [role, setRole] = useState<string>(col.role ?? "");
   const [result, setResult] = useState<{ previous: string | null; used: string[] } | null>(null);
@@ -485,14 +498,15 @@ function RoleDialog({ tpl, d, col, onClose, onDone }: { tpl: Template; d: Templa
   return (
     <Modal title={`Vai trò của cột "${col.name}"`} open onClose={onClose}>
       <div className="flex flex-col gap-4">
-        <p className="text-sm text-muted-foreground">Chức năng tìm cột theo vai trò, không theo tên. Mỗi vai trò luôn có đúng một cột: gắn vai trò cho cột này thì cột đang giữ nó thả ra.</p>
+        <p className="text-sm text-muted-foreground">Chức năng tìm cột theo vai trò, không theo tên. Vai trò thường chỉ có một cột: gắn cho cột này thì cột đang giữ nó thả ra. Vai trò nhiều cột (như Người tham gia) cho nhiều cột cùng giữ, không cột nào bị thả.</p>
         <Field label="Vai trò">
           <Select aria-label="Vai trò" value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="">Không có vai trò</option>
-            {d.roles.map((r) => <option key={r.key} value={r.key}>{r.label}{r.column && r.column !== col.key ? " (đang gắn cột khác)" : ""}</option>)}
+            {d.roles.map((r) => <option key={r.key} value={r.key}>{r.label}{holdersNote(d, r, col)}</option>)}
           </Select>
         </Field>
         {role && <p className="text-xs text-muted-foreground">Dùng bởi: {d.roles.find((r) => r.key === role)?.used_by.join(", ")}.</p>}
+        {role && d.roles.find((r) => r.key === role)?.multi && <p className="text-xs text-muted-foreground" data-testid="role-multi-note">Vai trò này có thể gắn cho nhiều cột. Hiện có: {holderNames(d, role, col, role === col.role) || "chưa có cột nào"}.</p>}
         {result && <p role="status" className="rounded-md bg-muted px-3 py-2 text-sm">{result.previous ? `Cột "${result.previous}" không còn giữ vai trò này.` : "Đã lưu."}</p>}
         <ErrorText error={m.error} />
         <div className="flex flex-wrap justify-between gap-2">

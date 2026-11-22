@@ -2,7 +2,7 @@ import { api, qs } from "@/lib/api";
 
 /** Calls of the period close, snapshot and policy-compare screens (Module 4 mục 9, 11, 12). The server decides every number; the screens only show them. */
 
-export type ReviewKind = "overdue_payment" | "unmatched_receipt" | "com_cap_mismatch" | "com_blank" | "unchecked_source" | "stale_processing";
+export type ReviewKind = "overdue_payment" | "received_unconfirmed" | "unmatched_receipt" | "com_cap_mismatch" | "com_blank" | "unchecked_source" | "stale_processing";
 export interface ReviewItem { kind: ReviewKind; table: "payments" | "receipts" | "ledger" | "deals"; row_id: string; deal_id: string | null; deal_name: string | null; detail: Record<string, unknown> }
 export interface PeriodReview { month: string; closed: boolean; lock_id: string | null; stale: boolean; total: number; counts: Record<string, number>; items: ReviewItem[] }
 export const periodReview = (month: string) => api<PeriodReview>("GET", `/deal/periods/review${qs({ month })}`);
@@ -20,6 +20,8 @@ export const periodList = () => api<PeriodRow[]>("GET", "/deal/periods");
 
 export interface CloseResult { month: string; lock_ids: string[]; closed_ledger_ids: string[]; blank_com_ids: string[]; checked_on_close: number; pending: number }
 export const closePeriod = (body: { month: string; close_anyway: boolean }) => api<CloseResult>("POST", "/deal/periods/close", body);
+export interface ConfirmReceivedResult { month: string; payments: number; won_deal_ids: string[]; ledger_ids: string[]; skipped_ledger: number }
+export const confirmReceived = (body: { month: string }) => api<ConfirmReceivedResult>("POST", "/deal/periods/confirm-received", body);
 export const reopenPeriod = (body: { month: string; reason: string }) => api<{ month: string; lock_ids: string[] }>("POST", "/deal/periods/reopen", body);
 
 export interface SnapshotRow { id: string; name: string; taken_at: string; row_count: number; auto: boolean; quarter: string | null; note: string | null }
