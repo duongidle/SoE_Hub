@@ -8,6 +8,7 @@ const api = process.env.VITE_API_TARGET ?? "http://localhost:3000";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: { include: ["@dnd-kit/core", "@dnd-kit/sortable", "@dnd-kit/utilities"] },
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
   server: {
     port: 5173,

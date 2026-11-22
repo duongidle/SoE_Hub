@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { LogOut, Menu, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -10,12 +10,13 @@ import { BellButton } from "./notify/inbox";
 const PUBLIC_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
 
 /** Menu items. A user sees an item only when the permission list returned by the API contains its permission. */
-const NAV: { to: string; label: string; permission: string | null; dealOnly?: boolean; guestOnly?: boolean }[] = [
+const NAV: { to: string; label: string; permission: string | null; dealOnly?: boolean; guestOnly?: boolean; onboarding?: boolean }[] = [
   { to: "/", label: "Tổng quan", permission: null },
   { to: "/datahub", label: "Datahub", permission: "datahub:datahub:use" },
   { to: "/du-lieu-duoc-cap", label: "Dữ liệu được cấp", permission: "datahub:datahub:use", guestOnly: true },
   { to: "/quan-ly-deal", label: "Quản lý Deal", permission: "datahub:datahub:use", dealOnly: true },
   { to: "/form", label: "Form", permission: "form:form:create" },
+  { to: "/onboarding", label: "Onboarding", permission: "onboarding:path:read", onboarding: true },
   { to: "/knowledge", label: "Knowledge", permission: "knowledge:article:read" },
   { to: "/ai-hub", label: "AI Hub", permission: "aihub:skill:read" },
   { to: "/duyet", label: "Duyệt bài", permission: "knowledge:article:review|aihub:skill:review" },
@@ -42,6 +43,7 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
   { prefix: "/form/cham-bai", permission: "form:form:create" },
   { prefix: "/form/bai-lam", permission: "form:response:submit" },
   { prefix: "/form", permission: "form:form:create" },
+  { prefix: "/onboarding", permission: "onboarding:path:read" },
   { prefix: "/knowledge/soan", permission: "knowledge:article:post" },
   { prefix: "/knowledge", permission: "knowledge:article:read" },
   { prefix: "/ai-hub/tai-len", permission: "aihub:skill:post" },
@@ -73,6 +75,12 @@ export function Shell() {
   const qc = useQueryClient();
   const meQ = useMe();
   const me = meQ.data;
+  // "Onboarding" shows for people who may create plans, and for anyone who has a plan (as the person or as a follower).
+  const onb = useQuery({
+    queryKey: ["onb", "nav"],
+    enabled: !!me && canAny(me, "onboarding:path:read") && !can(me, "onboarding:path:create"),
+    queryFn: async () => (await api<unknown[]>("GET", "/onboarding/plans?scope=mine")).length + (await api<unknown[]>("GET", "/onboarding/plans?scope=following")).length,
+  });
   // The phone menu closes by itself when the page changes: it is "open" only for the path it was opened on.
   const [openPath, setOpenPath] = useState<string | null>(null);
   const open = openPath === path;
@@ -114,7 +122,7 @@ export function Shell() {
 
   // "Quản lý Deal" is for people who have the datahub (Manager, Leader, User); Admin and Guest have none (Module 4 mục 1.1).
   const hasDeal = me.user.roles.some((r) => ["manager", "leader", "user"].includes(r));
-  const items = NAV.filter((n) => (!n.permission || canAny(me, n.permission)) && (!n.dealOnly || hasDeal) && (!n.guestOnly || me.user.roles.includes("guest")));
+  const items = NAV.filter((n) => (!n.permission || canAny(me, n.permission)) && (!n.dealOnly || hasDeal) && (!n.guestOnly || me.user.roles.includes("guest")) && (!n.onboarding || can(me, "onboarding:path:create") || (onb.data ?? 0) > 0));
   const needed = requiredPermission(shown);
   const denied = needed !== null && !canAny(me, needed);
   const logout = async () => {

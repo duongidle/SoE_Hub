@@ -102,7 +102,13 @@ async function readStructure(db: Executor, planId: string): Promise<{ stages: { 
     l.push({ id: o.id, on_date: o.on_date instanceof Date ? o.on_date.toISOString().slice(0, 10) : String(o.on_date).slice(0, 10), due_at: o.due_at ? new Date(o.due_at as string).toISOString() : null, done_at: o.done_at ? new Date(o.done_at as string).toISOString() : null });
     occBy.set(o.item_id as string, l);
   }
+  const formIds = [...new Set(items.map((i) => i.form_id as string | null).filter((x): x is string => !!x))];
+  const forms = new Map<string, { code: string; name: string; table_id: string | null; datahub_id: string | null }>();
+  if (formIds.length) {
+    for (const f of (await db.execute(sql`/*scope:system*/ SELECT f.id, f.code, f.name, f.table_id, t.datahub_id FROM forms f LEFT JOIN dh_tables t ON t.id = f.table_id WHERE f.id = ANY(${`{${formIds.join(",")}}`}::uuid[])`)).rows as { id: string; code: string; name: string; table_id: string | null; datahub_id: string | null }[]) forms.set(f.id, f);
+  }
   const itemOut = (r: Record<string, unknown>) => ({
+    form_code: forms.get(r.form_id as string)?.code ?? null, form_name: forms.get(r.form_id as string)?.name ?? null, form_table_id: forms.get(r.form_id as string)?.table_id ?? null, form_datahub_id: forms.get(r.form_id as string)?.datahub_id ?? null,
     id: r.id, name: r.name, description: r.description, kind: r.kind, weekday: r.weekday, repeat: r.repeat, until_week_no: r.until_week_no, due_time: r.due_time, remind_before_min: r.remind_before_min,
     form_id: r.form_id, need_form: r.need_form, share_table: r.share_table, filler_column: r.filler_column, leader_columns: r.leader_columns, link: r.link, occurrences: occBy.get(r.id as string) ?? [],
   });
