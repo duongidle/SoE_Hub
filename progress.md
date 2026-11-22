@@ -50,6 +50,15 @@ Lỗi đã sửa: không có lỗi code.
 
 Không chặn bước con; gom sửa một đợt. `stage1.spec.ts` phone "cài đặt hệ thống" từng hết giờ 1 lần (`pnpm test:e2e stage1 --project=phone`), theo dõi.
 
+## Stage 8: ghi chú điều phối của Opus (22/11, phòng hết quota)
+
+- **8A đang chạy** (agent Sonnet, server): engine chung `apps/api/src/modules/publish/`, Knowledge `apps/api/src/modules/knowledge/`, tìm kiếm, MCP `knowledge_*` + `review_*`. Lúc ghi chú này code còn **chưa commit**. Phiên sau: xem `git status`/`git log`; nếu agent đã dừng giữa chừng thì tạo agent mới làm tiếp từ đây (đọc diff đang dở, không làm lại).
+- **Test tối giản (Dương 22/11: "test đơn giản, nhanh, đủ"):** 8A khoảng 9 ca trong `knowledge.test.ts` (lỗi chặn + cảnh báo tới `review.get`; vòng đời + bản sửa; người duyệt tự xuất bản; Manager cây khác duyệt; tìm không dấu; Guest Sale chỉ `for_sale`; Admin không đăng; `check_only` không tạo gì; `review_decide` thiếu mức `full` bị từ chối). Không test từng luật, không test sai chính tả, không test mọi bộ lọc.
+- **8B tiếp theo** (server): loại bài `skill` trên engine chung (gói zip/thư mục, luật mục 4.2, tải về, lệnh cài), MCP `skill_search|get|submit`; 5–6 ca test (zip hợp lệ đăng được; `.env`/key bị chặn; đường dẫn cá nhân + skill gần trùng chỉ cảnh báo; tải về đúng file). Cuối 8B **một lần** `DH_EQUIV_EDITS=2500 pnpm exec vitest run apps packages`.
+- **8C** (web): Knowledge (trang chủ, đọc, soạn Tiptap, bài của tôi), AI Hub (danh sách, trang skill, tải lên), hàng chờ duyệt chung (cảnh báo ở đầu); e2e chỉ 2 luồng chính (bài: đăng → duyệt → tìm thấy; skill: tải lên có cảnh báo → duyệt → tải về). Không rà chuẩn giao diện.
+- Mỗi agent tối đa khoảng 80 lượt; prompt giao việc theo mẫu 7A1/7B2 (đọc gì, việc, test, ghi chép, chép mục "Sonnet dừng và báo Opus").
+- Ước Module 8: 30–35M (thực tế từng vượt gấp 2–2,5 lần).
+
 ## Câu hỏi còn mở (chờ Dương)
 
 - Guest xem dashboard (3C-2): cờ `guest_visible` theo dashboard đúng ý Module 1 mục 5.2 chưa, hay cấp theo từng dashboard ở khung cấp dữ liệu? Nhật ký xem dashboard chỉ ghi lần mở `view`.
