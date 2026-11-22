@@ -41,3 +41,8 @@
 - **Thông báo chủ form khi cột bị xoá:** sự kiện mới `datahub.column.deleted` (không gộp như `datahub.structure.changed`, mang tên và mã cột), chỉ phát từ lệnh `datahub.column.delete` (xoá do đồng bộ template không liên quan form). Bắt buộc, gửi cả cho chính chủ.
 - **MCP:** `form_save` có `form_id` thì thay nháp (`form.form.save_json`, câu mới tự tạo cột), không có thì tạo mới (`form.form.import`); `publish: true` xuất bản ngay.
 - **Dời:** thời gian làm bài, xáo trộn, chấm lại theo đáp án mới (đã ghi ở mục 14).
+
+## Opus rà 7A2 (22/11/2026)
+
+- Đạt: cột "Người chấm" kiểu Văn bản; sự kiện mới `datahub.column.deleted` chỉ từ lệnh xoá cột; bỏ khoá ngoại `forms.table_id` (form tự tạm dừng khi bảng bị xoá cứng); không đặt ngưỡng thì Kết quả để trống.
+- Giao 7B1 sửa: hai lần nộp đồng thời của cùng người vượt số lần làm. Khoá theo (form, người) trong giao dịch gửi bài (`pg_advisory_xact_lock`) trước khi đếm lần làm / "mỗi người một phản hồi"; test hai lần nộp song song chỉ một lần qua khi giới hạn 1.
