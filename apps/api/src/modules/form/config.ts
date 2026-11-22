@@ -34,6 +34,8 @@ export const QuestionSchema = z.looseObject({
   param: z.string().regex(/^[a-z0-9_]{1,40}$/).optional(),
   /** Hidden field: the person does not see it, the value comes from the link and is always written. */
   hidden: z.boolean().optional(),
+  /** Hidden "Filler" field (design module9 2): the server writes the person logged in, never the browser. Only a `user` question of an internal form. */
+  fill_self: z.boolean().optional(),
   show_if: FilterSchema.optional(),
   options: z.array(Option).max(200).optional(),
   /** "When chosen, show...": option id -> ids of the blocks it reveals. */
@@ -298,7 +300,7 @@ export function visibleBlocks(cfg: FormConfig, rawGiven: Record<string, unknown>
 // ---------------------------------------------------------------------------------------------
 
 /** Fields of a question that only the server may know. The public copy never holds a table id, a column key, an answer key or the settings of a data source. */
-const SERVER_ONLY = ["column_id", "answer", "answers", "correct", "points", "explanation", "grading", "source", "scoring", "rubric", "partial", "match_accents"] as const;
+const SERVER_ONLY = ["column_id", "answer", "answers", "correct", "points", "explanation", "grading", "source", "scoring", "rubric", "partial", "match_accents", "fill_self"] as const;
 
 export function publicConfig(cfg: FormConfig, disabled: Set<string>): Record<string, unknown> {
   const clean = (list: Block[]): Block[] =>

@@ -192,6 +192,7 @@ export function checkPublish(cfg: FormConfig, cols: Map<string, LiveColumn>, has
       issues.push({ code: "no_table", message: "Form có câu hỏi cần lưu nhưng chưa có bảng đích.", block_id: q.id });
       continue;
     }
+    if (q.fill_self && (q.input !== "user" || !q.hidden || access === "public")) issues.push({ code: "fill_self", message: `Câu "${q.label || q.id}": "Người điền" phải là câu ẩn kiểu Người dùng của form nội bộ.`, block_id: q.id });
     if (linked.has(q.column_id)) issues.push({ code: "duplicate_column", message: `Câu "${q.label}" và một câu khác cùng nối vào cột "${col.name}".`, block_id: q.id, column: col.name });
     linked.set(q.column_id, q.id);
     if (!compatibleTypes(q.input).includes(col.type)) issues.push({ code: "type_mismatch", message: `Câu "${q.label}" không nối được vào cột "${col.name}" (kiểu cột không hợp).`, block_id: q.id, column: col.name });
