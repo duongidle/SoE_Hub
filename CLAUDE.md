@@ -12,6 +12,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 | `examples/` | **Dữ liệu thật của Base** (deal, com, onboarding, chính sách). Mọi agent đọc tự do (Dương cho phép 18/11/2026). Không sửa. **Không bao giờ commit** file hay dữ liệu lấy từ đây (kể cả fixture, snapshot test), không đưa ra dịch vụ ngoài |
 | `design/moduleX-<ten>.md` | Thiết kế đã chốt của từng module; `moduleX-quyet-dinh-khi-code.md`: quyết định khi code (tra khi cần) |
 | `design/quy-dinh-chung.md` | Quy định đã chốt ảnh hưởng nhiều module (kiến trúc, phân quyền, Datahub, Deal, AI). Đọc khi thiết kế, hoặc khi code/rà việc chạm phân quyền, chia sẻ, công thức, Deal, AI |
+| `design/update_v1.md` | Phần thiết kế đã chốt nhưng dời khi rà phạm vi stage; làm thành update đầu tiên sau phiên bản đầu (Dương chốt 22/11/2026). Mỗi lần dời thì ghi vào đây |
 | `design/kinh-nghiem-quyet-dinh.md` | Kinh nghiệm ra quyết định (tiết kiệm token, gọn, linh hoạt): đọc trước khi thiết kế module và trước khi giao mỗi bước con |
 | `design/kiem-thu.md` | Chi tiết kiểm thử cuối stage, test chập chờn, điện thoại |
 | `design/chuan-giao-dien.md` | Chuẩn giao diện. Đọc khi code hoặc rà giao diện; việc chỉ đụng server thì không cần |
@@ -65,7 +66,7 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 | 3 | M3 `module3-metric-dashboard.md` | 2 | Engine metric, biểu đồ, dashboard, bảng gộp | Đã chốt | Đã xong |
 | 4 | M4 `module4-quan-ly-deal.md` | 2, 3 | 4.1 sửa Stage 2 (mục 19a); template Deals, người tham gia, thanh toán và com theo đợt, chốt kỳ, snapshot, forecast, BANT, dashboard Deals, API ngoài. **Mốc Engine v1** | Đã chốt | Đã xong |
 | 5 | M5 `module5-ket-noi-ai.md` | 1, 4 | MCP, OAuth + DCR, token, key API của cây, kết nối AI chờ duyệt, nhóm cấm AI, thao tác lớn, Bruno đầy đủ | Đã chốt | Đã xong (bản rút gọn mục 12) |
-| 6 | M6 `module6-thong-bao.md` | 1, 2, 4 | Thông báo đầy đủ (một cửa vào `notify`), Web Push, nhắc hẹn, nhắc hạn Deal, bản tin buổi sáng, thông báo chung | Đã chốt | |
+| 6 | M6 `module6-thong-bao.md` | 1, 2, 4 | Thông báo đầy đủ (một cửa vào `notify`), Web Push, nhắc hẹn, nhắc hạn Deal, bản tin buổi sáng, thông báo chung | Đã chốt | Đang làm (6A1; bản rút gọn mục 14) |
 | 7 | M7 `module7-dynamic-form.md` | 2, 3, 5, 6 | Builder kéo thả, form công khai, nháp, chấm điểm, nguồn dữ liệu, JSON | Đã chốt | |
 | 8 | M8 `module8-knowledge-aihub.md` | 1, 6 | Đăng → kiểm tra → duyệt → xuất bản; Knowledge; AI Hub | Chưa | |
 | 9 | M9 `module9-onboarding.md` | 6, 7 | Lộ trình, checklist, bài test, theo dõi | Chưa | |

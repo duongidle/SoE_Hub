@@ -312,3 +312,22 @@ Mỗi lần gửi có thể thêm người lẻ nằm trong phạm vi của ngư
 ## 13. Câu hỏi còn mở
 
 Không còn. Đã chốt với Dương 21/11: Web Push ở Stage 6; nhắc hẹn chỉ nhắc mình; bản tin 08:00 bật mặc định, người dùng chọn giờ và ngày nhận; nhắc hạn chỉ cho Deal, cột do người đặt chọn, đặt ở Cài đặt → Thông báo; giờ yên lặng 21:00–07:30 và Chủ nhật, người dùng chỉnh được; toast thay hộp thoại trình duyệt; module độc lập, một cửa vào; có thông báo chung. Không làm chat (Dương 21/11): thông báo chung chỉ một chiều.
+
+## 14. Phạm vi Stage 6 rút gọn (Dương chốt 22/11/2026)
+
+Rà theo `kinh-nghiem-quyet-dinh.md`; ước 20–25M (đủ thiết kế 45–55M). Mục này thắng các mục trên khi khác nhau. Phần dời ghi ở `design/update_v1.md`.
+
+**Giữ:**
+- Một cửa vào `notify.send` + `defineNotification`, mở rộng `notifications` (mục 2.1, bỏ trường gom và `push_sent_at`), kiểm quyền người nhận và nội dung theo người nhận (5.4), không báo cho chính người gây ra, thông báo mã kích hoạt Stage 1 đi qua cửa này. Vòng đời 2.2 (dọn 90/180 ngày, hằng số).
+- Loại thông báo (3.2): mã kích hoạt/đặt lại (đã có), kết nối AI chờ duyệt / được duyệt / bị từ chối / bị thu hồi / sắp hết hạn, khoá tài khoản 15 phút, được thêm / đổi vai trò hoặc tỉ lệ / bị bỏ khỏi deal, Probation KPI bị sửa sau commit, tiền về được xác nhận cho đợt của deal mình, được chia sẻ datahub/bảng/dashboard, import xong hoặc có lỗi, export lớn xong.
+- Nhắc hẹn (4): chỉ nhắc mình; lặp không / hằng ngày / hằng tuần / hằng tháng, có ngày kết thúc; nút Xong, Nhắc lại sau 1 giờ, Sáng mai 08:30; gắn deal hoặc dòng; giới hạn 200 (hằng số). Toast khi đang mở ứng dụng.
+- Bản tin buổi sáng (5.5): cố định 08:00 mỗi ngày, mỗi người bật/tắt (mặc định bật); nội dung như 5.5, đọc cột theo vai trò; không có gì thì không gửi.
+- Nhắc hạn Deal: chỉ 2 quy tắc có sẵn (6.4), trỏ theo vai trò cột; Manager bật/tắt và sửa mốc (trước/đúng/quá N ngày) cho cây; job 08:30, mỗi (quy tắc, dòng, mốc, ngày) gửi một lần, chạy bù 24 giờ; quá 50 dòng cho một người thì gom một thông báo.
+- Thông báo chung (7): Admin / Manager / Leader theo phạm vi, thêm người lẻ trong phạm vi; tiêu đề + nội dung chữ (tối đa 5.000 ký tự); cờ quan trọng (toast, ghim đầu tới khi đọc); "Đã đọc x/y" + danh sách chưa đọc; thu hồi; người nhận chốt lúc gửi; tab Đã gửi / Đã nhận. Qua AI: cấm (`aiAllowed: false`), chỉ gửi trên web.
+- API (9) cho phần giữ; MCP: `reminder_create`, `notifications_list`.
+- Giao diện (10): chuông + hộp 20 thông báo, trang Thông báo (lọc nhóm, keyset), trang Nhắc hẹn, nút "Nhắc tôi" ở chi tiết deal và chi tiết dòng, Cài đặt → Thông báo (tắt loại không bắt buộc, bật/tắt bản tin; Manager: 2 quy tắc nhắc hạn của cây), trang Thông báo chung; toast + hộp xác nhận trong ứng dụng thay 2 chỗ `window.confirm`, lint `no-alert`.
+- Kiểm thử: unit chọn người nhận + quyền, lặp nhắc hẹn (ngày 31, cuối tháng, giờ Việt Nam sát nửa đêm), job nhắc hạn chạy hai lần không trùng + chạy bù, Leader không gửi ngoài team, thu hồi, đếm đã đọc; e2e chuông, nhắc hẹn, thông báo chung; vitest cả bộ một lần.
+
+**Dời** (chi tiết `design/update_v1.md`): Web Push + giờ yên lặng; nhắc hạn tự dựng; đính kèm / hẹn giờ / sửa thông báo chung; gom 10 phút, giới hạn 20/giờ, tắt theo đối tượng; chọn giờ/ngày của bản tin; các loại thông báo còn lại; Admin chỉnh hạn và giới hạn.
+
+**Chia bước:** 6A1 cửa vào + loại thông báo + nhắc hẹn + MCP; 6A2 bản tin + nhắc hạn + thông báo chung; 6B giao diện, e2e, kiểm thử cuối stage. Mỗi agent tối đa khoảng 70 lượt.

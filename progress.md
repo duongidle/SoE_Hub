@@ -5,7 +5,7 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** Stage 0–3 xong. Stage 4 xong 22/11 (4.8 bản cơ bản, Opus rà đạt). Tiếp: Stage 5 bản rút gọn (Dương chốt 22/11, `design/module5-ket-noi-ai.md` mục 12): 5A1 registry + kết nối + executor → 5A2 `/mcp` + tool (xong) → 5B giao diện, tài liệu, kiểm thử cuối stage. Stage 5 xong 22/11 (Opus rà đạt). Tiếp: Stage 6 (Module 6, thông báo): rà phạm vi theo `kinh-nghiem-quyet-dinh.md` trước khi giao.
+- **Code:** Stage 0–3 xong. Stage 4 xong 22/11 (4.8 bản cơ bản, Opus rà đạt). Tiếp: Stage 5 bản rút gọn (Dương chốt 22/11, `design/module5-ket-noi-ai.md` mục 12): 5A1 registry + kết nối + executor → 5A2 `/mcp` + tool (xong) → 5B giao diện, tài liệu, kiểm thử cuối stage. Stage 5 xong 22/11 (Opus rà đạt). Đang làm: Stage 6 bản rút gọn (Dương chốt 22/11, `design/module6-thong-bao.md` mục 14): 6A1 cửa vào + loại + nhắc hẹn + MCP → 6A2 bản tin + nhắc hạn + thông báo chung → 6B giao diện, kiểm thử cuối stage. Việc dời của thiết kế: `design/update_v1.md`.
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 
@@ -32,7 +32,7 @@ Lỗi đã sửa: không có lỗi code.
 
 ## Còn nợ / ghi nhận để sau
 
-- Dời từ 4.8: sinh lại snapshot drizzle cho migration 0021, 0022 (viết tay) khi `drizzle-kit` chạy được, kiểm `db:generate` không sinh diff thừa.
+- Phần thiết kế đã chốt nhưng dời (M4, M5, M6): `design/update_v1.md`, làm sau phiên bản đầu.
 - **4.8 bản cơ bản (Dương chốt 22/11):** vitest cả bộ một lần (`DH_EQUIV_EDITS=2500`), e2e cả bộ một lần, load test 20.000 deal (chỉ ghi số, sửa khi vượt rõ 3 s), chỉ sửa lỗi thật. Dời: Bruno sang Stage 5; bù cột còn thiếu cho cây đang chạy (cột mới, `Mã ngoài`, cột team thành công thức); 375px sang Stage 12.
 - 4.6: Manager đặt mốc cohort mặc định cho cây; Index của team chưa đọc từ `Doanh thu theo người`; ô lọc theo cột của biểu đồ chưa có nhóm Vai trò.
 - 4.5: việc tính lại nền xếp sau việc người dùng, chưa chống đói. 4.1b: đổi cây của một người tính lại 3,6 s.
@@ -42,7 +42,6 @@ Lỗi đã sửa: không có lỗi code.
 - Grid chưa `impeccable audit`, chưa thử điện thoại thật (Stage 12). Module 2 mục 11 chưa ghi giới hạn 150 cột cho bảng có form.
 - Chưa thử: chuyển cả cây bằng giao diện, Google Sheet thật, `docker-compose.yml`, đăng nhập Google thật (`design/ha-tang.md` mục 4).
 
-- **Stage 5 dời (mục 12):** OAuth + DCR cho claude.ai/Claude Desktop/ChatGPT (làm khi lên VPS); key API của cây (cùng BPM); thao tác lớn qua AI (chốt kỳ, mở lại kỳ, xác nhận tiền về hàng loạt, sửa template); phân trang danh sách token (500). Chỗ dở 5A2: `metrics_query` không đợi `consistent`; `deals_list` `period_mode: expected` chưa tính đợt chưa về hạn như forecast; `soe_call` kiểm đầu vào trước quyền nên thao tác cấm cứng với đầu vào sai trả `validation_error`; chưa có `datahub_list`, `table_schema`, `soe_find`; Codex chưa thử thật; giới hạn 120 gọi/30 ghi mỗi phút theo kết nối.
 
 ## Lỗi điện thoại để sau
 
