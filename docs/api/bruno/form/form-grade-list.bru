@@ -1,0 +1,20 @@
+meta {
+  name: form.grade.list
+  type: http
+  seq: 30
+}
+
+get {
+  url: {{baseUrl}}/api/v1/grading
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Bài kiểm tra cần tôi chấm (form của tôi hoặc form chủ giao cho tôi chấm). Mặc định chỉ bài chờ chấm; `status=all` lấy cả bài đã chấm.
+  Quyền: `form:response:submit`.
+}

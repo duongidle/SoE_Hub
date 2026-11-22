@@ -455,7 +455,7 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 **Luật cấm**
 - Không `INSERT` thẳng vào `notifications` (trừ `notify.send`). Không đưa giá trị ô hay com của người khác vào nội dung. Không dùng `window` của người gây ra để lọc người nhận ở nơi khác: lọc ở cửa vào.
 
-## Module 7: Dynamic Form (7A1: form, bảng đích, xuất bản, gửi bài, endpoint công khai, nháp)
+## Module 7: Dynamic Form (7A1: form, bảng đích, xuất bản, gửi bài, endpoint công khai, nháp; 7A2: bài kiểm tra, chấm, JSON, MCP, nhân bản, chuyển giao)
 
 **Chỗ gọi vào**
 - Module: `apps/api/src/modules/form/` (đăng ký ở `apps/api/src/modules/index.ts` qua `formOperations`). `config.ts` = cấu hình `soe-form/1` (zod `FormConfigSchema`, `QuestionSchema`), `flatten`, `visibleBlocks` (server tính lại điều kiện), `evalCondition` (cú pháp lọc Module 0, bỏ phép ngày tương đối), `publicConfig` (bản gửi người điền, bỏ `column_id`, đáp án, điểm, `quiz`). `shared.ts` = `loadOwnForm`, `liveColumns`, `stateOf` (trạng thái người điền thấy: nháp/đang nhận/tạm dừng/đóng/chưa mở; bảng đích bị xoá thì tạm dừng, khôi phục bảng thì tự chạy lại). `ops.ts` = lệnh của chủ form (`form.form.*`, `form.question.*`), `checkPublish` kiểm khi xuất bản. `fill.ts` = người điền (`form.fill.get`, `form.response.submit`, `form.draft.*`, `form.public.*`).
@@ -465,6 +465,15 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Tạo bảng cho form: `apps/api/src/modules/datahub/structure.ts` `createTableIn` (lệnh `datahub.table.create` dùng chung). Giới hạn 150 cột: `apps/api/src/modules/datahub/limits.ts` `tableColumnCap`, `FORM_SETTINGS` (`form.table_max_columns`), áp ở `createColumn`, `restoreColumn`, `datahub.table.get`.
 - Công khai (không đăng nhập, `permission: null`, `aiAllowed: false`): chống spam ở `fill.ts` `SPAM`, `publicGate` (ô bẫy `website`, token giờ mở `fillToken` ký HMAC, 10 lần/phút mỗi IP trong bộ nhớ `resetSpamState`, giới hạn ngày theo `form_responses`). IP lấy từ `ctx.client` (`apps/api/src/core/types.ts` `HandlerCtx` (trường `client`), đặt ở `executor.ts` `makeCtx`).
 - Bảng: `forms` (chủ, bảng đích, trạng thái, mã link, cách mở, người được chọn, tuỳ chọn, bản nháp `draft`, `published_version`), `form_versions`, `form_drafts`, `form_responses` (khoá chống trùng `form_id + attempt_id`), `form_uploads`. Migration `0026_forms.sql`.
+
+**7A2 (bài kiểm tra, chấm, JSON, MCP)**
+- Chấm điểm chỉ ở `apps/api/src/modules/form/quiz.ts`: `gradeAnswers` (chấm tự động các câu đang hiện, bỏ câu bị tắt), `rubricPoints` (phiếu tiêu chí), `totals`, `summarize` (thang 100/giữ nguyên, ngưỡng đạt, `pass|fail|pending|none`), `ensureQuizColumns` (cột hệ thống khi xuất bản bài kiểm tra: Điểm, Điểm tối đa, Kết quả, Lần làm, Người chấm là cột Văn bản chứa tên, Ngày chấm), `scoreCells`. Muốn thêm loại đáp án → `autoPoints` + `checkQuiz` (`ops.ts`). Cấu hình: `config.ts` `QuizSchema`, `answer`/`points`/`partial`/`match_accents`/`rubric` ở câu hỏi (đều nằm trong `SERVER_ONLY`, người điền không nhận).
+- Móc chấm ở `fill.ts` `submitResponse` (theo bản đã xuất bản của lượt nộp; số lần làm; từ chối token/MCP `quiz_no_ai`; form công khai `quiz_internal_only`). Điểm lưu ở bảng `form_scores` (theo `form_responses.id`, `details` từng câu), ghi cột kết quả cùng lệnh `applyRowOps` tạo dòng.
+- Chấm tay, danh sách chờ chấm, bài làm của tôi, phản hồi: `apps/api/src/modules/form/grade.ts` (`form.grade.list/get/submit`, `form.quiz.mine`, `form.response.list`). Người chấm = chủ + `options.graders`. `quizView` là chỗ duy nhất quyết định người làm bài thấy gì (không/điểm/điểm + đáp án khi form đóng). Cập nhật dòng khi chấm: `applyRowOps` bằng quyền chủ, actor là người chấm.
+- JSON, nhân bản: `apps/api/src/modules/form/io.ts` (`form.form.export/import/save_json/clone`, `parseFormJson` trả lỗi `issues[{path,message}]`, `matchColumns` ghép câu vào cột theo tên). `ops.ts` `createFormIn` và `createColumnsFor` là chỗ chung tạo form và tạo cột cho câu hỏi.
+- MCP: `apps/api/src/http/mcp-tools.ts` `form_get`, `form_save`, `form_responses` (menu `form`).
+- Chuyển giao: `apps/api/src/modules/form/transfer.ts` (form đổi chủ cùng datahub). Thông báo (gọi trực tiếp `notify.send`, loại ở `apps/api/src/modules/notification/catalog.ts`): `form.grade.pending`, `form.graded`, `form.question.off` (bắt buộc, theo sự kiện không gộp `datahub.column.deleted` do `datahub.column.delete` phát).
+- `forms.table_id` không còn khoá ngoại (migration 0027): xoá cứng bảng khỏi thùng rác không bị form chặn, form tạm dừng "bảng bị xoá", phản hồi giữ nguyên.
 
 **Mẫu làm theo**
 - Thêm lệnh của chủ form: một phần tử trong `formManageOperations` (`ops.ts`); chủ = `loadOwnForm`. Menu AI `form` ở `apps/api/src/core/ai-policy.ts` (`/^form\./`), xoá form là mức `full`.

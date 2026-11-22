@@ -20,3 +20,24 @@
 - Đạt. Cấu hình công khai lọc `column_id`, đáp án, điểm, `quiz`; gửi bài chỉ ghi cột của câu đang hiện và đã nối.
 - Giao 7A2: chuyển giao form theo datahub (mục 9, Module 1 mục 8); kiểm job xoá cứng thùng rác với bảng có form (khoá ngoại); thông báo chủ form khi cột nối câu bị xoá (mục 1.3, bắt buộc).
 - Báo chủ form khi bị spam: chỉ ghi nhật ký, không thông báo (dời, `update_v1.md`).
+
+## 7A2 (22/11/2026, Sonnet)
+
+- **Cấu hình bài kiểm tra:** `quiz { enabled, scale: "100"|"raw", pass {type: points|percent, value}|null, max_attempts (mặc định 1), show: none|score|score_answers }` ở cấp form; câu hỏi có `answer`, `points`, `partial` (nhiều lựa chọn), `match_accents` (văn bản ngắn), `rubric[{id,label,min,max,weight,floor}]`. Đáp án: một lựa chọn = mã hoặc tên lựa chọn; nhiều lựa chọn = danh sách; số = số hoặc `{min,max}` (áp cho number, currency, percent, rating, scale); văn bản ngắn = danh sách chuỗi (mặc định bỏ dấu và hoa thường, `match_accents` thì phân biệt dấu). Câu tự luận (`long_text`, `attachment`) có `points` là câu chấm tay; một câu chọn/số/văn bản có điểm mà không có `answer` cũng là chấm tay.
+- **Nhiều lựa chọn chấm từng phần:** `max(0, đúng − sai) / số đáp án đúng × điểm`; không bật thì đúng hết mới có điểm.
+- **Phiếu chấm:** điểm câu = Σ(điểm tiêu chí / thang trên × trọng số) / Σ trọng số × điểm câu. Một tiêu chí dưới điểm sàn thì cả bài "Không đạt" dù tổng đủ (cờ `floor_failed`).
+- **Thang 100:** điểm hiển thị = điểm / tổng tối đa × 100, tối đa hiển thị 100; ngưỡng "điểm" so với số hiển thị, ngưỡng "%" so với tỷ lệ thật. Không đặt ngưỡng thì Kết quả để trống (trừ `Chờ chấm`, và `Không đạt` khi dưới điểm sàn).
+- **Câu ẩn bởi điều kiện hoặc bị tắt** không tính điểm và không vào điểm tối đa.
+- **Số lần làm** đếm theo `form_responses.user_id`; bài kiểm tra bỏ qua "mỗi người một phản hồi". Chưa chặn hai lần nộp đồng thời của cùng một người (hiếm, chỉ có thể vượt số lần một lượt).
+- **Cột "Người chấm" là cột Văn bản chứa tên người chấm** (cột Người dùng đòi người đó là thành viên bảng, mà người chấm chủ chỉ định thường không phải). Cột tìm theo tên + kiểu; đổi tên cột thì hệ thống ngừng ghi cột đó (điểm vẫn ở `form_scores`).
+- **Cột kết quả tạo khi xuất bản** bài kiểm tra (`ensureQuizColumns`), giống cột Phiên bản form.
+- **Người chấm** = chủ + `options.graders` (kiểm là tài khoản người đang hoạt động). Chấm một phần được (lưu từng câu), bài vẫn `Chờ chấm` tới khi chấm hết; chấm lại được. Người làm bài chỉ nhận thông báo "đã chấm xong" khi `show` khác `none`.
+- **Người làm bài thấy gì** (`quizView`): `none` thì không có gì (chỉ biết số lần đã làm); `score` thì điểm, Đạt/Không đạt/Chờ chấm; `score_answers` thì thêm điểm từng câu, nhận xét, đáp án đúng của đúng phiên bản đã chấm, chỉ khi form đang `closed`.
+- **Đáp án đúng cho người chấm** (`form.grade.get.expected`) có, vì chấm cần.
+- **JSON:** câu hỏi mang `column_name` thay `column_id` (mã cột không ra khỏi server); xuất bởi chủ (`form_id`) có đáp án và điểm, xuất bởi người điền (`code`) là bản đã lọc. Nhập `datahub_id` = bảng mới, mỗi câu một cột; nhập `table_id` = ghép theo tên cột + kiểu hợp + chưa bị câu khác dùng + đủ lựa chọn, còn lại vào `unmatched` kèm lý do (`no_column`, `type_mismatch`, `column_taken`, `option_missing`). Lỗi JSON: `details.issues[{path,message}]`.
+- **Nhân bản** chép nháp cả đáp án; bảng mới nằm trong datahub của bảng cũ; không chép link, phản hồi, trạng thái (luôn nháp).
+- **Chuyển giao:** tất cả form (kể cả trong thùng rác) của người nguồn đổi chủ cùng lúc với datahub (`form/transfer.ts`).
+- **Xoá cứng bảng khỏi thùng rác:** bỏ khoá ngoại `forms.table_id` (migration 0027) thay vì đặt NULL, để form tự tạm dừng "bảng bị xoá", giữ phản hồi.
+- **Thông báo chủ form khi cột bị xoá:** sự kiện mới `datahub.column.deleted` (không gộp như `datahub.structure.changed`, mang tên và mã cột), chỉ phát từ lệnh `datahub.column.delete` (xoá do đồng bộ template không liên quan form). Bắt buộc, gửi cả cho chính chủ.
+- **MCP:** `form_save` có `form_id` thì thay nháp (`form.form.save_json`, câu mới tự tạo cột), không có thì tạo mới (`form.form.import`); `publish: true` xuất bản ngay.
+- **Dời:** thời gian làm bài, xáo trộn, chấm lại theo đáp án mới (đã ghi ở mục 14).

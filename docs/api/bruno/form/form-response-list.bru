@@ -1,0 +1,20 @@
+meta {
+  name: form.response.list
+  type: http
+  seq: 34
+}
+
+get {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}/responses
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Phản hồi của form (dòng của bảng đích): câu trả lời theo mã câu hỏi; bài kiểm tra có thêm điểm và kết quả.
+  Quyền: `form:form:create`.
+}

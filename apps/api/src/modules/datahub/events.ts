@@ -29,6 +29,13 @@ const rowEvent = (name: string, description: string): EventDef => ({
 });
 
 export const datahubEvents: EventDef[] = [
+  {
+    name: "datahub.column.deleted",
+    version: 1,
+    description: "Một cột bị xoá vào thùng rác bằng lệnh xoá cột (mang mã và tên cột). Chỉ để tạo thông báo cho chủ form nối với cột, không có tín hiệu SSE.",
+    schema: z.object({ datahub_id: z.uuid(), table_id: z.uuid(), column_key: z.string(), column_name: z.string() }),
+    audience: () => null,
+  },
   rowEvent("datahub.row.created", "Dòng mới được tạo trong một bảng datahub."),
   rowEvent("datahub.row.updated", "Dòng của một bảng datahub được sửa."),
   rowEvent("datahub.row.deleted", "Dòng của một bảng datahub bị chuyển vào thùng rác."),

@@ -1,0 +1,41 @@
+meta {
+  name: form.form.save_json
+  type: http
+  seq: 37
+}
+
+put {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}/json
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "json": {
+      "schema": "soe-form/1",
+      "title": "Khảo sát",
+      "blocks": [
+        {
+          "id": "q1",
+          "type": "question",
+          "input": "text",
+          "label": "Họ tên",
+          "column_name": "Họ tên"
+        }
+      ]
+    },
+    "create_columns": true
+  }
+}
+
+docs {
+  Ghi JSON `soe-form/1` thành bản nháp của form đã có; câu ghép với cột theo tên, câu mới tạo cột mới.
+  Quyền: `form:form:create`.
+}

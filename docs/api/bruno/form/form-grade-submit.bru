@@ -1,0 +1,38 @@
+meta {
+  name: form.grade.submit
+  type: http
+  seq: 32
+}
+
+post {
+  url: {{baseUrl}}/api/v1/grading/{{responseId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "items": [
+      {
+        "question_id": "essay",
+        "criteria": {
+          "c1": 5,
+          "c2": 4
+        },
+        "comment": "Tốt"
+      }
+    ],
+    "comment": "Giỏi"
+  }
+}
+
+docs {
+  Chấm bài: điểm từng câu tự luận/tải file (`points`, hoặc `criteria` theo phiếu chấm) kèm nhận xét. Chấm hết thì có kết quả Đạt/Không đạt và dòng ở bảng đích được cập nhật.
+  Quyền: `form:response:submit`.
+}

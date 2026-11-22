@@ -33,6 +33,9 @@ export const NOTIFICATION_TYPES = {
   morningDigest: "digest.morning",
   dealDue: "deal.due",
   announcement: "announcement",
+  formGradePending: "form.grade.pending",
+  formGraded: "form.graded",
+  formQuestionOff: "form.question.off",
 } as const;
 
 const vnTime = (iso: string): string =>
@@ -407,3 +410,36 @@ defineNotification({ type: NOTIFICATION_TYPES.morningDigest, category: "digest",
 defineNotification({ type: NOTIFICATION_TYPES.dealDue, category: "deal", mandatory: true, render: () => null });
 /** A general announcement sent by hand (7): cannot be switched off. */
 defineNotification({ type: NOTIFICATION_TYPES.announcement, category: "announcement", mandatory: true, render: () => null });
+
+// ---- 7A2: quiz (sent directly with `notify.send`, no outbox event) -----------------------------------------------------------------------
+/** A quiz response waits for a grader (design module7 7). */
+defineNotification({ type: NOTIFICATION_TYPES.formGradePending, category: "form", priority: "important", render: () => null });
+/** A quiz was graded and the person may see the score (design module7 7). */
+defineNotification({ type: NOTIFICATION_TYPES.formGraded, category: "form", render: () => null });
+
+/** A column a question writes to was deleted: the question is switched off and the owner must know (design module7 1.3, mandatory). */
+defineNotification({
+  type: NOTIFICATION_TYPES.formQuestionOff,
+  category: "form",
+  on: "datahub.column.deleted",
+  mandatory: true,
+  priority: "important",
+  selfNotify: true,
+  recipients: async (ev, { db }) => {
+    const p = ev.payload as { table_id?: string | null; column_key?: string; column_name?: string };
+    if (!p.table_id || !p.column_key) return [];
+    const r = await db.execute(sql`SELECT id, owner_id, name, draft FROM forms WHERE /*scope:system*/ table_id = ${p.table_id}::uuid AND deleted_at IS NULL`);
+    const out: { userId: string; key: string; ctx: unknown }[] = [];
+    for (const f of r.rows as { id: string; owner_id: string; name: string; draft: unknown }[]) {
+      const hit = JSON.stringify(f.draft).includes(`"column_id":"${p.column_key}"`);
+      if (hit) out.push({ userId: f.owner_id, key: f.id, ctx: { form_id: f.id, form_name: f.name } });
+    }
+    return out;
+  },
+  object: (ev) => ({ type: "datahub_table", id: ((ev.payload as { table_id?: string }).table_id ?? "") }),
+  render: (ev, _r, _by, c) => {
+    const p = ev.payload as { column_name?: string };
+    const x = c as { form_id: string; form_name: string };
+    return { title: "Một câu hỏi của form bị tắt", body: `Cột "${p.column_name ?? ""}" bị xoá nên câu hỏi nối với nó trong form "${x.form_name}" đã bị tắt. Form vẫn nhận các câu còn lại; khôi phục cột hoặc nối câu hỏi với cột khác.`, link: `/form/${x.form_id}`, data: { form_id: x.form_id } };
+  },
+});

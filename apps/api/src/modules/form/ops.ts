@@ -11,6 +11,7 @@ import { STRUCTURE_EVENT } from "../datahub/shared";
 import { createTableIn } from "../datahub/structure";
 import { updateColumn } from "../datahub/columns";
 import { TableSchema } from "../datahub/table-schema";
+import { AUTO_INPUTS, ensureQuizColumns, isGraded, isManual } from "./quiz";
 import {
   AudienceSchema, FORM_ACCESS, FORM_STATUSES, Id, OptionsSchema, VERSION_COLUMN_NAME, fillable, formFromDb, latestConfig, liveColumns, loadFormRow, loadOwnForm, newCode,
   responseCount, stableJson, stateOf, tableAlive, type FormRow, type LiveColumn,
@@ -96,7 +97,7 @@ async function assertTargetOk(ctx: Ctx, acc: TableAccess): Promise<void> {
   if (acc.table.templateId) throw new AppError("validation_error", "Form không ghi vào bảng template.", { reason: "form_target_template" });
 }
 
-async function ownTable(ctx: Ctx, tableId: string): Promise<TableAccess> {
+export async function ownTable(ctx: Ctx, tableId: string): Promise<TableAccess> {
   const acc = await loadTableAccess(ctx, tableId, "view");
   if (acc.level !== "owner") throw new AppError("validation_error", "Form chỉ ghi vào bảng của chính bạn, không ghi vào bảng người khác chia sẻ.", { reason: "form_target_shared" });
   await assertTargetOk(ctx, acc);
@@ -177,7 +178,7 @@ async function saveDraft(ctx: Ctx, f: FormRow, cfg: FormConfig): Promise<void> {
 // ---------------------------------------------------------------------------------------------
 
 /** Everything that stops a form from being published, one entry per problem (the editor shows them next to the question). */
-export function checkPublish(cfg: FormConfig, cols: Map<string, LiveColumn>, hasTable: boolean): FormIssue[] {
+export function checkPublish(cfg: FormConfig, cols: Map<string, LiveColumn>, hasTable: boolean, access?: string): FormIssue[] {
   const issues: FormIssue[] = [];
   const flat = flatten(cfg.blocks);
   const seen = new Set<string>();
@@ -233,6 +234,7 @@ export function checkPublish(cfg: FormConfig, cols: Map<string, LiveColumn>, has
       }
     }
   }
+  if (cfg.quiz?.enabled) issues.push(...checkQuiz(cfg, access, disabled));
   if (hasTable) {
     const conditional = (q: Question, f: (typeof flat)[number]): boolean => {
       if (q.hidden) return false;
@@ -252,9 +254,85 @@ export function checkPublish(cfg: FormConfig, cols: Map<string, LiveColumn>, has
   return issues;
 }
 
+/** Quiz settings (design module7 6): internal forms only, an answer for every auto-graded question, a sound rubric. */
+function checkQuiz(cfg: FormConfig, access: string | undefined, disabled: Set<string>): FormIssue[] {
+  const issues: FormIssue[] = [];
+  if (access === "public") issues.push({ code: "quiz_public", message: "Bài kiểm tra chỉ dùng cho form nội bộ (cần biết ai làm bài)." });
+  const graded = questionsOf(cfg).filter((q) => isGraded(q) && !disabled.has(q.id));
+  if (graded.length === 0) issues.push({ code: "quiz_no_points", message: "Bài kiểm tra chưa có câu nào có điểm." });
+  const pass = cfg.quiz?.pass;
+  if (pass && pass.type === "percent" && pass.value > 100) issues.push({ code: "quiz_pass", message: "Ngưỡng đạt theo % tối đa 100." });
+  for (const q of graded) {
+    const bad = (code: string, message: string) => issues.push({ code, message: `Câu "${q.label || q.id}": ${message}`, block_id: q.id });
+    if (!isManual(q)) {
+      const a = q.answer;
+      if (q.input === "single_select" || q.input === "multi_select") {
+        const list = Array.isArray(a) ? a : [a];
+        const known = (x: unknown) => (q.options ?? []).some((o) => o.id === x || o.label.toLowerCase() === String(x).toLowerCase());
+        if (q.input === "single_select" && Array.isArray(a)) bad("quiz_answer_invalid", "chọn một đáp án đúng.");
+        else if (list.length === 0 || !list.every(known)) bad("quiz_answer_invalid", "đáp án đúng phải là lựa chọn của câu hỏi.");
+      } else if (q.input === "text") {
+        const list = Array.isArray(a) ? a : [a];
+        if (list.length === 0 || !list.every((x) => typeof x === "string" && x.trim() !== "")) bad("quiz_answer_invalid", "cần ít nhất một đáp án chấp nhận.");
+      } else if (typeof a === "object" && a !== null && !Array.isArray(a)) {
+        const r = a as { min?: unknown; max?: unknown };
+        if ((r.min === undefined && r.max === undefined) || (r.min !== undefined && typeof r.min !== "number") || (r.max !== undefined && typeof r.max !== "number") || (typeof r.min === "number" && typeof r.max === "number" && r.min > r.max)) bad("quiz_answer_invalid", "khoảng đáp án không hợp lệ.");
+      } else if (typeof a !== "number") bad("quiz_answer_invalid", "đáp án là một số hoặc một khoảng.");
+    } else if (q.rubric?.length) {
+      if (q.rubric.every((c) => (c.weight ?? 1) <= 0)) bad("quiz_rubric", "phiếu chấm cần ít nhất một tiêu chí có trọng số.");
+      for (const c of q.rubric) if ((c.floor ?? 0) > (c.max ?? 5) || (c.min ?? 1) > (c.max ?? 5)) bad("quiz_rubric", `tiêu chí "${c.label}" có thang hoặc điểm sàn không hợp lệ.`);
+    }
+    if (!AUTO_INPUTS.has(q.input) && q.input !== "long_text" && q.input !== "attachment") bad("quiz_input", "loại câu này không chấm điểm được.");
+  }
+  return issues;
+}
+
 // ---------------------------------------------------------------------------------------------
 // commands
 // ---------------------------------------------------------------------------------------------
+
+/** Creates a form (a new table in `datahub_id`, or the owner's own table `table_id`, or none) with an optional first draft. Returns the id. */
+export async function createFormIn(ctx: Ctx, i: { name: string; datahub_id?: string; table_id?: string }, draft?: FormConfig): Promise<string> {
+  if (i.datahub_id && i.table_id) throw new AppError("validation_error", "Chọn một trong hai: bảng có sẵn hoặc datahub để tạo bảng mới.");
+  let acc: TableAccess | null = null;
+  if (i.table_id) acc = await ownTable(ctx, i.table_id);
+  else if (i.datahub_id) {
+    const dh = await loadDatahubAccess(ctx, i.datahub_id, "owner");
+    if (dh.systemKey) throw new AppError("validation_error", "Form không ghi vào bảng của Quản lý Deal.", { reason: "form_target_deal" });
+    acc = await createTableIn(ctx, dh, i.name.slice(0, DH_NAME_MAX));
+  }
+  const id = newId();
+  let code = newCode();
+  for (let n = 0; n < 5; n++) {
+    const clash = await ctx.db.execute(sql`SELECT 1 FROM forms WHERE code = ${code}`);
+    if (clash.rows.length === 0) break;
+    code = newCode();
+  }
+  await ctx.db.execute(sql`INSERT INTO forms (id, owner_id, name, table_id, code, draft, created_by, updated_by) VALUES (${id}::uuid, ${ctx.actor.userId}::uuid, ${i.name}, ${acc?.tableId ?? null}::uuid, ${code}, ${JSON.stringify(draft ?? emptyConfig(i.name))}::jsonb, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
+  if (acc) await ensureVersionColumn(ctx, acc);
+  ctx.audit({ type: "form", id, details: { name: i.name } });
+  return id;
+}
+
+/** Creates a column for every question of `cfg` that has none (or only `only`), returns the new draft. The one place "create columns for the questions" is done. */
+export async function createColumnsFor(ctx: Ctx, tableId: string, cfg: FormConfig, only?: string[]): Promise<{ cfg: FormConfig; created: { question_id: string; column_id: string; column_name: string }[] }> {
+  const acc = await ownTable(ctx, tableId);
+  const cols = await liveColumns(ctx.db, tableId);
+  const taken = new Set([...cols.values()].map((c) => c.name.toLowerCase()));
+  const disabled = disabledIds(cfg, cols, true);
+  const qs = questionsOf(cfg);
+  let out = cfg;
+  const created: { question_id: string; column_id: string; column_name: string }[] = [];
+  for (const q of qs) {
+    if ((q.column_id && !disabled.has(q.id)) || (only && !only.includes(q.id))) continue;
+    const made = await createColumnFor(ctx, acc, q, qs.indexOf(q) + 1, taken);
+    out = patchQuestion(out, q.id, { column_id: made.column.key, ...(made.link.options ? { options: made.link.options, reveal: remapReveal(q, made.link.options) } : {}) });
+    created.push({ question_id: q.id, column_id: made.column.key, column_name: made.column.name });
+  }
+  return { cfg: out, created };
+}
+
+export { saveDraft };
 
 const FormId = z.object({ form_id: Id });
 const MANAGE = { permission: "form:form:create" as const, aiAllowed: true, menu: "form" as const };
@@ -270,24 +348,7 @@ export const formManageOperations = [
     output: FormOut,
     http: { method: "POST", path: "/forms", status: 201 },
     handler: async (ctx, i) => {
-      if (i.datahub_id && i.table_id) throw new AppError("validation_error", "Chọn một trong hai: bảng có sẵn hoặc datahub để tạo bảng mới.");
-      let acc: TableAccess | null = null;
-      if (i.table_id) acc = await ownTable(ctx, i.table_id);
-      else if (i.datahub_id) {
-        const dh = await loadDatahubAccess(ctx, i.datahub_id, "owner");
-        if (dh.systemKey) throw new AppError("validation_error", "Form không ghi vào bảng của Quản lý Deal.", { reason: "form_target_deal" });
-        acc = await createTableIn(ctx, dh, i.name.slice(0, DH_NAME_MAX));
-      }
-      const id = newId();
-      let code = newCode();
-      for (let n = 0; n < 5; n++) {
-        const clash = await ctx.db.execute(sql`SELECT 1 FROM forms WHERE code = ${code}`);
-        if (clash.rows.length === 0) break;
-        code = newCode();
-      }
-      await ctx.db.execute(sql`INSERT INTO forms (id, owner_id, name, table_id, code, draft, created_by, updated_by) VALUES (${id}::uuid, ${ctx.actor.userId}::uuid, ${i.name}, ${acc?.tableId ?? null}::uuid, ${code}, ${JSON.stringify(emptyConfig(i.name))}::jsonb, ${ctx.actor.userId}::uuid, ${ctx.actor.userId}::uuid)`);
-      if (acc) await ensureVersionColumn(ctx, acc);
-      ctx.audit({ type: "form", id, details: { name: i.name } });
+      const id = await createFormIn(ctx, i);
       return summary(ctx.db, (await loadOwnForm(ctx.db, ctx.actor.userId, id))!);
     },
   }),
@@ -346,6 +407,12 @@ export const formManageOperations = [
       const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id);
       const access = i.access ?? f.access;
       const options = i.options ?? f.options;
+      const published = await latestConfig(ctx.db, f);
+      if (access === "public" && (published?.quiz?.enabled || f.draft.quiz?.enabled)) throw new AppError("validation_error", "Bài kiểm tra chỉ dùng cho form nội bộ. Tắt chế độ Bài kiểm tra trước.", { reason: "quiz_public" });
+      if (i.options?.graders?.length) {
+        const ok = await ctx.db.execute(sql`SELECT id FROM users WHERE /*scope:system*/ kind = 'person' AND status = 'active' AND id = ANY(${`{${i.options.graders.join(",")}}`}::uuid[])`);
+        if (ok.rows.length !== new Set(i.options.graders).size) throw new AppError("validation_error", "Người chấm phải là tài khoản đang hoạt động.", { reason: "grader_invalid" });
+      }
       if (access === "public" && options.one_per_user) throw new AppError("validation_error", "\"Mỗi người một phản hồi\" chỉ dùng cho form nội bộ.", { reason: "one_per_user_public" });
       if (options.open_at && options.close_at && new Date(options.open_at) >= new Date(options.close_at)) throw new AppError("validation_error", "Giờ đóng phải sau giờ mở.");
       await ctx.db.execute(sql`UPDATE forms SET name = ${i.name ?? f.name}, access = ${access}, audience = ${JSON.stringify(i.audience ?? f.audience)}::jsonb, options = ${JSON.stringify(options)}::jsonb,
@@ -441,19 +508,7 @@ export const formManageOperations = [
     handler: async (ctx, i) => {
       const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id);
       if (!f.tableId) throw new AppError("validation_error", "Form chưa có bảng đích.", { reason: "no_table" });
-      const acc = await ownTable(ctx, f.tableId);
-      const cols = await liveColumns(ctx.db, f.tableId);
-      const taken = new Set([...cols.values()].map((c) => c.name.toLowerCase()));
-      const disabled = disabledIds(f.draft, cols, true);
-      const qs = questionsOf(f.draft);
-      let cfg = f.draft;
-      const created: { question_id: string; column_id: string; column_name: string }[] = [];
-      for (const q of qs) {
-        if ((q.column_id && !disabled.has(q.id)) || (i.question_ids && !i.question_ids.includes(q.id))) continue;
-        const made = await createColumnFor(ctx, acc, q, qs.indexOf(q) + 1, taken);
-        cfg = patchQuestion(cfg, q.id, { column_id: made.column.key, ...(made.link.options ? { options: made.link.options, reveal: remapReveal(q, made.link.options) } : {}) });
-        created.push({ question_id: q.id, column_id: made.column.key, column_name: made.column.name });
-      }
+      const { cfg, created } = await createColumnsFor(ctx, f.tableId, f.draft, i.question_ids);
       if (created.length) await saveDraft(ctx, f, cfg);
       touch(ctx, f);
       return { created };
@@ -494,9 +549,13 @@ export const formManageOperations = [
       const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id);
       const cols = await liveColumns(ctx.db, f.tableId);
       if (f.tableId && !(await tableAlive(ctx.db, f.tableId))) throw new AppError("conflict", "Bảng đích đã bị xoá. Khôi phục bảng trước khi xuất bản.", { reason: "table_deleted" });
-      const issues = checkPublish(f.draft, cols, !!f.tableId);
+      const issues = checkPublish(f.draft, cols, !!f.tableId, f.access);
       if (issues.length) throw new AppError("validation_error", `Chưa xuất bản được: ${issues[0]!.message}`, { issues });
-      if (f.tableId) await ensureVersionColumn(ctx, await ownTable(ctx, f.tableId));
+      if (f.tableId) {
+        const acc = await ownTable(ctx, f.tableId);
+        await ensureVersionColumn(ctx, acc);
+        if (f.draft.quiz?.enabled) await ensureQuizColumns(ctx, acc, await liveColumns(ctx.db, f.tableId));
+      }
       const next = f.publishedVersion + 1;
       await ctx.db.execute(sql`INSERT INTO form_versions (form_id, version, config, published_by) VALUES (${f.id}::uuid, ${next}::int, ${JSON.stringify(f.draft)}::jsonb, ${ctx.actor.userId}::uuid)`);
       const status = f.status === "draft" ? "open" : f.status;

@@ -532,13 +532,16 @@ export const columnOperations = [
     summary: "Xoá cột vào thùng rác (dữ liệu của cột được giữ để khôi phục trong 7 ngày).",
     permission: "datahub:datahub:use",
     aiAllowed: true,
-    emits: [STRUCTURE_EVENT],
+    emits: [STRUCTURE_EVENT, "datahub.column.deleted"],
     input: z.object({ table_id: Id, column: ColumnRef }),
     output: z.object({ id: Id, deleted: z.literal(true) }),
     http: { method: "DELETE", path: "/tables/:table_id/columns/:column" },
     handler: async (ctx, i) => {
       const { acc, col } = await loadColumnForWrite(ctx, i.table_id, i.column, "alive", "xoá");
-      return deleteColumn(ctx, acc, col);
+      const out = await deleteColumn(ctx, acc, col);
+      // Not coalesced like the structure signal: whoever depends on this column (a form question, design module7 1.3) must learn which one.
+      await ctx.emit("datahub.column.deleted", { aggregateType: "datahub_table", aggregateId: acc.tableId, payload: { datahub_id: acc.datahub.id, table_id: acc.tableId, column_key: col.key, column_name: col.name } });
+      return out;
     },
   }),
 

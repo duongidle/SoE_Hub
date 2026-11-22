@@ -1,7 +1,6 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, doublePrecision, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { newId, standardColumns } from "./columns";
-import { dhTables } from "./datahub";
 import { users } from "./users";
 
 /** Fixed id of the account that owns the rows written through a public form (design module7 3.1). */
@@ -19,7 +18,8 @@ export const forms = pgTable(
       .notNull()
       .references(() => users.id),
     name: text("name").notNull(),
-    tableId: uuid("table_id").references(() => dhTables.id),
+    /** No foreign key: a table purged from the trash is not blocked by its form; the form pauses (design module7 1.3). */
+    tableId: uuid("table_id"),
     status: text("status").notNull().default("draft"),
     code: text("code").notNull(),
     access: text("access").notNull().default("all_accounts"),
@@ -107,4 +107,34 @@ export const formUploads = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (t) => [index("form_uploads_attempt_idx").on(t.formId, t.attemptId, t.questionId)],
+);
+
+/** The score of one quiz response (design module7 6.4). `details` is one entry per question (points, max, auto or by hand, comment, rubric scores); `result` is `pass`, `fail`, `pending` or `none` (no pass mark). */
+export const formScores = pgTable(
+  "form_scores",
+  {
+    responseId: uuid("response_id")
+      .primaryKey()
+      .references(() => formResponses.id, { onDelete: "cascade" }),
+    formId: uuid("form_id")
+      .notNull()
+      .references(() => forms.id, { onDelete: "cascade" }),
+    formVersion: integer("form_version").notNull(),
+    rowId: uuid("row_id"),
+    userId: uuid("user_id").references(() => users.id),
+    attemptNo: integer("attempt_no").notNull().default(1),
+    /** Raw points (sum of the questions) and the maximum; the scale-100 numbers are worked out when shown. */
+    score: doublePrecision("score").notNull().default(0),
+    maxScore: doublePrecision("max_score").notNull().default(0),
+    result: text("result").notNull().default("none"),
+    floorFailed: boolean("floor_failed").notNull().default(false),
+    details: jsonb("details")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    comment: text("comment"),
+    gradedBy: uuid("graded_by").references(() => users.id),
+    gradedAt: timestamp("graded_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("form_scores_form_idx").on(t.formId, t.result), index("form_scores_user_idx").on(t.formId, t.userId)],
 );

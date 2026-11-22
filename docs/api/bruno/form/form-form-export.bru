@@ -1,0 +1,20 @@
+meta {
+  name: form.form.export
+  type: http
+  seq: 35
+}
+
+get {
+  url: {{baseUrl}}/api/v1/forms/export?form_id={{formId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Xuất form thành JSON `soe-form/1`. Chủ form có đáp án; người điền gửi `code` thay `form_id` thì không có đáp án.
+  Quyền: `form:response:submit`.
+}

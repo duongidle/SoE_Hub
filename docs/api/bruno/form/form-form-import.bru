@@ -1,0 +1,40 @@
+meta {
+  name: form.form.import
+  type: http
+  seq: 36
+}
+
+post {
+  url: {{baseUrl}}/api/v1/forms/import
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "datahub_id": "{{datahubId}}",
+    "json": {
+      "schema": "soe-form/1",
+      "title": "Khảo sát",
+      "blocks": [
+        {
+          "id": "q1",
+          "type": "question",
+          "input": "text",
+          "label": "Họ tên"
+        }
+      ]
+    }
+  }
+}
+
+docs {
+  Nhập JSON `soe-form/1` thành form mới (nháp): `datahub_id` tạo bảng mới, `table_id` ghép vào cột cùng tên. Lỗi có `details.issues[{path,message}]`.
+  Quyền: `form:form:create`.
+}

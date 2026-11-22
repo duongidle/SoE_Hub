@@ -1,0 +1,20 @@
+meta {
+  name: form.grade.get
+  type: http
+  seq: 31
+}
+
+get {
+  url: {{baseUrl}}/api/v1/grading/{{responseId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Mở một bài để chấm: câu trả lời, điểm tự động, điểm tối đa, phiếu chấm, đáp án đúng. Chỉ chủ form và người chủ giao chấm.
+  Quyền: `form:response:submit`.
+}

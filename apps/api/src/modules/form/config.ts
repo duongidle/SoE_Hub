@@ -40,6 +40,15 @@ export const QuestionSchema = z.looseObject({
   reveal: z.record(z.string(), z.array(BlockId).max(100)).optional(),
   scale: z.looseObject({ min: z.number().int().min(0).max(10), max: z.number().int().min(1).max(10), min_label: z.string().max(100).optional(), max_label: z.string().max(100).optional() }).optional(),
   unique_message: z.string().max(300).optional(),
+  /** Quiz (design module7 6): the right answer (a server secret), the points, and the options of the check. */
+  answer: z.unknown().optional(),
+  points: z.number().min(0).max(1000).optional(),
+  /** Multi-select: partial credit (right minus wrong, over the number of right answers). */
+  partial: z.boolean().optional(),
+  /** Short text: tell accents apart (by default only case and extra spaces are ignored). */
+  match_accents: z.boolean().optional(),
+  /** Hand-graded question: criteria with a scale, a weight and a floor (design module7 6.2). */
+  rubric: z.array(z.looseObject({ id: BlockId, label: z.string().max(200).default(""), min: z.number().min(0).max(100).default(1), max: z.number().min(1).max(100).default(5), weight: z.number().min(0).max(1000).default(1), floor: z.number().min(0).max(100).optional() })).max(30).optional(),
 });
 export type Question = z.infer<typeof QuestionSchema>;
 
@@ -50,11 +59,24 @@ const PlainBlock = z.looseObject({ id: BlockId, type: z.enum(["heading", "text",
 const GroupSchema: z.ZodType<Block> = z.lazy(() => z.looseObject({ id: BlockId, type: z.literal("group"), title: z.string().max(300).optional(), show_if: FilterSchema.optional(), blocks: z.array(z.union([QuestionSchema, PlainBlock])).max(300) })) as z.ZodType<Block>;
 const BlockSchema: z.ZodType<Block> = z.union([QuestionSchema as z.ZodType<Block>, PlainBlock as z.ZodType<Block>, GroupSchema]);
 
+/** Quiz mode (design module7 6.3). Only for a form with people logged in. */
+export const QuizSchema = z.looseObject({
+  enabled: z.boolean().default(false),
+  scale: z.enum(["100", "raw"]).default("raw"),
+  /** Pass mark: points (on the shown scale) or percent. No pass mark: the result stays empty. */
+  pass: z.looseObject({ type: z.enum(["points", "percent"]), value: z.number().min(0) }).nullable().optional(),
+  max_attempts: z.number().int().min(1).max(20).default(1),
+  /** What the person sees: nothing, the score and pass/fail, or also the right answers once the form is closed. */
+  show: z.enum(["none", "score", "score_answers"]).default("none"),
+});
+export type Quiz = z.infer<typeof QuizSchema>;
+
 export const FormConfigSchema = z.looseObject({
   schema: z.literal(FORM_SCHEMA).default(FORM_SCHEMA),
   title: z.string().max(200).default(""),
   description: z.string().max(5000).default(""),
   appearance: z.looseObject({}).default({}),
+  quiz: QuizSchema.optional(),
   blocks: z.array(BlockSchema).max(500).default([]),
 });
 export type FormConfig = z.infer<typeof FormConfigSchema>;
@@ -199,7 +221,7 @@ export function visibleBlocks(cfg: FormConfig, given: Record<string, unknown>): 
 // ---------------------------------------------------------------------------------------------
 
 /** Fields of a question that only the server may know. The public copy never holds a table id, a column key, an answer key or the settings of a data source. */
-const SERVER_ONLY = ["column_id", "answer", "answers", "correct", "points", "explanation", "grading", "source", "scoring"] as const;
+const SERVER_ONLY = ["column_id", "answer", "answers", "correct", "points", "explanation", "grading", "source", "scoring", "rubric", "partial", "match_accents"] as const;
 
 export function publicConfig(cfg: FormConfig, disabled: Set<string>): Record<string, unknown> {
   const clean = (list: Block[]): Block[] =>

@@ -1,0 +1,26 @@
+meta {
+  name: form.form.clone
+  type: http
+  seq: 38
+}
+
+post {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}/clone
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {}
+}
+
+docs {
+  Nhân bản form của tôi thành bản nháp mới; mặc định tạo bảng mới cùng cấu trúc, hoặc `table_id` để ghi vào bảng có sẵn.
+  Quyền: `form:form:create`.
+}

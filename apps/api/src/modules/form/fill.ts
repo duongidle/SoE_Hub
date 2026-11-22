@@ -14,7 +14,9 @@ import { TableSchema } from "../datahub/table-schema";
 import { sanitizeFilename } from "../system/files";
 import { isEmptyAnswer, publicConfig, questionsOf, visibleBlocks, flatten, type FormConfig, type Question } from "./config";
 import { disabledIds } from "./ops";
-import { DAILY_LIMIT_MAX, Id, VERSION_COLUMN_NAME, liveColumns, loadFormRow, responseCount, stateOf, tableAlive, versionConfig, type FormRow, type LiveColumn } from "./shared";
+import { attemptsOf, gradeAnswers, scoreCells, summarize, type Result } from "./quiz";
+import { notifyGraders, quizView, type QuizSubmitView } from "./grade";
+import { DAILY_LIMIT_MAX, Id, ownerCtx, VERSION_COLUMN_NAME, liveColumns, loadFormRow, responseCount, stateOf, tableAlive, versionConfig, type FormRow, type LiveColumn } from "./shared";
 
 type Raw = Record<string, unknown>;
 type AnyCtx = HandlerCtx<Actor | null>;
@@ -54,7 +56,7 @@ const spamError = (reason: string, details: Raw = {}) => new AppError("rate_limi
 // who may fill (design module7 3.1)
 // ---------------------------------------------------------------------------------------------
 
-async function canFill(db: Executor, f: FormRow, userId: string | null): Promise<boolean> {
+export async function canFill(db: Executor, f: FormRow, userId: string | null): Promise<boolean> {
   if (f.access === "public") return true;
   if (!userId) return false;
   if (userId === f.ownerId) return true;
@@ -117,26 +119,32 @@ interface Submit {
   attempt_id: string;
 }
 
-function ownerCtx(ctx: AnyCtx, f: FormRow) {
-  const actor: Actor = { userId: f.ownerId, via: "form", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: null };
-  return { db: ctx.db, actor };
-}
 
 /**
  * The one way a response becomes a row. The row is written with the same writer as every other row (`applyRowOps`: types, unique, defaults,
  * history, recalculation, events) as the OWNER of the table, because filling a form gives the person no right on the table; the row's creator
  * is the person filling (or the account "Form công khai") and the channel is `form` (or `api` / `mcp` when a token submitted it).
  */
-async function submitResponse(ctx: AnyCtx, f: FormRow, input: Submit, publicMode: boolean): Promise<{ id: string; row_id: string | null; form_version: number; replayed: boolean; thank_you: unknown }> {
+async function submitResponse(ctx: AnyCtx, f: FormRow, input: Submit, publicMode: boolean): Promise<{ id: string; row_id: string | null; form_version: number; replayed: boolean; thank_you: unknown; quiz: QuizSubmitView | null }> {
   const cfg = await versionConfig(ctx.db, f.id, f.publishedVersion);
   if (!cfg || !f.tableId) throw new AppError("conflict", "Form này không nhận phản hồi.", { reason: "no_table" });
   const thankYou = (cfg.appearance as { thank_you?: unknown }).thank_you ?? null;
   const filler = publicMode ? null : ctx.actor;
   const [seen] = (await ctx.db.execute(sql`SELECT id, row_id, form_version FROM form_responses WHERE form_id = ${f.id}::uuid AND attempt_id = ${input.attempt_id}`)).rows as { id: string; row_id: string | null; form_version: number }[];
-  if (seen) return { id: seen.id, row_id: seen.row_id, form_version: seen.form_version, replayed: true, thank_you: thankYou };
+  const quiz = cfg.quiz?.enabled ? cfg.quiz : null;
+  if (seen) return { id: seen.id, row_id: seen.row_id, form_version: seen.form_version, replayed: true, thank_you: thankYou, quiz: quiz ? await quizView(ctx.db, f, seen.id) : null };
   const st = await currentState(ctx.db, f);
   if (st.state !== "open") throw new AppError("forbidden", closedMessage(f, st), { reason: `form_${st.state}`, closed_message: closedMessage(f, st) });
-  if (!publicMode && f.options.one_per_user && filler) {
+  let attemptNo = 1;
+  if (quiz) {
+    // A quiz needs to know who sits it, and it is never taken through a token or a connection (design module7 6.5).
+    if (publicMode || f.access === "public" || !filler) throw new AppError("forbidden", "Bài kiểm tra chỉ dành cho người đăng nhập.", { reason: "quiz_internal_only" });
+    if (filler.via === "api" || filler.via === "mcp") throw new AppError("forbidden", "Bài kiểm tra chỉ nộp được trên web, không nộp qua token hoặc kết nối AI.", { reason: "quiz_no_ai" });
+    const done = await attemptsOf(ctx.db, f.id, filler.userId);
+    if (done >= quiz.max_attempts) throw new AppError("conflict", `Bạn đã làm đủ ${quiz.max_attempts} lần.`, { reason: "attempts_exhausted", max_attempts: quiz.max_attempts });
+    attemptNo = done + 1;
+  }
+  if (!quiz && !publicMode && f.options.one_per_user && filler) {
     const r = await ctx.db.execute(sql`SELECT 1 FROM form_responses WHERE form_id = ${f.id}::uuid AND user_id = ${filler.userId}::uuid LIMIT 1`);
     if (r.rows.length) throw new AppError("conflict", "Bạn đã gửi form này rồi.", { reason: "one_per_user" });
   }
@@ -159,6 +167,13 @@ async function submitResponse(ctx: AnyCtx, f: FormRow, input: Submit, publicMode
   }
   if (publicMode) await checkUploads(ctx.db, f, input.attempt_id, questions, data, issues);
   if (issues.length) throw new AppError("validation_error", issues.length === 1 ? issues[0]!.message : `Còn ${issues.length} câu chưa hợp lệ.`, { issues });
+  let graded: ReturnType<typeof gradeAnswers> | null = null;
+  let sum: { score: number; max: number; result: Result } | null = null;
+  if (quiz) {
+    graded = gradeAnswers(cfg, new Set([...visible].filter((x) => !disabled.has(x))), answers);
+    sum = summarize(quiz, graded);
+    Object.assign(data, scoreCells(cols, { ...sum, attempt: attemptNo, gradedAt: graded.pending ? null : new Date() }));
+  }
   const verKey = [...cols.values()].find((c: LiveColumn) => c.type === "number" && c.name.toLowerCase() === VERSION_COLUMN_NAME.toLowerCase())?.key;
   if (verKey) data[verKey] = f.publishedVersion;
 
@@ -177,10 +192,15 @@ async function submitResponse(ctx: AnyCtx, f: FormRow, input: Submit, publicMode
   }
   const id = newId();
   await ctx.db.execute(sql`INSERT INTO form_responses (id, form_id, form_version, table_id, row_id, user_id, attempt_id, ip) VALUES (${id}::uuid, ${f.id}::uuid, ${f.publishedVersion}::int, ${f.tableId}::uuid, ${rowId}::uuid, ${publicMode ? null : filler!.userId}::uuid, ${input.attempt_id}, ${ctx.client?.ip ?? null})`);
+  if (quiz && graded && sum) {
+    await ctx.db.execute(sql`INSERT INTO form_scores (response_id, form_id, form_version, row_id, user_id, attempt_no, score, max_score, result, floor_failed, details, graded_at)
+      VALUES (${id}::uuid, ${f.id}::uuid, ${f.publishedVersion}::int, ${rowId}::uuid, ${filler!.userId}::uuid, ${attemptNo}::int, ${graded.score}, ${graded.max}, ${sum.result}, ${graded.floorFailed}, ${JSON.stringify(graded.items)}::jsonb, ${graded.pending ? null : new Date().toISOString()}::timestamptz)`);
+    if (graded.pending) await notifyGraders(ctx, f, id, filler!.userId);
+  }
   if (!publicMode && filler) await ctx.db.execute(sql`DELETE FROM form_drafts WHERE form_id = ${f.id}::uuid AND user_id = ${filler.userId}::uuid`);
   if (f.options.max_responses && (await responseCount(ctx.db, f.id)) >= f.options.max_responses) await ctx.db.execute(sql`UPDATE forms SET status = 'closed', updated_at = now() WHERE id = ${f.id}::uuid AND status = 'open'`);
   ctx.audit({ type: "form", id: f.id, details: { code: f.code, form_version: f.publishedVersion, ...(publicMode ? { public: true, ip: ctx.client?.ip ?? null } : {}) } });
-  return { id, row_id: rowId, form_version: f.publishedVersion, replayed: false, thank_you: thankYou };
+  return { id, row_id: rowId, form_version: f.publishedVersion, replayed: false, thank_you: thankYou, quiz: quiz ? await quizView(ctx.db, f, id) : null };
 }
 
 /** Errors of the table writer name a column; the person needs the question (design module7 2.3b: a duplicate shows under the right question). */
@@ -219,7 +239,7 @@ async function checkUploads(db: Executor, f: FormRow, attempt: string, questions
 
 const AnswersIn = z.record(z.string().max(60), z.unknown()).refine((a) => JSON.stringify(a).length <= 500_000, "Câu trả lời quá dài.");
 const AttemptId = z.string().min(8).max(100).regex(/^[A-Za-z0-9_-]+$/);
-const SubmitOut = z.object({ id: Id, row_id: Id.nullable(), form_version: z.number().int(), replayed: z.boolean(), thank_you: z.unknown() });
+const SubmitOut = z.object({ id: Id, row_id: Id.nullable(), form_version: z.number().int(), replayed: z.boolean(), thank_you: z.unknown(), quiz: z.unknown().nullable().describe("Bài kiểm tra: điểm và kết quả theo thiết lập \"người làm bài thấy\" (không có thì null).") });
 
 export function fillOperations(cfg: Config, storage: StorageDriver) {
   const secret = cfg.AUTH_SECRET;
@@ -260,7 +280,7 @@ export function fillOperations(cfg: Config, storage: StorageDriver) {
       aiAllowed: true,
       menu: "form",
       input: z.object({ code: z.string().min(4).max(40) }),
-      output: z.object({ code: z.string(), name: z.string(), state: z.string(), message: z.string().nullable(), version: z.number().int(), config: z.unknown(), fill_token: z.string().nullable(), attempt_id: z.string(), draft: z.unknown(), form_updated: z.boolean(), already_submitted: z.boolean() }),
+      output: z.object({ code: z.string(), name: z.string(), state: z.string(), message: z.string().nullable(), version: z.number().int(), config: z.unknown(), fill_token: z.string().nullable(), attempt_id: z.string(), draft: z.unknown(), form_updated: z.boolean(), already_submitted: z.boolean(), quiz: z.unknown().nullable().describe("Bài kiểm tra: `{ max_attempts, attempts_used, show }` (không có thì null).") }),
       http: { method: "GET", path: "/fill/:code" },
       handler: async (ctx, i) => {
         const f = await internalForm(ctx, i.code);
@@ -277,10 +297,12 @@ export function fillOperations(cfg: Config, storage: StorageDriver) {
           updated = d.form_version !== f.publishedVersion;
           if (updated) await ctx.db.execute(sql`UPDATE form_drafts SET answers = ${JSON.stringify(draft)}::jsonb, form_version = ${f.publishedVersion}::int WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid`);
         }
-        const done = f.options.one_per_user ? (await ctx.db.execute(sql`SELECT 1 FROM form_responses WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid LIMIT 1`)).rows.length > 0 : false;
+        const q = pubCfg.quiz?.enabled ? pubCfg.quiz : null;
+        const used = q ? await attemptsOf(ctx.db, f.id, ctx.actor.userId) : 0;
+        const done = q ? used >= q.max_attempts : f.options.one_per_user ? (await ctx.db.execute(sql`SELECT 1 FROM form_responses WHERE form_id = ${f.id}::uuid AND user_id = ${ctx.actor.userId}::uuid LIMIT 1`)).rows.length > 0 : false;
         ctx.audit({ type: "form", id: f.id });
         const { userId: _u, ...rest } = v;
-        return { ...rest, draft, form_updated: updated, already_submitted: done };
+        return { ...rest, draft, form_updated: updated, already_submitted: done, quiz: q ? { max_attempts: q.max_attempts, attempts_used: used, show: q.show } : null };
       },
     }),
 

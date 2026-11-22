@@ -107,7 +107,7 @@ describe("transport and handshake", () => {
 });
 
 describe("tools/list follows the menus of the connection", () => {
-  it("a Datahub-only connection sees no Deal tool; a full one sees all twelve; annotations come from the kind", async () => {
+  it("a Datahub-only connection sees no Deal tool; a full one sees all fourteen (Form at read level: no form_save); annotations come from the kind", async () => {
     const dh = await connect(org.userA1.id, { datahub: "write" });
     const names = (await dh.list()).map((x) => x.name);
     expect(names).toEqual(expect.arrayContaining(["soe_whoami", "soe_operations", "soe_describe", "soe_call", "rows_query", "rows_write", "metrics_query"]));
@@ -118,7 +118,7 @@ describe("tools/list follows the menus of the connection", () => {
     expect((await read.list()).map((x) => x.name)).not.toContain("rows_write");
     const full = await connect(org.userA1.id);
     const all = await full.list();
-    expect(all.map((x) => x.name).sort()).toEqual(["deal_get", "deal_metrics", "deals_list", "metrics_query", "notifications_list", "reminder_create", "rows_query", "rows_write", "soe_call", "soe_describe", "soe_operations", "soe_whoami"]);
+    expect(all.map((x) => x.name).sort()).toEqual(["deal_get", "deal_metrics", "deals_list", "form_get", "form_responses", "metrics_query", "notifications_list", "reminder_create", "rows_query", "rows_write", "soe_call", "soe_describe", "soe_operations", "soe_whoami"]);
     expect(all.find((x) => x.name === "rows_query")!.annotations.readOnlyHint).toBe(true);
     expect(all.find((x) => x.name === "soe_call")!.annotations.destructiveHint).toBe(true);
     // Token weight of the whole list (module5 4.4: chars / 4).

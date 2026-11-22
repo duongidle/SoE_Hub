@@ -1,0 +1,20 @@
+meta {
+  name: form.quiz.mine
+  type: http
+  seq: 33
+}
+
+get {
+  url: {{baseUrl}}/api/v1/fill/{{code}}/mine
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Kết quả các lần làm bài kiểm tra của tôi theo thiết lập "người làm bài thấy".
+  Quyền: `form:response:submit`.
+}

@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { AppError } from "@soe/shared";
+import { AppError, type Actor } from "@soe/shared";
 import type { Executor } from "@soe/db";
 import { columnTypeDef } from "../datahub/column-types";
 import { isComputedType } from "../datahub/cell-values";
@@ -33,6 +33,8 @@ export const OptionsSchema = z.strictObject({
   daily_limit: z.number().int().min(1).max(DAILY_LIMIT_MAX).optional(),
   file_max_bytes: z.number().int().min(1).max(10 * 1024 * 1024).optional(),
   files_per_question: z.number().int().min(1).max(5).optional(),
+  /** People the owner named to grade the quiz (the owner always may). */
+  graders: z.array(Id).max(50).optional(),
 });
 export type FormOptions = z.infer<typeof OptionsSchema>;
 
@@ -155,4 +157,10 @@ export async function latestConfig(db: Executor, f: FormRow): Promise<FormConfig
 export async function versionConfig(db: Executor, formId: string, version: number): Promise<FormConfig | null> {
   const r = await db.execute(sql`SELECT config FROM form_versions WHERE form_id = ${formId}::uuid AND version = ${version}::int`);
   return r.rows[0] ? FormConfigSchema.parse((r.rows[0] as { config: unknown }).config) : null;
+}
+
+/** A context that acts as the OWNER of the form's table: filling or grading a form gives the person no right on the table (design module7 5.1). */
+export function ownerCtx(ctx: { db: Executor }, f: FormRow) {
+  const actor: Actor = { userId: f.ownerId, via: "form", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: null };
+  return { db: ctx.db, actor };
 }

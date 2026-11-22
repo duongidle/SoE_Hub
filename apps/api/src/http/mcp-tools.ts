@@ -1,5 +1,5 @@
 /**
- * The selective MCP tools (design module5 4.2, 4.4, 12): `deals_list`, `deal_get`, `deal_metrics`, `rows_query`, `rows_write`, `metrics_query`, `reminder_create`, `notifications_list` (menu notify, Stage 6).
+ * The selective MCP tools (design module5 4.2, 4.4, 12): `deals_list`, `deal_get`, `deal_metrics`, `rows_query`, `rows_write`, `metrics_query`, `reminder_create`, `notifications_list` (menu notify, Stage 6), `form_get`, `form_save`, `form_responses` (menu form, Stage 7).
  * Each tool only maps an easy input onto registry operations and shapes a compact result; it calls them through the executor (`ctx.call`), so the owner's
  * rights, the connection's menu and level, the split lock and column masking stay in ONE place and no rule lives here.
  *
@@ -528,6 +528,74 @@ const notificationsList: ToolDef = {
   },
 };
 
+// ---- form (Stage 7) --------------------------------------------------------------------------------------------------------------
+
+const formGet: ToolDef = {
+  name: "form_get",
+  description: "Read one of your forms as JSON (soe-form/1, with answers and points of a quiz). Without form_id: the list of your forms (id, name, state, responses).",
+  inputSchema: OBJ({ form_id: { type: "string" }, source: { type: "string", enum: ["draft", "published"], description: "Default draft." } }),
+  annotations: { readOnlyHint: true, title: "Get form" },
+  need: { menus: ["form"], access: "read" },
+  async run(ctx, a) {
+    if (typeof a.form_id !== "string" || !a.form_id) {
+      const page = (await ctx.callRaw("form.form.list", {})) as { items: Obj[] };
+      return { forms: page.items.map((f) => ({ id: f.id, name: f.name, state: f.state, responses: f.response_count, link_path: f.link_path, table_id: f.table_id })) };
+    }
+    const f = (await ctx.call("form.form.get", { form_id: a.form_id })) as Obj;
+    const ex = (await ctx.call("form.form.export", { form_id: a.form_id, source: a.source === "published" ? "published" : "draft" })) as Obj;
+    return { id: f.id, name: f.name, state: f.state, published_version: f.published_version, has_unpublished: f.has_unpublished, link_path: f.link_path, json: ex.json };
+  },
+};
+
+const formSave: ToolDef = {
+  name: "form_save",
+  description: "Create or replace a form from JSON (soe-form/1). With form_id: replaces that form's draft (questions join the columns of the same column_name, new questions get new columns). Without: creates a form with a new table in datahub_id, or on your table table_id. publish:true publishes. A bad JSON returns issues[{path,message}].",
+  inputSchema: OBJ(
+    {
+      form_id: { type: "string" },
+      json: { type: "object", description: "{schema:\"soe-form/1\", title, blocks:[{id,type:\"question\",input,label,options?,required?,show_if?,answer?,points?}...], quiz?}. input: text long_text number currency percent date datetime checkbox rating single_select multi_select email phone url attachment user scale." },
+      name: { type: "string" },
+      datahub_id: { type: "string" },
+      table_id: { type: "string" },
+      publish: { type: "boolean" },
+    },
+    ["json"],
+  ),
+  annotations: { title: "Save form" },
+  need: { menus: ["form"], access: "write" },
+  async run(ctx, a) {
+    let formId = typeof a.form_id === "string" ? a.form_id : "";
+    let report: Obj;
+    if (formId) report = (await ctx.call("form.form.save_json", { form_id: formId, json: a.json })) as Obj;
+    else {
+      report = (await ctx.call("form.form.import", { json: a.json, ...(a.name ? { name: a.name } : {}), ...(a.datahub_id ? { datahub_id: a.datahub_id } : {}), ...(a.table_id ? { table_id: a.table_id } : {}) })) as Obj;
+      formId = String(report.form_id);
+    }
+    const out: Obj = { form_id: formId, created_columns: report.created_columns, unmatched: report.unmatched };
+    if (a.publish === true) out.published = await ctx.call("form.form.publish", { form_id: formId });
+    return out;
+  },
+};
+
+const formResponses: ToolDef = {
+  name: "form_responses",
+  description: "Responses of one of your forms (rows of its table): {columns, rows, total, next_cursor}. A quiz adds score and result. Answers are by question label.",
+  inputSchema: OBJ({ form_id: { type: "string" }, search: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 200 }, cursor: { type: "string" } }, ["form_id"]),
+  annotations: { readOnlyHint: true, title: "Form responses" },
+  need: { menus: ["form"], access: "read" },
+  async run(ctx, a) {
+    const page = (await ctx.callRaw("form.response.list", { form_id: a.form_id, limit: typeof a.limit === "number" ? Math.max(1, Math.min(200, Math.floor(a.limit))) : 50, ...(a.cursor ? { cursor: a.cursor } : {}), ...(a.search ? { search: a.search } : {}) })) as { items: { row_id: string; created_at: string; answers: Obj; quiz: Obj | null }[]; nextCursor: string | null; total?: number; extra?: { questions: { question_id: string; label: string }[] } };
+    const qs = page.extra?.questions ?? [];
+    const quiz = page.items.some((r) => r.quiz);
+    return {
+      columns: ["_id", "created_at", ...qs.map((q) => q.label), ...(quiz ? ["score", "max", "result"] : [])],
+      rows: page.items.map((r) => [r.row_id, r.created_at, ...qs.map((q) => r.answers[q.question_id] ?? null), ...(quiz ? [r.quiz?.score ?? null, r.quiz?.max ?? null, r.quiz?.result ?? null] : [])]),
+      ...(page.total !== undefined ? { total: page.total } : {}),
+      next_cursor: page.nextCursor,
+    };
+  },
+};
+
 export function selectiveTools(): ToolDef[] {
-  return [dealsList, dealGet, dealMetrics, rowsQuery, rowsWrite, metricsQuery, reminderCreate, notificationsList];
+  return [dealsList, dealGet, dealMetrics, rowsQuery, rowsWrite, metricsQuery, reminderCreate, notificationsList, formGet, formSave, formResponses];
 }
