@@ -57,10 +57,14 @@ test("Leader gắn lộ trình mẫu cho nhân sự, sửa trong trình sửa; n
   await expect.poll(async () => (await leadApi.call<unknown[]>("GET", "/onboarding/plans?scope=template")).length, { timeout: 120_000, intervals: [3000] }).toBeGreaterThan(0);
 
   const lp = lead.page;
-  // Assign the sample straight from the "Mẫu" tab (it makes the person's own copy). Cloning it first hits the 10-table limit of the datahub "Onboarding mẫu": see progress.md "Câu hỏi còn mở".
+  // Clone the sample (it keeps the forms, no new tables), then assign the clone from the same tab.
   await lp.goto("/onboarding/lo-trinh");
   await lp.getByRole("tab", { name: "Mẫu" }).click();
-  await lp.getByTestId("plan-assign").first().click();
+  await lp.getByTestId("plan-clone").first().click();
+  await expect(lp.getByTestId("onb-editor")).toBeVisible();
+  await lp.goto("/onboarding/lo-trinh");
+  await lp.getByRole("tab", { name: "Mẫu" }).click(); // a clone of a template is a template
+  await lp.getByTestId("plan-row").filter({ hasText: "(bản sao)" }).first().getByTestId("plan-assign").click();
   await lp.getByTestId("assign-staff").selectOption({ label: USER_NAME() });
   await lp.getByTestId("assign-start").fill(mondayOfWeek());
   await lp.getByTestId("assign-ok").click();

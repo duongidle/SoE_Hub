@@ -132,7 +132,7 @@ describe("onboarding 9A", () => {
     const m = await leader("onboarding.plan.get", { plan_id: mineCopy.id });
     const mf = m.stages.flatMap((s: any) => s.weeks.flatMap((w: any) => w.items)).find((i: any) => i.name === "Báo cáo cuối ngày").form_id;
     expect(mf).toBeTruthy();
-    expect(mf).not.toBe(form.id);
+    expect(mf).toBe(form.id); // the same form, no new table
   });
 
   it("stopping drops the table back to Xem for the person", async () => {
@@ -392,7 +392,7 @@ describe("onboarding 9C", () => {
     const run = (await leader("onboarding.plan.assign", { plan_id: copy.id, staff_id: org.userA1.id, start_date: monday() })) as any; // a template is assigned as a copy of its own
     const got = (await leader("onboarding.plan.get", { plan_id: run.id })) as any;
     const qna = got.stages.flatMap((x: any) => x.weeks.flatMap((w: any) => w.items)).find((i: any) => i.name.startsWith("Gửi câu hỏi Q&A"));
-    expect(qna.form_id).not.toBe(tpl.stages[0].weeks[0].items.find((i: any) => i.name.startsWith("Gửi câu hỏi Q&A")).form_id); // the copy has forms of its own
+    expect(qna.form_id).toBe(tpl.stages[0].weeks[0].items.find((i: any) => i.name.startsWith("Gửi câu hỏi Q&A")).form_id); // the clone keeps the forms of the sample
     const [f] = (await t.c.db.db.execute(sql`/*scope:system*/ SELECT code, published_version FROM forms WHERE id = ${qna.form_id}::uuid`)).rows as { code: string; published_version: number }[];
     expect(f!.published_version).toBeGreaterThan(0);
     const r = await staff("form.response.submit", { code: f!.code, answers: { ngay: monday(), app: "Ứng dụng A", cau_hoi: "Câu hỏi mẫu", tra_loi: "Trả lời mẫu" }, attempt_id: randomUUID() });

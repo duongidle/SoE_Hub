@@ -72,7 +72,7 @@
 - **Link chấm mockup:** `/f/<mã form>?nguoi_duoc_cham=<id nhân sự>&buoi=<tên việc>` cho mọi việc loại Mockup có form (tên tham số khớp câu ẩn của form mẫu).
 - **Trình sửa:** gửi lại cả cấu trúc bằng `plan.save`, số tuần đánh theo thứ tự (kể cả checkpoint), lỗi theo trường lấy từ `details.issues[].path` của server. Mỗi lần lưu xong, trình sửa dựng lại từ bản vừa lưu (`key = version`). Điều kiện checkpoint: tên cột nhập tay (chưa chọn từ danh sách cột của bảng; để sau nếu Dương cần). Bộ lọc thêm của điều kiện (`filter`) giữ nguyên khi sửa nhưng chưa có ô sửa.
 - **"Tạo form mới":** `form.form.create` (bảng mới trong datahub chọn) rồi `form.form.save_draft` với bản nháp theo loại (form thường / bài kiểm tra / phiếu chấm, có sẵn câu ẩn "Người điền" hoặc `nguoi_duoc_cham` + `buoi`), mở `/form/<id>` ở tab mới; việc tự chọn form vừa tạo, bấm "Làm mới" để thấy form xuất bản.
-- **Lỗi tìm thấy khi chạy e2e:** nhân bản lộ trình mẫu (7 form, bảng nằm trong datahub "Onboarding mẫu") lần đầu cộng 7 bảng cùng datahub, vượt hạn mức 10 bảng/datahub (`quota_exceeded`, HTTP 422). Cờ `quota_exempt` của 9C2 chỉ miễn đếm số datahub, chưa miễn hạn mức bảng. Chưa sửa (đổi hành vi Datahub dùng chung), xem `progress.md` "Câu hỏi còn mở".
+- **Nhân bản lộ trình của mình gắn lại đúng các form cũ** (không `cloneForm`, không tạo bảng; Opus chốt 23/11 theo thiết kế mục 2): lỗi `quota_exceeded` khi nhân bản mẫu (7 form thành 14 bảng/datahub) là do sao form. Bản nhân bản của lộ trình mẫu vẫn là mẫu (hiện ở tab Mẫu); lộ trình người khác vẫn bỏ gắn form.
 
 ## Opus rà 9D (23/11/2026)
 

@@ -5,8 +5,6 @@ import { newId, type Executor } from "@soe/db";
 import type { EventDef } from "../../core/events";
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { HandlerCtx } from "../../core/types";
-import { cloneForm } from "../form/io";
-import { publishForm } from "../form/ops";
 import { CheckpointIn, checkpointOperations, copyCheckpoints, readCheckpoints, writeCheckpoints } from "./checkpoints";
 import { applyGrants } from "./grants";
 import { overviewOperations } from "./overview";
@@ -264,12 +262,9 @@ export const onboardingOperations = [
         forms = new Map();
         const ids = (await ctx.db.execute(sql`/*scope:system*/ SELECT DISTINCT form_id FROM onb_items WHERE plan_id = ${src.id}::uuid AND form_id IS NOT NULL`)).rows as { form_id: string }[];
         for (const { form_id } of ids) {
-          const live = await ctx.db.execute(sql`/*scope:system*/ SELECT published_version FROM forms WHERE id = ${form_id}::uuid AND owner_id = ${ctx.actor.userId}::uuid AND deleted_at IS NULL`);
-          if (!live.rows.length) continue;
-          const copy = (await cloneForm(ctx, { form_id })).form_id;
-          // A copy of a published form is published too, so the person on the plan can fill it at once (Opus rà 9A).
-          if ((live.rows[0] as { published_version: number }).published_version > 0) await publishForm(ctx, copy);
-          forms.set(form_id, copy);
+          // A plan of mine keeps my forms: one form serves many plans, and the answers of everyone stay in one table (design module9 2).
+          const live = await ctx.db.execute(sql`/*scope:system*/ SELECT 1 FROM forms WHERE id = ${form_id}::uuid AND owner_id = ${ctx.actor.userId}::uuid AND deleted_at IS NULL`);
+          if (live.rows.length) forms.set(form_id, form_id);
         }
       }
       await writeStructure(ctx, plan, await structureFor(ctx.db, src.id, { forms }));
