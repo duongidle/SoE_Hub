@@ -250,12 +250,14 @@ describe("reminders", () => {
 
 describe("row events", () => {
   const roleOf = (tableId: string, name: string, role: string) => db().execute(sql`UPDATE dh_columns SET role = ${role} WHERE /*scope:system*/ table_id = ${tableId}::uuid AND name = ${name}`);
+  const setOf = (tableId: string, set: string) => db().execute(sql`UPDATE dh_tables SET role_set = ${set} WHERE /*scope:system*/ id = ${tableId}::uuid`);
   const person = (id: string, attrs: Record<string, unknown> = {}) => ({ id, attrs });
 
   it("tells a person added to, changed in and removed from a deal, with no share or commission in the text", async () => {
     const mgr = as(t, org.mgrA.id);
     const x = await makeTable(mgr, { columns: [{ name: "Tên công ty", type: "text" }, { name: "Người tham gia", type: "user", config: { attrs: [{ key: "ty_le_com", label: "Com", kind: "percent", default: 0 }] } }] });
     for (const p of [org.userA1, org.userA2, org.leaderA]) await mgr("datahub.share.set", { datahub_id: x.dhId, grantee_id: p.id, permission: "view" });
+    await setOf(x.tableId, "deals");
     await roleOf(x.tableId, "Tên công ty", "ten_cong_ty");
     await roleOf(x.tableId, "Người tham gia", "nguoi_tham_gia");
     const row = (await mgr("datahub.row.create", { table_id: x.tableId, data: { "Tên công ty": "Thuận Phát", "Người tham gia": [person(org.userA1.id, { ty_le_com: 0.3 }), person(org.userA2.id, { ty_le_com: 0.2 })] } })) as { id: string; version: number };
@@ -283,6 +285,7 @@ describe("row events", () => {
     const mgr = as(t, org.mgrA.id);
     const x = await makeTable(mgr, { columns: [{ name: "Người", type: "user" }, { name: "KPI", type: "number" }, { name: "Trạng thái", type: "single_select", config: { options: [{ name: "Nháp" }, { name: "Đã commit", meaning: "committed" }] } }] });
     await mgr("datahub.share.set", { datahub_id: x.dhId, grantee_id: org.userA1.id, permission: "view" });
+    await setOf(x.tableId, "kpi");
     await roleOf(x.tableId, "Trạng thái", "trang_thai_commit");
     const keyCol = (await db().execute(sql`SELECT key FROM dh_columns WHERE /*scope:system*/ table_id = ${x.tableId}::uuid AND name = 'Người'`)).rows[0] as { key: string };
     await db().execute(sql`UPDATE dh_tables SET key_columns = ARRAY[${keyCol.key}]::text[] WHERE /*scope:system*/ id = ${x.tableId}::uuid`);

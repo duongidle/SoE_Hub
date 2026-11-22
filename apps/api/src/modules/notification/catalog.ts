@@ -191,6 +191,18 @@ async function historyOf(ev: OutboxRow, db: Db): Promise<HistoryRow[]> {
     AND date_trunc('milliseconds', at) = date_trunc('milliseconds', ${ev.createdAt.toISOString()}::timestamptz) AND op IN ('create', 'update')`)).rows as HistoryRow[];
 }
 
+/** Role set of a table, remembered for a minute: most row events are on plain tables and must cost no more than this one lookup (and none when cached). */
+const setCache = new Map<string, { set: string | null; at: number }>();
+async function roleSetOfTable(db: Db, tableId: string): Promise<string | null> {
+  const hit = setCache.get(tableId);
+  if (hit && Date.now() - hit.at < 60_000) return hit.set;
+  const [t] = (await db.execute(sql`SELECT role_set FROM dh_tables WHERE /*scope:system*/ id = ${tableId}::uuid`)).rows as { role_set: string | null }[];
+  const set = t?.role_set ?? null;
+  setCache.set(tableId, { set, at: Date.now() });
+  if (setCache.size > 2000) setCache.delete(setCache.keys().next().value!);
+  return set;
+}
+
 const cache = new Map<string, Promise<ParticipantChange[]>>();
 /** Who joined, left or had their role/share changed on the deals of a row event. Computed once per event for the three types. */
 function participantChanges(ev: OutboxRow, db: Db): Promise<ParticipantChange[]> {
@@ -205,6 +217,7 @@ function participantChanges(ev: OutboxRow, db: Db): Promise<ParticipantChange[]>
 
 async function computeParticipantChanges(ev: OutboxRow, db: Db): Promise<ParticipantChange[]> {
   const payload = ev.payload as RowEvent;
+  if ((await roleSetOfTable(db, payload.table_id)) !== "deals") return [];
   const cols = (await db.execute(sql`SELECT key, role FROM dh_columns WHERE /*scope:system*/ table_id = ${payload.table_id}::uuid AND deleted_at IS NULL AND role IN ('nguoi_tham_gia', 'ten_cong_ty') AND (role = 'ten_cong_ty' OR type = 'user')`)).rows as { key: string; role: string }[];
   const people = cols.filter((c) => c.role === "nguoi_tham_gia").map((c) => c.key);
   if (people.length === 0) return [];
@@ -262,6 +275,7 @@ defineNotification({
   mandatory: true,
   recipients: async (ev, { db }) => {
     const payload = ev.payload as RowEvent;
+    if ((await roleSetOfTable(db, payload.table_id)) !== "kpi") return [];
     const [t] = (await db.execute(sql`SELECT t.key_columns, t.name FROM dh_tables t WHERE /*scope:system*/ t.id = ${payload.table_id}::uuid`)).rows as { key_columns: string[] | null; name: string }[];
     const [status] = (await db.execute(sql`SELECT key, config FROM dh_columns WHERE /*scope:system*/ table_id = ${payload.table_id}::uuid AND deleted_at IS NULL AND role = 'trang_thai_commit' AND type = 'single_select'`)).rows as { key: string; config: { options?: { id: string; meaning?: string }[] } }[];
     if (!t || !status || !t.key_columns?.length) return [];
