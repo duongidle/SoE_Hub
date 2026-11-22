@@ -230,7 +230,7 @@ Dương chốt 21/11/2026. File này giúp agent code module mới gọi đúng 
 - Không ghi thẳng vào bảng gộp (chỉ worker).
 
 
-- Tuỳ chọn cột `notify_on_change` (9B, cột `dh_columns.notify_on_change`, migration 0032): `{ people_column: <mã cột Người dùng> }`, chỉ chủ bảng đặt qua `datahub.column.update` (`updateColumn` trong `columns.ts`). Đọc có nhớ đệm 60 giây theo bảng ở `datahub/notify-option.ts` (`notifyOptionsOf`, `forgetNotifyOptions`); người nghe: loại `datahub.cell.changed` ở `notification/catalog.ts` (sự kiện `datahub.row.updated`, gom 10 phút theo người + dòng, người nhận phải xem được dòng qua `rowAudience`). Thêm kiểu cấu hình cột dùng chung thì sửa `DhColumn`, `columnFromDb`, `ColumnOut`/`columnOut`.
+- Tuỳ chọn cột `notify_on_change` (9B, cột `dh_columns.notify_on_change`, migration 0032): `{ people_column: <mã cột Người dùng> }`, chỉ chủ bảng đặt qua `datahub.column.update` (`updateColumn` trong `columns.ts`). Đọc có nhớ đệm 60 giây theo bảng ở `apps/api/src/modules/datahub/notify-option.ts` (`notifyOptionsOf`, `forgetNotifyOptions`); người nghe: loại `datahub.cell.changed` ở `apps/api/src/modules/notification/catalog.ts` (sự kiện `datahub.row.updated`, gom 10 phút theo người + dòng, người nhận phải xem được dòng qua `rowAudience`). Thêm kiểu cấu hình cột dùng chung thì sửa `DhColumn`, `columnFromDb`, `ColumnOut`/`columnOut`.
 
 ## Module 3: Chỉ số, dashboard
 
