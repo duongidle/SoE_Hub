@@ -18,11 +18,14 @@ headers {
 
 body:json {
   {
-    "note": "note"
+    "note": "note",
+    "menus": {
+      "datahub": "read"
+    }
   }
 }
 
 docs {
-  Admin duyệt token cá nhân. Scope được cắt theo quyền hiện tại của chủ token.
+  Admin duyệt kết nối (token cá nhân), có thể duyệt ít quyền hơn bằng `menus`.
   Quyền: `auth:token:approve`.
 }

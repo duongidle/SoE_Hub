@@ -138,7 +138,9 @@ export function sourceValue(t: T, ctx: Ctx): Stored | undefined {
   if (!c) return undefined;
   const name = sourceName(ctx);
   const opts = (c.config.options as SelectOption[] | undefined) ?? [];
-  return c.type === "single_select" ? (opts.find((o) => o.name === name)?.id ?? undefined) : name;
+  // A select holds only the fixed options (Tay / AI / API); a text column also says which connection typed it: `AI (tên kết nối)`, `API (tên kết nối)` (module5 5).
+  if (c.type === "single_select") return opts.find((o) => o.name === name)?.id ?? undefined;
+  return name !== "Tay" && ctx.actor.connectionName ? `${name} (${ctx.actor.connectionName})` : name;
 }
 
 export function optionByMeaning(t: T, role: string, meaning: string): string | null {

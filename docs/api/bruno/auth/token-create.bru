@@ -19,14 +19,15 @@ headers {
 body:json {
   {
     "name": "name",
-    "scopes": [
-      "scope"
-    ],
+    "menus": {
+      "datahub": "read",
+      "deal": "write"
+    },
     "expires_in_days": 90
   }
 }
 
 docs {
-  Tạo token cá nhân (`soe_pat_…`). Token chỉ hiện một lần và chờ Admin duyệt mới dùng được.
+  Tạo kết nối bằng token cá nhân (`soe_pat_…`) với menu và mức. Token chỉ hiện một lần và chờ Admin duyệt mới dùng được.
   Quyền: `auth:self`.
 }

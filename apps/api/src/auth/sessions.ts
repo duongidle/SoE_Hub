@@ -131,7 +131,7 @@ export class SessionTokenResolver implements ActorResolver {
       .limit(1);
     if (!row) throw new AppError("unauthenticated", "Token không hợp lệ.");
     const t = row.t;
-    if (t.status === "pending") throw new AppError("unauthenticated", "Token đang chờ Admin duyệt.");
+    if (t.status === "pending") throw new AppError("connection_pending", "Kết nối đang chờ Admin duyệt. Báo Admin của bạn rồi thử lại.");
     if (t.status !== "active") throw new AppError("unauthenticated", "Token đã bị thu hồi hoặc bị từ chối.");
     if (t.expiresAt.getTime() <= Date.now()) throw new AppError("unauthenticated", "Token đã hết hạn.");
     const expectedKind = t.kind === "service" ? "service" : "person";
@@ -139,7 +139,8 @@ export class SessionTokenResolver implements ActorResolver {
     if (!t.lastUsedAt || Date.now() - t.lastUsedAt.getTime() > 60_000) {
       await this.db.update(apiTokens).set({ lastUsedAt: sql`now()`, lastUsedIp: req.ip }).where(eq(apiTokens.id, t.id));
     }
-    return ActorSchema.parse({ userId: t.userId, via: "api", connectionId: t.id, scopes: t.scopes, ip: req.ip, userAgent: req.userAgent });
+    const personal = t.kind === "personal";
+    return ActorSchema.parse({ userId: t.userId, via: "api", connectionId: t.id, connectionKind: personal ? "personal" : "service", connectionName: t.name, scopes: personal ? [] : t.scopes, ip: req.ip, userAgent: req.userAgent });
   }
 }
 

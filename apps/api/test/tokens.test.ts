@@ -25,11 +25,12 @@ const bearer = (tok: string) => ({ authorization: `Bearer ${tok}` });
 describe("personal access tokens (module1 7)", () => {
   it("shown once, stored hashed, pending until an Admin approves", async () => {
     const s = await login(t, o.userA1.email);
-    const r = await req("POST", "/auth/tokens", s.write, { name: "Claude Code", scopes: ["org:member:read", "system:whoami"] });
+    const r = await req("POST", "/auth/tokens", s.write, { name: "Claude Code", menus: { datahub: "read", deal: "write" } });
     expect(r.statusCode).toBe(201);
     const { token, info } = r.json().data;
     expect(token).toMatch(/^soe_pat_/);
     expect(info.status).toBe("pending");
+    expect(info.menus).toEqual({ datahub: "read", deal: "write" });
     const days = (new Date(info.expires_at).getTime() - Date.now()) / 86400_000;
     expect(Math.round(days)).toBe(90);
     const [row] = await t.c.db.db.select().from(apiTokens).where(eq(apiTokens.id, info.id));
@@ -47,56 +48,68 @@ describe("personal access tokens (module1 7)", () => {
     expect(me.json().data).toMatchObject({ via: "api", token_id: info.id });
   });
 
-  it("scopes cannot exceed the owner's permissions, nor include auth:* / onboarding:*", async () => {
+  it("menus: default set when omitted; only real menus and levels; one-year limit; Guest rules", async () => {
     const s = await login(t, o.leaderA.email);
-    expect((await req("POST", "/auth/tokens", s.write, { name: "x", scopes: ["system:audit:read"] })).statusCode).toBe(400);
-    expect((await req("POST", "/auth/tokens", s.write, { name: "x", scopes: ["auth:self"] })).statusCode).toBe(400);
-    expect((await req("POST", "/auth/tokens", s.write, { name: "x", scopes: ["onboarding:path:create"] })).statusCode).toBe(400);
-    expect((await req("POST", "/auth/tokens", s.write, { name: "x", scopes: ["deal:column:push"], expires_in_days: 366 })).statusCode).toBe(400);
-    expect((await req("POST", "/auth/tokens", s.write, { name: "x", scopes: ["deal:column:push"], expires_in_days: 365 })).statusCode).toBe(201);
+    const def = (await req("POST", "/auth/tokens", s.write, { name: "mặc định" })).json().data.info;
+    expect(def.menus).toMatchObject({ deal: "write", datahub: "write", notify: "write", form: "read", knowledge: "read", aihub: "read", workspace: "read", feedback: "read" });
+    expect(Object.values(def.menus)).not.toContain("full");
+    expect((await req("POST", "/auth/tokens", s.write, { name: "x", menus: { onboarding: "read" } })).statusCode).toBe(400);
+    expect((await req("POST", "/auth/tokens", s.write, { name: "x", menus: { datahub: "all" } })).statusCode).toBe(400);
+    expect((await req("POST", "/auth/tokens", s.write, { name: "x", menus: {} })).statusCode).toBe(400);
+    expect((await req("POST", "/auth/tokens", s.write, { name: "x", menus: { deal: "write" }, expires_in_days: 366 })).statusCode).toBe(400);
+    expect((await req("POST", "/auth/tokens", s.write, { name: "x", menus: { deal: "write" }, expires_in_days: 365 })).statusCode).toBe(201);
+    // Guest mẫu Sale cannot create a connection; Guest mẫu Data can, read only.
+    const gs = await login(t, o.guestSale.email);
+    expect((await req("POST", "/auth/tokens", gs.write, { name: "x" })).statusCode).toBe(403);
+    const gd = await login(t, o.guestData.email);
+    const g = (await req("POST", "/auth/tokens", gd.write, { name: "script", menus: { datahub: "full", deal: "write" } })).json().data.info;
+    expect(g.menus).toEqual({ datahub: "read", deal: "read" });
   });
 
   it("a token cannot create tokens (account management is web only)", async () => {
-    const tk = await activeToken(t, o.userA2.id, ["org:member:read"]);
-    expect((await req("POST", "/auth/tokens", tk.headers, { name: "x", scopes: ["org:member:read"] })).statusCode).toBe(403);
+    const tk = await activeToken(t, o.userA2.id, []);
+    expect((await req("POST", "/auth/tokens", tk.headers, { name: "x", menus: { datahub: "read" } })).statusCode).toBe(403);
   });
 
-  it("approval re-checks the owner's current permissions; an Admin cannot approve their own token while another Admin exists", async () => {
-    // A leader without a team (so the role can be removed).
-    const mB = await login(t, o.mgrB.email);
-    const email = `ldr${Math.random().toString(36).slice(2, 8)}@base.vn`;
-    const ldr = (await req("POST", "/org/members", mB.write, { email, full_name: "Leader tạm", roles: ["leader"], manager_id: o.mgrB.id })).json().data;
-    await t.c.db.db.execute(sql`UPDATE users SET status = 'active', password_hash = (SELECT password_hash FROM users WHERE id = ${o.leaderB.id}) WHERE id = ${ldr.id}`);
-    const s = await login(t, email);
-    const { info } = (await req("POST", "/auth/tokens", s.write, { name: "push", scopes: ["deal:column:push", "deal:deal:read"] })).json().data;
-    // Owner is demoted before approval: the token is narrowed at once, then approved with what is left.
-    expect((await req("PATCH", `/org/members/${ldr.id}`, mB.write, { version: ldr.version, roles: ["user"] })).statusCode).toBe(200);
-    const approved = (await req("POST", `/admin/tokens/${info.id}/approve`, adm.write, {})).json().data;
-    expect(approved.scopes).toEqual(["deal:deal:read"]);
+  it("Admin approves with fewer menus (never more); the owner narrows at once; an Admin cannot approve their own token while another Admin exists", async () => {
+    const s = await login(t, o.userA1.email);
+    const { info } = (await req("POST", "/auth/tokens", s.write, { name: "push", menus: { deal: "write", datahub: "full", form: "read" } })).json().data;
+    // Admin cannot give more than was asked, nor a menu that was not asked.
+    expect((await req("POST", `/admin/tokens/${info.id}/approve`, adm.write, { menus: { deal: "full" } })).statusCode).toBe(400);
+    expect((await req("POST", `/admin/tokens/${info.id}/approve`, adm.write, { menus: { knowledge: "read" } })).statusCode).toBe(400);
+    const approved = (await req("POST", `/admin/tokens/${info.id}/approve`, adm.write, { menus: { deal: "read", datahub: "write" } })).json().data;
+    expect(approved).toMatchObject({ status: "active", menus: { deal: "read", datahub: "write" } });
+    // The owner can narrow, not widen.
+    expect((await req("PATCH", `/auth/tokens/${info.id}`, s.write, { menus: { deal: "write" } })).statusCode).toBe(400);
+    expect((await req("PATCH", `/auth/tokens/${info.id}`, s.write, { menus: { form: "read" } })).statusCode).toBe(400);
+    const narrowed = (await req("PATCH", `/auth/tokens/${info.id}`, s.write, { menus: { datahub: "read" } })).json().data;
+    expect(narrowed.menus).toEqual({ datahub: "read" });
+    // Someone else cannot narrow it.
+    expect((await req("PATCH", `/auth/tokens/${info.id}`, (await login(t, o.userA2.email)).write, { menus: { datahub: "read" } })).statusCode).toBe(404);
 
-    const own = (await req("POST", "/auth/tokens", adm.write, { name: "mine", scopes: ["system:audit:read"] })).json().data;
+    const own = (await req("POST", "/auth/tokens", adm.write, { name: "mine", menus: { admin: "read" } })).json().data;
     expect((await req("POST", `/admin/tokens/${own.info.id}/approve`, adm.write, {})).statusCode).toBe(403);
     expect((await req("POST", `/admin/tokens/${own.info.id}/approve`, adm2.write, {})).statusCode).toBe(200);
   });
 
   it("reject, revoke by owner or Admin, expiry", async () => {
     const s = await login(t, o.userB1.email);
-    const a = (await req("POST", "/auth/tokens", s.write, { name: "a", scopes: ["system:whoami"] })).json().data;
+    const a = (await req("POST", "/auth/tokens", s.write, { name: "a", menus: { datahub: "read" } })).json().data;
     expect((await req("POST", `/admin/tokens/${a.info.id}/reject`, adm.write, { note: "không cần" })).json().data.status).toBe("rejected");
     expect((await req("GET", "/auth/me", bearer(a.token))).statusCode).toBe(401);
 
-    const b = (await req("POST", "/auth/tokens", s.write, { name: "b", scopes: ["system:whoami"] })).json().data;
+    const b = (await req("POST", "/auth/tokens", s.write, { name: "b", menus: { datahub: "read" } })).json().data;
     await req("POST", `/admin/tokens/${b.info.id}/approve`, adm.write, {});
     expect((await req("DELETE", `/auth/tokens/${b.info.id}`, s.write)).json().data.status).toBe("revoked");
     expect((await req("GET", "/auth/me", bearer(b.token))).statusCode).toBe(401);
 
-    const c = (await req("POST", "/auth/tokens", s.write, { name: "c", scopes: ["system:whoami"] })).json().data;
+    const c = (await req("POST", "/auth/tokens", s.write, { name: "c", menus: { datahub: "read" } })).json().data;
     await req("POST", `/admin/tokens/${c.info.id}/approve`, adm.write, {});
     // Someone else cannot revoke it; an Admin can.
     expect((await req("DELETE", `/auth/tokens/${c.info.id}`, (await login(t, o.userA1.email)).write)).statusCode).toBe(404);
     expect((await req("DELETE", `/auth/tokens/${c.info.id}`, adm.write)).json().data.status).toBe("revoked");
 
-    const d = await activeToken(t, o.userB1.id, ["system:whoami"]);
+    const d = await activeToken(t, o.userB1.id, []);
     await t.c.db.db.execute(sql`UPDATE api_tokens SET expires_at = now() - interval '1 second' WHERE id = ${d.id}`);
     expect((await req("GET", "/auth/me", d.headers)).json().error.message).toContain("hết hạn");
     expect((await req("GET", "/auth/me", bearer("soe_pat_nope"))).statusCode).toBe(401);

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ALL_PERMISSIONS, ROLE_PERMISSIONS, isTokenAllowedPermission, permissionsFor, type Actor } from "@soe/shared";
 import { AccessContext, computeScope, loadPrincipal } from "../src/auth/access";
-import { activeToken, login, seedOrg, type Org, type Person } from "./fixtures";
+import { activeToken, login, seedOrg, setAiPolicy, type Org, type Person } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
 
 let t: TestApp;
@@ -9,8 +9,11 @@ let o: Org;
 beforeAll(async () => {
   t = await makeApp();
   o = await seedOrg(t);
+  // The matrix measures the OWNER's permissions over the API channel: every Admin-switchable group is on (module5 3.3).
+  await setAiPolicy(t, await login(t, o.admin.email), { groups: ["org", "guest_grant", "transfer", "settings", "audit_log"] });
 });
 afterAll(async () => {
+  await setAiPolicy(t, await login(t, o.admin.email), { groups: [], killed: false });
   await t.close();
 });
 
@@ -69,16 +72,23 @@ describe("permission matrix: role × operation × channel (web cookie / API toke
     }
   }
 
-  it("a token only gets the intersection of its scopes and the owner's permissions", async () => {
-    // User asks for an admin scope it does not have: not usable.
-    const tk = await activeToken(t, o.userA1.id, ["system:audit:read", "org:member:read"]);
+  it("a token gets the intersection of the owner's permissions, the connection's menus and the Admin's groups", async () => {
+    const adm = await login(t, o.admin.email);
+    // A User owns a token with the admin menu: the menu is there, the owner's permission is not.
+    const tk = await activeToken(t, o.userA1.id, [], { menus: { admin: "read" } });
     expect((await t.app.inject({ method: "GET", url: "/api/v1/system/audit-log", headers: tk.headers })).statusCode).toBe(403);
     expect((await t.app.inject({ method: "GET", url: "/api/v1/org/members", headers: tk.headers })).statusCode).toBe(200);
-    // Admin token without the audit scope cannot read the log, although the Admin can.
-    const at = await activeToken(t, o.admin.id, ["org:member:read"]);
+    // An Admin token without the admin menu cannot read the log, although the Admin can.
+    const at = await activeToken(t, o.admin.id, [], { menus: { datahub: "read" } });
     expect((await t.app.inject({ method: "GET", url: "/api/v1/system/audit-log", headers: at.headers })).statusCode).toBe(403);
-    const me = (await t.app.inject({ method: "GET", url: "/api/v1/auth/me", headers: (await activeToken(t, o.admin.id, ["system:whoami", "system:audit:read"])).headers })).json().data;
-    expect(me.permissions.sort()).toEqual(["system:audit:read", "system:whoami"]);
+    // With the menu but the group off, still refused; on again, allowed.
+    const full = await activeToken(t, o.admin.id, [], { menus: { admin: "read" } });
+    await setAiPolicy(t, adm, { groups: [] });
+    expect((await t.app.inject({ method: "GET", url: "/api/v1/system/audit-log", headers: full.headers })).statusCode).toBe(403);
+    await setAiPolicy(t, adm, { groups: ["org", "guest_grant", "transfer", "settings", "audit_log"] });
+    expect((await t.app.inject({ method: "GET", url: "/api/v1/system/audit-log", headers: full.headers })).statusCode).toBe(200);
+    const me = (await t.app.inject({ method: "GET", url: "/api/v1/auth/me", headers: full.headers })).json().data;
+    expect(me.permissions).toContain("system:audit:read");
     expect(me.via).toBe("api");
   });
 });

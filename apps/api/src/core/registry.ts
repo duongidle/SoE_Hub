@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { resolveAiPolicy } from "./ai-policy";
 import type { Operation, OperationDef, OperationKind } from "./types";
 
 export type DefinedOperation = Operation;
@@ -22,6 +23,7 @@ function define<I extends z.ZodType, O, P extends string | null>(kind: Operation
     output: d.output,
     permission: d.permission,
     aiAllowed: d.aiAllowed,
+    ai: resolveAiPolicy({ name: d.name, kind, aiAllowed: d.aiAllowed, menu: d.menu, access: d.access, forbidden: d.forbidden }),
     audit: d.audit ?? (kind === "command" ? "write" : "none"),
     emits: d.emits ?? [],
     http: { method: d.http.method, path: d.http.path, status: d.http.status ?? 200, respond: d.http.respond },

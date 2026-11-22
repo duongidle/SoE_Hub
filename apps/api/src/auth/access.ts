@@ -81,6 +81,8 @@ const SETUP_ALLOWED = new Set<string>(["auth:self", "system:whoami", "notificati
 
 /** Effective permissions: the account's permissions, intersected with the token scopes when a token is used. */
 export function effectivePermissions(p: Principal, actor: Actor): Set<Permission> {
+  // A personal token is a connection: menus and levels are checked by the executor (`core/ai-gate.ts`), not by scopes.
+  if (actor.connectionKind === "personal") return new Set([...p.permissions].filter((x) => isTokenAllowedPermission(x)));
   const tokenUsed = actor.connectionId !== null || actor.scopes.length > 0;
   if (!tokenUsed) return p.permissions;
   const scopes = new Set(actor.scopes);

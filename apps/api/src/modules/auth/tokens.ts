@@ -1,10 +1,11 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { AppError, SERVICE_ACCOUNT_PERMISSIONS, isTokenAllowedPermission, type Actor, type Permission } from "@soe/shared";
+import { AppError, SERVICE_ACCOUNT_PERMISSIONS, type Actor, type Permission } from "@soe/shared";
 import { apiTokens, serviceAccounts, users, type Executor } from "@soe/db";
 import { activeUsersWithRole, loadPrincipal } from "../../auth/access";
 import { randomToken, sha256 } from "../../auth/crypto";
 import { PAT_PREFIX, SVC_PREFIX, revokeUserTokens } from "../../auth/sessions";
+import { AI_LEVELS, AI_MENUS, DEFAULT_CONNECTION_MENUS, type AiAccess } from "../../core/ai-policy";
 import { defineCommand, defineQuery } from "../../core/registry";
 import { currentMembership, namesOf } from "../org/view";
 
@@ -21,6 +22,8 @@ const TokenOut = z.object({
   name: z.string(),
   token_prefix: z.string(),
   scopes: z.array(z.string()),
+  /** Personal tokens (connections): menu -> level. */
+  menus: z.record(z.string(), z.enum(AI_LEVELS)),
   status: z.enum(["pending", "active", "rejected", "revoked"]),
   expires_at: z.date().or(z.string()),
   created_at: z.date().or(z.string()),
@@ -46,6 +49,7 @@ async function toOut(ex: Executor, rows: TokenRow[]) {
     name: t.name,
     token_prefix: t.tokenPrefix,
     scopes: t.scopes,
+    menus: t.menus ?? {},
     status: t.status as "pending" | "active" | "rejected" | "revoked",
     expires_at: t.expiresAt,
     created_at: t.createdAt,
@@ -65,6 +69,18 @@ function newSecret(prefix: string) {
 }
 
 const scopesSchema = z.array(z.string().min(3).max(100)).min(1).max(100).transform((s) => [...new Set(s)]);
+
+/** Menus of a connection: menu -> level (module5 3). Keys are the selectable menus; Onboarding is not one of them. */
+const menusSchema = z
+  .partialRecord(z.enum(AI_MENUS), z.enum(AI_LEVELS))
+  .refine((m) => Object.keys(m).length >= 1, "Chọn ít nhất một menu.");
+
+const levelRank = (l: AiAccess) => AI_LEVELS.indexOf(l);
+
+/** True when `sub` asks for nothing that `sup` does not already give (same or lower level, menus that exist in `sup`). */
+function menusWithin(sub: Record<string, AiAccess>, sup: Record<string, AiAccess>): boolean {
+  return Object.entries(sub).every(([m, l]) => sup[m] !== undefined && levelRank(l) <= levelRank(sup[m]!));
+}
 
 async function loadToken(ex: Executor, id: string) {
   const [t] = await ex.select().from(apiTokens).where(eq(apiTokens.id, id)).limit(1).for("update");
@@ -134,22 +150,26 @@ export function tokenOperations() {
 
     defineCommand({
       name: "auth.token.create",
-      summary: "Tạo token cá nhân (`soe_pat_…`). Token chỉ hiện một lần và chờ Admin duyệt mới dùng được.",
-      description: "Scope không được rộng hơn quyền hiện có của chính mình. Hạn mặc định 90 ngày, tối đa 365 ngày. Token không mang được quyền `auth:*` và `onboarding:*`.",
+      summary: "Tạo kết nối bằng token cá nhân (`soe_pat_…`) với menu và mức. Token chỉ hiện một lần và chờ Admin duyệt mới dùng được.",
+      description: "Menu và mức không rộng hơn quyền của chính mình khi gọi (giao của hai bên). Không gửi `menus` thì dùng mặc định: Quản lý Deal, Datahub, Thông báo mức Sửa; còn lại mức Xem. Guest mẫu Sale không tạo được; Guest mẫu Data chỉ đọc. Hạn mặc định 90 ngày, tối đa 365 ngày. Muốn thêm quyền: tạo kết nối mới.",
       permission: "auth:self",
       aiAllowed: false,
       emits: ["auth.token.requested"],
       input: z.object({
         name: z.string().trim().min(1).max(100),
-        scopes: scopesSchema,
+        menus: menusSchema.optional(),
         expires_in_days: z.number().int().min(1).max(TOKEN_MAX_DAYS).default(TOKEN_DEFAULT_DAYS),
       }),
       output: z.object({ token: z.string(), info: TokenOut }),
       http: { method: "POST", path: "/auth/tokens", status: 201 },
       handler: async (ctx, i) => {
         const p = await ctx.access.requirePrincipal();
-        const notAllowed = i.scopes.filter((s) => !isTokenAllowedPermission(s) || !p.permissions.has(s as Permission));
-        if (notAllowed.length) throw new AppError("validation_error", "Scope vượt quyền của bạn hoặc không dùng được cho token.", { not_allowed: notAllowed });
+        let menus: Record<string, AiAccess> = i.menus ?? { ...DEFAULT_CONNECTION_MENUS };
+        if (p.roles.includes("guest")) {
+          if (p.guestPreset !== "data") throw new AppError("forbidden", "Guest mẫu Sale không tạo được kết nối AI hoặc token.", { reason: "guest_sale" });
+          // Guest mẫu Data: read only, only what the Manager granted (module5 2.1).
+          menus = Object.fromEntries(Object.keys(menus).map((m) => [m, "read" as const]));
+        }
         const sec = newSecret(PAT_PREFIX);
         const [row] = await ctx.db
           .insert(apiTokens)
@@ -159,15 +179,36 @@ export function tokenOperations() {
             name: i.name,
             tokenPrefix: sec.display,
             tokenHash: sec.hash,
-            scopes: i.scopes,
+            scopes: [],
+            menus,
             status: "pending",
             expiresAt: new Date(Date.now() + i.expires_in_days * 86400_000),
             createdBy: ctx.actor.userId,
           })
           .returning();
-        ctx.audit({ type: "api_token", id: row!.id, details: { name: i.name, scopes: i.scopes, expires_in_days: i.expires_in_days } });
+        ctx.audit({ type: "api_token", id: row!.id, details: { name: i.name, menus, expires_in_days: i.expires_in_days } });
         await ctx.emit("auth.token.requested", { aggregateType: "api_token", aggregateId: row!.id, payload: { token_id: row!.id, user_id: ctx.actor.userId, name: i.name } });
         return { token: sec.token, info: (await toOut(ctx.db, [row!]))[0]! };
+      },
+    }),
+
+    defineCommand({
+      name: "auth.token.narrow",
+      summary: "Chủ kết nối thu hẹp menu hoặc hạ mức của kết nối mình; có hiệu lực ngay.",
+      description: "`menus` là bộ menu mới và phải nằm trong bộ hiện tại (bỏ menu, hạ mức). Muốn mở rộng: tạo kết nối mới.",
+      permission: "auth:self",
+      aiAllowed: false,
+      input: z.object({ id: z.uuid(), menus: menusSchema }),
+      output: TokenOut,
+      http: { method: "PATCH", path: "/auth/tokens/:id" },
+      handler: async (ctx, i) => {
+        const t = await loadToken(ctx.db, i.id);
+        if (t.userId !== ctx.actor.userId || t.kind !== "personal") throw new AppError("not_found", "Không tìm thấy token.");
+        if (t.status !== "pending" && t.status !== "active") throw new AppError("validation_error", "Kết nối đã bị thu hồi hoặc bị từ chối.");
+        if (!menusWithin(i.menus, t.menus ?? {})) throw new AppError("validation_error", "Chỉ thu hẹp được: bỏ menu hoặc hạ mức. Muốn thêm quyền, tạo kết nối mới.", { current: t.menus });
+        const [upd] = await ctx.db.update(apiTokens).set({ menus: i.menus, version: sql`${apiTokens.version} + 1` }).where(eq(apiTokens.id, t.id)).returning();
+        ctx.audit({ type: "api_token", id: t.id, details: { before: t.menus, after: i.menus } });
+        return (await toOut(ctx.db, [upd!]))[0]!;
       },
     }),
 
@@ -219,12 +260,12 @@ export function tokenOperations() {
 
     defineCommand({
       name: "auth.token.approve",
-      summary: "Admin duyệt token cá nhân. Scope được cắt theo quyền hiện tại của chủ token.",
-      description: "Admin không tự duyệt token của chính mình khi còn Admin khác.",
+      summary: "Admin duyệt kết nối (token cá nhân), có thể duyệt ít quyền hơn bằng `menus`.",
+      description: "`menus` (không bắt buộc) phải nằm trong bộ chủ kết nối đã xin: bỏ menu hoặc hạ mức. Admin không tự duyệt kết nối của chính mình khi còn Admin khác.",
       permission: "auth:token:approve",
       aiAllowed: false,
       emits: ["auth.token.decided"],
-      input: z.object({ id: z.uuid(), note: z.string().trim().max(500).optional() }),
+      input: z.object({ id: z.uuid(), note: z.string().trim().max(500).optional(), menus: menusSchema.optional() }),
       output: TokenOut,
       http: { method: "POST", path: "/admin/tokens/:id/approve" },
       handler: async (ctx, i) => {
@@ -236,14 +277,15 @@ export function tokenOperations() {
         }
         const owner = await loadPrincipal(ctx.db, t.userId);
         if (!owner || owner.status !== "active") throw new AppError("validation_error", "Chủ token không còn hoạt động.");
-        const scopes = t.scopes.filter((s) => isTokenAllowedPermission(s) && owner.permissions.has(s as Permission));
-        if (scopes.length === 0) throw new AppError("validation_error", "Chủ token không còn quyền nào trong scope của token.");
+        const requested = t.menus ?? {};
+        const menus = i.menus ?? requested;
+        if (!menusWithin(menus, requested)) throw new AppError("validation_error", "Admin chỉ được duyệt bằng hoặc ít hơn chủ kết nối đã xin.", { requested });
         const [upd] = await ctx.db
           .update(apiTokens)
-          .set({ status: "active", scopes, decidedAt: sql`now()`, decidedBy: ctx.actor.userId, decisionNote: i.note ?? null, version: sql`${apiTokens.version} + 1` })
+          .set({ status: "active", menus, decidedAt: sql`now()`, decidedBy: ctx.actor.userId, decisionNote: i.note ?? null, version: sql`${apiTokens.version} + 1` })
           .where(eq(apiTokens.id, t.id))
           .returning();
-        ctx.audit({ type: "api_token", id: t.id, details: { owner: t.userId, scopes, note: i.note ?? null } });
+        ctx.audit({ type: "api_token", id: t.id, details: { owner: t.userId, requested, approved: menus, note: i.note ?? null } });
         await ctx.emit("auth.token.decided", { aggregateType: "api_token", aggregateId: t.id, payload: { token_id: t.id, user_id: t.userId, status: "active" } });
         return (await toOut(ctx.db, [upd!]))[0]!;
       },

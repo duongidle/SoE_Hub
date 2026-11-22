@@ -370,7 +370,7 @@ export const limitOperations = [
     name: "datahub.limit.user.list",
     summary: "Admin xem các giới hạn riêng đã đặt cho từng người.",
     permission: "system:setting:read",
-    aiAllowed: false,
+    aiAllowed: true,
     input: z.object({}),
     output: z.array(z.object({ user_id: Id, full_name: z.string(), email: z.string().nullable(), max_datahubs: z.number().int().nullable(), max_tables: z.number().int().nullable(), max_columns: z.number().int().nullable() })),
     http: { method: "GET", path: "/admin/datahub/limits" },
@@ -384,7 +384,7 @@ export const limitOperations = [
     name: "datahub.limit.user.set",
     summary: "Admin đặt giới hạn riêng cho một người. Giá trị `null` = dùng mặc định của hệ thống. Cột tối đa 200.",
     permission: "system:setting:write",
-    aiAllowed: false,
+    aiAllowed: true,
     input: z.object({
       user_id: Id,
       max_datahubs: z.number().int().min(1).max(1000).nullable().optional(),

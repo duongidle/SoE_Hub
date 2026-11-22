@@ -17,6 +17,10 @@ export const ActorSchema = z.object({
   automationId: z.uuid().nullable().default(null),
   /** Login session behind a web request (null for tokens, the worker and server commands). */
   sessionId: z.uuid().nullable().default(null),
+  /** Kind of the bearer token behind this call (null for sessions, the worker and dev actors). Personal tokens carry menus, not scopes. */
+  connectionKind: z.enum(["personal", "service"]).nullable().optional(),
+  /** Name of the connection (token), written to the audit log and to the source column of Deal tables. */
+  connectionName: z.string().nullable().optional(),
   scopes: z.array(z.string()).default([]),
   ip: z.string().nullable().default(null),
   userAgent: z.string().nullable().default(null),

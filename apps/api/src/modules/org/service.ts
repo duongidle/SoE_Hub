@@ -1,7 +1,6 @@
 import { and, eq, isNull, ne, sql } from "drizzle-orm";
-import { AppError, isTokenAllowedPermission, type Role } from "@soe/shared";
-import { apiTokens, orgMemberships, users, type Executor, type UserRow } from "@soe/db";
-import { loadPrincipal } from "../../auth/access";
+import { AppError, type Role } from "@soe/shared";
+import { orgMemberships, users, type Executor, type UserRow } from "@soe/db";
 import { currentMembership } from "./view";
 
 export interface Placement {
@@ -99,31 +98,11 @@ export async function writePlacement(ex: Executor, userId: string, p: Placement,
 }
 
 /**
- * After someone's permissions shrink (role change, supplementary permission revoked), personal tokens are narrowed
- * to what the owner still has; a token left with no scope is revoked (design module1 section 2.1).
+ * After someone's permissions shrink (role change, supplementary permission revoked): a personal token is a connection with menus
+ * (module5), not a list of permissions, so there is nothing to narrow. The owner's current permissions are intersected with the
+ * connection's menus at every call (`core/ai-gate.ts`), and a locked owner loses the connection (`revokeUserTokens`).
+ * Kept so callers still report `tokens` in the audit row.
  */
-export async function reconcileUserTokens(ex: Executor, userId: string, by: string): Promise<{ narrowed: number; revoked: number }> {
-  const p = await loadPrincipal(ex, userId);
-  if (!p || p.kind !== "person") return { narrowed: 0, revoked: 0 };
-  const tokens = await ex
-    .select()
-    .from(apiTokens)
-    .where(and(eq(apiTokens.userId, userId), eq(apiTokens.kind, "personal"), sql`${apiTokens.status} IN ('pending', 'active')`));
-  let narrowed = 0;
-  let revoked = 0;
-  for (const t of tokens) {
-    const keep = t.scopes.filter((s) => isTokenAllowedPermission(s) && p.permissions.has(s as never));
-    if (keep.length === t.scopes.length) continue;
-    if (keep.length === 0) {
-      await ex
-        .update(apiTokens)
-        .set({ status: "revoked", revokedAt: sql`now()`, revokedBy: by, revokeReason: "Quyền của chủ token đã thay đổi", version: sql`${apiTokens.version} + 1` })
-        .where(eq(apiTokens.id, t.id));
-      revoked++;
-    } else {
-      await ex.update(apiTokens).set({ scopes: keep, version: sql`${apiTokens.version} + 1` }).where(eq(apiTokens.id, t.id));
-      narrowed++;
-    }
-  }
-  return { narrowed, revoked };
+export async function reconcileUserTokens(_ex: Executor, _userId: string, _by: string): Promise<{ narrowed: number; revoked: number }> {
+  return { narrowed: 0, revoked: 0 };
 }

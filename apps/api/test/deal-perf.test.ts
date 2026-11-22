@@ -28,7 +28,9 @@ const ms = async <T>(label: string, fn: () => Promise<T>): Promise<{ r: T; ms: n
 };
 let payIds: string[] = [];
 
+const PERF = !!process.env.SOE_PERF;
 beforeAll(async () => {
+  if (!PERF) return;
   t = await makeApp();
   org = await seedOrg(t);
   for (const p of [org.userA1, org.userA2, org.leaderA, org.mgrA]) await unlimit(t, p.id);
@@ -97,10 +99,12 @@ beforeAll(async () => {
   payIds = [await md5("p01"), await md5("p02"), await md5("p11")];
 }, 600_000);
 afterAll(async () => {
+  if (!PERF) return;
   await t.close();
 });
 
-describe(`Deals at ${DEALS} deals`, () => {
+// Heavy (20.000 deals): only with SOE_PERF=1, so the whole suite does not build them every run. `SOE_PERF=1 pnpm exec vitest run apps/api/test/deal-perf.test.ts`
+describe.skipIf(!PERF)(`Deals at ${DEALS} deals`, () => {
   it("home, first page of Deals (filter + sort), a dashboard metric, period.review, payment.confirm", async () => {
     const home = await ms("datahub.deal.home", () => mgrA("datahub.deal.home", {}));
     expect(home.ms).toBeLessThan(3000);

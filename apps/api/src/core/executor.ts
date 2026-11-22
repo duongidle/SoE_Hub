@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AppError, isAppError, toActorRef, type Actor } from "@soe/shared";
+import { AppError, isAppError, toActorRef, type Actor, type ErrorCode } from "@soe/shared";
 import {
   beginIdempotent,
   enqueueOutbox,
@@ -13,6 +13,7 @@ import {
 import { columnTx } from "../modules/datahub/change-queue";
 import type { Logger } from "pino";
 import { AccessContext, type PrincipalLoader } from "../auth/access";
+import { AiRateLimiter, checkAiPolicy, checkConnection, checkMenuAndLevel, isConnectionActor } from "./ai-gate";
 import { maskAuditDetails } from "./audit-privacy";
 import type { EventRegistry } from "./events";
 import type { Registry } from "./registry";
@@ -56,6 +57,8 @@ function formatIssues(err: z.ZodError) {
  *           -> events (outbox) -> audit -> idempotent result.
  */
 export class OperationExecutor {
+  /** Per-connection call counters (module5 5). */
+  private readonly aiLimiter = new AiRateLimiter();
   constructor(private readonly deps: ExecutorDeps) {}
 
   async execute(name: string, rawInput: unknown, opts: ExecuteOptions): Promise<ExecuteResult> {
@@ -69,7 +72,7 @@ export class OperationExecutor {
     }
     const input = parsed.data as unknown;
 
-    await this.checkAccess(op, opts);
+    await this.checkAccess(op, opts, input);
 
     // Public operations (login, codes) never use Idempotency-Key: there is no owner to scope the key to, and the
     // stored result could hold a session secret.
@@ -95,17 +98,37 @@ export class OperationExecutor {
     return new AppError("internal_error");
   }
 
-  private async checkAccess(op: Operation, opts: ExecuteOptions): Promise<void> {
+  private async checkAccess(op: Operation, opts: ExecuteOptions, input: unknown): Promise<void> {
     if (op.permission === null) return;
-    const deny = async (code: "unauthenticated" | "forbidden" | "ai_not_allowed" | "password_setup_required", reason: string): Promise<never> => {
+    const deny = async (code: ErrorCode, reason: string, details?: unknown): Promise<never> => {
       // An anonymous read (for example the page asking "who am I" before login) is not worth a row; anonymous writes are.
       if (!(code === "unauthenticated" && op.kind === "query")) await this.safeAudit({ command: op.name, result: "denied", actor: opts.actor, requestId: opts.requestId, client: opts.client, errorCode: code, details: { reason, permission: op.permission } });
-      throw new AppError(code, code === "unauthenticated" ? undefined : reason);
+      throw new AppError(code, code === "unauthenticated" ? undefined : reason, details);
     };
-    if (!opts.actor) return deny("unauthenticated", "Chưa xác định được người dùng.");
-    if (!op.aiAllowed && opts.actor.via === "mcp") return deny("ai_not_allowed", "Thao tác này không cho phép AI gọi.");
-    const decision = await this.deps.authorizer.authorize(opts.actor, { name: op.name, kind: op.kind, permission: op.permission });
+    const actor = opts.actor;
+    if (!actor) return deny("unauthenticated", "Chưa xác định được người dùng.");
+    // A personal token (REST) or an AI connection (/mcp): the operation, the Admin's policy and the connection come first.
+    const viaConnection = isConnectionActor(actor);
+    let conn: Awaited<ReturnType<typeof checkConnection>> | null = null;
+    if (viaConnection) {
+      try {
+        await checkAiPolicy(this.deps.db, op);
+        conn = await checkConnection(this.deps.db, actor, op, this.aiLimiter);
+      } catch (e) {
+        if (isAppError(e)) return deny(e.code, e.message, e.details);
+        throw e;
+      }
+    }
+    const decision = await this.deps.authorizer.authorize(actor, { name: op.name, kind: op.kind, permission: op.permission });
     if (!decision.allowed) return deny(decision.code ?? "forbidden", decision.reason);
+    if (conn) {
+      try {
+        await checkMenuAndLevel(this.deps.db, conn, op, input);
+      } catch (e) {
+        if (isAppError(e)) return deny(e.code, e.message, e.details);
+        throw e;
+      }
+    }
   }
 
   private makeCtx(op: Operation, opts: ExecuteOptions, ex: Executor, log: Logger, state: { target: AuditTarget | null }, canEmit: boolean): HandlerCtx<Actor | null> {

@@ -31,7 +31,12 @@ export async function writeAudit(ex: Executor, e: AuditEntry): Promise<void> {
     errorCode: e.errorCode ?? null,
     targetType: e.targetType ?? null,
     targetId: e.targetId ?? null,
-    details: e.details === undefined ? null : e.details,
+    // A call through a connection also records the connection's name (module5 5), so the log reads without a join.
+    details: e.actor?.connectionName
+      ? { ...(e.details && typeof e.details === "object" && !Array.isArray(e.details) ? (e.details as object) : e.details === undefined || e.details === null ? {} : { value: e.details }), connection_name: e.actor.connectionName }
+      : e.details === undefined
+        ? null
+        : e.details,
   };
   await ex.insert(auditLog).values(row);
 }

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { newId } from "./columns";
 import { users } from "./users";
 
@@ -80,6 +80,11 @@ export const apiTokens = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /** Personal tokens (connections): `{menu: "read" | "write" | "full"}` (module5 3). Service tokens use `scopes`. */
+    menus: jsonb("menus")
+      .$type<Record<string, "read" | "write" | "full">>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     /** `pending` | `active` | `rejected` | `revoked` */
     status: text("status").notNull().default("pending"),
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),

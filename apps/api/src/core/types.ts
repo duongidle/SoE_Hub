@@ -3,6 +3,7 @@ import type { Actor } from "@soe/shared";
 import type { Db, Executor } from "@soe/db";
 import type { AccessContext } from "../auth/access";
 import type { Logger } from "pino";
+import type { AiAccess, AiForbidden, AiPolicy, MenuRef } from "./ai-policy";
 
 export type AuditMode =
   /** Query that is not logged. */
@@ -85,6 +86,12 @@ export interface OperationDef<I extends z.ZodType, O, P extends string | null> {
   permission: P;
   /** False = AI channels (mcp) are refused. `onboarding.*` must be false. */
   aiAllowed: boolean;
+  /** Menu a connection needs (default from `ai-policy.ts` by name). `by_target`: the datahub the call aims at decides. */
+  menu?: MenuRef;
+  /** Level a connection needs: `read`, `write`, `full` (default by kind and name). */
+  access?: AiAccess;
+  /** `hard` = never for AI; or a group the Admin can switch on. Default from `ai-policy.ts`. */
+  forbidden?: AiForbidden;
   audit?: AuditMode;
   /** Events this command may emit. */
   emits?: string[];
@@ -108,6 +115,8 @@ export interface Operation {
   output?: z.ZodType;
   permission: string | null;
   aiAllowed: boolean;
+  /** Resolved menu / level / forbidden group; null = nothing declares a menu, so connections cannot call it. */
+  ai: AiPolicy | null;
   audit: AuditMode;
   emits: string[];
   http: Required<Omit<HttpBinding, "respond">> & Pick<HttpBinding, "respond">;

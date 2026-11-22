@@ -55,6 +55,20 @@ export const SETTINGS = {
     schema: z.number().int().min(730).max(36500),
     default: 730,
   } satisfies SettingDef<number>,
+  aiKilled: {
+    key: "ai.killed",
+    label: "Tạm tắt mọi kết nối AI / API cá nhân",
+    description: "Công tắc khẩn cấp: bật thì mọi lệnh gọi bằng token cá nhân và /mcp bị từ chối.",
+    schema: z.boolean(),
+    default: false,
+  } satisfies SettingDef<boolean>,
+  aiGroups: {
+    key: "ai.groups_enabled",
+    label: "Nhóm thao tác cho phép AI",
+    description: "Các nhóm cấm mặc định mà Admin bật cho AI: org, guest_grant, transfer, settings, audit_log. Thao tác cấm cứng không bật được.",
+    schema: z.array(z.enum(["org", "guest_grant", "transfer", "settings", "audit_log"])).max(5),
+    default: [] as ("org" | "guest_grant" | "transfer" | "settings" | "audit_log")[],
+  } satisfies SettingDef<("org" | "guest_grant" | "transfer" | "settings" | "audit_log")[]>,
 } as const;
 
 export const SETTING_DEFS: SettingDef[] = Object.values(SETTINGS) as SettingDef[];

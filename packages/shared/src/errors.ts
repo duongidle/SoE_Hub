@@ -7,6 +7,7 @@ export const ERROR_CODES = {
   invalid_filter: { status: 400, description: "Bộ lọc, sắp xếp hoặc con trỏ phân trang không hợp lệ." },
   idempotency_key_invalid: { status: 400, description: "Header Idempotency-Key không hợp lệ." },
   unauthenticated: { status: 401, description: "Chưa đăng nhập hoặc chưa xác định được người dùng." },
+  connection_pending: { status: 401, description: "Kết nối đang chờ Admin duyệt." },
   invalid_credentials: { status: 401, description: "Email hoặc mật khẩu không đúng." },
   code_invalid: { status: 400, description: "Mã xác thực không đúng hoặc đã hết hạn." },
   password_rejected: { status: 400, description: "Mật khẩu không đạt yêu cầu." },

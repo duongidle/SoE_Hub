@@ -165,18 +165,17 @@ describe("lock / unlock (module1 2.1: removing = locking)", () => {
   });
 });
 
-describe("role change takes effect at once and narrows tokens (module1 2.1)", () => {
-  it("a Leader demoted to User loses deal:column:push from their token; a token left empty is revoked", async () => {
+describe("role change takes effect at once for tokens (module1 2.1, module5 3.5)", () => {
+  it("a Leader demoted to User loses deal:column:push on their token at the next call", async () => {
     const ldr = (await create(mA, { roles: ["leader"], manager_id: o.mgrA.id })).json().data;
     await t.c.db.db.update(users).set({ status: "active" }).where(eq(users.id, ldr.id));
-    const both = await activeToken(t, ldr.id, ["deal:column:push", "deal:deal:read"]);
-    const onlyPush = await activeToken(t, ldr.id, ["deal:column:push"]);
+    const tk = await activeToken(t, ldr.id, []);
+    expect((await req("GET", "/auth/me", tk.headers)).json().data.permissions).toContain("deal:column:push");
     const r = await req("PATCH", `/org/members/${ldr.id}`, mA.write, { version: ldr.version, roles: ["user"] });
     expect(r.statusCode).toBe(200);
-    const [a] = await t.c.db.db.select().from(apiTokens).where(eq(apiTokens.id, both.id));
-    const [b] = await t.c.db.db.select().from(apiTokens).where(eq(apiTokens.id, onlyPush.id));
-    expect(a!.scopes).toEqual(["deal:deal:read"]);
-    expect(b!.status).toBe("revoked");
+    expect((await req("GET", "/auth/me", tk.headers)).json().data.permissions).not.toContain("deal:column:push");
+    const [a] = await t.c.db.db.select().from(apiTokens).where(eq(apiTokens.id, tk.id));
+    expect(a!.status).toBe("active");
   });
 });
 

@@ -385,3 +385,22 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Không viết điều kiện riêng cho một bảng template trong engine; bảng Deal chỉ là bảng thường có vai trò.
 
 **Việc còn nợ của 4.4:** xem `progress.md`.
+
+## Module 5: Kết nối AI (5A1: quyền của kết nối)
+
+**Chỗ gọi vào**
+- Bảng ánh xạ một chỗ: `apps/api/src/core/ai-policy.ts` `resolveAiPolicy` gán cho mỗi thao tác menu (`deal`, `datahub`, `notify`, `admin`…, `none` = luôn được, `by_target` = theo datahub đích), mức (`read`/`write`/`full`) và `forbidden` (`hard` hoặc nhóm `org`, `guest_grant`, `transfer`, `settings`, `audit_log`). Mặc định theo tiền tố tên trong `RULES` và theo loại (query là `read`, command là `write`; `FULL` là tập tên cần `full`). `accessOfInput` nâng mức theo input (xoá nhiều dòng một lần).
+- Thao tác khai riêng bằng trường `menu`, `access`, `forbidden` của `defineCommand`/`defineQuery` (`apps/api/src/core/types.ts` `OperationDef`); kết quả nằm ở `Operation.ai`. `aiAllowed: false` là cấm cứng.
+- Menu theo đối tượng: `apps/api/src/core/ai-gate.ts` `menuOfTarget` tìm datahub đích từ `table_id`, `datahub_id`, `view_id`, `job_id`, `chart_id`, `dashboard_id`, `metric_id`, `source_id` và `table_id`/`source` lồng trong input (metric nội tuyến, nguồn gộp bảng); datahub có `system_key = 'deal'` là menu `deal`, còn lại `datahub`; không tìm được thì đóng.
+- Executor giao quyền: `apps/api/src/core/executor.ts` `OperationExecutor.checkAccess` gọi `checkAiPolicy` (aiAllowed, công tắc khẩn cấp, nhóm cấm), `checkConnection` (trạng thái, giới hạn tốc độ `AiRateLimiter`), authorizer của chủ, rồi `checkMenuAndLevel`. Áp khi `actor.via === "mcp"` hoặc `actor.connectionKind === "personal"` (`isConnectionActor`).
+- Chính sách Admin lưu bằng setting hệ thống `ai.killed` và `ai.groups_enabled` (`apps/api/src/modules/system/settings-catalog.ts` `SETTINGS.aiKilled`, `SETTINGS.aiGroups`).
+- Kết nối là hàng `api_tokens` loại `personal` có cột `menus` (`apps/api/src/modules/auth/tokens.ts` `tokenOperations`: `auth.token.create`, `auth.token.narrow`, `auth.token.approve` có `menus` để duyệt bớt). Token `soe_svc_` giữ scope.
+- Actor có thêm `connectionKind`, `connectionName` (`packages/shared/src/actor.ts`), do `apps/api/src/auth/sessions.ts` `SessionTokenResolver` đặt. `writeAudit` ghi `connection_name` vào `details`. Nguồn nhập: `apps/api/src/modules/deal/payments.ts` `sourceValue` (cột chọn giữ Tay/AI/API, cột text ghi `AI (tên kết nối)`).
+
+**Mẫu làm theo**
+- Thao tác mới: nếu tên khớp `RULES` thì không cần khai gì; không khớp thì khai `menu` (và `access` nếu khác mặc định), nếu không `aiAllowed` bật sẽ fail ở `apps/api/test/ai-connections.test.ts` (test "mọi thao tác").
+- Test kết nối qua executor: `apps/api/test/ai-connections.test.ts` hàm `conn` (token có menu, actor có `connectionId`); `apps/api/test/fixtures.ts` `activeToken` (tham số `menus`) và `setAiPolicy`.
+
+**Luật cấm**
+- Không kiểm quyền của kết nối ở handler; chỉ executor. Không tìm menu theo tên thao tác cho thao tác của engine Datahub (dùng `by_target`).
+- `aiAllowed: false` cho chốt kỳ, mở lại kỳ, xác nhận tiền về hàng loạt, sửa template, chuyển vai trò cột, import (thao tác lớn dời, Module 5 mục 12).

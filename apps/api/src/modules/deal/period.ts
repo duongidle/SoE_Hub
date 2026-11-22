@@ -250,7 +250,7 @@ export const periodOperations = [
       "Đợt đã có dòng Sổ com (com cũ import dạng `Com cố định`, `Đã chốt`) thì KHÔNG sinh thêm dòng Sổ com, chỉ chuyển deal sang Won và sinh Doanh thu theo người. Chạy theo lô: mỗi bảng ghi một lần, công thức tính lại một lần ở cuối. " +
       "Gọi lại không làm gì thêm (đợt đã xác nhận có liên kết Tiền về). Sau lệnh này chờ vài giây cho công thức tính xong rồi gọi `period.close` (lỗi `recalc_pending` thì thử lại). Kỳ đã chốt thì lỗi. Cần `Idempotency-Key`.",
     permission: "deal:payment:write",
-    aiAllowed: true,
+    aiAllowed: false,
     emits: ROW_EVENTS,
     input: z.object({ month }),
     output: z.object({ month: z.string(), payments: z.number().int(), won_deal_ids: z.array(Id), ledger_ids: z.array(Id), skipped_ledger: z.number().int().describe("Số đợt đã có dòng Sổ com nên không sinh thêm.") }),
@@ -273,7 +273,7 @@ export const periodOperations = [
       "Sau khi chốt: đợt thanh toán có tiền về trong tháng không sửa, không huỷ xác nhận (`period_locked`); Status, Ngày đóng sửa tay, Loại deal và % doanh thu của deal đóng trong tháng bị khoá (người tham gia, % com vẫn sửa); dòng Sổ com `Đã chốt` không sửa. " +
       "Tiền về có ngày thuộc tháng đã chốt vào kỳ đang mở (`Về muộn`); điều chỉnh com vào kỳ đang mở. Dòng AI/API nhập chưa `Đã kiểm` được đánh dấu đã kiểm khi chốt (ghi vào nhật ký kèm kênh gọi). Công thức chưa tính xong thì lỗi `conflict` (`recalc_pending`), thử lại sau. Cần `Idempotency-Key`.",
     permission: "deal:period:lock",
-    aiAllowed: true,
+    aiAllowed: false,
     emits: ROW_EVENTS,
     input: z.object({ month, close_anyway: z.boolean().default(false), stale_days: z.number().int().min(1).max(365).default(30) }),
     output: z.object({ month: z.string(), lock_ids: z.array(Id), closed_ledger_ids: z.array(Id), blank_com_ids: z.array(Id), checked_on_close: z.number().int(), pending: z.number().int() }),
@@ -336,7 +336,7 @@ export const periodOperations = [
     summary: "Mở lại kỳ (tháng) đã chốt, ghi nhật ký kèm lý do. Dòng Sổ com Đã chốt không tính lại.",
     description: "Chỉ Manager của cây, không cần người thứ hai duyệt. Dùng để sửa Status, Closing date hoặc chuyển vai trò cột. Dòng Sổ com `Đã chốt` vẫn đứng yên; chênh lệch đi qua `commission.adjust`. Cần `Idempotency-Key`.",
     permission: "deal:period:lock",
-    aiAllowed: true,
+    aiAllowed: false,
     emits: ROW_EVENTS,
     input: z.object({ month, reason: z.string().trim().min(1, "Cần ghi lý do mở lại kỳ.").max(500) }),
     output: z.object({ month: z.string(), lock_ids: z.array(Id) }),

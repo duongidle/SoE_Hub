@@ -161,8 +161,8 @@ describe("sharing and permissions matrix, over the web (cookie) and API (token) 
     expect((await fails(owner("datahub.share.set", { datahub_id: x.dhId, grantee_id: org.userB1.id, table_id: "01900000-0000-7000-8000-00000000dead", permission: "view" }))).code).toBe("not_found");
   });
 
-  it("a token without the datahub scope is refused; the admin audit shows no row values", async () => {
-    const h = (await activeToken(t, org.userA1.id, ["system:whoami"])).headers;
+  it("a token without the datahub menu is refused; the admin audit shows no row values", async () => {
+    const h = (await activeToken(t, org.userA1.id, [], { menus: { notify: "read" } })).headers;
     const r = await t.app.inject({ method: "GET", url: `/api/v1/tables/${x.tableId}/rows`, headers: h });
     expect(r.statusCode).toBe(403);
   });

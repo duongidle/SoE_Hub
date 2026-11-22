@@ -162,6 +162,13 @@
       "when": 1795450775332,
       "tag": "0022_grant_options",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795537175332,
+      "tag": "0023_connection_menus",
+      "breakpoints": true
     }
   ]
 }

@@ -92,7 +92,7 @@ export function sessionFrom(setCookie: string | string[] | undefined): WebSessio
 }
 
 /** An active personal token for a user (inserted directly, as if an Admin had approved it). */
-export async function activeToken(t: TestApp, userId: string, scopes: string[], o: { kind?: "personal" | "service"; expiresAt?: Date } = {}): Promise<{ id: string; token: string; headers: Record<string, string> }> {
+export async function activeToken(t: TestApp, userId: string, scopes: string[], o: { kind?: "personal" | "service"; expiresAt?: Date; menus?: Record<string, "read" | "write" | "full">; name?: string; status?: "pending" | "active" } = {}): Promise<{ id: string; token: string; headers: Record<string, string> }> {
   const prefix = o.kind === "service" ? "soe_svc_" : "soe_pat_";
   const token = `${prefix}${randomUUID().replace(/-/g, "")}${randomUUID().replace(/-/g, "")}`;
   const id = newId();
@@ -100,12 +100,26 @@ export async function activeToken(t: TestApp, userId: string, scopes: string[], 
     id,
     userId,
     kind: o.kind ?? "personal",
-    name: "test",
+    name: o.name ?? "test",
     tokenPrefix: token.slice(0, 12),
     tokenHash: sha256(token),
-    scopes,
-    status: "active",
+    // A personal token carries menus (module5); `scopes` only count for service tokens. Default: every menu at the top level, so the owner's own permissions decide.
+    scopes: o.kind === "service" ? scopes : [],
+    menus: o.menus ?? { deal: "full", datahub: "full", form: "full", knowledge: "full", aihub: "full", workspace: "full", notify: "full", feedback: "full", admin: "full" },
+    status: o.status ?? "active",
     expiresAt: o.expiresAt ?? new Date(Date.now() + 86400_000),
   });
   return { id, token, headers: { authorization: `Bearer ${token}` } };
+}
+
+/** Admin's AI policy (module5 6): which forbidden groups are switched on, and the emergency switch. */
+export async function setAiPolicy(t: TestApp, admin: WebSession, p: { groups?: string[]; killed?: boolean }): Promise<void> {
+  const put = async (key: string, value: unknown) => {
+    const cur = await t.app.inject({ method: "GET", url: `/api/v1/system/settings/${key}`, headers: admin.read });
+    const version = cur.statusCode === 200 ? (cur.json().data.version as number) : undefined;
+    const r = await t.app.inject({ method: "PUT", url: `/api/v1/system/settings/${key}`, headers: admin.write, payload: { value, ...(version ? { version } : {}) } });
+    if (r.statusCode >= 300) throw new Error(`setting ${key}: ${r.body}`);
+  };
+  if (p.groups) await put("ai.groups_enabled", p.groups);
+  if (p.killed !== undefined) await put("ai.killed", p.killed);
 }

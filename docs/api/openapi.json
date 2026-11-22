@@ -576,7 +576,7 @@
           "system"
         ],
         "x-command-name": "system.setting.set",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "system:setting:write",
         "parameters": [
           {
@@ -771,7 +771,7 @@
           "system"
         ],
         "x-command-name": "system.audit.list",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "system:audit:read",
         "parameters": [
           {
@@ -948,7 +948,7 @@
           "system"
         ],
         "x-command-name": "system.audit.get",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "system:audit:read",
         "parameters": [
           {
@@ -1066,7 +1066,7 @@
           "system"
         ],
         "x-command-name": "system.audit.export",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "system:audit:read",
         "parameters": [
           {
@@ -4310,6 +4310,20 @@
                               "type": "string"
                             }
                           },
+                          "menus": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": "string",
+                              "enum": [
+                                "read",
+                                "write",
+                                "full"
+                              ]
+                            }
+                          },
                           "status": {
                             "type": "string",
                             "enum": [
@@ -4413,6 +4427,7 @@
                           "name",
                           "token_prefix",
                           "scopes",
+                          "menus",
                           "status",
                           "expires_at",
                           "created_at",
@@ -4495,8 +4510,8 @@
       },
       "post": {
         "operationId": "auth.token.create",
-        "summary": "Tạo token cá nhân (`soe_pat_…`). Token chỉ hiện một lần và chờ Admin duyệt mới dùng được.",
-        "description": "Scope không được rộng hơn quyền hiện có của chính mình. Hạn mặc định 90 ngày, tối đa 365 ngày. Token không mang được quyền `auth:*` và `onboarding:*`.",
+        "summary": "Tạo kết nối bằng token cá nhân (`soe_pat_…`) với menu và mức. Token chỉ hiện một lần và chờ Admin duyệt mới dùng được.",
+        "description": "Menu và mức không rộng hơn quyền của chính mình khi gọi (giao của hai bên). Không gửi `menus` thì dùng mặc định: Quản lý Deal, Datahub, Thông báo mức Sửa; còn lại mức Xem. Guest mẫu Sale không tạo được; Guest mẫu Data chỉ đọc. Hạn mặc định 90 ngày, tối đa 365 ngày. Muốn thêm quyền: tạo kết nối mới.",
         "tags": [
           "auth"
         ],
@@ -4528,14 +4543,29 @@
                     "minLength": 1,
                     "maxLength": 100
                   },
-                  "scopes": {
-                    "minItems": 1,
-                    "maxItems": 100,
-                    "type": "array",
-                    "items": {
+                  "menus": {
+                    "type": "object",
+                    "propertyNames": {
                       "type": "string",
-                      "minLength": 3,
-                      "maxLength": 100
+                      "enum": [
+                        "deal",
+                        "datahub",
+                        "form",
+                        "knowledge",
+                        "aihub",
+                        "workspace",
+                        "notify",
+                        "feedback",
+                        "admin"
+                      ]
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": [
+                        "read",
+                        "write",
+                        "full"
+                      ]
                     }
                   },
                   "expires_in_days": {
@@ -4546,8 +4576,7 @@
                   }
                 },
                 "required": [
-                  "name",
-                  "scopes"
+                  "name"
                 ]
               }
             }
@@ -4612,6 +4641,20 @@
                               "type": "array",
                               "items": {
                                 "type": "string"
+                              }
+                            },
+                            "menus": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": "string",
+                                "enum": [
+                                  "read",
+                                  "write",
+                                  "full"
+                                ]
                               }
                             },
                             "status": {
@@ -4717,6 +4760,7 @@
                             "name",
                             "token_prefix",
                             "scopes",
+                            "menus",
                             "status",
                             "expires_at",
                             "created_at",
@@ -4825,13 +4869,14 @@
       }
     },
     "/api/v1/auth/tokens/{id}": {
-      "delete": {
-        "operationId": "auth.token.revoke",
-        "summary": "Thu hồi một token (chủ token hoặc Admin).",
+      "patch": {
+        "operationId": "auth.token.narrow",
+        "summary": "Chủ kết nối thu hẹp menu hoặc hạ mức của kết nối mình; có hiệu lực ngay.",
+        "description": "`menus` là bộ menu mới và phải nằm trong bộ hiện tại (bỏ menu, hạ mức). Muốn mở rộng: tạo kết nối mới.",
         "tags": [
           "auth"
         ],
-        "x-command-name": "auth.token.revoke",
+        "x-command-name": "auth.token.narrow",
         "x-ai-allowed": false,
         "x-permission": "auth:self",
         "parameters": [
@@ -4846,15 +4891,6 @@
             }
           },
           {
-            "name": "reason",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "maxLength": 300
-            }
-          },
-          {
             "name": "Idempotency-Key",
             "in": "header",
             "required": false,
@@ -4866,6 +4902,46 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "menus": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "enum": [
+                        "deal",
+                        "datahub",
+                        "form",
+                        "knowledge",
+                        "aihub",
+                        "workspace",
+                        "notify",
+                        "feedback",
+                        "admin"
+                      ]
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": [
+                        "read",
+                        "write",
+                        "full"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "menus"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Thành công",
@@ -4919,6 +4995,20 @@
                           "type": "array",
                           "items": {
                             "type": "string"
+                          }
+                        },
+                        "menus": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string",
+                            "enum": [
+                              "read",
+                              "write",
+                              "full"
+                            ]
                           }
                         },
                         "status": {
@@ -5024,6 +5114,330 @@
                         "name",
                         "token_prefix",
                         "scopes",
+                        "menus",
+                        "status",
+                        "expires_at",
+                        "created_at",
+                        "decided_at",
+                        "decided_by_name",
+                        "decision_note",
+                        "revoked_at",
+                        "revoke_reason",
+                        "last_used_at",
+                        "version"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "auth.token.revoke",
+        "summary": "Thu hồi một token (chủ token hoặc Admin).",
+        "tags": [
+          "auth"
+        ],
+        "x-command-name": "auth.token.revoke",
+        "x-ai-allowed": false,
+        "x-permission": "auth:self",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 300
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "user_id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "user_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "user_email": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "personal",
+                            "service"
+                          ]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "token_prefix": {
+                          "type": "string"
+                        },
+                        "scopes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "menus": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string",
+                            "enum": [
+                              "read",
+                              "write",
+                              "full"
+                            ]
+                          }
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "active",
+                            "rejected",
+                            "revoked"
+                          ]
+                        },
+                        "expires_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "decided_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "decided_by_name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "decision_note": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "revoked_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "revoke_reason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "last_used_at": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {},
+                                {
+                                  "type": "string"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "version": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "user_id",
+                        "user_name",
+                        "user_email",
+                        "kind",
+                        "name",
+                        "token_prefix",
+                        "scopes",
+                        "menus",
                         "status",
                         "expires_at",
                         "created_at",
@@ -5219,6 +5633,20 @@
                               "type": "string"
                             }
                           },
+                          "menus": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": "string",
+                              "enum": [
+                                "read",
+                                "write",
+                                "full"
+                              ]
+                            }
+                          },
                           "status": {
                             "type": "string",
                             "enum": [
@@ -5322,6 +5750,7 @@
                           "name",
                           "token_prefix",
                           "scopes",
+                          "menus",
                           "status",
                           "expires_at",
                           "created_at",
@@ -5406,8 +5835,8 @@
     "/api/v1/admin/tokens/{id}/approve": {
       "post": {
         "operationId": "auth.token.approve",
-        "summary": "Admin duyệt token cá nhân. Scope được cắt theo quyền hiện tại của chủ token.",
-        "description": "Admin không tự duyệt token của chính mình khi còn Admin khác.",
+        "summary": "Admin duyệt kết nối (token cá nhân), có thể duyệt ít quyền hơn bằng `menus`.",
+        "description": "`menus` (không bắt buộc) phải nằm trong bộ chủ kết nối đã xin: bỏ menu hoặc hạ mức. Admin không tự duyệt kết nối của chính mình khi còn Admin khác.",
         "tags": [
           "auth"
         ],
@@ -5447,6 +5876,31 @@
                   "note": {
                     "type": "string",
                     "maxLength": 500
+                  },
+                  "menus": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "enum": [
+                        "deal",
+                        "datahub",
+                        "form",
+                        "knowledge",
+                        "aihub",
+                        "workspace",
+                        "notify",
+                        "feedback",
+                        "admin"
+                      ]
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "enum": [
+                        "read",
+                        "write",
+                        "full"
+                      ]
+                    }
                   }
                 }
               }
@@ -5506,6 +5960,20 @@
                           "type": "array",
                           "items": {
                             "type": "string"
+                          }
+                        },
+                        "menus": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string",
+                            "enum": [
+                              "read",
+                              "write",
+                              "full"
+                            ]
                           }
                         },
                         "status": {
@@ -5611,6 +6079,7 @@
                         "name",
                         "token_prefix",
                         "scopes",
+                        "menus",
                         "status",
                         "expires_at",
                         "created_at",
@@ -5825,6 +6294,20 @@
                             "type": "string"
                           }
                         },
+                        "menus": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string",
+                            "enum": [
+                              "read",
+                              "write",
+                              "full"
+                            ]
+                          }
+                        },
                         "status": {
                           "type": "string",
                           "enum": [
@@ -5928,6 +6411,7 @@
                         "name",
                         "token_prefix",
                         "scopes",
+                        "menus",
                         "status",
                         "expires_at",
                         "created_at",
@@ -6146,6 +6630,20 @@
                                     "type": "string"
                                   }
                                 },
+                                "menus": {
+                                  "type": "object",
+                                  "propertyNames": {
+                                    "type": "string"
+                                  },
+                                  "additionalProperties": {
+                                    "type": "string",
+                                    "enum": [
+                                      "read",
+                                      "write",
+                                      "full"
+                                    ]
+                                  }
+                                },
                                 "status": {
                                   "type": "string",
                                   "enum": [
@@ -6249,6 +6747,7 @@
                                 "name",
                                 "token_prefix",
                                 "scopes",
+                                "menus",
                                 "status",
                                 "expires_at",
                                 "created_at",
@@ -6506,6 +7005,20 @@
                                   "type": "string"
                                 }
                               },
+                              "menus": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "string",
+                                  "enum": [
+                                    "read",
+                                    "write",
+                                    "full"
+                                  ]
+                                }
+                              },
                               "status": {
                                 "type": "string",
                                 "enum": [
@@ -6609,6 +7122,7 @@
                               "name",
                               "token_prefix",
                               "scopes",
+                              "menus",
                               "status",
                               "expires_at",
                               "created_at",
@@ -6907,6 +7421,20 @@
                                   "type": "string"
                                 }
                               },
+                              "menus": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "string",
+                                  "enum": [
+                                    "read",
+                                    "write",
+                                    "full"
+                                  ]
+                                }
+                              },
                               "status": {
                                 "type": "string",
                                 "enum": [
@@ -7010,6 +7538,7 @@
                               "name",
                               "token_prefix",
                               "scopes",
+                              "menus",
                               "status",
                               "expires_at",
                               "created_at",
@@ -7263,6 +7792,20 @@
                                   "type": "string"
                                 }
                               },
+                              "menus": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "string",
+                                  "enum": [
+                                    "read",
+                                    "write",
+                                    "full"
+                                  ]
+                                }
+                              },
                               "status": {
                                 "type": "string",
                                 "enum": [
@@ -7366,6 +7909,7 @@
                               "name",
                               "token_prefix",
                               "scopes",
+                              "menus",
                               "status",
                               "expires_at",
                               "created_at",
@@ -7619,6 +8163,20 @@
                                   "type": "string"
                                 }
                               },
+                              "menus": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "string",
+                                  "enum": [
+                                    "read",
+                                    "write",
+                                    "full"
+                                  ]
+                                }
+                              },
                               "status": {
                                 "type": "string",
                                 "enum": [
@@ -7722,6 +8280,7 @@
                               "name",
                               "token_prefix",
                               "scopes",
+                              "menus",
                               "status",
                               "expires_at",
                               "created_at",
@@ -7966,6 +8525,20 @@
                                 "type": "string"
                               }
                             },
+                            "menus": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": "string",
+                                "enum": [
+                                  "read",
+                                  "write",
+                                  "full"
+                                ]
+                              }
+                            },
                             "status": {
                               "type": "string",
                               "enum": [
@@ -8069,6 +8642,7 @@
                             "name",
                             "token_prefix",
                             "scopes",
+                            "menus",
                             "status",
                             "expires_at",
                             "created_at",
@@ -8370,7 +8944,7 @@
           "org"
         ],
         "x-command-name": "org.member.create",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "org:member:write",
         "parameters": [
           {
@@ -9018,7 +9592,7 @@
           "org"
         ],
         "x-command-name": "org.member.update",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "org:member:write",
         "parameters": [
           {
@@ -9567,7 +10141,7 @@
           "org"
         ],
         "x-command-name": "org.member.lock",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "org:member:write",
         "parameters": [
           {
@@ -9883,7 +10457,7 @@
           "org"
         ],
         "x-command-name": "org.member.unlock",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "org:member:write",
         "parameters": [
           {
@@ -10642,7 +11216,7 @@
           "org"
         ],
         "x-command-name": "org.permission.grant",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "org:permission:grant",
         "parameters": [
           {
@@ -10829,7 +11403,7 @@
           "org"
         ],
         "x-command-name": "org.permission.revoke",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "org:permission:grant",
         "parameters": [
           {
@@ -11453,7 +12027,7 @@
           "guest"
         ],
         "x-command-name": "guest.data_type.list",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "guest:grant:manage",
         "responses": {
           "200": {
@@ -11567,7 +12141,7 @@
           "guest"
         ],
         "x-command-name": "guest.grant.list",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "guest:grant:manage",
         "parameters": [
           {
@@ -11808,7 +12382,7 @@
           "guest"
         ],
         "x-command-name": "guest.grant.create",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "guest:grant:manage",
         "parameters": [
           {
@@ -12367,7 +12941,7 @@
           "guest"
         ],
         "x-command-name": "guest.grant.revoke",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "guest:grant:manage",
         "parameters": [
           {
@@ -12664,7 +13238,7 @@
           "data"
         ],
         "x-command-name": "data.transfer.preview",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "data:transfer",
         "parameters": [
           {
@@ -12840,7 +13414,7 @@
           "data"
         ],
         "x-command-name": "data.transfer.execute",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "data:transfer",
         "parameters": [
           {
@@ -13061,7 +13635,7 @@
           "org"
         ],
         "x-command-name": "org.tree.transfer",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "data:transfer",
         "parameters": [
           {
@@ -24614,7 +25188,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.limit.user.list",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "system:setting:read",
         "responses": {
           "200": {
@@ -24769,7 +25343,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.limit.user.set",
-        "x-ai-allowed": false,
+        "x-ai-allowed": true,
         "x-permission": "system:setting:write",
         "parameters": [
           {
@@ -30962,7 +31536,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.template.create",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:template:write",
         "parameters": [
           {
@@ -32449,7 +33023,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.template.update",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:template:write",
         "parameters": [
           {
@@ -32740,7 +33314,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.template.archive",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:template:write",
         "parameters": [
           {
@@ -32999,7 +33573,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.template.restore",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:template:write",
         "parameters": [
           {
@@ -33259,7 +33833,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.template.column.create",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:template:write",
         "parameters": [
           {
@@ -33817,7 +34391,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.template.column.update",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:template:write",
         "parameters": [
           {
@@ -34436,7 +35010,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.template.column.delete",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:template:write",
         "parameters": [
           {
@@ -34748,7 +35322,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.template.column.type_change",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:template:write",
         "parameters": [
           {
@@ -35367,7 +35941,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.template.column.restore",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:template:write",
         "parameters": [
           {
@@ -35789,7 +36363,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.template.column.set_role",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:template:write",
         "parameters": [
           {
@@ -38810,7 +39384,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.import.analyze",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:datahub:use",
         "parameters": [
           {
@@ -39293,7 +39867,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.import.sheet",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:datahub:use",
         "parameters": [
           {
@@ -39586,7 +40160,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.import.preview",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:datahub:use",
         "parameters": [
           {
@@ -40129,7 +40703,7 @@
           "datahub"
         ],
         "x-command-name": "datahub.import.start",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "datahub:datahub:use",
         "parameters": [
           {
@@ -54480,7 +55054,7 @@
           "period"
         ],
         "x-command-name": "period.confirm_received",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "deal:payment:write",
         "parameters": [
           {
@@ -54664,7 +55238,7 @@
           "period"
         ],
         "x-command-name": "period.close",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "deal:period:lock",
         "parameters": [
           {
@@ -54866,7 +55440,7 @@
           "period"
         ],
         "x-command-name": "period.reopen",
-        "x-ai-allowed": true,
+        "x-ai-allowed": false,
         "x-permission": "deal:period:lock",
         "parameters": [
           {
@@ -56689,6 +57263,7 @@
                   "invalid_filter",
                   "idempotency_key_invalid",
                   "unauthenticated",
+                  "connection_pending",
                   "invalid_credentials",
                   "code_invalid",
                   "password_rejected",
