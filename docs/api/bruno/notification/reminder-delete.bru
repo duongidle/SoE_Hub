@@ -1,0 +1,20 @@
+meta {
+  name: reminder.delete
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/reminders/{{id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Xoá nhắc hẹn của mình (cả chuỗi lặp).
+  Quyền: `notification:manage`.
+}

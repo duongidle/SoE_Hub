@@ -1,0 +1,29 @@
+meta {
+  name: notification.settings.set
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/v1/notifications/settings
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "disabled_types": ["datahub.shared"],
+    "morning_digest": true
+  }
+}
+
+docs {
+  Tắt hoặc bật loại thông báo (trừ loại bắt buộc) và bản tin buổi sáng.
+  Quyền: `notification:manage`.
+}

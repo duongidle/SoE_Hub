@@ -16,7 +16,16 @@ Cập nhật: 22/11/2026
 - **4.2** bộ bảng mặc định theo cây, kiểu Người dùng có thuộc tính. **4.3** giao diện Quản lý Deal + trang Template. **4.4** thanh toán và com theo đợt (4.4A server, 4.4B web). **4.5** chốt kỳ, BANT, forecast, snapshot (+ sửa chập chờn: `columnTx`, hàng đợi ưu tiên). **4.6** chỉ số, dashboard Deals, `deal.cycle`, hiệu năng hàng đợi (4.6A–D). Quyết định chi tiết: `design/module4-quyet-dinh-khi-code.md` 4.2–4.6D; bản đồ: `design/ban-do-code.md`.
 - **4.6E** (22/11) hàm người xem ME/ISME/ATTR, bộ mặc định bỏ phần cứng, vai trò đa cột `nguoi_tham_gia`; phần còn lại làm ở 4.7A (INSCOPE/ATTRSUM, lệnh tiền tính ngay, trần % com ở lệnh).
 
-## Đang làm: Stage 5 bản rút gọn (5A1, 5A2, 5B xong 22/11, Opus rà đạt)
+## Đang làm: Stage 6 bản rút gọn, 6A1 xong 22/11 (chờ Opus rà); tiếp 6A2
+
+Phạm vi `design/module6-thong-bao.md` mục 14; quyết định: `design/module6-quyet-dinh-khi-code.md`; bản đồ: `design/ban-do-code.md` "Module 6".
+
+**6A1 xong:** cửa `notify.send` + `defineNotification` (`apps/api/src/modules/notification/notify.ts`, loại ở `catalog.ts`), migration 0024 (cột mới của `notifications`, `notification_settings`, `reminders`), 19 loại thông báo mục 14 "Giữ" (trừ mục "chưa làm" trong file quyết định), nhắc hẹn (`reminders.ts`, 6 lệnh `reminder.*`), 3 job (`notification-reminders` mỗi phút, `notification-purge`, `notification-ai-expiring`), MCP `reminder_create` + `notifications_list`, quyền `notification:manage`, OpenAPI + Bruno `docs/api/bruno/notification/`.
+**Test (mã 3ca5c73 + commit sau):** `apps/api/test/notify.test.ts` 19 pass; kèm auth, stage1-misc, ai-connections, mcp, deal-payments, deal-period, openapi, ban-do-code, datahub-import/export/events/guest-table, metrics-share/dashboard, org: pass; `vitest run packages apps/web` 249 pass. `tsc` api: chỉ 15 lỗi cũ ở `http/app.ts`, `auth/google.ts` (kiểu `@fastify/cookie`, không do 6A1; mốc "0 lỗi" ghi trước đó không còn đúng trên máy này), lint sạch. Chưa chạy vitest cả bộ, chưa e2e (6A2/6B).
+**Bàn giao 6A2:** gửi thông báo: `notify.send(db, { type, recipients, render: (recipient, by, ctx) => ({ title, body, link }), sourceEventId: stableId(...) })` (loại phải khai bằng `defineNotification` trong `catalog.ts`, không `on` nếu gửi trực tiếp; `mandatory`, `priority`, `selfNotify`). Cờ bản tin: `readSettings(db, userId).morningDigest` (mặc định true, `notification_settings.morning_digest`). Job: thêm vào `jobs` ở `apps/api/src/jobs/index.ts` (mẫu `notification-reminders`). Chống gửi trùng: `stableId` của (quy tắc, dòng, mốc, ngày). Test mẫu: `apps/api/test/notify.test.ts` (hàm `mine`, `emit`). Lệnh: `pnpm exec vitest run apps/api/test/notify.test.ts`.
+**Chỗ dở / lưu ý cho Opus:** (1) trình tự `fired` của nhắc hẹn không lặp (giữ đến khi bấm Xong, không tính giới hạn 200), nhắc lặp bấm Xong không dừng chuỗi; (2) nhắc hẹn gắn dòng không kiểm quyền xem lúc tạo; (3) các loại dời: Kỳ khoá/mở lại, Template đổi, Chính sách com mới, Deal Won chưa chia đủ, Leading đổi Status/Doanh thu/Ngày chốt; (4) cả `datahub.row.updated` giờ có thêm 4 truy vấn nhỏ ở subscriber thông báo cho mỗi sự kiện dòng (kiểm cột vai trò); chưa đo trên import lớn.
+
+## Stage 5 bản rút gọn (5A1, 5A2, 5B xong 22/11, Opus rà đạt)
 
 Phạm vi: `design/module5-ket-noi-ai.md` mục 12; quyết định: `design/module5-quyet-dinh-khi-code.md` (5A1, 5A2, 5B); bản đồ: `design/ban-do-code.md` "Module 5"; hướng dẫn người dùng: `docs/ket-noi-ai.md`.
 

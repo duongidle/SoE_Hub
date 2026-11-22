@@ -1,0 +1,24 @@
+meta {
+  name: reminder.list
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/reminders
+  body: none
+  auth: none
+}
+
+params:query {
+  status: upcoming
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Nhắc hẹn của mình: sắp tới hoặc đã xong.
+  Quyền: `notification:manage`.
+}

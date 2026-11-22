@@ -1,0 +1,20 @@
+meta {
+  name: notification.settings.get
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/notifications/settings
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Cài đặt thông báo của mình: loại nào đang tắt và bản tin buổi sáng.
+  Quyền: `notification:manage`.
+}

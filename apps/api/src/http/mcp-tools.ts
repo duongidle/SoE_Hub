@@ -1,5 +1,5 @@
 /**
- * The selective MCP tools (design module5 4.2, 4.4, 12): `deals_list`, `deal_get`, `deal_metrics`, `rows_query`, `rows_write`, `metrics_query`.
+ * The selective MCP tools (design module5 4.2, 4.4, 12): `deals_list`, `deal_get`, `deal_metrics`, `rows_query`, `rows_write`, `metrics_query`, `reminder_create`, `notifications_list` (menu notify, Stage 6).
  * Each tool only maps an easy input onto registry operations and shapes a compact result; it calls them through the executor (`ctx.call`), so the owner's
  * rights, the connection's menu and level, the split lock and column masking stay in ONE place and no rule lives here.
  *
@@ -488,6 +488,46 @@ const metricsQuery: ToolDef = {
   },
 };
 
+const reminderCreate: ToolDef = {
+  name: "reminder_create",
+  description: "Set a reminder for yourself. Time is Vietnam time (e.g. 2026-11-23T14:00); it must be in the future. Optional repeat and end date.",
+  inputSchema: OBJ(
+    {
+      content: { type: "string", description: "What to be reminded of (max 500 chars)." },
+      due_at: { type: "string", description: "When, Vietnam time: 2026-11-23T14:00 (or with a zone offset)." },
+      repeat: { type: "string", enum: ["none", "daily", "weekly", "monthly"] },
+      weekdays: { type: "array", items: { type: "integer" }, description: "Weekly only: 1 = Monday ... 7 = Sunday. Default: the weekday of due_at." },
+      until: { type: "string", description: "Last day of the repeat, YYYY-MM-DD." },
+    },
+    ["content", "due_at"],
+  ),
+  annotations: { title: "Create reminder" },
+  need: { menus: ["notify"], access: "write" },
+  run: (ctx, a) => ctx.call("reminder.create", a),
+};
+
+const notificationsList: ToolDef = {
+  name: "notifications_list",
+  description: "Your notifications, newest first (unread by default, 20 rows). Compact table.",
+  inputSchema: OBJ({
+    unread_only: { type: "boolean", description: "Default true." },
+    category: { type: "string", description: "deal, datahub, ai, account, reminder..." },
+    limit: { type: "integer", description: "Default 20, max 100." },
+    cursor: { type: "string" },
+  }),
+  annotations: { readOnlyHint: true, title: "Notifications" },
+  need: { menus: ["notify"], access: "read" },
+  async run(ctx, a) {
+    const limit = typeof a.limit === "number" ? Math.max(1, Math.min(100, Math.floor(a.limit))) : 20;
+    const page = (await ctx.callRaw("notification.list", { limit, unread_only: a.unread_only === false ? "false" : "true", ...(a.category ? { category: a.category } : {}), ...(a.cursor ? { cursor: a.cursor } : {}) })) as { items: Obj[]; nextCursor: string | null };
+    return {
+      columns: ["_id", "created_at", "category", "title", "body", "read"],
+      rows: page.items.map((n) => [n.id, n.created_at, n.category, n.title, n.body, n.read_at != null]),
+      next_cursor: page.nextCursor,
+    };
+  },
+};
+
 export function selectiveTools(): ToolDef[] {
-  return [dealsList, dealGet, dealMetrics, rowsQuery, rowsWrite, metricsQuery];
+  return [dealsList, dealGet, dealMetrics, rowsQuery, rowsWrite, metricsQuery, reminderCreate, notificationsList];
 }

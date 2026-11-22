@@ -1,0 +1,26 @@
+meta {
+  name: reminder.done
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/v1/reminders/{{id}}/done
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {}
+}
+
+docs {
+  Bấm Xong cho nhắc hẹn đã nhắc.
+  Quyền: `notification:manage`.
+}

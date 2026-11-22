@@ -1,0 +1,28 @@
+meta {
+  name: reminder.snooze
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/v1/reminders/{{id}}/snooze
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "until": "tomorrow_0830"
+  }
+}
+
+docs {
+  Nhắc lại sau 1 giờ (`1h`) hoặc sáng mai 08:30 (`tomorrow_0830`).
+  Quyền: `notification:manage`.
+}
