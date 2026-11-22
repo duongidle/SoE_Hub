@@ -5,7 +5,7 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** Stage 0–6 xong (Stage 4: 4.8 bản cơ bản; Stage 5, 6: bản rút gọn, `design/module5-ket-noi-ai.md` mục 12, `design/module6-thong-bao.md` mục 14; Opus rà đạt 22/11). Mốc test sau cùng: vitest cả bộ 1290 pass 10 skip (mã 111990c); sau sửa Leading (8335423) test Deal + notify 108 pass 1 skip. Tiếp: Stage 7 (Module 7, Dynamic Form): rà phạm vi trước khi giao. Việc dời của thiết kế: `design/update_v1.md`.
+- **Code:** Stage 0–6 xong (Stage 4: 4.8 bản cơ bản; Stage 5, 6: bản rút gọn, `design/module5-ket-noi-ai.md` mục 12, `design/module6-thong-bao.md` mục 14; Opus rà đạt 22/11). Mốc test sau cùng: vitest cả bộ 1290 pass 10 skip (mã 111990c); sau sửa Leading (8335423) test Deal + notify 108 pass 1 skip. Đang làm: Stage 7 bản rút gọn (Dương chốt 22/11, `design/module7-dynamic-form.md` mục 14): 7A1 → 7A2 → 7B1 → 7B2. Việc dời của thiết kế: `design/update_v1.md`.
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 

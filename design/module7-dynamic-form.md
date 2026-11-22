@@ -436,3 +436,29 @@ Bật chế độ **Bài kiểm tra** cho một form. Chỉ dùng được với
 Đã chốt 19/11/2026: một form ghi vào tối đa một bảng, mỗi câu hỏi một cột (1.1, 2.3a); 150 cột cho bảng có form (1.1a); bản nháp và xuất bản, phiên bản không sinh cột mới (2.2); ràng buộc cột và điền sẵn qua link (2.3b); nhóm câu theo điều kiện (2.4); component Nguồn dữ liệu (2.5), hiển thị kết quả kể cả biến thể theo giá trị (2.6), tự điền từ kết quả (2.7); datahub "Quản lý Deal" không làm đích, không làm nguồn (1.1); chống spam không captcha (5.3); form thường nộp được qua API (5.1); thẻ số, biểu đồ trên kết quả chưa làm.; Guest dùng form nội bộ khi được chọn đích danh (3.1); danh sách tự sinh ở mọi chỗ chọn (2.8).
 
 Phần nối với Module 5 (menu Form, tool MCP) khớp Module 5 đã chốt 19/11 (nộp bài kiểm tra và nhập key nguồn dữ liệu thuộc nhóm cấm cứng, Module 5 mục 3.3). Phần nối với Module 6 (loại thông báo) theo bản nháp; đổi theo khi Module 6 được chốt.
+
+## 14. Phạm vi Stage 7 rút gọn (Dương chốt 22/11/2026)
+
+Rà theo `kinh-nghiem-quyet-dinh.md`; ước 45–50M (đủ thiết kế 80–100M). Mục này thắng các mục trên khi khác nhau. Phần dời ghi ở `design/update_v1.md`.
+
+**Giữ:**
+- Form và bảng (1.1, 1.1a, 1.3): một bảng đích, mỗi câu một cột, tạo cột ngay trong trình soạn, luật chọn bảng đích, 150 cột (`form.table_max_columns`), xử lý khi bảng đổi cấu trúc.
+- Bản nháp, xuất bản, phiên bản (2.2); cột hệ thống Phiên bản form. Bỏ "Tách thành câu hỏi mới".
+- Khối không phải cột (1.2): tiêu đề, đoạn chữ, ảnh, đường kẻ, ngắt trang (form nhiều bước có thanh tiến độ). Video nhúng: dời.
+- Ô nhập theo kiểu cột (2.3) + Thang điểm; nối câu hỏi với cột (2.3a); ràng buộc bảng (2.3b); điền sẵn qua link + trường ẩn.
+- Điều kiện hiện/ẩn câu và nhóm câu, "Khi chọn thì hiện…", server tính lại (2.4).
+- Giao diện form: ảnh bìa, logo, tiêu đề, mô tả, màu nhấn từ bảng màu, độ rộng; trang cảm ơn (chữ tuỳ chỉnh hoặc chuyển URL, nút "Gửi phản hồi khác").
+- Ba cách mở, đổi link, tạo người điền (3.1 trừ nhúng); tuỳ chọn mở/đóng lúc, số phản hồi tối đa, mỗi người một phản hồi, trạng thái (3.2 trừ "Cho sửa sau khi gửi"); người điền không thấy mã bảng/cột/đáp án (3.3).
+- Nháp khi điền (4): nội bộ ở server, công khai trong trình duyệt.
+- Gửi bài (5.1, 5.3, 5.4): đường ghi chung, `via = form`, chống bấm hai lần, nộp qua API/MCP; chống spam; file trên form công khai.
+- Bài kiểm tra (6.1, 6.2, 6.3 trừ thời gian làm và xáo trộn, 6.4 trừ chấm lại theo đáp án mới, 6.5); màn Chấm bài.
+- Phản hồi (7): số phản hồi, danh sách, link sang bảng đích. Thông báo: bài chờ chấm → người chấm; đã chấm xong → người làm bài (khi được xem điểm).
+- **Nút "Nhận thông báo khi có phản hồi mới"** trong thiết lập form: có sẵn trên giao diện, mặc định tắt, **làm mờ, chưa bấm được** (ghi chú "Sắp có"). Chức năng làm ở update v1: ai bật mới nhận.
+- JSON (8), quyền, thùng rác, nhân bản, chuyển giao (9); MCP `form_get`, `form_save`, `form_responses`.
+- Trình soạn: thanh khối, khung form, thanh thuộc tính; **kéo thả đổi thứ tự** (dnd-kit) + nút Lên/Xuống + bàn phím; xem trước điện thoại / máy tính. Không có hàng nhiều cột.
+
+**Kiểm thử giao diện (Dương chốt 22/11, thay ngoại lệ Stage 7 trong CLAUDE.md):** không rà đủ chuẩn giao diện, không bộ skill giao diện, không `break-ui`. Chỉ cần: chức năng tạo form chắc chắn chạy (kéo thả, thêm câu, nối cột, điều kiện, xuất bản) có e2e; trang điền công khai hiển thị ổn định ở máy tính và 375px (e2e chụp/kiểm cơ bản). Làm đẹp ở Stage 12.
+
+**Dời:** toàn bộ Nguồn dữ liệu (2.5–2.8 phần nguồn); bảng lựa chọn; nhảy trang, xem trước đi thử từng nhánh; ô "Tạo link điền sẵn"; nhúng iframe; "Cho sửa sau khi gửi"; link "Lưu và làm tiếp sau"; thời gian làm bài, xáo trộn, chấm lại theo đáp án mới; biểu đồ tóm tắt ở tab Phản hồi; thông báo có phản hồi mới (chỉ có nút mờ); hàng nhiều cột; video nhúng.
+
+**Chia bước:** 7A1 form + bảng + xuất bản + gửi bài + chống spam + nháp; 7A2 bài kiểm tra + chấm + JSON + MCP + nhân bản; 7B1 trình soạn, danh sách form, Phản hồi, Chấm bài; 7B2 trang điền công khai, e2e, kiểm thử cuối stage. Mỗi agent tối đa khoảng 80 lượt.

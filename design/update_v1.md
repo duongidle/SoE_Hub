@@ -38,3 +38,20 @@
 | Loại thông báo: deal mình Leading bị người khác sửa, template Deals đổi, chính sách com mới, kỳ khoá/mở, deal Won chưa chia đủ tỉ lệ | mục 3.2 | Thêm bằng `defineNotification` khi cần |
 | Admin chỉnh thời hạn giữ thông báo, giới hạn nhắc hẹn/quy tắc | mục 10 | Hiện là hằng số |
 | Phân trang `announcement.list_*` (hiện chỉ `limit`); nút Xem trước của 2 quy tắc nhắc hạn | mục 6.1, 7 | Khi danh sách dài / Manager cần |
+
+## Module 7 — Dynamic Form (Dương chốt 22/11, Module 7 mục 14)
+
+| Việc | Thiết kế gốc | Lý do dời / khi nào cần |
+|---|---|---|
+| Nguồn dữ liệu: nguồn Datahub, API nội bộ (danh sách Admin), API bên ngoài (key mã hoá, chặn địa chỉ nội bộ, 10 s, 1 MB, cache 60 s, 30 lần/phút), khối hiển thị tự dựng (Lặp / Một kết quả), biến thể theo giá trị, ảnh qua server, chi tiết khi bấm, tự điền từ kết quả, câu "chỉ dùng cho nguồn", cột Mã kết quả đã chọn, công tắc tắt API ngoài | mục 2.5–2.8 | Bản đầu chỉ cần form nhập liệu; làm ở update v1 |
+| Thông báo có phản hồi mới: nút bật/tắt theo form (mặc định tắt, đã có nút mờ), ai bật mới nhận; nên gom theo giờ | mục 7 | Update v1 |
+| Bảng lựa chọn (mỗi tiêu chí một cột Một lựa chọn) | mục 2.3 | Khi cần phiếu dạng lưới trên form |
+| Nhảy trang theo câu trả lời; xem trước "đi thử từng nhánh" | mục 2.4 | Khi form dài nhiều nhánh |
+| Ô "Tạo link điền sẵn" trong trình soạn (điền sẵn qua link vẫn chạy) | mục 2.3b | Khi người dùng cần |
+| Nhúng form vào trang khác (iframe, `frame-ancestors`) | mục 3.1 | Khi landing page cần |
+| "Cho sửa sau khi gửi" | mục 3.2, 5.2 | Khi cần |
+| Link "Lưu và làm tiếp sau" cho form công khai | mục 4 | Khi form công khai dài |
+| Thời gian làm bài, xáo trộn câu/lựa chọn, "Chấm lại theo đáp án mới" | mục 6.3, 6.4 | Khi Onboarding cần (xem lại ở Stage 9) |
+| Biểu đồ tóm tắt từng câu ở tab Phản hồi | mục 7 | Hiện dùng dashboard Datahub trên bảng đích |
+| Hàng nhiều cột (tối đa 3), video nhúng YouTube | mục 1.2, 2.1 | Stage 12 / khi cần |
+| Rà đủ chuẩn giao diện, bộ skill giao diện, `break-ui` cho trình soạn và form công khai | CLAUDE.md ngoại lệ Stage 7 | Stage 12 |
