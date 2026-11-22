@@ -222,4 +222,14 @@ describe("(c) four columns: Leading, Leading %, Associate, Associate %", () => {
     const e2 = await fails(mgrA("payment.confirm", { received_on: "2026-09-02", receipt: { amount: 10_000_000 }, allocations: [{ payment_id: s.payments[0].id, amount: 10_000_000 }] }));
     expect(e2.details?.reason).toBe("com_over_cap");
   });
+  it("a com_split sent by hand is checked against the cap too (schedule and confirm)", async () => {
+    const d = (await mgrA("datahub.row.create", { table_id: tables["Deals"]!, data: dealData("Chia tay", { L4: org.userA1.id, "L4 %": 0.1 }) })).id;
+    await settle();
+    const split = (a: number, b: number) => [{ user_id: org.userA1.id, pct: a }, { user_id: org.userA2.id, pct: b }];
+    const e = await fails(mgrA("payment.schedule", { deal_id: d, payments: [{ legal_entity: "CT tay", amount: 10_000_000, due: "2026-10-01", com_split: split(0.4, 0.2) }] }));
+    expect(e.details?.reason).toBe("com_over_cap");
+    const s = await mgrA("payment.schedule", { deal_id: d, payments: [{ legal_entity: "CT tay", amount: 10_000_000, due: "2026-10-01", com_split: split(0.3, 0.2) }] });
+    const e2 = await fails(mgrA("payment.confirm", { received_on: "2026-10-02", receipt: { amount: 10_000_000 }, allocations: [{ payment_id: s.payments[0].id, amount: 10_000_000, com_split: split(0.4, 0.2) }] }));
+    expect(e2.details?.reason).toBe("com_over_cap");
+  });
 });

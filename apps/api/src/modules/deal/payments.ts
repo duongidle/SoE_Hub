@@ -1,4 +1,4 @@
-import { assertComCap, peopleCell, participantsOf, type Participant } from "./participants";
+import { assertComCap, assertComTotal, peopleCell, participantsOf, type Participant } from "./participants";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError, businessDate } from "@soe/shared";
@@ -421,6 +421,7 @@ export const paymentOperations = [
       const needPeople = items.some((p) => !p.id);
       const parts = needPeople ? await participantsOf(ctx, tree.deals, deal) : [];
       if (needPeople) await assertComCap(ctx, tree.deals, parts, i.deal_id);
+      for (const p of items) if (p.com_split) await assertComTotal(ctx, tree.deals, p.com_split.reduce((a, s) => a + s.pct, 0), i.deal_id);
       const people = (needPeople ? peopleCell(tree.dots, parts) : []) as unknown as Stored;
       const nextSeq = Math.max(0, ...[...have.values()].map((r) => numOf(cellOf(tree.dots, r, "dot_so"))));
       let seq = nextSeq;
@@ -550,6 +551,7 @@ export const paymentOperations = [
       const total = i.allocations.reduce((s, a) => s + (a.amount_received ?? a.amount), 0);
       // The commission split of a deal is read before anything is written (participants.ts): from the people of the deal, each with their own share.
       const needSplit = [...new Set(i.allocations.filter((a) => !a.com_split && empty(cellOf(tree.dots, dots.get(a.payment_id)!, "chia_com_dot"))).map((a) => dealOf.get(a.payment_id)!))];
+      for (const a of i.allocations) if (a.com_split) await assertComTotal(ctx, tree.deals, a.com_split.reduce((x, s) => x + s.pct, 0), dealOf.get(a.payment_id)!);
       const partsOf = new Map<string, Participant[]>();
       for (const d of needSplit) {
         const parts = await participantsOf(ctx, tree.deals, deals.get(d)!);

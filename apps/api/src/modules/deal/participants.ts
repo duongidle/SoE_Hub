@@ -141,8 +141,12 @@ export const COM_CAP_PARAM = "Tỉ lệ SoE";
  */
 export async function assertComCap(ctx: Ctx, deals: T, parts: Participant[], dealId: string): Promise<void> {
   if (parts.length === 0) return;
+  await assertComTotal(ctx, deals, parts.reduce((a, p) => a + p.com, 0), dealId);
+}
+
+/** Same cap for a total given by hand (`com_split` of a call): the sum of the shares may not exceed `Tỉ lệ SoE`. */
+export async function assertComTotal(ctx: Ctx, deals: T, total: number, dealId: string): Promise<void> {
   const cap = await capFor(ctx.db, deals.acc.datahub.id, COM_CAP_PARAM, businessDate(new Date()));
-  const total = parts.reduce((a, p) => a + p.com, 0);
   if (cap !== null && total > cap + 1e-9) {
     throw new AppError("validation_error", `Tổng % com của người tham gia deal là ${Math.round(total * 10000) / 100}%, vượt "${COM_CAP_PARAM}" (${Math.round(cap * 10000) / 100}%). Sửa % com của deal trước.`, { reason: "com_over_cap", deal_id: dealId, total, cap });
   }
