@@ -52,4 +52,6 @@ export interface PostKind<C = Record<string, unknown>> {
   markdown(c: C): string;
   /** Ids of the files of `files` attached to the content. */
   fileIds(c: C): string[];
+  /** Runs just before a version goes live (approval or self-publish); throws to stop it (skill: one live skill per name). */
+  beforePublish?(ctx: { db: Executor; postId: string }, c: C): Promise<void>;
 }

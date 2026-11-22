@@ -212,6 +212,7 @@ export async function submit(ctx: Ctx, k: PostKind, postId: string): Promise<Sub
 /** Makes a version the live one: the old live version is kept as `superseded`; the search copy of the post is rebuilt. */
 async function publishVersion(ctx: Ctx, k: PostKind, post: PostRow, version: number, o: { self: boolean }): Promise<void> {
   const ver = (await loadVersion(ctx.db, post.id, version))!;
+  await k.beforePublish?.({ db: ctx.db, postId: post.id }, ver.content);
   const s = k.summarize(ver.content);
   const me = ctx.actor.userId;
   await ctx.db.execute(sql`UPDATE post_versions SET status = 'superseded' WHERE /*scope:system*/ post_id = ${post.id}::uuid AND status = 'published'`);

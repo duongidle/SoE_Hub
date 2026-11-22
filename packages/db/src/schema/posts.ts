@@ -21,6 +21,7 @@ export const posts = pgTable(
     publishedVersion: integer("published_version"),
     lastVersion: integer("last_version").notNull().default(1),
     viewCount: integer("view_count").notNull().default(0),
+    downloadCount: integer("download_count").notNull().default(0),
     firstPublishedAt: timestamp("first_published_at", { withTimezone: true, mode: "date" }),
     liveAt: timestamp("live_at", { withTimezone: true, mode: "date" }),
     liveTitle: text("live_title"),
