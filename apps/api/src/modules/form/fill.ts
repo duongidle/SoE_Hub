@@ -135,6 +135,8 @@ async function submitResponse(ctx: AnyCtx, f: FormRow, input: Submit, publicMode
   if (seen) return { id: seen.id, row_id: seen.row_id, form_version: seen.form_version, replayed: true, thank_you: thankYou, quiz: quiz ? await quizView(ctx.db, f, seen.id) : null };
   const st = await currentState(ctx.db, f);
   if (st.state !== "open") throw new AppError("forbidden", closedMessage(f, st), { reason: `form_${st.state}`, closed_message: closedMessage(f, st) });
+  // Serialise submissions of the same person on the same form, so two parallel submits cannot both pass the attempt / one-per-user count.
+  if (filler) await ctx.db.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${f.id}), hashtext(${filler.userId}))`);
   let attemptNo = 1;
   if (quiz) {
     // A quiz needs to know who sits it, and it is never taken through a token or a connection (design module7 6.5).

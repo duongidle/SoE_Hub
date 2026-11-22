@@ -101,6 +101,13 @@ describe("quiz: attempts", () => {
     expect((await u("form.fill.get", { code: x.code })).already_submitted).toBe(true);
     expect(await u("form.quiz.mine", { code: x.code })).toMatchObject({ attempts_used: 2, max_attempts: 2 });
   });
+
+  it("two parallel submits of the same person with limit 1: only one passes", async () => {
+    const x = await quizForm([q("s", "single_select", { options: [{ label: "A" }, { label: "B" }], answer: "A", points: 1 })], { max_attempts: 1, show: "score" });
+    const res = await Promise.allSettled([submit(x.code, { s: "A" }), submit(x.code, { s: "A" })]);
+    expect(res.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect((await cells(x.tableId)).length).toBe(1);
+  });
 });
 
 describe("quiz: hand grading", () => {
