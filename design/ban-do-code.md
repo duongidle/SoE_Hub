@@ -386,7 +386,7 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 
 **Việc còn nợ của 4.4:** xem `progress.md`.
 
-## Module 5: Kết nối AI (5A1: quyền của kết nối)
+## Module 5: Kết nối AI (5A1: quyền của kết nối, 5A2: `/mcp`)
 
 **Chỗ gọi vào**
 - Bảng ánh xạ một chỗ: `apps/api/src/core/ai-policy.ts` `resolveAiPolicy` gán cho mỗi thao tác menu (`deal`, `datahub`, `notify`, `admin`…, `none` = luôn được, `by_target` = theo datahub đích), mức (`read`/`write`/`full`) và `forbidden` (`hard` hoặc nhóm `org`, `guest_grant`, `transfer`, `settings`, `audit_log`). Mặc định theo tiền tố tên trong `RULES` và theo loại (query là `read`, command là `write`; `FULL` là tập tên cần `full`). `accessOfInput` nâng mức theo input (xoá nhiều dòng một lần).
@@ -396,6 +396,16 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Chính sách Admin lưu bằng setting hệ thống `ai.killed` và `ai.groups_enabled` (`apps/api/src/modules/system/settings-catalog.ts` `aiKilled`, `aiGroups`).
 - Kết nối là hàng `api_tokens` loại `personal` có cột `menus` (`apps/api/src/modules/auth/tokens.ts` `tokenOperations`: `auth.token.create`, `auth.token.narrow`, `auth.token.approve` có `menus` để duyệt bớt). Token `soe_svc_` giữ scope.
 - Actor có thêm `connectionKind`, `connectionName` (`packages/shared/src/actor.ts`), do `apps/api/src/auth/sessions.ts` `SessionTokenResolver` đặt. `writeAudit` ghi `connection_name` vào `details`. Nguồn nhập: `apps/api/src/modules/deal/payments.ts` `sourceValue` (cột chọn giữ Tay/AI/API, cột text ghi `AI (tên kết nối)`).
+
+**`/mcp` và tool (5A2)**
+- Điểm vào: `apps/api/src/http/mcp.ts` `registerMcp` (POST `/mcp`, JSON-RPC viết tay, không trạng thái; GET/DELETE trả 405). Xác thực chỉ bằng `apps/api/src/auth/sessions.ts` `resolveMcp` của `SessionTokenResolver` (token `soe_pat_`, actor `via: "mcp"`, token chờ duyệt đi qua bắt tay, executor trả `connection_pending` ở mỗi tool). `app.ts` bỏ qua hook nhận diện chung cho đường `/mcp`.
+- Tool chung ở `apps/api/src/http/mcp.ts` `genericTools` (`soe_whoami`, `soe_operations`, `soe_describe`, `soe_call`); danh sách tool theo menu kết nối: `tools/list` lọc bằng `need` của `ToolDef`; thao tác nào kết nối thấy: `operationOpen`. Lỗi tool: `toolError` (`{code, message, hint, details}`, `isError: true`).
+- Tool chọn lọc ở `apps/api/src/http/mcp-tools.ts` `selectiveTools` (`deals_list`, `deal_get`, `deal_metrics`, `rows_query`, `rows_write`, `metrics_query`). Mỗi tool gọi lệnh registry qua `ctx.call`/`ctx.callRaw` (executor), không có luật quyền riêng.
+- `deal_metrics` đọc dashboard hệ thống Deals qua lệnh `deal.dashboard` (`apps/api/src/modules/deal/dashboard-ref.ts` `dealDashboardOperations`) rồi `metrics.dashboard.view` + `metrics.chart.data`.
+
+**Thêm tool chọn lọc (mục 4.8)**
+- Thêm một `ToolDef` vào `selectiveTools()` ở `apps/api/src/http/mcp-tools.ts`: `name`, mô tả tiếng Anh ngắn, `inputSchema` viết tay, `annotations` (`readOnlyHint` cho đọc), `need` (menu và mức tối thiểu; `null` = luôn có), `run(ctx, args)`. Mọi thao tác mà tool gọi phải qua được cổng menu của `ai-gate.ts` cho menu trong `need` (thao tác `by_target` cần `table_id`/`datahub_id` trong đầu vào). Cột tìm theo tên hoặc vai trò bằng `pickCol`; kết quả bảng bằng `tableOut` (`{columns, rows, total, next_cursor}`, `_id` và `_version` đứng đầu). Tối đa 30 tool chọn lọc.
+- Test: `apps/api/test/mcp.test.ts` (hàm `connect` tạo kết nối và gọi tool qua HTTP).
 
 **Mẫu làm theo**
 - Thao tác mới: nếu tên khớp `RULES` thì không cần khai gì; không khớp thì khai `menu` (và `access` nếu khác mặc định), nếu không `aiAllowed` bật sẽ fail ở `apps/api/test/ai-connections.test.ts` (test "mọi thao tác").
