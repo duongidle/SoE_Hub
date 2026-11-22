@@ -5,7 +5,7 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** Stage 0–7 xong (Stage 4: 4.8 bản cơ bản; Stage 5, 6, 7: bản rút gọn, mục 12/14/14 của thiết kế; Opus rà đạt 22/11). Mốc test: vitest cả bộ 1328 pass 10 skip (mã b4149a5; 1 fail tài liệu bản đồ đã sửa), e2e desktop stage7/6/5/1 28 pass. Typecheck 0 lỗi. Đang làm: Stage 8 (Module 8 chốt 22/11, `design/module8-knowledge-aihub.md`): 8A engine chung + Knowledge + tìm kiếm (xong, chờ rà) → 8B gói skill + luật kiểm tra + MCP → 8C giao diện, kiểm thử cuối stage. Việc dời: `design/update_v1.md`.
+- **Code:** Stage 0–7 xong (Stage 4: 4.8 bản cơ bản; Stage 5, 6, 7: bản rút gọn). **Stage 8 (Knowledge + AI Hub) xong 8A, 8B (Opus rà đạt) và 8C (xong 22/11, chờ Opus rà).** Mốc test: vitest cả bộ 1343 pass 10 skip (mã dbe0ec0), e2e desktop stage8+stage6 5 pass (mã f6de013). Typecheck 0 lỗi, lint sạch. Việc dời: `design/update_v1.md`.
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 
@@ -15,23 +15,6 @@ Cập nhật: 22/11/2026
 - **4.1** (20/11) sửa Stage 2: khoá phân chia, tính theo người đọc, bảng template, giao diện chia sẻ (`module4-quyet-dinh-khi-code.md` 4.1a–d).
 - **4.2** bộ bảng mặc định theo cây, kiểu Người dùng có thuộc tính. **4.3** giao diện Quản lý Deal + trang Template. **4.4** thanh toán và com theo đợt (4.4A server, 4.4B web). **4.5** chốt kỳ, BANT, forecast, snapshot (+ sửa chập chờn: `columnTx`, hàng đợi ưu tiên). **4.6** chỉ số, dashboard Deals, `deal.cycle`, hiệu năng hàng đợi (4.6A–D). Quyết định chi tiết: `design/module4-quyet-dinh-khi-code.md` 4.2–4.6D; bản đồ: `design/ban-do-code.md`.
 - **4.6E** (22/11) hàm người xem ME/ISME/ATTR, bộ mặc định bỏ phần cứng, vai trò đa cột `nguoi_tham_gia`; phần còn lại làm ở 4.7A (INSCOPE/ATTRSUM, lệnh tiền tính ngay, trần % com ở lệnh).
-
-## Stage 5 và 6 bản rút gọn (xong 22/11; 6B chờ Opus rà)
-
-Phạm vi: `design/module5-ket-noi-ai.md` mục 12, `design/module6-thong-bao.md` mục 14; quyết định: `design/module5-quyet-dinh-khi-code.md`, `design/module6-quyet-dinh-khi-code.md`; bản đồ: `design/ban-do-code.md` "Module 5", "Module 6"; hướng dẫn người dùng: `docs/ket-noi-ai.md`.
-
-**Stage 5:** token cá nhân = kết nối (menu + mức, Admin duyệt/duyệt bớt, thu hẹp, thu hồi); executor giao quyền ở `ai-gate.ts`; `/mcp` không trạng thái (4 tool chung + 6 tool chọn lọc); import mở cho AI; web Cài đặt/Quản trị → Kết nối AI; Bruno `docs/api/bruno/mcp/`. Thử thật Claude Code đúng; `tools/list` đủ menu khoảng 2.006 token.
-**Stage 6:** một cửa `notify.send` + `defineNotification` (`notification/notify.ts`, `catalog.ts`, 19 loại), nhắc hẹn (`reminders.ts`, `reminder.*`), bản tin 08:00 và nhắc hạn Deal 08:30 (`deal/due.ts`, `deal.due_rules.get/set`), thông báo chung (`announcements.ts`, `announcement.*`, không gửi Guest), subscriber thoát sớm theo `role_set`, MCP `reminder_create`/`notifications_list`; web `apps/web/src/pages/notify/` (chuông + hộp 20 thông báo + toast, `/thong-bao`, `/nhac-hen`, `/tai-khoan/thong-bao`, `/thong-bao-chung`, nút "Nhắc tôi" ở `RowPanel`); `window.confirm` đã thay bằng `ConfirmDialog`, lint `no-alert` bật cho web. Migration 0024, 0025. Bruno `notification/`, `deal/due-rules-*`.
-**Dời** (`design/update_v1.md`, file quyết định): giới hạn 10 thông báo chung/ngày; phân trang `announcement.list_*`; "Xem trước" quy tắc nhắc hạn; các loại Kỳ khoá/Template đổi/Chính sách com mới/Deal Won chưa chia đủ/Leading đổi; nhãn tiếng Việt cho từng loại ở Cài đặt (đang hiện mã); kiểm quyền xem dòng lúc tạo nhắc hẹn gắn dòng.
-**Sửa sau Opus rà 6B:** Leading của nhắc hạn đọc vai trò đã lưu theo người (`storedRoles`), test `notify-due-layout.test.ts` (bố cục 4 cột). Chạy `notify-digest-due` (2 lần), `notify`, `notify-due-layout`, `deal-flexible-layout`, `deal-payments`, `ban-do-code`: pass; typecheck api 15, lint sạch. Chưa chạy lại cả bộ vitest sau sửa này.
-**Test 6B:** typecheck api 15, web 31 (bằng mốc), lint sạch (thêm `no-alert`). e2e desktop (`node apps/web/e2e/run.mjs e2e/stage6.spec.ts e2e/stage1.spec.ts e2e/stage5.spec.ts e2e/stage4-5.spec.ts --project=desktop`, mã 111990c): 30 pass, 0 fail (stage6 3 test: nhắc hẹn qua worker thật, thông báo chung gửi/đọc/thu hồi, Cài đặt thông báo). **Cả bộ vitest** (`DH_EQUIV_EDITS=2500 pnpm exec vitest run apps packages`, mã 111990c): 1290 pass, 10 skip, 0 fail (mốc 6A2: 1289/10). Không cả bộ e2e, không 375px. Test e2e cũ sửa theo giao diện mới: `readCode` (helpers.ts) tìm `notification-item` và chờ thẻ tải xong; stage1 chuyển giao bấm hộp thoại. Khi sửa thấy `stage1` "Manager/Leader đăng ký" chập chờn 3 trong 8 lần: nguyên nhân là `readCode` nhìn một lần ngay sau `goto` (danh sách chưa tải) và chuông gọi lại 401 sau đăng xuất (retry mặc định); đã sửa cả hai, 4 lần chạy lại pass.
-
-
-## 4.8 Kiểm thử cuối Stage 4 (bản cơ bản)
-
-**Xong 22/11** (code dưới mã commit ghi trong git log "4.8"). e2e desktop cả bộ một lần: 126 pass, 2 fail (`stage4-4` ngăn chi tiết deal, `stage4-7` 4.7B1 Chốt kỳ; cả hai hết giờ `toBeVisible`). Hai fail xảy ra đúng lúc load test 20.000 deal chạy song song trên cùng máy (nghẽn CPU); chạy riêng hai spec 3 lần: 14/14 pass mỗi lần, nên coi là nhiễu do chạy song song, không sửa code. Lần sau không chạy load test trong lúc e2e. Không chạy vitest cả bộ (4.7B2 đã chạy, 1235 pass, không có code đổi).
-**Load test** `apps/api/test/deal-perf.test.ts` (20.000 Deals, 40.000 đợt, người tham gia như deal mẫu, dòng nhân bản bằng SQL từ một deal tạo bằng lệnh thật): `datahub.deal.home` 4 ms; list Deals lọc Start date + sắp xếp, 50 dòng 31 ms; `metrics.query` tổng `role:doanh_thu` 29 ms; `metrics.dashboard.view` 68 ms, mỗi `metrics.chart.data` của dashboard Deals 20-21 ms; `period.review` 2026-07 472 ms; `payment.confirm` một đợt 70 ms. Tất cả xa ngưỡng 3 s, test chỉ `expect` < 3 s. Chưa có `dh_personal_rows` cho dòng nhân bản (cột theo người xem tính lúc đọc cho 20.000 dòng chưa đo).
-Lỗi đã sửa: không có lỗi code.
 
 ## Còn nợ / ghi nhận để sau
 
@@ -50,15 +33,6 @@ Lỗi đã sửa: không có lỗi code.
 
 Không chặn bước con; gom sửa một đợt. `stage1.spec.ts` phone "cài đặt hệ thống" từng hết giờ 1 lần (`pnpm test:e2e stage1 --project=phone`), theo dõi.
 
-## Stage 8: ghi chú điều phối của Opus (22/11, phòng hết quota)
-
-- **8A đang chạy** (agent Sonnet, server): engine chung `apps/api/src/modules/publish/`, Knowledge `apps/api/src/modules/knowledge/`, tìm kiếm, MCP `knowledge_*` + `review_*`. Lúc ghi chú này code còn **chưa commit**. Phiên sau: xem `git status`/`git log`; nếu agent đã dừng giữa chừng thì tạo agent mới làm tiếp từ đây (đọc diff đang dở, không làm lại).
-- **Test tối giản (Dương 22/11: "test đơn giản, nhanh, đủ"):** 8A khoảng 9 ca trong `knowledge.test.ts` (lỗi chặn + cảnh báo tới `review.get`; vòng đời + bản sửa; người duyệt tự xuất bản; Manager cây khác duyệt; tìm không dấu; Guest Sale chỉ `for_sale`; Admin không đăng; `check_only` không tạo gì; `review_decide` thiếu mức `full` bị từ chối). Không test từng luật, không test sai chính tả, không test mọi bộ lọc.
-- **8B tiếp theo** (server): loại bài `skill` trên engine chung (gói zip/thư mục, luật mục 4.2, tải về, lệnh cài), MCP `skill_search|get|submit`; 5–6 ca test (zip hợp lệ đăng được; `.env`/key bị chặn; đường dẫn cá nhân + skill gần trùng chỉ cảnh báo; tải về đúng file). Cuối 8B **một lần** `DH_EQUIV_EDITS=2500 pnpm exec vitest run apps packages`.
-- **8C** (web): Knowledge (trang chủ, đọc, soạn Tiptap, bài của tôi), AI Hub (danh sách, trang skill, tải lên), hàng chờ duyệt chung (cảnh báo ở đầu); e2e chỉ 2 luồng chính (bài: đăng → duyệt → tìm thấy; skill: tải lên có cảnh báo → duyệt → tải về). Không rà chuẩn giao diện.
-- Mỗi agent tối đa khoảng 80 lượt; prompt giao việc theo mẫu 7A1/7B2 (đọc gì, việc, test, ghi chép, chép mục "Sonnet dừng và báo Opus").
-- Ước Module 8: 30–35M (thực tế từng vượt gấp 2–2,5 lần).
-
 ## Câu hỏi còn mở (chờ Dương)
 
 - Guest xem dashboard (3C-2): cờ `guest_visible` theo dashboard đúng ý Module 1 mục 5.2 chưa, hay cấp theo từng dashboard ở khung cấp dữ liệu? Nhật ký xem dashboard chỉ ghi lần mở `view`.
@@ -67,25 +41,19 @@ Không chặn bước con; gom sửa một đợt. `stage1.spec.ts` phone "cài 
 - Module 4 (4.4A): cây đã tạo trước 4.4 giữ `Đã thu` là cột thường; bảng Tiền về "chỉ Manager" làm bằng khoá phân chia theo cột `Người xem` luôn trống.
 - Stage 9 Onboarding: hỏi Dương có kiểm giao diện kỹ như ngoại lệ không. (Danh sách token chưa phân trang: dời, xem "Còn nợ".)
 
+## Stage 5, 6, 7 (bản rút gọn, xong 22/11, Opus rà đạt)
 
-## Stage 7 (bản rút gọn): xong 22/11, chờ Opus rà 7B2
+Phạm vi: `design/module5-ket-noi-ai.md` mục 12, `module6-thong-bao.md` mục 14, `module7-dynamic-form.md` mục 14; quyết định `design/module{5,6,7}-quyet-dinh-khi-code.md`; bản đồ `design/ban-do-code.md`.
+- **Stage 5:** token cá nhân = kết nối (menu + mức, Admin duyệt/thu hẹp/thu hồi), `ai-gate.ts`, `/mcp` không trạng thái, web Kết nối AI, Bruno `mcp/`, `docs/ket-noi-ai.md`.
+- **Stage 6:** một cửa `notify.send` (19 loại), nhắc hẹn, bản tin 08:00, nhắc hạn Deal 08:30, thông báo chung; web `pages/notify/`; migration 0024, 0025. Dời: giới hạn 10 thông báo chung/ngày, phân trang, nhãn tiếng Việt từng loại, vài loại thông báo (xem `update_v1.md`).
+- **Stage 7:** form + bảng đích, xuất bản/phiên bản, gửi bài, nháp, bài kiểm tra + chấm, MCP `form_*`; web `pages/form/` (trình soạn dnd-kit, trang điền `/f/<mã>` công khai). Dời: ô tải file form nội bộ, nút thông báo phản hồi mới.
+- Test cuối: vitest 1328 pass 10 skip; e2e desktop 28 pass; không cả bộ e2e, không `break-ui`.
 
-Phạm vi: `design/module7-dynamic-form.md` mục 14; quyết định: `design/module7-quyet-dinh-khi-code.md` (7A1–7B2); bản đồ: `design/ban-do-code.md` "Module 7". Dời: `design/update_v1.md` mục Module 7 (có thêm các mục dời nhỏ của 7B1, 7B2).
-- Server: form + bảng đích, xuất bản/phiên bản, gửi bài (đường ghi chung), chống spam, nháp, bài kiểm tra + chấm, JSON/nhân bản/chuyển giao, MCP `form_*`. Web `apps/web/src/pages/form/`: danh sách, trình soạn (dnd-kit), chia sẻ/thiết lập/bài kiểm tra, Phản hồi, Chấm bài, `/form/bai-lam`.
-- **7B2:** (1) lựa chọn lưu mã (`show_if`, `reveal`, `answer`, giá trị gửi); xuất bản báo `condition_option`/`reveal_option`/`quiz_answer_invalid`; (2-3) trang điền `/f/<mã>` (`fill.tsx`, ngoài Shell, công khai + nội bộ, nháp, điền sẵn, cảm ơn, tải file công khai, bài kiểm tra hiện kết quả + link "Bài làm của tôi"); (4) e2e `stage7.spec.ts` describe "7B2" (4 test: công khai máy tính, 375px không tràn ngang, gửi nhanh bị từ chối, bài kiểm tra nội bộ + Guest bị chặn).
-- **Test cuối Stage 7 (bản cơ bản), mã b4149a5 (+ commit chỉ sửa tài liệu/bản đồ sau đó):** e2e desktop `stage7 stage6 stage5 stage1`: 28 pass, 0 fail. Vitest cả bộ (`DH_EQUIV_EDITS=2500`): 1328 pass, 10 skip, 1 fail là `ban-do-code` (đường dẫn thiếu tiền tố `apps/web/src/`), đã sửa và chạy lại `ban-do-code` 2 pass (mốc 7A2 1326/10). Typecheck 0 lỗi cả api và web, lint sạch. Không chạy cả bộ e2e, không `break-ui`.
-- Dời/để sau: ô tải file cho form nội bộ; câu Người dùng/Dòng liên kết trên trang điền là ô khoá; nút thông báo phản hồi mới còn mờ.
+## Stage 8: Knowledge + AI Hub (8C xong 22/11, chờ Opus rà)
 
-## Stage 8A (xong, Opus rà đạt) và 8B (xong 22/11, chờ Opus rà)
-
-Phạm vi: `design/module8-knowledge-aihub.md`; quyết định `design/module8-quyet-dinh-khi-code.md` (8A, 8B); bản đồ `design/ban-do-code.md` "Module 8". Migration 0028 (`posts`, `post_versions`), 0029 (`posts.download_count`).
-- **8A:** engine Bài đăng `apps/api/src/modules/publish/`, Knowledge `modules/knowledge/`, tìm kiếm, MCP `knowledge_*`, `review_*`. Test `knowledge.test.ts` 9 ca. Dời: lệnh xoá bài, thông báo khi gỡ xuất bản.
-- **8B:** loại `skill` ở `apps/api/src/modules/aihub/` (`package.ts` zip/file/YAML, `kind.ts` luật 4.2 + `beforePublish`, `ops.ts` lệnh), hook `PostKind.beforePublish`, MCP `skill_search|get|submit` (tổng 20 tool ở mức ALL), Bruno `docs/api/bruno/aihub/`. Test `aihub.test.ts` 5 ca. Chạy: typecheck 0 lỗi, lint sạch, `aihub knowledge mcp permissions ai-connections openapi` 198 pass.
-- **Cả bộ vitest (mã dbe0ec0, `DH_EQUIV_EDITS=2500`):** 1343 pass, 10 skip, 0 fail (mốc 1328/10 + 9 ca 8A + 5 ca 8B + ca bản đồ/openapi). Không e2e.
-- **Lưu ý cho Opus (quyết định đã ghi):** file của gói nằm trong `content` (ảnh base64), không dùng bảng `files` như bàn giao 8A viết; tải zip trả base64 trong JSON.
-- **Bàn giao 8C (web):**
-  - Lệnh AI Hub: `skill.package.save|submit|get|mine|search|download`. `save`/`submit` nhận `files` [{path, content, encoding?}] hoặc `zip_base64` (web đọc file/thư mục thành base64 hoặc gửi danh sách file); gửi `files` là gửi cả gói. Lỗi gửi: `validation_error` `details.errors/warnings [{code,message,path,hint}]`, `path` là file (hoặc `SKILL.md#name`).
-  - `get` trả `tree [{path,size,type}]`, `skill_md`, `install {claude_code, claude_code_path, claude_desktop, claude_ai}`, `download_count`; `path=` trả một file (xem file chữ), `include_files=true` trả mọi file. `download` trả `{filename, content_base64}`: web tạo Blob.
-  - Trường nhập: `group` (sales|data|docs|dev|other), `tags`, `clients` (claude_code|claude_desktop|claude_ai|other), `version` (1.0.0), `change_note`, `replaces` (id skill đang xuất bản = "phiên bản mới của skill X"). `search`: `q`, `group`, `client`, `tag`, `sort` relevance|newest|downloads.
-  - Hàng chờ chung `review.queue|get|decide` đã nhận `skill`; duyệt skill trùng `name` mà không có `replaces` thì `conflict` `skill_name_taken` (trả lại để đổi tên). Thông báo trỏ `/ai-hub/<id>` (tác giả), `/duyet?post=<id>` (người duyệt).
-  - Chỗ dở: giao diện chọn skill để đặt `replaces`; cảnh báo "tên người cụ thể" chưa dò.
+Phạm vi `design/module8-knowledge-aihub.md`; quyết định `design/module8-quyet-dinh-khi-code.md` (8A, 8B, 8C); bản đồ `design/ban-do-code.md` "Module 8"; migration 0028 (`posts`, `post_versions`), 0029 (`download_count`). Test tối giản theo ý Dương (đơn giản, nhanh, đủ).
+- **8A:** engine Bài đăng `apps/api/src/modules/publish/`, Knowledge `modules/knowledge/`, tìm kiếm không dấu, MCP `knowledge_*`, `review_*`; `knowledge.test.ts` 9 ca. Dời: lệnh xoá bài, thông báo khi gỡ xuất bản.
+- **8B:** skill `modules/aihub/` (zip/thư mục, luật mục 4.2, `beforePublish`, tải zip base64), MCP `skill_*`; `aihub.test.ts` 5 ca; Bruno `aihub/`. Vitest cả bộ 1343 pass.
+- **8C (web):** Knowledge (`pages/knowledge/`: trang chủ, đọc + mục lục, soạn Tiptap, Bài của tôi), AI Hub (`pages/aihub/`: danh sách, trang skill, tải lên zip/thư mục/kéo thả, Skill của tôi), hàng chờ chung `/duyet` (`pages/review/queue.tsx`: cảnh báo ở đầu, bản đang xuất bản xem riêng, Duyệt/Trả lại), dùng chung `pages/library/common.tsx`; menu Knowledge, AI Hub, Duyệt bài trong `shell.tsx`. Tiptap 2.27 thêm vào `apps/web`. e2e `apps/web/e2e/stage8.spec.ts` 2 luồng (bài: soạn, duyệt, tìm không dấu, đọc; skill: zip có đường dẫn cá nhân, cảnh báo ở đầu màn duyệt, duyệt, tải zip): `node apps/web/e2e/run.mjs e2e/stage8.spec.ts e2e/stage6.spec.ts --project=desktop` 5 pass 0 fail (mã f6de013). Không chạy lại vitest (8C chỉ sửa web; ca bản đồ `ban-do-code` 2 pass).
+- **Dời / chưa làm:** ảnh tải lên trong bài (đang chèn bằng link), phân trang danh sách, tìm skill để chọn `replaces` (đang là danh sách 50 skill mới nhất), render Markdown của SKILL.md (đang văn bản thô), cảnh báo "tên người cụ thể", e2e 375px, rà chuẩn giao diện (Stage 12).
+- **Bước tiếp:** Opus rà 8C rồi ghi "Đã xong" cột Code Stage 8; sau đó thiết kế Module 9 (Onboarding) hoặc 10.

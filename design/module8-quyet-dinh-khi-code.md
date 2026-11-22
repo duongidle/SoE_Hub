@@ -29,3 +29,14 @@
 ## Opus rà 8B (22/11/2026)
 
 - Đạt. Đồng ý: file gói lưu trong nội dung bản (chữ utf8, ảnh base64; gói tối đa 5 MB, quyền đọc theo bài); tải zip trả base64 trong JSON; bộ đọc YAML tự viết; `group` bắt buộc; `replaces` lưu trữ skill cũ khi bản mới được duyệt (người duyệt quyết). Cảnh báo "tên người cụ thể" chỉ dò email: chấp nhận.
+
+## 8C (web, 22/11/2026)
+
+- **Tiptap 2.27 (ghim đúng phiên bản):** `@tiptap/react`, `starter-kit`, `pm`, `link`, `image`, `table` (+ row, cell, header). Đề mục chỉ H2, H3. Khối "ghi chú" = blockquote. Ảnh trong bài chèn bằng địa chỉ `https://`, chưa tải ảnh lên (dời).
+- **Trang đọc và duyệt vẽ nội dung bằng Tiptap chỉ đọc** (không `dangerouslySetInnerHTML`); đoạn trích tìm kiếm tách ra thành `<b>` bằng React (`Snippet`), không chèn HTML.
+- **Endpoint danh sách** (`list: true`) trả mảng qua `api()`; lệnh `{items}` thường (`knowledge.tag.suggest`, `post.versions`, `related`) trả đối tượng.
+- **SKILL.md và file chữ của skill hiện dạng văn bản thô** (`<pre>`), không render Markdown: không có bộ lọc HTML an toàn, tránh XSS từ nội dung người đăng.
+- **Xem file chữ của skill** gọi `skill.package.get?path=` mỗi lần bấm (mỗi lần tính một lượt xem; chấp nhận, dời nếu cần).
+- **Tải lên skill:** zip đọc thành `zip_base64`; thư mục (chọn hoặc kéo thả, `webkitGetAsEntry`) đọc thành `files`, bỏ tên thư mục gốc, ảnh `base64`, còn lại `utf8`. "Phiên bản mới của skill" = danh sách tối đa 50 skill đã xuất bản mới nhất (chưa tìm theo tên).
+- **`/duyet`:** quyền vào = duyệt Knowledge hoặc AI Hub (`a|b` trong `NAV`/`ROUTE_PERMISSIONS` của `shell.tsx` nghĩa là một trong). Nút Duyệt tắt khi bản còn lỗi chặn. Lý do trả lại nhập trong `ConfirmDialog`. Bản đang xuất bản xem riêng, không so khác biệt. `skill_name_taken` hiện câu hướng dẫn riêng.
+- **Dời:** ảnh tải lên trong bài, mục lục cuộn theo đề mục khi bài rất dài (đã có bấm để cuộn), phân trang danh sách (đang lấy tối đa 50-100), tìm skill để chọn `replaces`, "Cho sale" cảnh báo hiển thị riêng cạnh trường.
