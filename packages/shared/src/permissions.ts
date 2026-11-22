@@ -77,6 +77,7 @@ export const PERMISSIONS = {
   "aihub:skill:review": "Duyệt AI Hub",
   "review:reviewer:choose": "Chọn người duyệt Knowledge / AI Hub",
   "onboarding:path:create": "Tạo lộ trình onboard",
+  "onboarding:path:read": "Xem và làm lộ trình onboard của mình",
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -89,7 +90,7 @@ export function isPermission(s: string): s is Permission {
 /** Every signed-in person, guests included (module1 section 3.4). */
 const SIGNED_IN: Permission[] = ["system:whoami", "system:setting:read", "file:read", "file:write", "events:subscribe", "auth:self", "notification:read", "notification:manage", "form:response:submit"];
 /** Every signed-in person except guests. */
-const MEMBER: Permission[] = [...SIGNED_IN, "docs:read", "org:member:read", "knowledge:article:read", "aihub:skill:read", "datahub:datahub:use"];
+const MEMBER: Permission[] = [...SIGNED_IN, "docs:read", "org:member:read", "knowledge:article:read", "aihub:skill:read", "datahub:datahub:use", "onboarding:path:read"];
 /** Work every member role can do with their own data (module1 section 3.2). */
 const OWN_WORK: Permission[] = ["deal:deal:read", "datahub:datahub:create", "form:form:create", "knowledge:article:post", "aihub:skill:post"];
 
@@ -160,9 +161,9 @@ export const SUPPLEMENTARY_PERMISSIONS: SupplementaryPermission[] = [
   { permission: "deal:team:export", label: "Xuất dữ liệu deal của team (cho Leader)", grantableBy: ["manager"], eligibleRoles: ["leader"] },
 ];
 
-/** Permissions a bearer token may never carry: account management, and onboarding (AI is banned from it outright). */
+/** Permissions a bearer token may never carry: account management. Onboarding is open to the connections of Leaders and Managers (design module9 10); the commands refuse a person who is only onboarded. */
 export function isTokenAllowedPermission(p: string): boolean {
-  return isPermission(p) && !p.startsWith("auth:") && !p.startsWith("onboarding:");
+  return isPermission(p) && !p.startsWith("auth:");
 }
 
 /** Permissions a service account (external system) may be given. */

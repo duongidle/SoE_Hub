@@ -86,7 +86,7 @@ export interface OperationDef<I extends z.ZodType, O, P extends string | null> {
   output?: z.ZodType;
   /** Permission string checked by `authorize`. `null` = public (no actor needed). */
   permission: P;
-  /** False = AI channels (mcp) are refused. `onboarding.*` must be false. */
+  /** False = AI channels (mcp) are refused. Onboarding: false for ticking an item, confirming a checkpoint, closing the final review. */
   aiAllowed: boolean;
   /** Menu a connection needs (default from `ai-policy.ts` by name). `by_target`: the datahub the call aims at decides. */
   menu?: MenuRef;

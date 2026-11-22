@@ -1,0 +1,25 @@
+meta {
+  name: onboarding.plan.assign
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/onboarding/plans/{{planId}}/assign
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  { "staff_id": "{{staffId}}", "start_date": "2026-11-23", "followers": [] }
+}
+
+docs {
+  Gắn cho nhân sự, ngày bắt đầu là thứ Hai; cấp quyền form và bảng.
+}

@@ -8,9 +8,6 @@ function define<I extends z.ZodType, O, P extends string | null>(kind: Operation
   if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,3}$/.test(d.name)) {
     throw new Error(`Tên thao tác không hợp lệ: "${d.name}" (dạng <module>.<đối tượng>.<động từ>)`);
   }
-  if (d.name.startsWith("onboarding.") && d.aiAllowed) {
-    throw new Error(`${d.name}: mọi thao tác onboarding.* phải có aiAllowed = false.`);
-  }
   if (kind === "query" && d.http.method !== "GET") throw new Error(`${d.name}: query phải dùng GET.`);
   if (kind === "command" && d.http.method === "GET") throw new Error(`${d.name}: command không dùng GET.`);
   return {

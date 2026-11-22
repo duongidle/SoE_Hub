@@ -130,6 +130,24 @@ const Target = {
 const ImportOut = z.object({ form_id: Id, created_columns: z.number().int(), unmatched: z.array(z.object({ question_id: z.string(), label: z.string(), reason: z.string(), column_name: z.string().optional() })) });
 const MANAGE = { permission: "form:form:create" as const, aiAllowed: true, menu: "form" as const };
 
+/** The body of `form.form.clone` (the actor owns the form). Onboarding calls it when a plan of the actor is cloned. */
+export async function cloneForm(ctx: Ctx, i: { form_id: string; name?: string; datahub_id?: string; table_id?: string }): Promise<{ form_id: string; created_columns: number; unmatched: Unmatched[] }> {
+  if (i.datahub_id && i.table_id) throw new AppError("validation_error", "Chọn một: `datahub_id` hoặc `table_id`.");
+  const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id);
+  let datahubId = i.datahub_id;
+  if (!i.table_id && !datahubId) {
+    if (!f.tableId) throw new AppError("validation_error", "Form chưa có bảng đích: chọn `datahub_id` hoặc `table_id`.");
+    const r = await ctx.db.execute(sql`SELECT datahub_id FROM dh_tables WHERE /*scope:system*/ id = ${f.tableId}::uuid`);
+    datahubId = (r.rows[0] as { datahub_id: string } | undefined)?.datahub_id;
+    if (!datahubId) throw new AppError("not_found", "Không tìm thấy bảng đích của form.");
+  }
+  if (i.table_id) await ownTable(ctx, i.table_id);
+  const cfg = parseFormJson(await exportConfig(ctx, f.draft, f.tableId, true));
+  const name = (i.name ?? `${f.name} (bản sao)`).slice(0, DH_NAME_MAX);
+  const r = await importInto(ctx, { ...cfg, title: cfg.title }, { name, datahub_id: datahubId, table_id: i.table_id });
+  return { form_id: r.id, created_columns: r.created_columns, unmatched: r.unmatched };
+}
+
 export const formIoOperations = [
   defineQuery({
     name: "form.form.export",
@@ -219,21 +237,6 @@ export const formIoOperations = [
     input: z.object({ form_id: Id, ...Target }),
     output: ImportOut,
     http: { method: "POST", path: "/forms/:form_id/clone", status: 201 },
-    handler: async (ctx, i) => {
-      if (i.datahub_id && i.table_id) throw new AppError("validation_error", "Chọn một: `datahub_id` hoặc `table_id`.");
-      const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id);
-      let datahubId = i.datahub_id;
-      if (!i.table_id && !datahubId) {
-        if (!f.tableId) throw new AppError("validation_error", "Form chưa có bảng đích: chọn `datahub_id` hoặc `table_id`.");
-        const r = await ctx.db.execute(sql`SELECT datahub_id FROM dh_tables WHERE /*scope:system*/ id = ${f.tableId}::uuid`);
-        datahubId = (r.rows[0] as { datahub_id: string } | undefined)?.datahub_id;
-        if (!datahubId) throw new AppError("not_found", "Không tìm thấy bảng đích của form.");
-      }
-      if (i.table_id) await ownTable(ctx, i.table_id);
-      const cfg = parseFormJson(await exportConfig(ctx, f.draft, f.tableId, true));
-      const name = (i.name ?? `${f.name} (bản sao)`).slice(0, DH_NAME_MAX);
-      const r = await importInto(ctx, { ...cfg, title: cfg.title }, { name, datahub_id: datahubId, table_id: i.table_id });
-      return { form_id: r.id, created_columns: r.created_columns, unmatched: r.unmatched };
-    },
+    handler: (ctx, i) => cloneForm(ctx, i),
   }),
 ];

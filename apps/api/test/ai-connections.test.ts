@@ -52,7 +52,7 @@ describe("every operation declares what a connection may do (module5 3.5)", () =
     for (const op of t.c.registry.list()) {
       if (op.aiAllowed) expect(op.ai, `${op.name} thiếu menu/access cho kết nối`).not.toBeNull();
       if (op.aiAllowed && op.ai!.forbidden !== "hard") {
-        expect(["deal", "datahub", "form", "knowledge", "aihub", "workspace", "notify", "feedback", "admin", "none", "by_target"]).toContain(op.ai!.menu);
+        expect(["deal", "datahub", "form", "knowledge", "aihub", "workspace", "onboarding", "notify", "feedback", "admin", "none", "by_target"]).toContain(op.ai!.menu);
         if (op.kind === "query") expect(op.ai!.access, op.name).toBe("read");
       }
       if (op.ai?.forbidden && op.ai.forbidden !== "hard") expect(AI_GROUPS).toContain(op.ai.forbidden);

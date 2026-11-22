@@ -161,7 +161,7 @@ async function submitResponse(ctx: AnyCtx, f: FormRow, input: Submit, publicMode
     const col = cols.get(q.column_id)!;
     let v = answers[q.id];
     // "Filler" field: the person logged in, whatever the browser sent. A public form has nobody to write (checkPublish refuses it).
-    if (q.fill_self && filler) v = [filler.userId];
+    if (q.fill_self && filler) v = filler.userId;
     if (isEmptyAnswer(v) && q.default !== undefined && q.default !== null) v = q.default;
     if (isEmptyAnswer(v)) {
       if (q.required || (col.required && !col.hasDefault)) issues.push({ question_id: q.id, message: "Câu này bắt buộc." });

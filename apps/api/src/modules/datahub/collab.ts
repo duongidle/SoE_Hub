@@ -272,6 +272,29 @@ function shareOut(r: Raw): z.infer<typeof ShareOut> {
   return { id: r.id as string, datahub_id: r.datahub_id as string, table_id: (r.table_id as string | null) ?? null, grantee_id: r.grantee_id as string, grantee_name: (r.full_name as string | null) ?? null, grantee_email: (r.email as string | null) ?? null, permission: r.permission as "view" | "edit_data" };
 }
 
+/** The body of `datahub.share.set`; Onboarding calls it as the owner of the table when it assigns a plan. */
+export async function setShare(ctx: Pick<HandlerCtx, "db" | "actor" | "emit" | "audit">, i: { datahub_id: string; grantee_id: string; table_id?: string | null; permission: "view" | "edit_data" }) {
+  const dh = await loadDatahubAccess(ctx, i.datahub_id, "owner");
+  if (i.grantee_id === dh.ownerId) throw new AppError("validation_error", "Không chia sẻ cho chính chủ datahub.");
+  const [u] = (await ctx.db.execute(sql`SELECT id, kind, status, roles, guest_preset, email, full_name FROM users WHERE id = ${i.grantee_id}::uuid`)).rows as Raw[];
+  if (!u || u.kind !== "person" || u.status !== "active") throw new AppError("validation_error", "Chỉ chia sẻ được cho người đang hoạt động.");
+  if (!permissionsFor(u.roles as string[], (u.guest_preset as string | null) ?? null).has("datahub:datahub:use")) throw new AppError("validation_error", "Người này không dùng được datahub (Guest).");
+  if (i.table_id) {
+    const t = await ctx.db.execute(sql`SELECT 1 FROM dh_tables WHERE /*scope*/ id = ${i.table_id}::uuid AND datahub_id = ${dh.id}::uuid AND deleted_at IS NULL`);
+    if (t.rows.length === 0) throw new AppError("not_found", "Không tìm thấy bảng trong datahub này.");
+  }
+  const id = newId();
+  const res = i.table_id
+    ? await ctx.db.execute(sql`INSERT INTO dh_shares (id, datahub_id, table_id, grantee_id, permission, created_by) VALUES (${id}::uuid, ${dh.id}::uuid, ${i.table_id}::uuid, ${i.grantee_id}::uuid, ${i.permission}, ${ctx.actor.userId}::uuid)
+        ON CONFLICT (table_id, grantee_id) WHERE table_id IS NOT NULL DO UPDATE SET permission = EXCLUDED.permission, updated_at = now() RETURNING *`)
+    : await ctx.db.execute(sql`INSERT INTO dh_shares (id, datahub_id, table_id, grantee_id, permission, created_by) VALUES (${id}::uuid, ${dh.id}::uuid, NULL, ${i.grantee_id}::uuid, ${i.permission}, ${ctx.actor.userId}::uuid)
+        ON CONFLICT (datahub_id, grantee_id) WHERE table_id IS NULL DO UPDATE SET permission = EXCLUDED.permission, updated_at = now() RETURNING *`);
+  const row = res.rows[0] as Raw;
+  ctx.audit({ type: "datahub_share", id: row.id as string, details: { datahub_id: dh.id, table_id: i.table_id ?? null, grantee_id: i.grantee_id, permission: i.permission } });
+  await ctx.emit("datahub.share.changed", { aggregateType: "datahub", aggregateId: dh.id, payload: { datahub_id: dh.id, table_id: i.table_id ?? null, grantee_id: i.grantee_id } });
+  return shareOut({ ...row, full_name: u.full_name, email: u.email });
+}
+
 export const shareOperations = [
   defineQuery({
     name: "datahub.share.list",
@@ -298,27 +321,7 @@ export const shareOperations = [
     input: z.object({ datahub_id: Id, grantee_id: Id, table_id: Id.nullable().optional(), permission: z.enum(SHARE_PERMISSIONS) }),
     output: ShareOut,
     http: { method: "PUT", path: "/datahubs/:datahub_id/shares" },
-    handler: async (ctx, i) => {
-      const dh = await loadDatahubAccess(ctx, i.datahub_id, "owner");
-      if (i.grantee_id === dh.ownerId) throw new AppError("validation_error", "Không chia sẻ cho chính chủ datahub.");
-      const [u] = (await ctx.db.execute(sql`SELECT id, kind, status, roles, guest_preset, email, full_name FROM users WHERE id = ${i.grantee_id}::uuid`)).rows as Raw[];
-      if (!u || u.kind !== "person" || u.status !== "active") throw new AppError("validation_error", "Chỉ chia sẻ được cho người đang hoạt động.");
-      if (!permissionsFor(u.roles as string[], (u.guest_preset as string | null) ?? null).has("datahub:datahub:use")) throw new AppError("validation_error", "Người này không dùng được datahub (Guest).");
-      if (i.table_id) {
-        const t = await ctx.db.execute(sql`SELECT 1 FROM dh_tables WHERE /*scope*/ id = ${i.table_id}::uuid AND datahub_id = ${dh.id}::uuid AND deleted_at IS NULL`);
-        if (t.rows.length === 0) throw new AppError("not_found", "Không tìm thấy bảng trong datahub này.");
-      }
-      const id = newId();
-      const res = i.table_id
-        ? await ctx.db.execute(sql`INSERT INTO dh_shares (id, datahub_id, table_id, grantee_id, permission, created_by) VALUES (${id}::uuid, ${dh.id}::uuid, ${i.table_id}::uuid, ${i.grantee_id}::uuid, ${i.permission}, ${ctx.actor.userId}::uuid)
-            ON CONFLICT (table_id, grantee_id) WHERE table_id IS NOT NULL DO UPDATE SET permission = EXCLUDED.permission, updated_at = now() RETURNING *`)
-        : await ctx.db.execute(sql`INSERT INTO dh_shares (id, datahub_id, table_id, grantee_id, permission, created_by) VALUES (${id}::uuid, ${dh.id}::uuid, NULL, ${i.grantee_id}::uuid, ${i.permission}, ${ctx.actor.userId}::uuid)
-            ON CONFLICT (datahub_id, grantee_id) WHERE table_id IS NULL DO UPDATE SET permission = EXCLUDED.permission, updated_at = now() RETURNING *`);
-      const row = res.rows[0] as Raw;
-      ctx.audit({ type: "datahub_share", id: row.id as string, details: { datahub_id: dh.id, table_id: i.table_id ?? null, grantee_id: i.grantee_id, permission: i.permission } });
-      await ctx.emit("datahub.share.changed", { aggregateType: "datahub", aggregateId: dh.id, payload: { datahub_id: dh.id, table_id: i.table_id ?? null, grantee_id: i.grantee_id } });
-      return shareOut({ ...row, full_name: u.full_name, email: u.email });
-    },
+    handler: (ctx, i) => setShare(ctx, i),
   }),
 
   defineCommand({

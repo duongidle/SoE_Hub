@@ -10,7 +10,7 @@
  */
 import type { OperationKind } from "./types";
 
-export const AI_MENUS = ["deal", "datahub", "form", "knowledge", "aihub", "workspace", "notify", "feedback", "admin"] as const;
+export const AI_MENUS = ["deal", "datahub", "form", "knowledge", "aihub", "workspace", "onboarding", "notify", "feedback", "admin"] as const;
 export type AiMenu = (typeof AI_MENUS)[number];
 export type MenuRef = AiMenu | "none" | "by_target";
 export const AI_LEVELS = ["read", "write", "full"] as const;
@@ -26,6 +26,7 @@ export const MENU_LABELS: Record<AiMenu, string> = {
   knowledge: "Knowledge",
   aihub: "AI Hub",
   workspace: "Workspace",
+  onboarding: "Onboarding",
   notify: "Thông báo và nhắc hẹn",
   feedback: "Feedback",
   admin: "Tài khoản và quản trị",
@@ -65,7 +66,7 @@ interface Rule {
 
 /** First match wins. Order matters: specific names before prefixes. */
 const RULES: Rule[] = [
-  { match: /^onboarding\./, menu: "none", forbidden: "hard" },
+  { match: /^onboarding\./, menu: "onboarding" },
   { match: /^auth\.me$/, menu: "none" },
   { match: /^auth\./, menu: "none", forbidden: "hard" },
   { match: /^system\.(ping|whoami)$/, menu: "none" },

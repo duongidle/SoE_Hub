@@ -1,0 +1,25 @@
+meta {
+  name: onboarding.item.tick
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/onboarding/occurrences/{{occurrenceId}}/tick
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  { "done": true }
+}
+
+docs {
+  Nhân sự tick xong một việc của mình. AI không làm được.
+}

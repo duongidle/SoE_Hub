@@ -1,0 +1,19 @@
+meta {
+  name: onboarding.plan.get
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/onboarding/plans/{{planId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Một lộ trình: cấu trúc và các lần xuất hiện của việc.
+}

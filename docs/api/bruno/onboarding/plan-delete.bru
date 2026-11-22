@@ -1,0 +1,20 @@
+meta {
+  name: onboarding.plan.delete
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/onboarding/plans/{{planId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Idempotency-Key: {{$guid}}
+}
+
+docs {
+  Xoá lộ trình chưa chạy hoặc đã kết thúc.
+}

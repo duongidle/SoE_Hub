@@ -53,7 +53,7 @@ describe("personal access tokens (module1 7)", () => {
     const def = (await req("POST", "/auth/tokens", s.write, { name: "mặc định" })).json().data.info;
     expect(def.menus).toMatchObject({ deal: "write", datahub: "write", notify: "write", form: "read", knowledge: "read", aihub: "read", workspace: "read", feedback: "read" });
     expect(Object.values(def.menus)).not.toContain("full");
-    expect((await req("POST", "/auth/tokens", s.write, { name: "x", menus: { onboarding: "read" } })).statusCode).toBe(400);
+    expect((await req("POST", "/auth/tokens", s.write, { name: "x", menus: { khong_co: "read" } })).statusCode).toBe(400);
     expect((await req("POST", "/auth/tokens", s.write, { name: "x", menus: { datahub: "all" } })).statusCode).toBe(400);
     expect((await req("POST", "/auth/tokens", s.write, { name: "x", menus: {} })).statusCode).toBe(400);
     expect((await req("POST", "/auth/tokens", s.write, { name: "x", menus: { deal: "write" }, expires_in_days: 366 })).statusCode).toBe(400);

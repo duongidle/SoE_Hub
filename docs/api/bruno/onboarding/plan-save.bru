@@ -1,0 +1,25 @@
+meta {
+  name: onboarding.plan.save
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/v1/onboarding/plans/{{planId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  { "name": "Lộ trình đổi tên", "followers": [] }
+}
+
+docs {
+  Sửa tên, người theo dõi, cấu trúc (gửi lại toàn bộ `structure`; việc giữ `id` thì giữ tick).
+}

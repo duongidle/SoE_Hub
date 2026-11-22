@@ -148,7 +148,7 @@ export const LEVELS = [
   { key: "full", label: "Toàn quyền" },
 ] as const;
 type Level = (typeof LEVELS)[number]["key"];
-const MENU_NAME: Record<string, string> = { deal: "Quản lý Deal", datahub: "Datahub", notify: "Thông báo", form: "Form", knowledge: "Knowledge", aihub: "AI Hub", workspace: "Workspace", feedback: "Feedback", admin: "Quản trị" };
+const MENU_NAME: Record<string, string> = { deal: "Quản lý Deal", datahub: "Datahub", notify: "Thông báo", form: "Form", knowledge: "Knowledge", aihub: "AI Hub", workspace: "Workspace", onboarding: "Onboarding", feedback: "Feedback", admin: "Quản trị" };
 const LEVEL_NAME: Record<string, string> = { read: "Xem", write: "Sửa", full: "Toàn quyền" };
 export const menusText = (m: Record<string, string> | undefined) => Object.entries(m ?? {}).map(([k, v]) => `${MENU_NAME[k] ?? k}: ${LEVEL_NAME[v] ?? v}`).join(", ");
 

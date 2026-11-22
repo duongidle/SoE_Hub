@@ -1,0 +1,19 @@
+meta {
+  name: onboarding.plan.list
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/onboarding/plans?scope=mine
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh sách lộ trình: `scope` = mine, template, following, team. Quyền: `onboarding:path:read`.
+}

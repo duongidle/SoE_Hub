@@ -15,6 +15,7 @@ import { dueRuleOperations, cycleOperations, dealDashboardOperations, policyDiff
 import { authOperations } from "./auth/operations";
 import { tokenOperations } from "./auth/tokens";
 import { formOperations } from "./form";
+import { onboardingEvents, onboardingOperations } from "./onboarding";
 import { knowledgeOperations } from "./knowledge/ops";
 import { aihubOperations } from "./aihub/ops";
 import { publishOperations } from "./publish/ops";
@@ -34,7 +35,7 @@ export interface ModuleDeps {
 
 /** Every module registers its commands/queries and events here. */
 export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: EventRegistry } {
-  const events = new EventRegistry().register(...systemEvents, ...authEvents, ...notificationEvents, ...guestEvents, ...transferEvents, ...datahubEvents, ...metricsEvents);
+  const events = new EventRegistry().register(...systemEvents, ...authEvents, ...notificationEvents, ...guestEvents, ...transferEvents, ...datahubEvents, ...metricsEvents, ...onboardingEvents);
   const registry = new Registry().register(
     ...systemOperations,
     ...fileOperations(deps.config, deps.storage),
@@ -45,6 +46,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...reminderOperations,
     ...announcementOperations,
     ...formOperations(deps.config, deps.storage),
+    ...onboardingOperations,
     ...publishOperations(deps.config, deps.storage),
     ...knowledgeOperations,
     ...aihubOperations,

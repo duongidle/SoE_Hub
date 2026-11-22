@@ -512,3 +512,21 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Không ghi `posts`/`post_versions` ngoài `engine.ts`. Không đọc nội dung bài bằng SQL riêng: đi qua `readPost` / `liveFilter`.
 - Thư viện chung: không lọc theo cây Manager. Quyền duyệt = quyền `*:review` (mọi Manager + quyền bổ sung).
 - `review_decide` là mức `full`; không thêm đường duyệt hàng loạt.
+
+## Module 9: Onboarding (9A: lộ trình, công việc, cấp quyền, AI)
+
+**Chỗ gọi vào**
+- Module: `apps/api/src/modules/onboarding/` (đăng ký ở `apps/api/src/modules/index.ts`: `onboardingOperations`, `onboardingEvents`). `shared.ts` = kiểu đầu vào (`ItemIn`, `StructureIn`), `rights` (ai sửa/xem), `requirePlan`, `guardAi`, tính ngày (`dateOf`, `expand`, `dueAt`) và `syncOccurrences`. `ops.ts` = lệnh `onboarding.plan.{create,save,list,get,clone,assign,stop,delete}`, `onboarding.item.tick`; `writeStructure` ghi cả cây. `grants.ts` `applyGrants(ctx, plan, staffId, "up"|"down")` = tự cấp/hạ quyền form và bảng.
+- Bảng: `onb_plans` (trạng thái `draft/active/completed/stopped`, `tree_id` = Manager, `followers`), `onb_stages`, `onb_weeks`, `onb_items` (loại, thứ, lặp, hạn, nhắc trước, form, `share_table`, cột của leader), `onb_occurrences` (ngày thật, `due_at`, `done_at`). Migration `0030_onboarding.sql`.
+- Muốn thêm việc cần ngày thật → `syncOccurrences` (không tự INSERT `onb_occurrences` chỗ khác). Muốn cấp quyền khác khi gắn → `applyGrants`, dùng lệnh Datahub (`setShare`, `setShareOptions`, `updateColumn`), không ghi `dh_shares` trực tiếp.
+- Câu ẩn "Người điền": `fill_self` ở `apps/api/src/modules/form/config.ts` + `apps/api/src/modules/form/fill.ts` `submitResponse` + `apps/api/src/modules/form/ops.ts` `checkPublish`.
+- AI: menu `onboarding` ở `apps/api/src/core/ai-policy.ts`; nhân sự onboard bị chặn bằng `guardAi`; lệnh cấm AI (`aiAllowed: false`): `onboarding.item.tick` (9B thêm xác nhận checkpoint, chốt đánh giá cuối). Quyền `onboarding:path:create` (tạo, sửa, gắn) và `onboarding:path:read` (đọc, tick) ở `packages/shared/src/permissions.ts`.
+- Sự kiện: `onboarding.plan.assigned`, `onboarding.plan.ended`, `onboarding.item.due` (job 9B phát).
+
+**Mẫu làm theo**
+- Thêm lệnh lộ trình: một phần tử trong `onboardingOperations`, `requirePlan(ctx, id, "view"|"edit")` rồi `guardAi(ctx)` ở đầu. Lệnh chạm bảng/form khai `emits: GRANT_EVENTS`.
+- Test: `apps/api/test/onboarding.test.ts` (leader gọi bằng `as(t, id, "web")`, kết nối AI dựng bằng `activeToken` + `actorOf(..., "mcp")`).
+
+**Luật cấm**
+- Không cấp quyền bảng cho nhân sự bằng đường khác `applyGrants`. Không để AI tick việc, xác nhận checkpoint, chốt đánh giá cuối.
+- Lộ trình đang chạy chỉ một cho mỗi nhân sự (chỉ mục duy nhất một phần), kiểm ở `plan.assign`.

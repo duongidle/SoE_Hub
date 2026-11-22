@@ -1,0 +1,25 @@
+meta {
+  name: onboarding.plan.create
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/onboarding/plans
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  { "name": "Lộ trình thử", "structure": { "stages": [ { "name": "Tháng 1", "weeks": [ { "name": "W1 - Làm quen", "items": [ { "name": "Session 1", "kind": "session", "weekday": 2, "due_time": "10:00" }, { "name": "Báo cáo cuối ngày", "repeat": "daily_workdays", "until_week_no": 2, "due_time": "18:00", "remind_before_min": 60 } ] } ] } ] } }
+}
+
+docs {
+  Tạo lộ trình từ đầu, có thể kèm giai đoạn/tuần/việc. Quyền: `onboarding:path:create`.
+}

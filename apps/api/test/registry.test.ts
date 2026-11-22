@@ -21,9 +21,10 @@ describe("command/query registry", () => {
     expect(() => defineCommand({ ...base, name: "m.o.c", permission: "x", http: { method: "GET", path: "/c" } })).toThrow(/GET/);
   });
 
-  it("onboarding.* must have aiAllowed=false (hard rule)", () => {
-    expect(() => defineCommand({ ...base, name: "onboarding.item.check", permission: "x", aiAllowed: true, http: { method: "POST", path: "/o" } })).toThrow(/aiAllowed/);
-    expect(defineCommand({ ...base, name: "onboarding.item.check", permission: "x", aiAllowed: false, http: { method: "POST", path: "/o" } }).aiAllowed).toBe(false);
+  it("onboarding.*: aiAllowed=false is a hard ban, aiAllowed=true goes to the onboarding menu (design module9 10)", () => {
+    const tick = defineCommand({ ...base, name: "onboarding.item.tick", permission: "x", aiAllowed: false, http: { method: "POST", path: "/o" } });
+    expect(tick.ai).toMatchObject({ menu: "onboarding", forbidden: "hard" });
+    expect(defineCommand({ ...base, name: "onboarding.plan.create", permission: "x", aiAllowed: true, http: { method: "POST", path: "/o2" } }).ai).toEqual({ menu: "onboarding", access: "write" });
   });
 
   it("commands default to audit=write, queries to audit=none", () => {
