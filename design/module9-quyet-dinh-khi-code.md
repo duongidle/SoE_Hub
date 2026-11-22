@@ -14,3 +14,8 @@
 - **Tách thân lệnh dùng chung:** `setShare` (`datahub/collab.ts`), `cloneForm` (`form/io.ts`). Lệnh gốc gọi lại hàm này, hành vi không đổi.
 - **Sự kiện:** `onboarding.plan.assigned` (phát khi gắn), `onboarding.plan.ended` (phát khi dừng), `onboarding.item.due` (chỉ khai báo, job nhắc 9B phát).
 - **Test sửa theo thiết kế:** `registry.test.ts` (onboarding không còn cấm `aiAllowed`), `tokens.test.ts` (menu `onboarding` nay hợp lệ, đổi sang tên menu không có), `ai-connections.test.ts` (thêm menu `onboarding` vào danh sách).
+
+## Opus rà 9A (22/11/2026)
+
+- Đạt. Đồng ý: câu "Người điền" không tự thêm thành viên bảng (form ngoài Onboarding báo lỗi rõ); `filler_column_missing`; mỗi người một lộ trình bằng chỉ mục duy nhất một phần.
+- Giao 9C: (1) bảng `forms`, `form_*` (Stage 7), `posts`, `post_versions` (Stage 8), `onb_*` (Stage 9) chưa `registerOwnedTable` như Module 0/1/2/3/6: đăng ký và gắn dấu scope cho truy vấn (chốt `checkScopedQuery`), để đồng bộ lớp bảo vệ; (2) nhân bản lộ trình: form bản sao của form đã xuất bản thì xuất bản luôn (nhân sự điền được ngay).
