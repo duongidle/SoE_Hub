@@ -5,7 +5,7 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** Stage 0–3 xong. Stage 4 xong 22/11 (4.8 bản cơ bản, Opus rà đạt). Tiếp: Stage 5 bản rút gọn (Dương chốt 22/11, `design/module5-ket-noi-ai.md` mục 12): 5A1 registry + kết nối + executor → 5A2 `/mcp` + tool (xong) → 5B giao diện, tài liệu, kiểm thử cuối stage. 5B xong, chờ Opus rà; sau đó Stage 6.
+- **Code:** Stage 0–3 xong. Stage 4 xong 22/11 (4.8 bản cơ bản, Opus rà đạt). Tiếp: Stage 5 bản rút gọn (Dương chốt 22/11, `design/module5-ket-noi-ai.md` mục 12): 5A1 registry + kết nối + executor → 5A2 `/mcp` + tool (xong) → 5B giao diện, tài liệu, kiểm thử cuối stage. Stage 5 xong 22/11 (Opus rà đạt). Tiếp: Stage 6 (Module 6, thông báo): rà phạm vi theo `kinh-nghiem-quyet-dinh.md` trước khi giao.
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 
@@ -16,13 +16,13 @@ Cập nhật: 22/11/2026
 - **4.2** bộ bảng mặc định theo cây, kiểu Người dùng có thuộc tính. **4.3** giao diện Quản lý Deal + trang Template. **4.4** thanh toán và com theo đợt (4.4A server, 4.4B web). **4.5** chốt kỳ, BANT, forecast, snapshot (+ sửa chập chờn: `columnTx`, hàng đợi ưu tiên). **4.6** chỉ số, dashboard Deals, `deal.cycle`, hiệu năng hàng đợi (4.6A–D). Quyết định chi tiết: `design/module4-quyet-dinh-khi-code.md` 4.2–4.6D; bản đồ: `design/ban-do-code.md`.
 - **4.6E** (22/11) hàm người xem ME/ISME/ATTR, bộ mặc định bỏ phần cứng, vai trò đa cột `nguoi_tham_gia`; phần còn lại làm ở 4.7A (INSCOPE/ATTRSUM, lệnh tiền tính ngay, trần % com ở lệnh).
 
-## Đang làm: Stage 5 bản rút gọn (5A1, 5A2, 5B xong 22/11, chờ Opus rà 5B)
+## Đang làm: Stage 5 bản rút gọn (5A1, 5A2, 5B xong 22/11, Opus rà đạt)
 
 Phạm vi: `design/module5-ket-noi-ai.md` mục 12; quyết định: `design/module5-quyet-dinh-khi-code.md` (5A1, 5A2, 5B); bản đồ: `design/ban-do-code.md` "Module 5"; hướng dẫn người dùng: `docs/ket-noi-ai.md`.
 
 **Tóm tắt Stage 5:** token cá nhân = kết nối (menu + mức, Admin duyệt/duyệt bớt, thu hẹp, thu hồi); executor giao quyền ở `ai-gate.ts`; `/mcp` không trạng thái (4 tool chung + 6 tool chọn lọc, `deal.dashboard`); import mở cho AI (analyze/sheet/preview mức Xem menu Datahub, start theo bảng đích, thay toàn bộ cần Toàn quyền); web: Cài đặt → Kết nối AI (tạo, lệnh cài sao chép, thu hẹp, thu hồi), Quản trị → Kết nối AI (duyệt bớt, công tắc khẩn cấp, 5 nhóm cấm), nhật ký hiện tên kết nối; Bruno `docs/api/bruno/mcp/`, `deal/dashboard.bru`. Thử thật Claude Code (22/11) đúng; đo token: `tools/list` đủ menu khoảng 2.006 token, `deals_list` 50 dòng khoảng 3.418 token.
 
-**5B:** typecheck api 0 lỗi mới, web 31 (bằng mốc), lint sạch. Test mã 5f4705a: `ai-connections`, `mcp`, `openapi`, `datahub-import`, `ban-do-code` pass. e2e (`node apps/web/e2e/run.mjs e2e/stage5.spec.ts e2e/stage1.spec.ts --project=desktop`): 19 pass, 0 fail. Vitest cả bộ (`DH_EQUIV_EDITS=2500`): 1260 pass, 10 skip, 1 fail: `deal-period.test.ts` BANT "rule H-002" hết 20 s khi chạy cả bộ; chạy riêng file 2 lần: 13/13 pass. Không liên quan 5B (không đụng deal/BANT); nghi nghẽn khi cả bộ chạy, Opus quyết có điều tra (chạy lặp nhóm file trước nó) hay không. Không chạy cả bộ e2e, không 375px (theo phạm vi).
+**5B:** typecheck api 0 lỗi mới, web 31 (bằng mốc), lint sạch. Test mã 5f4705a: `ai-connections`, `mcp`, `openapi`, `datahub-import`, `ban-do-code` pass. e2e (`node apps/web/e2e/run.mjs e2e/stage5.spec.ts e2e/stage1.spec.ts --project=desktop`): 19 pass, 0 fail. Vitest cả bộ (`DH_EQUIV_EDITS=2500`): 1260 pass, 10 skip, 1 fail: `deal-period.test.ts` BANT "rule H-002" hết 20 s khi chạy cả bộ; chạy riêng file 2 lần: 13/13 pass. Không liên quan 5B (không đụng deal/BANT); nghi nghẽn khi cả bộ chạy, **Opus quyết:** không điều tra bây giờ (Dương muốn Stage 5 gọn); theo dõi ở lần chạy cả bộ kế tiếp, fail lại thì tìm nguyên nhân (chạy lặp nhóm file trước nó). Không chạy cả bộ e2e, không 375px (theo phạm vi).
 
 ## 4.8 Kiểm thử cuối Stage 4 (bản cơ bản)
 
