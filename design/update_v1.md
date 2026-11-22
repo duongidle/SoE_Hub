@@ -54,4 +54,5 @@
 | Thời gian làm bài, xáo trộn câu/lựa chọn, "Chấm lại theo đáp án mới" | mục 6.3, 6.4 | Khi Onboarding cần (xem lại ở Stage 9) |
 | Biểu đồ tóm tắt từng câu ở tab Phản hồi | mục 7 | Hiện dùng dashboard Datahub trên bảng đích |
 | Hàng nhiều cột (tối đa 3), video nhúng YouTube | mục 1.2, 2.1 | Stage 12 / khi cần |
+| Báo chủ form một lần khi form công khai vượt ngưỡng chống spam (hiện chỉ ghi nhật ký) | mục 5.3 | Khi bị spam thật |
 | Rà đủ chuẩn giao diện, bộ skill giao diện, `break-ui` cho trình soạn và form công khai | CLAUDE.md ngoại lệ Stage 7 | Stage 12 |
