@@ -7,6 +7,7 @@ import { makeApp, type TestApp } from "./helpers";
 import { BUILTIN_DEFAULT_SET, ensureTreeTemplates, runDueRules, runMorningDigest } from "../src/modules/deal";
 import { NOTIFICATION_TYPES } from "../src/modules/notification";
 import { workerEmit } from "../src/modules/datahub/template-sync";
+import { processPendingColumns } from "../src/modules/datahub";
 
 /**
  * Stage 6A2: morning digest, deal due reminders, general announcements (design module6 5.5, 6.4, 6.5, 7, 14). Invented data only.
@@ -38,6 +39,11 @@ async function deal(o: { lead: string; others?: string[]; exp?: string; extra?: 
   });
   return { id: r.id as string, name };
 }
+const settle = async () => {
+  await drainOutbox(t);
+  await processPendingColumns(db());
+  await drainOutbox(t);
+};
 const pay = (dealId: string, due: string) => mgrA("payment.schedule", { deal_id: dealId, payments: [{ amount: 1_000_000, due }] });
 const setMarker = (day: string | null) =>
   day === null
@@ -77,7 +83,7 @@ describe("deal due rules", () => {
     await pay(p7.id, "2026-10-03");
     const pNone = await deal({ lead: org.userA1.id });
     await pay(pNone.id, "2026-10-12");
-    await drainOutbox(t);
+    await settle();
 
     const n = await runDueRules(db(), at("2026-10-10"));
     expect(n).toBe(7);

@@ -78,27 +78,42 @@ function formulaOrder(deals: T, roleCols: DhColumn[]): DhColumn[] {
   return out;
 }
 
-/** The value of a column as each of the given people hold it: their own cell (`dh_person_cells`), their computed value (`dh_personal_rows`) or the shared cell. */
-async function valuesAsPeople(ctx: Ctx, deals: T, row: RowData, col: DhColumn, ids: string[]): Promise<Map<string, Stored>> {
-  const owner = deals.acc.datahub.ownerId;
-  const out = new Map<string, Stored>();
-  const shared = (row.data[col.key] ?? null) as Stored;
+/**
+ * The value of a column as each of the given people hold it, for many rows at once (one SQL per kind of storage): their own cell (`dh_person_cells`),
+ * their computed value (`dh_personal_rows`) or the shared cell. The one place that reads a "của tôi" value for a person, for the money commands
+ * (`participantsOf`) and the due-date rules (`deal/due.ts`).
+ */
+export async function personValues(db: Ctx["db"], ownerId: string, col: Pick<DhColumn, "key" | "storage" | "readerScoped">, rows: { id: string; data: RowData["data"] }[], ids: string[]): Promise<Map<string, Map<string, Stored>>> {
+  const out = new Map<string, Map<string, Stored>>(rows.map((r) => [r.id, new Map<string, Stored>()]));
+  if (rows.length === 0 || ids.length === 0) return out;
+  const rowIds = `{${rows.map((r) => r.id).join(",")}}`;
+  const idList = `{${ids.join(",")}}`;
   if (col.storage === "person") {
-    const res = await ctx.db.execute(sql`SELECT user_id, data -> ${col.key} AS v FROM dh_person_cells WHERE /*scope:system*/ row_id = ${row.id}::uuid AND user_id = ANY(${`{${ids.join(",")}}`}::uuid[])`);
-    for (const r of res.rows as { user_id: string; v: Stored }[]) out.set(r.user_id, r.v ?? null);
+    const res = await db.execute(sql`SELECT row_id, user_id, data -> ${col.key} AS v FROM dh_person_cells WHERE /*scope:system*/ row_id = ANY(${rowIds}::uuid[]) AND user_id = ANY(${idList}::uuid[])`);
+    for (const r of res.rows as { row_id: string; user_id: string; v: Stored }[]) out.get(r.row_id)?.set(r.user_id, r.v ?? null);
     return out;
   }
-  if (!col.readerScoped) {
-    for (const id of ids) out.set(id, shared);
-    return out;
+  for (const r of rows) {
+    const shared = (r.data[col.key] ?? null) as Stored;
+    // Shared column: everyone holds the shared cell. Reader-scoped: only the owner does; the others hold their own computed value (below).
+    for (const id of ids) if (!col.readerScoped || id === ownerId) out.get(r.id)!.set(id, shared);
   }
-  const others = ids.filter((id) => id !== owner);
-  if (ids.includes(owner)) out.set(owner, shared);
-  if (others.length) {
-    const res = await ctx.db.execute(sql`SELECT user_id, data -> ${col.key} AS v FROM dh_personal_rows WHERE /*scope:system*/ row_id = ${row.id}::uuid AND user_id = ANY(${`{${others.join(",")}}`}::uuid[])`);
-    for (const r of res.rows as { user_id: string; v: Stored }[]) out.set(r.user_id, r.v ?? null);
+  const others = ids.filter((id) => id !== ownerId);
+  if (col.readerScoped && others.length) {
+    const res = await db.execute(sql`SELECT row_id, user_id, data -> ${col.key} AS v FROM dh_personal_rows WHERE /*scope:system*/ row_id = ANY(${rowIds}::uuid[]) AND user_id = ANY(${`{${others.join(",")}}`}::uuid[])`);
+    for (const r of res.rows as { row_id: string; user_id: string; v: Stored }[]) out.get(r.row_id)?.set(r.user_id, r.v ?? null);
   }
   return out;
+}
+
+/** The role text each person holds on each row, read in bulk from what is stored (the `vai_tro_cua_toi` column). Null where nothing is stored. */
+export async function storedRoles(db: Ctx["db"], ownerId: string, col: Pick<DhColumn, "key" | "storage" | "readerScoped">, rows: { id: string; data: RowData["data"] }[], ids: string[]): Promise<Map<string, Map<string, string | null>>> {
+  const vals = await personValues(db, ownerId, col, rows, ids);
+  return new Map([...vals].map(([row, m]) => [row, new Map([...m].map(([id, v]) => [id, typeof v === "string" && v.trim() ? v : null]))]));
+}
+
+async function valuesAsPeople(ctx: Ctx, deals: T, row: RowData, col: DhColumn, ids: string[]): Promise<Map<string, Stored>> {
+  return (await personValues(ctx.db, deals.acc.datahub.ownerId, col, [row], ids)).get(row.id)!;
 }
 
 export async function participantsOf(ctx: Ctx, deals: T, row: RowData): Promise<Participant[]> {

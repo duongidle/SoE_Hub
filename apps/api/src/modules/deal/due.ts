@@ -8,7 +8,7 @@ import { defineCommand, defineQuery } from "../../core/registry";
 import { NOTIFICATION_TYPES } from "../notification/catalog";
 import { notify, stableId } from "../notification/notify";
 import { roleTable, type RoleTable } from "./forecast";
-import { entryRole, isLeadingRole } from "./participants";
+import { entryRole, isLeadingRole, storedRoles } from "./participants";
 
 /**
  * Deal due-date reminders and the morning digest (design module6 5.5, 6.4, 6.5, 14).
@@ -93,6 +93,8 @@ interface Tree {
   keyColumns: string[];
   /** Column key and name of every column holding `nguoi_tham_gia`. */
   peopleCols: { key: string; name: string }[];
+  /** The column holding the role of the viewer (`vai_tro_cua_toi`): read per person from what is stored. Null in a tree without it (attributes of the people cell). */
+  roleCol: { key: string; storage: "shared" | "person"; readerScoped: boolean } | null;
   /** Option ids of the Status that are not "open" (won, lost...). */
   closed: string[];
 }
@@ -103,7 +105,9 @@ async function loadTree(db: Db, managerId: string): Promise<Tree | null> {
   const [t] = (await db.execute(sql`SELECT key_split, key_columns FROM dh_tables WHERE /*scope:system*/ id = ${deals.tableId}::uuid`)).rows as { key_split: boolean; key_columns: string[] | null }[];
   const cols = (await db.execute(sql`SELECT key, name FROM dh_columns WHERE /*scope:system*/ table_id = ${deals.tableId}::uuid AND role = 'nguoi_tham_gia' AND deleted_at IS NULL`)).rows as { key: string; name: string }[];
   const closed = [...deals.options("trang_thai")].filter(([, o]) => o.meaning && o.meaning !== "open").map(([id]) => id);
-  return { managerId, deals, pay: await roleTable(db, managerId, "payments"), split: !!t?.key_split, keyColumns: t?.key_columns ?? [], peopleCols: cols, closed };
+  const [rc] = (await db.execute(sql`SELECT key, storage, reader_scoped FROM dh_columns WHERE /*scope:system*/ table_id = ${deals.tableId}::uuid AND role = 'vai_tro_cua_toi' AND deleted_at IS NULL LIMIT 1`)).rows as { key: string; storage: "shared" | "person"; reader_scoped: boolean }[];
+  const roleCol = rc ? { key: rc.key, storage: rc.storage, readerScoped: rc.reader_scoped } : null;
+  return { managerId, deals, roleCol, pay: await roleTable(db, managerId, "payments"), split: !!t?.key_split, keyColumns: t?.key_columns ?? [], peopleCols: cols, closed };
 }
 
 /** The Vietnam date of a stored date or datetime cell, as SQL. */
@@ -117,6 +121,8 @@ interface Dealt {
   name: string;
   people: string[];
   leading: string[];
+  /** The row, for reading the stored role of each person. */
+  data: Record<string, unknown>;
 }
 
 /** The people of a deal row, and who is Leading (the role of the person's entry, read as the money commands read it). */
@@ -129,7 +135,17 @@ function dealOf(tree: Tree, id: string, data: Record<string, unknown>): Dealt {
       people.add(e.id);
       if (isLeadingRole(entryRole(e.attrs))) leading.add(e.id);
     }
-  return { id, name: nameKey && typeof data[nameKey] === "string" && data[nameKey] ? (data[nameKey] as string) : "(chưa đặt tên)", people: [...people], leading: [...leading] };
+  return { id, name: nameKey && typeof data[nameKey] === "string" && data[nameKey] ? (data[nameKey] as string) : "(chưa đặt tên)", people: [...people], leading: [...leading], data };
+}
+
+/**
+ * Who is Leading, read where the money commands read it (module6 6B): in a tree with a role column (`vai_tro_cua_toi`) from what is stored for each
+ * person, in bulk; in an old tree without it from the attributes of the people cell (`dealOf`).
+ */
+async function settleLeading(db: Db, tree: Tree, deals: Dealt[]): Promise<void> {
+  if (!tree.roleCol || deals.length === 0) return;
+  const roles = await storedRoles(db, tree.managerId, tree.roleCol, deals.map((x) => ({ id: x.id, data: x.data as never })), [...new Set(deals.flatMap((x) => x.people))]);
+  for (const x of deals) x.leading = x.people.filter((id) => isLeadingRole(roles.get(x.id)?.get(id) ?? null));
 }
 
 async function dealsByIds(db: Db, tree: Tree, ids: string[]): Promise<Map<string, Dealt>> {
@@ -137,6 +153,7 @@ async function dealsByIds(db: Db, tree: Tree, ids: string[]): Promise<Map<string
   if (ids.length === 0) return out;
   const rows = (await db.execute(sql`SELECT id, data FROM dh_rows WHERE /*scope:system*/ table_id = ${tree.deals.tableId}::uuid AND deleted_at IS NULL AND id = ANY(${`{${ids.join(",")}}`}::uuid[])`)).rows as { id: string; data: Record<string, unknown> }[];
   for (const r of rows) out.set(r.id, dealOf(tree, r.id, r.data));
+  await settleLeading(db, tree, [...out.values()]);
   return out;
 }
 
@@ -183,7 +200,9 @@ async function rowsDue(db: Db, tree: Tree, rule: RuleKey, dates: string[]): Prom
     const kExp = tree.deals.key("ngay_du_kien_chot");
     if (!kExp) return [];
     const rows = (await db.execute(sql`SELECT id, data, due::text AS due FROM (SELECT id, data, ${dateOfCell(kExp)} AS due FROM dh_rows WHERE /*scope:system*/ table_id = ${tree.deals.tableId}::uuid AND deleted_at IS NULL AND ${openCond(tree, tree.deals.key("trang_thai"))}) x WHERE due = ANY(${arr}::date[])`)).rows as { id: string; data: Record<string, unknown>; due: string }[];
-    return rows.map((r) => ({ id: r.id, due: r.due, deal: dealOf(tree, r.id, r.data), tableId: tree.deals.tableId }));
+    const found = rows.map((r) => ({ id: r.id, due: r.due, deal: dealOf(tree, r.id, r.data), tableId: tree.deals.tableId }));
+    await settleLeading(db, tree, found.map((x) => x.deal));
+    return found;
   }
   const pay = tree.pay;
   const kDue = pay?.key("han");
