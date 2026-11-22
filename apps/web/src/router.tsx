@@ -4,6 +4,7 @@ import { AccountPage, NotificationsPage, TokensPage } from "@/pages/account";
 import { CodeFlowPage, LoginPage, SetPasswordPage } from "@/pages/auth";
 import { SharedDashboardPage, SharedDashboardsPage } from "@/pages/dashboard/shared";
 import { GuestGrantsPage } from "@/pages/guest";
+import { GuestDataPage, GuestTablePage } from "@/pages/guest-data";
 import { Home } from "@/pages/home";
 import { OrgPage } from "@/pages/org";
 import { Shell } from "@/pages/shell";
@@ -47,6 +48,8 @@ export const router = createRouter({
     r("/tai-khoan/token", TokensPage),
     r("/thong-bao", NotificationsPage),
     r("/cap-du-lieu", GuestGrantsPage),
+    r("/du-lieu-duoc-cap", GuestDataPage),
+    r("/du-lieu-duoc-cap/$tableId", GuestTablePage),
     r("/quan-tri/token", TokenApprovalPage),
     r("/quan-tri/tai-khoan-he-thong", ServiceAccountsPage),
     r("/quan-tri/nhat-ky", AuditLogPage),

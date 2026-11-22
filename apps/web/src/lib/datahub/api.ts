@@ -296,7 +296,7 @@ export interface ImportMappingBody {
     sheet: string;
     header_row: number;
     table: { mode: "new"; name: string } | { mode: "existing"; table_id: string };
-    columns: { index: number; target?: string; name?: string; type?: string }[];
+    columns: { index: number; target?: string; name?: string; type?: string; link_by?: string }[];
     write: "add" | "upsert" | "replace";
     key?: string;
     on_error: "skip_row" | "blank_cell";

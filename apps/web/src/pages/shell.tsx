@@ -9,9 +9,10 @@ import { can, useLiveUpdates, useMe, type Me } from "@/lib/session";
 const PUBLIC_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
 
 /** Menu items. A user sees an item only when the permission list returned by the API contains its permission. */
-const NAV: { to: string; label: string; permission: string | null; dealOnly?: boolean }[] = [
+const NAV: { to: string; label: string; permission: string | null; dealOnly?: boolean; guestOnly?: boolean }[] = [
   { to: "/", label: "Tổng quan", permission: null },
   { to: "/datahub", label: "Datahub", permission: "datahub:datahub:use" },
+  { to: "/du-lieu-duoc-cap", label: "Dữ liệu được cấp", permission: "datahub:datahub:use", guestOnly: true },
   { to: "/quan-ly-deal", label: "Quản lý Deal", permission: "datahub:datahub:use", dealOnly: true },
   { to: "/dashboard", label: "Dashboard chia sẻ", permission: null },
   { to: "/to-chuc", label: "Org chart", permission: "org:member:read" },
@@ -29,6 +30,7 @@ const NAV: { to: string; label: string; permission: string | null; dealOnly?: bo
 const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
   { prefix: "/quan-ly-deal/template", permission: "datahub:template:write" },
   { prefix: "/quan-ly-deal", permission: "datahub:datahub:use" },
+  { prefix: "/du-lieu-duoc-cap", permission: "datahub:datahub:use" },
   { prefix: "/datahub", permission: "datahub:datahub:use" },
   { prefix: "/to-chuc", permission: "org:member:read" },
   { prefix: "/cap-du-lieu", permission: "guest:grant:manage" },
@@ -93,7 +95,7 @@ export function Shell() {
 
   // "Quản lý Deal" is for people who have the datahub (Manager, Leader, User); Admin and Guest have none (Module 4 mục 1.1).
   const hasDeal = me.user.roles.some((r) => ["manager", "leader", "user"].includes(r));
-  const items = NAV.filter((n) => (!n.permission || can(me, n.permission)) && (!n.dealOnly || hasDeal));
+  const items = NAV.filter((n) => (!n.permission || can(me, n.permission)) && (!n.dealOnly || hasDeal) && (!n.guestOnly || me.user.roles.includes("guest")));
   const needed = requiredPermission(shown);
   const denied = needed !== null && !can(me, needed);
   const logout = async () => {
@@ -108,7 +110,7 @@ export function Shell() {
   };
 
   // An open table fills the window (the grid scrolls inside it); other pages are a centered column.
-  const wide = shown.startsWith("/datahub/") || (shown.startsWith("/quan-ly-deal") && shown !== "/quan-ly-deal/template");
+  const wide = shown.startsWith("/datahub/") || shown.startsWith("/du-lieu-duoc-cap/") || (shown.startsWith("/quan-ly-deal") && shown !== "/quan-ly-deal/template");
   return (
     <div className={wide ? "flex h-dvh flex-col" : "min-h-dvh"}>
       <a href="#noi-dung" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[80] focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:shadow-md">

@@ -46,7 +46,7 @@ export function TableView({ tableId }: { tableId: string }) {
 /** A change of columns builds a new session (the rows are read again with the new layout). */
 const columnsSignature = (t: TableDetail) => JSON.stringify(t.columns.map((c) => [c.id, c.key, c.type, c.version, c.position]));
 
-function GridSkeleton() {
+export function GridSkeleton() {
   return (
     <div className="flex flex-1 flex-col gap-1" aria-busy="true" aria-label="Đang tải bảng">
       <Skeleton className="h-9 w-full" />
@@ -293,7 +293,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   );
 }
 
-function LoadedTable({ table, query, gridView, searching, onClearFilters }: { table: TableDetail; query: SessionQuery; gridView: GridView; searching: boolean; onClearFilters: () => void }) {
+export function LoadedTable({ table, query, gridView, searching, onClearFilters }: { table: TableDetail; query: SessionQuery; gridView: GridView; searching: boolean; onClearFilters: () => void }) {
   // One session per table layout and query (`key` in ViewBody). Started and stopped by an effect: StrictMode runs it twice in development.
   const [session] = useState(() => {
     const s = new TableSession(table, query);

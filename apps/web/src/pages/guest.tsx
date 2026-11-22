@@ -2,7 +2,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, DateTimeInput, ErrorText, Field, Input, Modal, PageTitle, Select, Table } from "@/components/ui/form";
-import { api, apiList, fmtTime, parseVnDateTime, qs } from "@/lib/api";
+import { api, apiList, fmtTime, parseVnDateTime, qs, ApiError } from "@/lib/api";
+import { dhKeys, getDatahub, getTable, listDatahubs } from "@/lib/datahub/api";
+
+const DATAHUB_TABLE = "datahub_table";
+/** The server's reasons for a refused table grant, in words a Manager understands. */
+const GRANT_REASONS: Record<string, string> = {
+  grant_column_personal: "Cột cá nhân không cấp cho Guest được. Bỏ cột đó khỏi danh sách.",
+  grant_column_attachment: "Cột đính kèm không cấp cho Guest được. Bỏ cột đó khỏi danh sách.",
+  grant_table_not_yours: "Chỉ cấp được bảng của chính bạn.",
+  grant_options: "Chọn một bảng và ít nhất một cột.",
+  grant_column_unknown: "Có cột không còn trong bảng. Chọn lại cột.",
+};
+function grantError(e: unknown): unknown {
+  const reason = e instanceof ApiError ? ((e.details as { reason?: string } | undefined)?.reason ?? null) : null;
+  return reason && GRANT_REASONS[reason] ? new Error(GRANT_REASONS[reason]) : e;
+}
 
 interface DataType {
   key: string;
@@ -113,8 +128,16 @@ function GrantForm({ types, onClose }: { types: DataType[]; onClose: () => void 
   const [expires, setExpires] = useState("");
   const [note, setNote] = useState("");
   const allowed = types.find((t) => t.key === type)?.channels ?? [];
+  const isTable = type === DATAHUB_TABLE;
+  const [datahubId, setDatahubId] = useState("");
+  const [tableId, setTableId] = useState("");
+  const [cols, setCols] = useState<string[]>([]);
+  const datahubs = useQuery({ queryKey: dhKeys.list, queryFn: () => listDatahubs("mine"), enabled: isTable });
+  const dh = useQuery({ queryKey: dhKeys.datahub(datahubId), queryFn: () => getDatahub(datahubId), enabled: isTable && !!datahubId });
+  const tbl = useQuery({ queryKey: dhKeys.table(tableId), queryFn: () => getTable(tableId), enabled: isTable && !!tableId });
+  const grantable = (tbl.data?.columns ?? []).filter((c) => c.storage !== "person" && c.layer !== "custom" && c.type !== "attachment");
   const m = useMutation({
-    mutationFn: () => api("POST", "/guest/grants", { guest_user_id: guest, data_type: type, scope_leader_id: leader || null, channels, expires_at: expires.trim() ? parseVnDateTime(expires)?.toISOString() : null, note: note || undefined }),
+    mutationFn: () => api("POST", "/guest/grants", { guest_user_id: guest, data_type: type, scope_leader_id: leader || null, channels, expires_at: expires.trim() ? parseVnDateTime(expires)?.toISOString() : null, note: note || undefined, ...(isTable ? { options: { table_id: tableId, columns: cols } } : {}) }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["grants"] });
       onClose();
@@ -138,7 +161,7 @@ function GrantForm({ types, onClose }: { types: DataType[]; onClose: () => void 
           </Select>
         </Field>
         <Field label="Dữ liệu">
-          <Select value={type} onChange={(e) => { setType(e.target.value); setChannels([]); }}>
+          <Select value={type} onChange={(e) => { setType(e.target.value); setChannels([]); setDatahubId(""); setTableId(""); setCols([]); }}>
             {types.map((t) => (
               <option key={t.key} value={t.key}>{t.label}</option>
             ))}
@@ -152,6 +175,35 @@ function GrantForm({ types, onClose }: { types: DataType[]; onClose: () => void 
             ))}
           </Select>
         </Field>
+        {isTable && (
+          <>
+            <Field label="Datahub">
+              <Select value={datahubId} onChange={(e) => { setDatahubId(e.target.value); setTableId(""); setCols([]); }} aria-label="Datahub">
+                <option value="">— Chọn —</option>
+                {datahubs.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </Select>
+            </Field>
+            <Field label="Bảng">
+              <Select value={tableId} onChange={(e) => { setTableId(e.target.value); setCols([]); }} disabled={!datahubId} aria-label="Bảng được cấp">
+                <option value="">— Chọn —</option>
+                {dh.data?.tables.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </Select>
+            </Field>
+            {tableId && (
+              <fieldset className="text-sm" data-testid="grant-columns">
+                <legend className="mb-1 font-medium">Cột Guest được thấy</legend>
+                {tbl.isLoading && <p className="text-muted-foreground">Đang tải cột…</p>}
+                {grantable.map((c) => (
+                  <label key={c.key} className="flex items-center gap-2">
+                    <input type="checkbox" checked={cols.includes(c.key)} onChange={() => setCols((s) => (s.includes(c.key) ? s.filter((x) => x !== c.key) : [...s, c.key]))} />
+                    {c.name}
+                  </label>
+                ))}
+                <p className="mt-1 text-xs text-muted-foreground">Cột cá nhân và cột đính kèm không cấp được.</p>
+              </fieldset>
+            )}
+          </>
+        )}
         <fieldset className="text-sm">
           <legend className="mb-1 font-medium">Kênh</legend>
           {allowed.map((c) => (
@@ -167,9 +219,9 @@ function GrantForm({ types, onClose }: { types: DataType[]; onClose: () => void 
         <Field label="Ghi chú">
           <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
         </Field>
-        <p className="text-xs text-muted-foreground">Cột: chỉ cột hệ thống và cột chung.</p>
-        <ErrorText error={m.error} />
-        <Button type="submit" disabled={m.isPending || !guest || channels.length === 0 || (expires.trim() !== "" && !parseVnDateTime(expires))}>
+        {!isTable && <p className="text-xs text-muted-foreground">Cột: chỉ cột hệ thống và cột chung.</p>}
+        <ErrorText error={m.error ? grantError(m.error) : null} />
+        <Button type="submit" disabled={m.isPending || !guest || channels.length === 0 || (isTable && (!tableId || cols.length === 0)) || (expires.trim() !== "" && !parseVnDateTime(expires))}>
           Cấp
         </Button>
       </form>

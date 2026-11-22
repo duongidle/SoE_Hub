@@ -30,6 +30,9 @@ const TYPE_LABELS: Record<string, string> = {
   url: "URL",
 };
 const IMPORTABLE = Object.keys(TYPE_LABELS);
+// Only for columns the table already has (people and links are looked up by email, name or key value).
+const REF_LABELS: Record<string, string> = { user: "Người dùng", relation: "Liên kết" };
+const TARGETABLE = [...IMPORTABLE, ...Object.keys(REF_LABELS)];
 const WRITE_LABELS = { add: "Thêm dòng mới", upsert: "Cập nhật theo cột khoá (chưa có thì thêm)", replace: "Thay toàn bộ (dòng cũ vào thùng rác 7 ngày)" } as const;
 interface ColPlan {
   index: number;
@@ -41,6 +44,8 @@ interface ColPlan {
   type: string;
   /** Existing column (key) the values go to; "" = a new column. */
   target: string;
+  /** Relation column: column (key) of the target table that finds the row. "" = the target's only unique column. */
+  linkBy: string;
   formulaCount: number;
 }
 
@@ -59,7 +64,7 @@ interface SheetPlan {
   cols: ColPlan[];
 }
 
-const colsOf = (info: ImportSheetInfo): ColPlan[] => info.columns.map((c) => ({ index: c.index, letter: c.letter, header: c.header, sample: c.sample, include: true, name: c.name, type: c.type, target: "", formulaCount: c.formula_count }));
+const colsOf = (info: ImportSheetInfo): ColPlan[] => info.columns.map((c) => ({ index: c.index, letter: c.letter, header: c.header, sample: c.sample, include: true, name: c.name, type: c.type, target: "", linkBy: "", formulaCount: c.formula_count }));
 
 export interface ImportTarget {
   datahub?: { id: string; name: string; access: Level; tables: { id: string; name: string }[] };
@@ -131,7 +136,7 @@ export function ImportDialog({ target, onClose, onImported }: { target: ImportTa
         sheet: p.name,
         header_row: p.headerRow,
         table: p.tableMode === "new" ? { mode: "new" as const, name: p.tableName.trim() } : { mode: "existing" as const, table_id: p.tableId },
-        columns: p.cols.filter((c) => c.include).map((c) => (c.target ? { index: c.index, target: c.target } : { index: c.index, name: c.name.trim(), type: c.type })),
+        columns: p.cols.filter((c) => c.include).map((c) => (c.target ? { index: c.index, target: c.target, ...(c.linkBy ? { link_by: c.linkBy } : {}) } : { index: c.index, name: c.name.trim(), type: c.type })),
         write: p.write,
         ...(p.write === "upsert" && p.key ? { key: p.key } : {}),
         on_error: p.onError,
@@ -383,9 +388,21 @@ function MappingStep({ plans, all, patch, target, isOwner }: { plans: SheetPlan[
   );
 }
 
+/** Relation column: which column of the target table finds the row (`link_by`). */
+function LinkByPicker({ targetTableId, value, onChange, letter, disabled }: { targetTableId?: string; value: string; onChange: (v: string) => void; letter: string; disabled: boolean }) {
+  const t = useQuery({ queryKey: dhKeys.table(targetTableId ?? ""), queryFn: () => getTable(targetTableId!), enabled: !!targetTableId });
+  const cols = (t.data?.columns ?? []).filter((c) => ["text", "number", "email", "phone", "url"].includes(c.type));
+  return (
+    <Select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled || !targetTableId} aria-label={`Cột tìm dòng liên kết cho cột ${letter}`}>
+      <option value="">Tìm theo cột Duy nhất của bảng đích</option>
+      {cols.map((x) => <option key={x.key} value={x.key}>Tìm theo cột {x.name}</option>)}
+    </Select>
+  );
+}
+
 function SheetMapping({ p, patch, target, isOwner }: { p: SheetPlan; patch: (x: Partial<SheetPlan>) => void; target: ImportTarget; isOwner: boolean }) {
   const existing = useQuery({ queryKey: dhKeys.table(p.tableId), queryFn: () => getTable(p.tableId), enabled: p.tableMode === "existing" && !!p.tableId });
-  const existingCols = useMemo(() => (existing.data?.columns ?? []).filter((c) => IMPORTABLE.includes(c.type)), [existing.data]);
+  const existingCols = useMemo(() => (existing.data?.columns ?? []).filter((c) => TARGETABLE.includes(c.type)), [existing.data]);
   const dhTables = target.datahub?.tables ?? [];
   const setCol = (k: number, x: Partial<ColPlan>) => patch({ cols: p.cols.map((c, j) => (j === k ? { ...c, ...x } : c)) });
 
@@ -449,7 +466,7 @@ function SheetMapping({ p, patch, target, isOwner }: { p: SheetPlan; patch: (x: 
                 </td>
                 <td className="px-2 py-2">
                   {p.tableMode === "existing" ? (
-                    <Select value={c.target} onChange={(e) => setCol(k, { target: e.target.value })} disabled={!c.include} aria-label={`Cột của bảng cho cột ${c.letter}`}>
+                    <Select value={c.target} onChange={(e) => setCol(k, { target: e.target.value, linkBy: "" })} disabled={!c.include} aria-label={`Cột của bảng cho cột ${c.letter}`}>
                       {isOwner && <option value="">(Tạo cột mới: {c.name})</option>}
                       {!isOwner && <option value="">Chọn cột…</option>}
                       {existingCols.map((x) => <option key={x.key} value={x.key}>{x.name}</option>)}
@@ -459,7 +476,9 @@ function SheetMapping({ p, patch, target, isOwner }: { p: SheetPlan; patch: (x: 
                   )}
                 </td>
                 <td className="px-2 py-2">
-                  {c.target ? <span className="text-xs text-muted-foreground">{TYPE_LABELS[existingCols.find((x) => x.key === c.target)?.type ?? ""] ?? "—"}</span> : (
+                  {c.target ? <div className="flex flex-col gap-1"><span className="text-xs text-muted-foreground">{(() => { const ex = existingCols.find((x) => x.key === c.target); return ex ? (TYPE_LABELS[ex.type] ?? REF_LABELS[ex.type] ?? "—") : "—"; })()}</span>
+                      {existingCols.find((x) => x.key === c.target)?.type === "relation" && <LinkByPicker targetTableId={existingCols.find((x) => x.key === c.target)?.config.target_table_id} value={c.linkBy} onChange={(v) => setCol(k, { linkBy: v })} letter={c.letter} disabled={!c.include} />}
+                    </div> : (
                     <Select value={c.type} onChange={(e) => setCol(k, { type: e.target.value })} disabled={!c.include} aria-label={`Kiểu cột cho cột ${c.letter}`}>
                       {IMPORTABLE.map((t) => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
                     </Select>

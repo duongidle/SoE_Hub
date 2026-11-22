@@ -1,6 +1,7 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { API, Session, type ProjectName } from "./helpers";
+import { GridDriver } from "./grid";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -20,6 +21,7 @@ let mgrApi: ApiClient;
 let ids: Record<string, string> = {};
 let sessions: Session[] = [];
 let mgrS: Session;
+let guestS: Session;
 const tbl: Record<string, string> = {};
 let dealsTemplateId = "";
 
@@ -64,6 +66,7 @@ test.beforeAll(async ({ browser }, info) => {
       { email: email("mgr"), name: `Manager 47 ${p}`, roles: ["manager"] },
       { email: email("lead"), name: `Leader 47 ${p}`, roles: ["leader"], manager: email("mgr") },
       { email: email("u1"), name: `Thành viên Một 47 ${p}`, roles: ["user"], manager: email("mgr"), leader: email("lead") },
+      { email: email("guest"), name: `Guest 47 ${p}`, roles: ["guest"], manager: email("mgr"), guestPreset: "data" },
     ],
     PASSWORD(),
   );
@@ -79,7 +82,9 @@ test.beforeAll(async ({ browser }, info) => {
     return true;
   }, "bộ bảng mặc định có các bảng thanh toán");
   mgrS = await Session.open(browser, p, "mgr").then((x) => x.allow(400, /\/api\/v1\//));
-  sessions = [mgrS];
+  guestS = await Session.open(browser, p, "guest").then((x) => x.allow(403, /\/api\/v1\//).allow(404, /\/api\/v1\//));
+  sessions = [mgrS, guestS];
+  await guestS.login(email("guest"), PASSWORD());
   await mgrS.login(email("mgr"), PASSWORD());
   await expect(mgrS.page.getByRole("button", { name: "Đăng xuất" })).toBeVisible();
 });
@@ -165,5 +170,119 @@ test.describe("4.7B1 Template: vai trò nhiều cột", () => {
     await expect(option).not.toContainText("Leading 47");
     await expect(d.getByTestId("role-multi-note")).toContainText("Associate 47");
     await expect(d.getByTestId("role-multi-note")).toContainText("Leading 47");
+  });
+});
+
+test.describe("4.7B2 Import: cột Người và Liên kết", () => {
+  let dhId = "";
+  let projId = "";
+  let custId = "";
+  const keys: Record<string, string> = {};
+
+  test.beforeAll(async () => {
+    dhId = (await mgrApi.call<{ id: string }>("POST", "/datahubs", { name: `Import 47 ${p}` })).id;
+    custId = (await mgrApi.call<{ id: string }>("POST", `/datahubs/${dhId}/tables`, { name: "Khách 47" })).id;
+    keys["Mã KH"] = (await mgrApi.call<{ key: string }>("POST", `/tables/${custId}/columns`, { name: "Mã KH", type: "text", unique: true })).key;
+    keys["Tên KH"] = (await mgrApi.call<{ key: string }>("POST", `/tables/${custId}/columns`, { name: "Tên KH", type: "text" })).key;
+    await mgrApi.call("POST", `/tables/${custId}/rows`, { data: { "Mã KH": "KH1", "Tên KH": "Khách Một" } });
+    projId = (await mgrApi.call<{ id: string }>("POST", `/datahubs/${dhId}/tables`, { name: "Dự án 47" })).id;
+    await mgrApi.call("POST", `/tables/${projId}/columns`, { name: "Tên dự án", type: "text" });
+    await mgrApi.call("POST", `/tables/${projId}/columns`, { name: "Phụ trách", type: "user" });
+    await mgrApi.call("POST", `/tables/${projId}/columns`, { name: "Khách", type: "relation", config: { target_table_id: custId } });
+  });
+
+  async function openImport(text: string) {
+    const page = mgrS.page;
+    await page.goto(`/datahub/${dhId}/${projId}`);
+    await page.getByRole("button", { name: "Nhập", exact: true }).click();
+    const d = page.getByRole("dialog", { name: "Nhập dữ liệu" });
+    await d.getByRole("tab", { name: "Dán dữ liệu" }).click();
+    await d.getByLabel("Dữ liệu dán").fill(text);
+    await d.getByRole("button", { name: "Đọc dữ liệu" }).click();
+    await d.getByRole("button", { name: "Ghép cột" }).click();
+    await expect(d.getByLabel("Bảng có sẵn")).toHaveValue(projId);
+    return d;
+  }
+
+  test("cột Người và Liên kết chọn được khi ghép cột; xem trước báo email lạ và liên kết không khớp đúng dòng", async () => {
+    const d = await openImport(["Tên dự án\tPhụ trách\tKhách", `DA1\t${email("u1")}\tKH1`, "DA2\tnguoila@base.vn\tKH1", `DA3\t${email("u1")}\tKH-LA`].join("\n"));
+    // The two columns of the table with the same header are mapped to the table's Người dùng and Liên kết columns.
+    await expect(d.getByLabel("Cột của bảng cho cột B")).not.toHaveValue("");
+    await expect(d.getByLabel("Cột của bảng cho cột C")).not.toHaveValue("");
+    await expect(d.getByLabel("Cột tìm dòng liên kết cho cột C")).toBeVisible();
+    await d.getByRole("button", { name: "Kiểm tra" }).click();
+    const issues = d.getByTestId("import-issues");
+    await expect(issues).toContainText("Dòng 3");
+    await expect(issues).toContainText("nguoila@base.vn");
+    await expect(issues).toContainText("Dòng 4");
+    await d.getByRole("button", { name: "Bắt đầu nhập" }).click();
+    await expect(d.getByTestId("import-result")).toContainText("Đã nhập xong", { timeout: 30_000 });
+    await expect(d.getByTestId("import-result")).toContainText("Thêm 1");
+    const rows = await mgrApi.raw<{ data: { data: Record<string, unknown> }[] }>(`/tables/${projId}/rows?limit=50`);
+    expect(rows.data.length).toBe(1);
+    expect(JSON.stringify(rows.data[0]!.data)).toContain(uid("u1"));
+  });
+
+  test("ô link_by: chọn cột khác của bảng đích để tìm dòng liên kết", async () => {
+    const d = await openImport(["Tên dự án\tKhách", "DA4\tKhách Một"].join("\n"));
+    await d.getByLabel("Cột tìm dòng liên kết cho cột B").selectOption({ label: "Tìm theo cột Tên KH" });
+    await d.getByRole("button", { name: "Kiểm tra" }).click();
+    await expect(d.getByTestId("import-report-sheet")).toBeVisible();
+    await expect(d.getByTestId("import-issues")).toHaveCount(0);
+    await d.getByRole("button", { name: "Bắt đầu nhập" }).click();
+    await expect(d.getByTestId("import-result")).toContainText("Đã nhập xong", { timeout: 30_000 });
+    const rows = await mgrApi.raw<{ data: { data: Record<string, unknown> }[] }>(`/tables/${projId}/rows?limit=50`);
+    expect(rows.data.length).toBe(2);
+  });
+});
+
+test.describe("4.7B2 Guest bảng", () => {
+  let dhId = "";
+  let tId = "";
+
+  test.beforeAll(async () => {
+    dhId = (await mgrApi.call<{ id: string }>("POST", "/datahubs", { name: `Guest 47 ${p}` })).id;
+    tId = (await mgrApi.call<{ id: string }>("POST", `/datahubs/${dhId}/tables`, { name: "Báo giá 47" })).id;
+    for (const [name, type] of [["Công ty", "text"], ["Giá", "currency"], ["Ghi chú nội bộ", "text"]] as const) await mgrApi.call("POST", `/tables/${tId}/columns`, { name, type });
+    await mgrApi.call("POST", `/tables/${tId}/rows`, { data: { "Công ty": "Alpha 47", "Giá": 5000000, "Ghi chú nội bộ": "bí mật" } });
+  });
+
+  test("Manager cấp bảng với hai cột; Guest chỉ thấy hai cột đó và không có ô tìm kiếm", async () => {
+    const page = mgrS.page;
+    await page.goto("/cap-du-lieu");
+    await page.getByRole("button", { name: "Cấp dữ liệu" }).click();
+    const d = page.getByRole("dialog", { name: "Cấp dữ liệu cho Guest" });
+    await d.getByLabel("Guest").selectOption({ label: `Guest 47 ${p} (${email("guest")})` });
+    await d.getByLabel("Dữ liệu", { exact: true }).selectOption({ label: "Bảng Datahub (chọn cột được thấy)" });
+    await expect(d.getByRole("button", { name: "Cấp", exact: true })).toBeDisabled();
+    await d.getByLabel("Datahub", { exact: true }).selectOption({ label: `Guest 47 ${p}` });
+    await d.getByLabel("Bảng được cấp").selectOption({ label: "Báo giá 47" });
+    const cols = d.getByTestId("grant-columns");
+    await cols.getByLabel("Công ty").check();
+    await cols.getByLabel("Giá").check();
+    await d.getByLabel("Xem trên web").check();
+    await d.getByRole("button", { name: "Cấp", exact: true }).click();
+    await expect(page.getByRole("row").filter({ hasText: "Bảng Datahub" }).first()).toBeVisible();
+
+    const gp = guestS.page;
+    await gp.goto("/du-lieu-duoc-cap");
+    await gp.getByTestId("guest-table").first().click();
+    await expect(gp.getByTestId("guest-table-name")).toHaveText("Báo giá 47");
+    const grid = new GridDriver(gp);
+    await expect(grid.root).toBeVisible();
+    await expect.poll(async () => JSON.parse((await grid.root.getAttribute("data-widths")) ?? "[]").length).toBe(2);
+    await expect.poll(() => grid.read(0, 0), { timeout: 15_000 }).toBe("Alpha 47");
+    await expect(gp.getByLabel("Tìm trong bảng")).toHaveCount(0);
+    await expect(gp.getByText("bí mật")).toHaveCount(0);
+    // The server agrees: a search is refused, and the column that was not granted is not in the answer.
+    const guestApi = await new ApiClient(API).login(email("guest"), PASSWORD());
+    const rows = await guestApi.raw<{ data: { data: Record<string, unknown> }[] }>(`/tables/${tId}/rows?limit=10`);
+    expect(JSON.stringify(rows.data)).not.toContain("bí mật");
+    await guestS.shot("guest-bang-duoc-cap");
+  });
+
+  test("Guest tìm kiếm bị server từ chối: câu dễ hiểu, không lộ dòng", async () => {
+    const guestApi = await new ApiClient(API).login(email("guest"), PASSWORD());
+    await expect(guestApi.raw(`/tables/${tId}/rows?limit=10&search=bi`)).rejects.toThrow(/guest_search|tìm kiếm/);
   });
 });
