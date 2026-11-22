@@ -8,7 +8,7 @@ import { Button, DateTimeInput, ErrorText, Field, Input, Modal, Notice, PageTitl
 import { ApiError, api, apiList, fmtTime, parseVnDateTime, qs } from "@/lib/api";
 import { listUserLimits, setUserLimit, type UserLimit } from "@/lib/datahub/api";
 import { notify } from "@/components/ui/toast";
-import { TokenTable, type TokenRow } from "./account";
+import { LEVELS, TokenTable, menusText, type TokenRow } from "./account";
 
 /* ------------------------------------------------------------------ shared pieces */
 
@@ -63,13 +63,21 @@ export function TokenApprovalPage() {
     setNote("");
     void qc.invalidateQueries({ queryKey: ["admin-tokens"] });
   };
-  const approve = useMutation({ mutationFn: (id: string) => api("POST", `/admin/tokens/${id}/approve`, { note: note || undefined }), onSuccess: done });
+  const [editing, setEditing] = useState<TokenRow | null>(null);
+  const approve = useMutation({
+    mutationFn: (v: { id: string; menus?: Record<string, string> }) => api("POST", `/admin/tokens/${v.id}/approve`, { note: note || undefined, ...(v.menus ? { menus: v.menus } : {}) }),
+    onSuccess: () => {
+      setEditing(null);
+      done();
+    },
+  });
   const reject = useMutation({ mutationFn: (id: string) => api("POST", `/admin/tokens/${id}/reject`, { note: note || undefined }), onSuccess: done });
   const revoke = useMutation({ mutationFn: (id: string) => api("DELETE", `/auth/tokens/${id}`, { reason: note || undefined }), onSuccess: done });
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle>Duyệt token cá nhân</PageTitle>
-      <p className="text-sm text-muted-foreground">Token chỉ dùng được sau khi Admin duyệt. Scope được cắt theo quyền hiện tại của chủ token. Danh sách hiển thị tối đa 500 token mới nhất.</p>
+      <PageTitle>Kết nối AI</PageTitle>
+      <AiPolicyCard />
+      <p className="text-sm text-muted-foreground">Kết nối chỉ dùng được sau khi Admin duyệt. Có thể duyệt ít quyền hơn chủ kết nối xin (bỏ menu, hạ mức). Danh sách hiển thị tối đa 500 kết nối mới nhất.</p>
       <Tabs
         value={status}
         onChange={setStatus}
@@ -92,8 +100,11 @@ export function TokenApprovalPage() {
         actions={(t) =>
           t.status === "pending" && (
             <>
-              <Button disabled={approve.isPending} onClick={() => approve.mutate(t.id)}>
+              <Button disabled={approve.isPending} onClick={() => approve.mutate({ id: t.id })}>
                 Duyệt
+              </Button>{" "}
+              <Button variant="secondary" onClick={() => setEditing(t)}>
+                Duyệt bớt quyền
               </Button>{" "}
               <Button variant="secondary" disabled={reject.isPending} onClick={() => reject.mutate(t.id)}>
                 Từ chối
@@ -102,7 +113,98 @@ export function TokenApprovalPage() {
           )
         }
       />
+      {editing && <ApproveNarrow row={editing} busy={approve.isPending} onClose={() => setEditing(null)} onSave={(m) => approve.mutate({ id: editing.id, menus: m })} />}
     </div>
+  );
+}
+
+function ApproveNarrow({ row, busy, onClose, onSave }: { row: TokenRow; busy: boolean; onClose: () => void; onSave: (m: Record<string, string>) => void }) {
+  const [m, setM] = useState<Record<string, string>>({ ...row.menus });
+  const rank = (l: string) => LEVELS.findIndex((x) => x.key === l);
+  return (
+    <Modal title={`Duyệt "${row.name}" của ${row.user_name ?? ""}`} open onClose={onClose}>
+      <div className="flex flex-col gap-2 text-sm">
+        <p className="text-muted-foreground">Xin: {menusText(row.menus) || "—"}. Bỏ menu hoặc hạ mức rồi duyệt.</p>
+        {Object.entries(row.menus).map(([k, held]) => (
+          <div key={k} className="flex items-center gap-2">
+            <label className="flex w-56 items-center gap-2">
+              <input
+                type="checkbox"
+                checked={k in m}
+                onChange={() =>
+                  setM((cur) => {
+                    const { [k]: _d, ...rest } = cur;
+                    return k in cur ? rest : { ...cur, [k]: held };
+                  })
+                }
+              />
+              {menusText({ [k]: held }).split(":")[0]}
+            </label>
+            <Select aria-label={`Mức ${k}`} disabled={!(k in m)} value={m[k] ?? held} onChange={(e) => setM((cur) => ({ ...cur, [k]: e.target.value }))}>
+              {LEVELS.filter((l) => rank(l.key) <= rank(held)).map((l) => (
+                <option key={l.key} value={l.key}>
+                  {l.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+        ))}
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>
+            Đóng
+          </Button>
+          <Button disabled={busy || Object.keys(m).length === 0} onClick={() => onSave(m)}>
+            Duyệt với quyền này
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+const AI_GROUP_LABELS: Record<string, string> = { org: "Tổ chức", guest_grant: "Cấp dữ liệu Guest", transfer: "Chuyển giao dữ liệu", settings: "Cài đặt hệ thống", audit_log: "Nhật ký" };
+
+/** Emergency switch and the five groups the Admin may open to AI (module5 3.4, 7). Saved through the settings API. */
+function AiPolicyCard() {
+  const qc = useQueryClient();
+  const rows = useQuery({ queryKey: ["settings", "rows"], queryFn: () => apiList<SettingRow>(`/system/settings${qs({ limit: 200 })}`) });
+  const get = (key: string) => rows.data?.data.find((r) => r.key === key);
+  const killed = get("ai.killed")?.value === true;
+  const groups = (get("ai.groups_enabled")?.value as string[] | undefined) ?? [];
+  const save = useMutation({
+    mutationFn: (v: { key: string; value: unknown }) => api("PUT", `/system/settings/${v.key}`, { value: v.value, ...(get(v.key) ? { version: get(v.key)!.version } : {}) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Chính sách kết nối AI</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 text-sm">
+        <label className="flex items-center gap-2 font-medium">
+          <input type="checkbox" data-testid="ai-killed" checked={killed} disabled={!rows.data || save.isPending} onChange={() => save.mutate({ key: "ai.killed", value: !killed })} />
+          Tạm tắt mọi kết nối AI (khẩn cấp)
+        </label>
+        <fieldset>
+          <legend className="mb-1 text-muted-foreground">Nhóm thao tác cho phép AI (mặc định cấm)</legend>
+          <div className="grid gap-1 sm:grid-cols-2">
+            {Object.entries(AI_GROUP_LABELS).map(([g, label]) => (
+              <label key={g} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  data-testid={`ai-group-${g}`}
+                  checked={groups.includes(g)}
+                  disabled={!rows.data || save.isPending}
+                  onChange={() => save.mutate({ key: "ai.groups_enabled", value: groups.includes(g) ? groups.filter((x) => x !== g) : [...groups, g] })}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <ErrorText error={rows.error ?? save.error} />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -311,10 +413,12 @@ interface AuditFilters {
 /** Who did it. Without a signed-in actor (login, codes): "Chưa đăng nhập", the email that was tried, and the IP. */
 function ActorCell({ r }: { r: AuditRow }) {
   if (r.actor_name) {
+    const conn = (r.details as { connection_name?: unknown } | null)?.connection_name;
     return (
       <>
         {r.actor_name}
         <div className="text-xs text-muted-foreground">{r.actor_email}</div>
+        {typeof conn === "string" && <div className="text-xs text-muted-foreground">Kết nối: {conn}</div>}
       </>
     );
   }
@@ -544,7 +648,7 @@ function AuditDetail({ id, onClose }: { id: string; onClose: () => void }) {
                 ["Thời điểm", fmtTime(r.at)],
                 ["Người thực hiện", r.actor_name ? `${r.actor_name} ${r.actor_email ? `(${r.actor_email})` : ""}` : `Chưa đăng nhập${typeof (details.email ?? (details.target as { email?: unknown } | undefined)?.email) === "string" ? ` (email thử: ${String(details.email ?? (details.target as { email?: unknown }).email)})` : ""}`],
                 ["Kênh", VIA_LABELS[r.via] ?? r.via ?? "—"],
-                ["Kết nối AI", r.connection_id ?? "—"],
+                ["Kết nối AI", typeof details.connection_name === "string" ? details.connection_name : (r.connection_id ?? "—")],
                 ["Hành động", r.command],
                 ["Kết quả", `${RESULT_LABELS[r.result]}${r.error_code ? ` (${r.error_code})` : ""}`],
                 ["Đối tượng", `${r.target_type ?? "—"} ${r.target_id ?? ""}`],

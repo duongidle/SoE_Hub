@@ -76,7 +76,7 @@ test("đăng xuất xoá phiên; trang bảo vệ chuyển về đăng nhập v�
 });
 
 test("Admin thấy menu quản trị, không thấy menu của Manager", async () => {
-  for (const label of ["Org chart", "Duyệt token", "Tài khoản hệ thống", "Nhật ký", "Chuyển giao", "Cài đặt hệ thống"]) {
+  for (const label of ["Org chart", "Kết nối AI", "Tài khoản hệ thống", "Nhật ký", "Chuyển giao", "Cài đặt hệ thống"]) {
     expect(await admin.hasMenu(label), label).toBe(true);
   }
   expect(await admin.hasMenu("Cấp dữ liệu Guest")).toBe(false);
@@ -175,9 +175,8 @@ test("sai mật khẩu 5 lần thì khoá tài khoản", async () => {
 
 test("token cá nhân: tạo -> chờ duyệt -> Admin duyệt -> dùng được với API", async ({ request }) => {
   await user.page.goto("/tai-khoan/token");
-  await user.page.getByLabel("Tên token").fill(`Claude Code ${p}`);
-  await user.page.getByLabel(/system:whoami/).check();
-  await user.page.getByRole("button", { name: "Tạo token" }).click();
+  await user.page.getByLabel("Tên kết nối").fill(`Claude Code ${p}`);
+  await user.page.getByRole("button", { name: "Tạo kết nối" }).click();
   const shown = user.page.locator("code.font-mono");
   await expect(shown).toBeVisible();
   const token = ((await shown.textContent()) ?? "").trim();
@@ -188,20 +187,19 @@ test("token cá nhân: tạo -> chờ duyệt -> Admin duyệt -> dùng được
   const pending = await request.get(`${API}/api/v1/system/whoami`, { headers: { authorization: `Bearer ${token}` } });
   expect(pending.status(), "token chưa duyệt không dùng được").toBe(401);
 
-  await admin.clickMenu("Duyệt token");
+  await admin.clickMenu("Kết nối AI");
   const row = admin.page.getByRole("row", { name: new RegExp(`Claude Code ${p}`) });
   await expect(row).toBeVisible();
   await admin.shot("10-token-approval");
-  await row.getByRole("button", { name: "Duyệt" }).click();
+  await row.getByRole("button", { name: "Duyệt", exact: true }).click();
   await expect(row).toBeHidden(); // the pending tab no longer lists it
   await admin.page.getByRole("tab", { name: "Đang dùng" }).click();
   await expect(admin.page.getByRole("row", { name: new RegExp(`Claude Code ${p}`) })).toBeVisible();
 
   const ok = await request.get(`${API}/api/v1/system/whoami`, { headers: { authorization: `Bearer ${token}` } });
   expect(ok.status()).toBe(200);
-  const body = (await ok.json()) as { data: { via: string; scopes: string[] } };
+  const body = (await ok.json()) as { data: { via: string } };
   expect(body.data.via).toBe("api");
-  expect(body.data.scopes).toEqual(["system:whoami"]);
   await user.page.reload();
   await expect(user.page.getByText("Đang dùng", { exact: true })).toBeVisible();
 });
@@ -250,7 +248,7 @@ test("User mở trang Admin bằng đường dẫn: thấy 'Không có quyền',
     await user.page.goto(url);
     await expect(user.page.getByRole("heading", { name: "Không có quyền" }), url).toBeVisible();
   }
-  for (const label of ["Nhật ký", "Duyệt token", "Cài đặt hệ thống", "Chuyển giao", "Tài khoản hệ thống"]) {
+  for (const label of ["Nhật ký", "Kết nối AI", "Cài đặt hệ thống", "Chuyển giao", "Tài khoản hệ thống"]) {
     expect(await user.hasMenu(label), label).toBe(false);
   }
   const res = await user.page.request.get("/api/v1/system/audit-log");

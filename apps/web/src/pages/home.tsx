@@ -20,7 +20,7 @@ export function Home() {
           <CardContent className="flex flex-col gap-2 text-sm">
             <Link to="/thong-bao" className="text-primary underline">Hộp thông báo</Link>
             <Link to="/tai-khoan" className="text-primary underline">Đổi mật khẩu, thiết bị đăng nhập</Link>
-            <Link to="/tai-khoan/token" className="text-primary underline">Token cá nhân</Link>
+            <Link to="/tai-khoan/token" className="text-primary underline">Kết nối AI</Link>
           </CardContent>
         </Card>
         <HealthCard />

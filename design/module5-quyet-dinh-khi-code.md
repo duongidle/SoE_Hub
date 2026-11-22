@@ -48,3 +48,4 @@
 ## 5B
 
 - Import qua AI (việc 1): `datahub.import.analyze/sheet/preview` menu `datahub`, mức `read` (chỉ tạo việc nháp, không ghi dữ liệu bảng); `datahub.import.start` menu theo `mapping` (`importMenu` trong `ai-gate.ts`: datahub hay bảng có sẵn thuộc "Quản lý Deal" -> `deal`, còn lại `datahub`; id sai -> đóng cửa), mức `write`, có sheet `write: "replace"` -> `full` (`accessOfInput`). Việc nhập chạy nền bằng quyền chủ việc nên không cần kết nối lúc chạy.
+- Giao diện (việc 2-3): trang người dùng đổi tên thành "Kết nối AI" (menu Admin "Duyệt token" cũng đổi thành "Kết nối AI"); chỉ hiện 3 menu có module (Deal, Datahub, Thông báo); khối chính sách đọc/ghi `ai.killed`, `ai.groups_enabled` bằng `PUT /system/settings/:key` (trang Cài đặt hệ thống chung vẫn sửa được dạng chữ). `stage1.spec.ts` đổi theo nhãn mới.

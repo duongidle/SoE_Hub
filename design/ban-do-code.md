@@ -413,4 +413,12 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 
 **Luật cấm**
 - Không kiểm quyền của kết nối ở handler; chỉ executor. Không tìm menu theo tên thao tác cho thao tác của engine Datahub (dùng `by_target`).
-- `aiAllowed: false` cho chốt kỳ, mở lại kỳ, xác nhận tiền về hàng loạt, sửa template, chuyển vai trò cột, import (thao tác lớn dời, Module 5 mục 12).
+- `aiAllowed: false` cho chốt kỳ, mở lại kỳ, xác nhận tiền về hàng loạt, sửa template, chuyển vai trò cột (thao tác lớn dời, Module 5 mục 12).
+
+**Import qua AI (5B)**
+- `apps/api/src/modules/datahub/import-job.ts` `importOperations`: `analyze`, `sheet`, `preview` khai `menu: "datahub"`, `access: "read"`; `start` theo `mapping`: `apps/api/src/core/ai-gate.ts` `menuOfTarget` rẽ sang `importMenu` khi input có `mapping`; `apps/api/src/core/ai-policy.ts` `accessOfInput` nâng `full` khi có sheet `write: "replace"`.
+
+**Web (5B)**
+- Người dùng: `apps/web/src/pages/account.tsx` `TokensPage` (tạo kết nối chọn menu và mức qua `CONNECTION_MENUS`, `LEVELS`; lệnh cài `installCommands`; thu hẹp `NarrowForm`; bảng `TokenTable` cột Menu và mức). Thêm menu mới vào `CONNECTION_MENUS` khi module của nó có.
+- Admin: `apps/web/src/pages/admin.tsx` `TokenApprovalPage` (Duyệt bớt quyền `ApproveNarrow`, chính sách `AiPolicyCard` ghi `ai.killed`, `ai.groups_enabled` qua `PUT /system/settings/:key`); nhật ký hiện `details.connection_name` ở `ActorCell`.
+- e2e: `apps/web/e2e/stage5.spec.ts`.

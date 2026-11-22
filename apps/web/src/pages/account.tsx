@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { PERMISSIONS, isTokenAllowedPermission, type Permission } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, ErrorText, Field, Input, Notice, PageTitle, Table } from "@/components/ui/form";
+import { Button, ErrorText, Field, Input, Modal, Notice, PageTitle, Select, Table } from "@/components/ui/form";
 import { api, apiList, fmtTime, qs } from "@/lib/api";
 import { useMe } from "@/lib/session";
 
@@ -119,6 +118,7 @@ export interface TokenRow {
   name: string;
   token_prefix: string;
   scopes: string[];
+  menus: Record<string, string>;
   status: "pending" | "active" | "rejected" | "revoked";
   expires_at: string;
   created_at: string;
@@ -134,34 +134,86 @@ export const TOKEN_STATUS: Record<TokenRow["status"], { label: string; tone: "ok
   revoked: { label: "Đã thu hồi", tone: "muted" },
 };
 
-const permLabel = (p: string) => PERMISSIONS[p as Permission] ?? p;
+/** Menus a person can pick for a connection: only those with a module today (design module5 12). */
+export const CONNECTION_MENUS = [
+  { key: "deal", label: "Quản lý Deal", def: "write" },
+  { key: "datahub", label: "Datahub", def: "write" },
+  { key: "notify", label: "Thông báo và nhắc hẹn", def: "write" },
+] as const;
+export const LEVELS = [
+  { key: "read", label: "Xem" },
+  { key: "write", label: "Sửa" },
+  { key: "full", label: "Toàn quyền" },
+] as const;
+type Level = (typeof LEVELS)[number]["key"];
+const MENU_NAME: Record<string, string> = { deal: "Quản lý Deal", datahub: "Datahub", notify: "Thông báo", form: "Form", knowledge: "Knowledge", aihub: "AI Hub", workspace: "Workspace", feedback: "Feedback", admin: "Quản trị" };
+const LEVEL_NAME: Record<string, string> = { read: "Xem", write: "Sửa", full: "Toàn quyền" };
+export const menusText = (m: Record<string, string> | undefined) => Object.entries(m ?? {}).map(([k, v]) => `${MENU_NAME[k] ?? k}: ${LEVEL_NAME[v] ?? v}`).join(", ");
+
+/** Ready-to-paste install commands for a new token. `origin` is this site; the token is shown once. */
+export function installCommands(origin: string, token: string) {
+  return {
+    "Claude Code": `claude mcp add --transport http soe ${origin}/mcp --header "Authorization: Bearer ${token}"`,
+    Codex: `# ~/.codex/config.toml\n[mcp_servers.soe]\nurl = "${origin}/mcp"\nhttp_headers = { Authorization = "Bearer ${token}" }`,
+    REST: `curl -H "Authorization: Bearer ${token}" ${origin}/api/v1/datahubs`,
+  } as Record<string, string>;
+}
+
+function CopyBlock({ label, text }: { label: string; text: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-xs font-medium">
+        {label}
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            void navigator.clipboard?.writeText(text).then(() => setDone(true), () => setDone(false));
+          }}
+        >
+          {done ? "Đã sao chép" : "Sao chép"}
+        </Button>
+      </div>
+      <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted p-2 font-mono text-xs" data-testid={`cmd-${label}`}>
+        {text}
+      </pre>
+    </div>
+  );
+}
 
 export function TokensPage() {
   const qc = useQueryClient();
-  const me = useMe().data;
   const q = useQuery({ queryKey: ["tokens"], queryFn: () => api<TokenRow[]>("GET", "/auth/tokens") });
-  const available = (me?.permissions ?? []).filter(isTokenAllowedPermission);
   const [name, setName] = useState("");
-  const [scopes, setScopes] = useState<string[]>([]);
+  const [menus, setMenus] = useState<Record<string, Level>>(() => Object.fromEntries(CONNECTION_MENUS.map((m) => [m.key, m.def])));
   const [days, setDays] = useState(90);
   const create = useMutation({
-    mutationFn: () => api<{ token: string }>("POST", "/auth/tokens", { name, scopes, expires_in_days: days }),
+    mutationFn: () => api<{ token: string }>("POST", "/auth/tokens", { name, menus, expires_in_days: days }),
     onSuccess: () => {
       setName("");
-      setScopes([]);
       void qc.invalidateQueries({ queryKey: ["tokens"] });
     },
   });
   const revoke = useMutation({ mutationFn: (id: string) => api("DELETE", `/auth/tokens/${id}`), onSuccess: () => qc.invalidateQueries({ queryKey: ["tokens"] }) });
+  const [narrowing, setNarrowing] = useState<TokenRow | null>(null);
+  const narrow = useMutation({
+    mutationFn: (v: { id: string; menus: Record<string, string> }) => api("PATCH", `/auth/tokens/${v.id}`, { menus: v.menus }),
+    onSuccess: () => {
+      setNarrowing(null);
+      void qc.invalidateQueries({ queryKey: ["tokens"] });
+    },
+  });
+  const chosen = Object.keys(menus).length;
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle>Token cá nhân</PageTitle>
+      <PageTitle>Kết nối AI</PageTitle>
       <p className="text-sm text-muted-foreground">
-        Dùng cho Claude Code, Codex, script. Token chỉ hiện một lần lúc tạo và phải được Admin duyệt mới dùng được. Gửi kèm header <code>Authorization: Bearer &lt;token&gt;</code>.
+        Dùng cho Claude Code, Codex, script. Chọn menu và mức cho kết nối; token chỉ hiện một lần lúc tạo và phải được Admin duyệt mới dùng được. Kết nối không bao giờ rộng hơn quyền của bạn.
       </p>
       <Card>
         <CardHeader>
-          <CardTitle>Tạo token</CardTitle>
+          <CardTitle>Tạo kết nối</CardTitle>
         </CardHeader>
         <CardContent>
           <form
@@ -172,7 +224,7 @@ export function TokensPage() {
             }}
           >
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Tên token">
+              <Field label="Tên kết nối">
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: Claude Code máy công ty" required />
               </Field>
               <Field label="Hạn dùng (ngày)" hint="Mặc định 90, tối đa 365.">
@@ -180,33 +232,112 @@ export function TokensPage() {
               </Field>
             </div>
             <fieldset className="text-sm">
-              <legend className="mb-1 font-medium">Scope (không rộng hơn quyền của bạn)</legend>
-              <div className="grid gap-1 sm:grid-cols-2">
-                {available.map((p) => (
-                  <label key={p} className="flex items-center gap-2">
-                    <input type="checkbox" checked={scopes.includes(p)} onChange={() => setScopes((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]))} />
-                    <span>
-                      {permLabel(p)} <span className="text-xs text-muted-foreground">({p})</span>
-                    </span>
-                  </label>
+              <legend className="mb-1 font-medium">Menu và mức</legend>
+              <div className="flex flex-col gap-1">
+                {CONNECTION_MENUS.map((m) => (
+                  <div key={m.key} className="flex items-center gap-2">
+                    <label className="flex w-64 items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={m.key in menus}
+                        onChange={() =>
+                          setMenus((cur) => {
+                            const { [m.key]: _drop, ...rest } = cur;
+                            return m.key in cur ? rest : { ...cur, [m.key]: m.def };
+                          })
+                        }
+                      />
+                      {m.label}
+                    </label>
+                    <Select aria-label={`Mức ${m.label}`} disabled={!(m.key in menus)} value={menus[m.key] ?? m.def} onChange={(e) => setMenus((cur) => ({ ...cur, [m.key]: e.target.value as Level }))}>
+                      {LEVELS.map((l) => (
+                        <option key={l.key} value={l.key}>
+                          {l.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
                 ))}
               </div>
             </fieldset>
             <ErrorText error={create.error} />
             {create.data && (
-              <Notice>
-                Token mới (chỉ hiện một lần, hãy lưu lại ngay): <code className="break-all font-mono">{create.data.token}</code>. Token đang chờ Admin duyệt.
-              </Notice>
+              <div className="rounded-md border bg-muted/40 p-3 text-sm" role="status">
+                <div className="flex flex-col gap-2" data-testid="new-connection">
+                  <div>
+                    Token mới (chỉ hiện một lần, hãy lưu lại ngay): <code className="break-all font-mono">{create.data.token}</code>. Kết nối đang chờ Admin duyệt; dán lệnh dưới đây vào máy của bạn.
+                  </div>
+                  {Object.entries(installCommands(window.location.origin, create.data.token)).map(([k, v]) => (
+                    <CopyBlock key={k} label={k} text={v} />
+                  ))}
+                </div>
+              </div>
             )}
-            <Button type="submit" disabled={create.isPending || scopes.length === 0}>
-              Tạo token
+            <Button type="submit" disabled={create.isPending || chosen === 0}>
+              Tạo kết nối
             </Button>
           </form>
         </CardContent>
       </Card>
-      <TokenTable rows={q.data ?? []} onRevoke={(id) => revoke.mutate(id)} />
+      <TokenTable
+        rows={q.data ?? []}
+        onRevoke={(id) => revoke.mutate(id)}
+        actions={(t) =>
+          t.status === "active" || t.status === "pending" ? (
+            <Button variant="ghost" onClick={() => setNarrowing(t)}>
+              Thu hẹp
+            </Button>
+          ) : null
+        }
+      />
+      {narrowing && <NarrowForm row={narrowing} busy={narrow.isPending} error={narrow.error} onClose={() => setNarrowing(null)} onSave={(m) => narrow.mutate({ id: narrowing.id, menus: m })} />}
       <ErrorText error={q.error ?? revoke.error} />
     </div>
+  );
+}
+
+/** Narrow a connection: drop menus or lower levels only (widening means a new connection). */
+export function NarrowForm({ row, busy, error, onClose, onSave }: { row: TokenRow; busy: boolean; error: unknown; onClose: () => void; onSave: (m: Record<string, string>) => void }) {
+  const [m, setM] = useState<Record<string, string>>({ ...row.menus });
+  const rank = (l: string) => LEVELS.findIndex((x) => x.key === l);
+  return (
+    <Modal title={`Thu hẹp "${row.name}"`} open onClose={onClose}>
+      <div className="flex flex-col gap-2 text-sm">
+        {Object.entries(row.menus).map(([k, held]) => (
+          <div key={k} className="flex items-center gap-2">
+            <label className="flex w-56 items-center gap-2">
+              <input
+                type="checkbox"
+                checked={k in m}
+                onChange={() =>
+                  setM((cur) => {
+                    const { [k]: _d, ...rest } = cur;
+                    return k in cur ? rest : { ...cur, [k]: held };
+                  })
+                }
+              />
+              {MENU_NAME[k] ?? k}
+            </label>
+            <Select aria-label={`Mức ${MENU_NAME[k] ?? k}`} disabled={!(k in m)} value={m[k] ?? held} onChange={(e) => setM((cur) => ({ ...cur, [k]: e.target.value }))}>
+              {LEVELS.filter((l) => rank(l.key) <= rank(held)).map((l) => (
+                <option key={l.key} value={l.key}>
+                  {l.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+        ))}
+        <ErrorText error={error} />
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>
+            Đóng
+          </Button>
+          <Button disabled={busy || Object.keys(m).length === 0} onClick={() => onSave(m)}>
+            Lưu
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -218,7 +349,7 @@ export function TokenTable({ rows, onRevoke, owner, actions }: { rows: TokenRow[
           {owner && <th>Người dùng</th>}
           <th>Tên</th>
           <th>Token</th>
-          <th>Scope</th>
+          <th>Menu và mức</th>
           <th>Trạng thái</th>
           <th>Hết hạn</th>
           <th>Dùng gần nhất</th>
@@ -236,7 +367,7 @@ export function TokenTable({ rows, onRevoke, owner, actions }: { rows: TokenRow[
             )}
             <td>{t.name}</td>
             <td className="font-mono text-xs">{t.token_prefix}</td>
-            <td className="max-w-xs whitespace-normal text-xs">{t.scopes.join(", ")}</td>
+            <td className="max-w-xs whitespace-normal text-xs">{Object.keys(t.menus ?? {}).length ? menusText(t.menus) : t.scopes.join(", ")}</td>
             <td>
               <Badge tone={TOKEN_STATUS[t.status].tone}>{TOKEN_STATUS[t.status].label}</Badge>
               {t.decision_note && <div className="text-xs text-muted-foreground">{t.decision_note}</div>}

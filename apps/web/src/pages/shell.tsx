@@ -17,7 +17,7 @@ const NAV: { to: string; label: string; permission: string | null; dealOnly?: bo
   { to: "/dashboard", label: "Dashboard chia sẻ", permission: null },
   { to: "/to-chuc", label: "Org chart", permission: "org:member:read" },
   { to: "/cap-du-lieu", label: "Cấp dữ liệu Guest", permission: "guest:grant:manage" },
-  { to: "/quan-tri/token", label: "Duyệt token", permission: "auth:token:approve" },
+  { to: "/quan-tri/token", label: "Kết nối AI", permission: "auth:token:approve" },
   { to: "/quan-tri/tai-khoan-he-thong", label: "Tài khoản hệ thống", permission: "auth:service_account:manage" },
   { to: "/quan-tri/nhat-ky", label: "Nhật ký", permission: "system:audit:read" },
   { to: "/quan-tri/chuyen-giao", label: "Chuyển giao", permission: "data:transfer" },
