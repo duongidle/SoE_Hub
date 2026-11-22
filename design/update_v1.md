@@ -37,3 +37,4 @@
 | Bản tin buổi sáng: chọn giờ, chọn ngày nhận (hiện cố định 08:00, chỉ bật/tắt) | mục 5.5 | Khi người dùng cần |
 | Loại thông báo: deal mình Leading bị người khác sửa, template Deals đổi, chính sách com mới, kỳ khoá/mở, deal Won chưa chia đủ tỉ lệ | mục 3.2 | Thêm bằng `defineNotification` khi cần |
 | Admin chỉnh thời hạn giữ thông báo, giới hạn nhắc hẹn/quy tắc | mục 10 | Hiện là hằng số |
+| Phân trang `announcement.list_*` (hiện chỉ `limit`); nút Xem trước của 2 quy tắc nhắc hạn | mục 6.1, 7 | Khi danh sách dài / Manager cần |

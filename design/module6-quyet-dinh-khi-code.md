@@ -30,3 +30,11 @@
 - **Chạy bù:** dấu chạy theo ngày mỗi cây; lỡ thì lần sau chạy từ hôm qua. Nội dung ghi ngày hạn, không ghi "N ngày" cố định nên thông báo bù vẫn đúng. Bảng "đã gửi" là khoá duy nhất `notifications(source_event_id, user_id)` (không tạo bảng riêng); thông báo gom có `key = all`.
 - **Bản tin:** dùng `morning_digest` (mặc định bật); người không thuộc cây chỉ có phần nhắc hẹn trong ngày. Link bản tin tới `/quan-ly-deal/<bảng Deals>?quick=priority` (6B nối đúng tham số mở view "Ưu tiên hôm nay").
 - **Thông báo chung:** quyền mới `notification:announce` (Admin, Manager, Leader); người nhận = người đang hoạt động (kể cả Guest nằm trong cây), trừ người gửi; số người nhận chốt lúc gửi (`announcement_recipients`); thu hồi xoá thông báo khỏi hộp nhưng giữ bản ghi; "đã đọc" tính theo thông báo của người nhận còn `read_at` rỗng (thông báo đã bị dọn thì tính đã đọc). Chưa có giới hạn 10 thông báo/ngày (mục 7), đính kèm, hẹn giờ, sửa (dời).
+
+## Opus rà 6A2 (22/11/2026)
+
+- Chống gửi trùng bằng khoá duy nhất `notifications(source_event_id, user_id)`, không bảng "đã gửi" riêng: đồng ý.
+- Chạy bù ghi ngày hạn thật trong nội dung: đồng ý.
+- **Sửa ở 6B:** tìm Leading không được so tên cột "Leading". Vai trò người tham gia chỉ có một nơi tính: `apps/api/src/modules/deal/participants.ts` (`Participant.role`, cách `participantsOf` đọc cột theo vai trò `nguoi_tham_gia` và thuộc tính). `due.ts` dùng lại đúng logic đó (tách hàm thuần không ném lỗi thành viên nếu cần), không viết lại.
+- **Sửa ở 6B:** thông báo chung gửi theo cây/team **không gồm Guest** (Guest là người ngoài, Module 1 mục 5.2); Guest chỉ nhận khi người gửi thêm lẻ và Guest đó nằm trong phạm vi được cấp của người gửi. Đơn giản nhất: loại Guest khỏi mọi phạm vi, kể cả người lẻ.
+- Giới hạn 10/ngày, phân trang `announcement.list_*`, nút Xem trước của quy tắc: dời (`design/update_v1.md`).
