@@ -90,6 +90,22 @@ describe("quiz: auto grading", () => {
   });
 });
 
+describe("quiz: option ids", () => {
+  it("the answer is an option id: renaming the option keeps grading right; a removed option blocks publishing", async () => {
+    const x = await quizForm([q("s", "single_select", { options: [{ label: "Hà Nội" }, { label: "Huế" }], answer: "Hà Nội", points: 2 })], { max_attempts: 3 });
+    const d = (await a("form.form.get", { form_id: x.id })).draft;
+    const opts = d.blocks[0].options as { id: string; label: string }[];
+    expect(d.blocks[0].answer).toBe(opts[0]!.id);
+    await a("form.form.save_draft", { form_id: x.id, config: { ...d, blocks: [{ ...d.blocks[0], options: opts.map((o, i) => (i === 0 ? { ...o, label: "Thủ đô" } : o)) }] } });
+    await a("form.form.publish", { form_id: x.id });
+    await submit(x.code, { s: opts[0]!.id });
+    expect((await cells(x.tableId))[0]!.score).toBe(2);
+    await a("form.form.save_draft", { form_id: x.id, config: { ...d, blocks: [{ ...d.blocks[0], options: [opts[1]!] }] } });
+    const e = await fails(a("form.form.publish", { form_id: x.id }));
+    expect(JSON.stringify(e.details.issues)).toContain("quiz_answer_invalid");
+  });
+});
+
 describe("quiz: attempts", () => {
   it("each attempt is a row with its number; the third is refused when the limit is 2", async () => {
     const x = await quizForm([q("s", "single_select", { options: [{ label: "A" }, { label: "B" }], answer: "A", points: 1 })], { max_attempts: 2, show: "score", pass: { type: "percent", value: 100 } });
@@ -230,7 +246,7 @@ describe("form JSON", () => {
     expect(own.has_answers).toBe(true);
     const json = own.json as { schema: string; quiz: unknown; blocks: Record<string, unknown>[] };
     expect(json).toMatchObject({ schema: "soe-form/1", quiz: { enabled: true } });
-    expect(json.blocks[0]).toMatchObject({ answer: "A", points: 1, column_name: "Câu s" });
+    expect(json.blocks[0]).toMatchObject({ answer: expect.stringMatching(/^o_/), points: 1, column_name: "Câu s" });
     expect(json.blocks[0]).not.toHaveProperty("column_id");
     const other = await u("form.form.export", { code: x.code });
     expect(other.has_answers).toBe(false);
@@ -286,7 +302,7 @@ describe("form: clone, responses, transfer, trash", () => {
     expect(cf.table_id).not.toBe(x.tableId);
     expect(c.created_columns).toBe(1);
     expect(cf.code).not.toBe(x.code);
-    expect((cf.draft as { blocks: Record<string, unknown>[]; quiz: unknown }).blocks[0]).toMatchObject({ answer: "A", points: 1 });
+    expect((cf.draft as { blocks: Record<string, unknown>[]; quiz: unknown }).blocks[0]).toMatchObject({ answer: expect.stringMatching(/^o_/), points: 1 });
     expect((cf.draft as { quiz: unknown }).quiz).toMatchObject({ max_attempts: 2 });
     await a("form.form.publish", { form_id: c.form_id });
     const again = await a("form.form.clone", { form_id: x.id, table_id: x.tableId, name: "Trên bảng cũ" });

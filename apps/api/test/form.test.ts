@@ -233,6 +233,34 @@ describe("form: submit (internal)", () => {
     expect(row2.data[await colKey(x.tableId, "Câu bl")]).toBe("cửa hàng");
   });
 
+  it("conditions, reveal and submitted values use option ids: a renamed option still works, a removed one blocks publishing", async () => {
+    const x = await newForm();
+    await a("form.form.save_draft", { form_id: x.id, config: cfgOf([q("k", "single_select", { options: [{ id: "o_a", label: "Vận tải" }, { id: "o_b", label: "Bán lẻ" }] }), q("vt", "text", { show_if: { field: "k", op: "eq", value: "o_a" } })]) });
+    await a("form.question.create_columns", { form_id: x.id });
+    const d = (await a("form.form.get", { form_id: x.id })).draft;
+    const opts = d.blocks[0].options as { id: string; label: string }[];
+    expect(d.blocks[1].show_if.value).toBe(opts[0]!.id); // the condition follows the column's option id
+    await a("form.form.publish", { form_id: x.id });
+    await a("form.form.update", { form_id: x.id, access: "all_accounts" });
+    // rename the option in the form: the condition, which holds the id, still works
+    const renamed = { ...d, blocks: [{ ...d.blocks[0], options: opts.map((o, i) => (i === 0 ? { ...o, label: "Logistics" } : o)) }, d.blocks[1]] };
+    await a("form.form.save_draft", { form_id: x.id, config: renamed });
+    await a("form.form.publish", { form_id: x.id });
+    const u = as(t, org.userA2.id, "web");
+    const r = await u("form.response.submit", { code: x.code, answers: { k: opts[0]!.id, vt: "xe" }, attempt_id: attempt() });
+    const row = (await rows(x.tableId)).find((z) => z.id === r.row_id)!;
+    expect(row.data[await colKey(x.tableId, "Câu vt")]).toBe("xe");
+    expect(row.data[await colKey(x.tableId, "Câu k")]).toBe(opts[0]!.id); // the column stores the option id
+    const r2 = await u("form.response.submit", { code: x.code, answers: { k: "Bán lẻ", vt: "xe" }, attempt_id: attempt() }); // a name from a link works too
+    const row2 = (await rows(x.tableId)).find((z) => z.id === r2.row_id)!;
+    expect(row2.data[await colKey(x.tableId, "Câu vt")]).toBeUndefined();
+    // a condition on an option that is gone is refused when publishing
+    const bad = { ...renamed, blocks: [renamed.blocks[0], { ...d.blocks[1], show_if: { field: "k", op: "eq", value: "o_gone" } }] };
+    await a("form.form.save_draft", { form_id: x.id, config: bad });
+    const e = await fails(a("form.form.publish", { form_id: x.id }));
+    expect(JSON.stringify(e.details.issues)).toContain("condition_option");
+  });
+
   it("a unique column reports on the right question; one response per person; closing dates and the maximum", async () => {
     const x = await newForm();
     const mail = await a("datahub.column.create", { table_id: x.tableId, name: "Email", type: "email", unique: true, required: true });

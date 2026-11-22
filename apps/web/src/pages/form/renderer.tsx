@@ -82,18 +82,18 @@ function QuestionInput({ q, value, set, renderAttachment }: { q: Question; value
       return opts.length <= 6 ? (
         <div className="flex flex-col gap-1" role="radiogroup" aria-label={q.label}>
           {opts.map((o) => (
-            <label key={o.id ?? o.label} className="flex min-h-9 items-center gap-2 text-sm"><input type="radio" name={id} checked={value === o.label} onChange={() => set(o.label)} />{o.label}</label>
+            <label key={o.id ?? o.label} className="flex min-h-9 items-center gap-2 text-sm"><input type="radio" name={id} checked={value === (o.id ?? o.label)} onChange={() => set(o.id ?? o.label)} />{o.label}</label>
           ))}
         </div>
       ) : (
-        <Select id={id} value={(value as string) ?? ""} onChange={(e) => set(e.target.value)}><option value="">Chọn…</option>{opts.map((o) => <option key={o.id ?? o.label} value={o.label}>{o.label}</option>)}</Select>
+        <Select id={id} value={(value as string) ?? ""} onChange={(e) => set(e.target.value)}><option value="">Chọn…</option>{opts.map((o) => <option key={o.id ?? o.label} value={o.id ?? o.label}>{o.label}</option>)}</Select>
       );
     case "multi_select": {
       const cur = Array.isArray(value) ? (value as string[]) : [];
       return (
         <div className="flex flex-col gap-1">
           {opts.map((o) => (
-            <label key={o.id ?? o.label} className="flex min-h-9 items-center gap-2 text-sm"><input type="checkbox" checked={cur.includes(o.label)} onChange={(e) => set(e.target.checked ? [...cur, o.label] : cur.filter((x) => x !== o.label))} />{o.label}</label>
+            <label key={o.id ?? o.label} className="flex min-h-9 items-center gap-2 text-sm"><input type="checkbox" checked={cur.includes(o.id ?? o.label)} onChange={(e) => set(e.target.checked ? [...cur, o.id ?? o.label] : cur.filter((x) => x !== (o.id ?? o.label)))} />{o.label}</label>
           ))}
         </div>
       );

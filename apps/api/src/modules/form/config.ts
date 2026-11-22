@@ -182,20 +182,97 @@ export function conditionRefs(node: FilterNode, fields: string[] = [], badOps: s
   return { fields, badOps };
 }
 
+// ---------------------------------------------------------------------------------------------
+// option ids (design module7 2.4: conditions, "when chosen, show", answers and submitted values hold the option ID, never the name)
+// ---------------------------------------------------------------------------------------------
+
+/** The id of the option a value (an id, or a name as the link or an old form wrote it) stands for; null when the question has no such option. */
+export function optionIdOf(q: Question, v: unknown): string | null {
+  const s = String(v ?? "").trim();
+  const o = (q.options ?? []).find((x) => x.id === s) ?? (q.options ?? []).find((x) => x.label.trim().toLowerCase() === s.toLowerCase());
+  return o?.id ?? null;
+}
+/** A submitted value of a select question as option ids. Values that match nothing stay as they are (the column refuses them later). */
+export function canonValue(q: Question, v: unknown): unknown {
+  if (!isSelect(q.input) || isEmptyAnswer(v)) return v;
+  const one = (x: unknown) => optionIdOf(q, x) ?? x;
+  return Array.isArray(v) ? v.map(one) : one(v);
+}
+/** What a stored value of a select question shows as: the option names (an id nobody knows stays as it is). */
+export function labelValue(q: Question, v: unknown): unknown {
+  if (!isSelect(q.input) || isEmptyAnswer(v)) return v;
+  const one = (x: unknown) => (q.options ?? []).find((o) => o.id === x)?.label ?? x;
+  return Array.isArray(v) ? v.map(one) : one(v);
+}
+/** The leaves (`field op value`) of a condition. */
+export function conditionLeaves(node: FilterNode, out: { field: string; op: string; value?: unknown }[] = []): { field: string; op: string; value?: unknown }[] {
+  if ("and" in node) node.and.forEach((n) => conditionLeaves(n, out));
+  else if ("or" in node) node.or.forEach((n) => conditionLeaves(n, out));
+  else out.push(node as { field: string; op: string; value?: unknown });
+  return out;
+}
+/** The same condition with the values of select questions turned into option ids (a value that is no option stays, and just never matches). */
+function canonCondition(node: FilterNode, byId: Map<string, Question>): FilterNode {
+  if ("and" in node) return { and: node.and.map((n) => canonCondition(n, byId)) } as FilterNode;
+  if ("or" in node) return { or: node.or.map((n) => canonCondition(n, byId)) } as FilterNode;
+  const q = byId.get(node.field);
+  if (!q || !isSelect(q.input) || !("value" in node)) return node;
+  const v = (node as { value?: unknown }).value;
+  return { ...node, value: Array.isArray(v) ? v.map((x) => optionIdOf(q, x) ?? x) : (optionIdOf(q, v) ?? v) } as FilterNode;
+}
+
+/**
+ * After the options of a question took the ids of a column (create, link, import), every reference to its options follows them (matched by label):
+ * the "when chosen, show" keys, the right answer, and the conditions of any block that reads this question.
+ */
+export function remapOptionRefs(cfg: FormConfig, qid: string, oldOptions: { id?: string; label: string }[], newOptions: { id?: string; label: string }[]): FormConfig {
+  const map = new Map<string, string>();
+  for (const o of oldOptions) {
+    const now = newOptions.find((n) => n.label.trim().toLowerCase() === o.label.trim().toLowerCase())?.id;
+    if (!now) continue;
+    if (o.id) map.set(o.id, now);
+    map.set(o.label.trim().toLowerCase(), now); // a value written as a name (older forms, the JSON of a hand)
+  }
+  const one = (v: string) => map.get(v) ?? map.get(v.trim().toLowerCase()) ?? v;
+  const m = (v: unknown): unknown => (Array.isArray(v) ? v.map(m) : typeof v === "string" ? one(v) : v);
+  const cond = (n: FilterNode): FilterNode => {
+    if ("and" in n) return { and: n.and.map(cond) } as FilterNode;
+    if ("or" in n) return { or: n.or.map(cond) } as FilterNode;
+    return n.field === qid && "value" in n ? ({ ...n, value: m((n as { value?: unknown }).value) } as FilterNode) : n;
+  };
+  const walk = (list: Block[]): Block[] =>
+    list.map((b) => {
+      const copy: Record<string, unknown> = { ...b };
+      const own = (b as { show_if?: FilterNode }).show_if;
+      if (own) copy.show_if = cond(own);
+      if (b.type === "question" && b.id === qid) {
+        const q = b as Question;
+        if (q.reveal) copy.reveal = Object.fromEntries(Object.entries(q.reveal).map(([k, t]) => [one(k), t]));
+        if (q.answer !== undefined && q.answer !== null) copy.answer = m(q.answer);
+      }
+      if (b.type === "group") copy.blocks = walk((b as { blocks: Block[] }).blocks);
+      return copy as Block;
+    });
+  return { ...cfg, blocks: walk(cfg.blocks) };
+}
+
 /**
  * Which blocks the answers show (design module7 2.4). The server decides: a hidden question loses its value and is not required.
  * A block is shown when its group is shown, its own `show_if` holds, and (if some option of an earlier question reveals it) one of those options is chosen.
  * A hidden answer counts as empty for the blocks after it. Hidden FIELDS (`hidden: true`) are never subject to this: they are always kept.
  */
-export function visibleBlocks(cfg: FormConfig, given: Record<string, unknown>): { visible: Set<string>; answers: Record<string, unknown> } {
+export function visibleBlocks(cfg: FormConfig, rawGiven: Record<string, unknown>): { visible: Set<string>; answers: Record<string, unknown> } {
   const flat = flatten(cfg.blocks);
-  const revealers = new Map<string, { q: string; opt: string; label?: string }[]>();
+  const byId = new Map(questionsOf(cfg).map((q) => [q.id, q] as const));
+  const given: Record<string, unknown> = { ...rawGiven };
+  for (const [id, q] of byId) if (id in given) given[id] = canonValue(q, given[id]);
+  const revealers = new Map<string, { q: string; opt: string }[]>();
   for (const f of flat) {
     const q = f.block;
     if (q.type !== "question") continue;
-    for (const [opt, targets] of Object.entries((q as Question).reveal ?? {})) {
-      const label = (q as Question).options?.find((o) => o.id === opt)?.label;
-      for (const t of targets) revealers.set(t, [...(revealers.get(t) ?? []), { q: q.id, opt, label }]);
+    for (const [key, targets] of Object.entries((q as Question).reveal ?? {})) {
+      const opt = optionIdOf(q as Question, key) ?? key;
+      for (const t of targets) revealers.set(t, [...(revealers.get(t) ?? []), { q: q.id, opt }]);
     }
   }
   const visible = new Set<string>();
@@ -205,9 +282,9 @@ export function visibleBlocks(cfg: FormConfig, given: Record<string, unknown>): 
     const b = f.block;
     const own = (b as { show_if?: FilterNode }).show_if;
     let ok = !f.group || shown.get(f.group.block.id) === true;
-    if (ok && own) ok = evalCondition(own, answers);
+    if (ok && own) ok = evalCondition(canonCondition(own, byId), answers);
     const rv = revealers.get(b.id);
-    if (ok && rv) ok = rv.some((r) => asList(answers[r.q]).some((h) => same(h, r.opt) || (r.label !== undefined && same(h, r.label))));
+    if (ok && rv) ok = rv.some((r) => asList(answers[r.q]).some((h) => same(h, r.opt)));
     if (b.type === "question" && (b as Question).hidden) ok = true;
     shown.set(b.id, ok);
     if (ok) visible.add(b.id);

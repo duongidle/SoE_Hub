@@ -10,7 +10,7 @@ import { getRow, listRows } from "../datahub/rows-read";
 import { ROW_EVENTS } from "../datahub/shared";
 import { TableSchema } from "../datahub/table-schema";
 import { notify, NOTIFICATION_TYPES, stableId } from "../notification";
-import { questionsOf, type FormConfig, type Quiz } from "./config";
+import { labelValue, questionsOf, type FormConfig, type Quiz } from "./config";
 import { isGraded, isManual, RESULT_LABEL, rubricPoints, scoreCells, summarize, totals, round, type ItemScore, type Result } from "./quiz";
 import { Id, liveColumns, loadFormRow, ownerCtx, responseCount, stateOf, tableAlive, versionConfig, type FormRow } from "./shared";
 
@@ -79,7 +79,7 @@ export async function quizView(db: Executor, f: FormRow, responseId: string): Pr
   const out: QuizSubmitView = { response_id: sc.response_id, attempt: sc.attempt_no, score: sum.score, max: sum.max, result: RESULT_LABEL[sc.result], pending: sc.result === "pending" };
   if (quiz.show === "score_answers" && (await isClosed(db, f))) {
     out.items = sc.details.map((i) => ({ question_id: i.question_id, points: round(i.points), max: i.max, correct: i.correct ?? null, comment: i.comment ?? null }));
-    out.correct_answers = Object.fromEntries(questionsOf(cfg).filter((q) => isGraded(q) && q.answer !== undefined && q.answer !== null).map((q) => [q.id, q.answer]));
+    out.correct_answers = Object.fromEntries(questionsOf(cfg).filter((q) => isGraded(q) && q.answer !== undefined && q.answer !== null).map((q) => [q.id, labelValue(q, q.answer)]));
     out.comment = sc.comment;
   }
   return out;
@@ -187,7 +187,7 @@ export const gradeOperations = [
         .filter((q) => byId.has(q.id))
         .map((q) => {
           const d = byId.get(q.id)!;
-          return { question_id: q.id, label: q.label, input: q.input, manual: d.manual, graded: d.graded, max: d.max, points: d.points, answer: q.column_id ? (data[q.column_id] ?? null) : null, expected: d.manual ? null : (q.answer ?? null), correct: d.correct ?? null, comment: d.comment ?? null, criteria: d.criteria ?? null, rubric: q.rubric ?? null };
+          return { question_id: q.id, label: q.label, input: q.input, manual: d.manual, graded: d.graded, max: d.max, points: d.points, answer: q.column_id ? (data[q.column_id] ?? null) : null, expected: d.manual ? null : (labelValue(q, q.answer) ?? null), correct: d.correct ?? null, comment: d.comment ?? null, criteria: d.criteria ?? null, rubric: q.rubric ?? null };
         });
       const sum = summarize(quiz, { score: sc.score, max: sc.max_score, pending: sc.result === "pending", floorFailed: sc.floor_failed });
       const [u] = sc.user_id ? ((await ctx.db.execute(sql`SELECT full_name FROM users WHERE /*scope:system*/ id = ${sc.user_id}::uuid`)).rows as { full_name: string | null }[]) : [];

@@ -6,7 +6,7 @@ import { defineCommand, defineQuery } from "../../core/registry";
 import type { HandlerCtx } from "../../core/types";
 import { loadDatahubAccess, loadTableAccess, type TableAccess } from "../datahub/access";
 import { createColumn } from "../datahub/columns";
-import { columnTypeOf, compatibleTypes, conditionRefs, emptyConfig, flatten, FormConfigSchema, isSelect, questionsOf, type FormConfig, type Question } from "./config";
+import { columnTypeOf, compatibleTypes, conditionLeaves, conditionRefs, optionIdOf, remapOptionRefs, emptyConfig, flatten, FormConfigSchema, isSelect, questionsOf, type FormConfig, type Question } from "./config";
 import { STRUCTURE_EVENT } from "../datahub/shared";
 import { createTableIn } from "../datahub/structure";
 import { updateColumn } from "../datahub/columns";
@@ -150,18 +150,6 @@ async function createColumnFor(ctx: Ctx, acc: TableAccess, q: Question, position
   return { column: { key: out.key, name: out.name }, link };
 }
 
-/** After the options took the ids of the column, "when chosen, show" keys follow them (matched by label). */
-function remapReveal(q: Question, options: { id?: string; label: string }[]): Record<string, string[]> | undefined {
-  if (!q.reveal) return undefined;
-  const out: Record<string, string[]> = {};
-  for (const [old, targets] of Object.entries(q.reveal)) {
-    const label = q.options?.find((o) => o.id === old)?.label;
-    const now = label !== undefined ? options.find((o) => o.label.toLowerCase() === label.toLowerCase())?.id : undefined;
-    out[now ?? old] = targets;
-  }
-  return out;
-}
-
 /** Sets `column_id` (and the option ids of the column) on a question of the draft. */
 function patchQuestion(cfg: FormConfig, qid: string, patch: Partial<Question>): FormConfig {
   const walk = (list: FormConfig["blocks"]): FormConfig["blocks"] =>
@@ -223,10 +211,18 @@ export function checkPublish(cfg: FormConfig, cols: Map<string, LiveColumn>, has
         if (p === undefined || flat[p]!.block.type !== "question") issues.push({ code: "condition_unknown", message: `Điều kiện của "${f.block.id}" trỏ tới câu "${fld}" không có.`, block_id: f.block.id });
         else if (p >= f.pos) issues.push({ code: "condition_forward", message: `Điều kiện của "${f.block.id}" phải trỏ tới câu đứng trước nó.`, block_id: f.block.id });
       }
+      for (const l of conditionLeaves(b.show_if)) {
+        const src = posOf.get(l.field) !== undefined ? (flat[posOf.get(l.field)!]!.block as Question) : null;
+        if (src && src.type === "question" && isSelect(src.input) && !["is_empty", "is_not_empty"].includes(l.op)) {
+          const vals = Array.isArray(l.value) ? l.value : [l.value];
+          if (vals.some((v) => optionIdOf(src, v) === null)) issues.push({ code: "condition_option", message: `Điều kiện của "${f.block.id}" trỏ tới một lựa chọn không còn trong câu "${src.label || src.id}".`, block_id: f.block.id });
+        }
+      }
       for (const op of badOps) issues.push({ code: "condition_op", message: `Điều kiện của "${f.block.id}" dùng phép "${op}" mà form không hỗ trợ.`, block_id: f.block.id });
     }
     if (f.block.type === "question") {
       for (const [opt, targets] of Object.entries((f.block as Question).reveal ?? {})) {
+        if (optionIdOf(f.block as Question, opt) === null) issues.push({ code: "reveal_option", message: `"Khi chọn thì hiện" của câu "${f.block.id}" trỏ tới một lựa chọn không còn.`, block_id: f.block.id });
         for (const t of targets) {
           const p = posOf.get(t);
           if (p === undefined || p <= f.pos) issues.push({ code: "reveal_target", message: `"Khi chọn thì hiện" của câu "${f.block.id}" (lựa chọn ${opt}) trỏ tới khối "${t}" không có hoặc đứng trước.`, block_id: f.block.id });
@@ -268,7 +264,7 @@ function checkQuiz(cfg: FormConfig, access: string | undefined, disabled: Set<st
       const a = q.answer;
       if (q.input === "single_select" || q.input === "multi_select") {
         const list = Array.isArray(a) ? a : [a];
-        const known = (x: unknown) => (q.options ?? []).some((o) => o.id === x || o.label.toLowerCase() === String(x).toLowerCase());
+        const known = (x: unknown) => optionIdOf(q, x) !== null;
         if (q.input === "single_select" && Array.isArray(a)) bad("quiz_answer_invalid", "chọn một đáp án đúng.");
         else if (list.length === 0 || !list.every(known)) bad("quiz_answer_invalid", "đáp án đúng phải là lựa chọn của câu hỏi.");
       } else if (q.input === "text") {
@@ -326,7 +322,8 @@ export async function createColumnsFor(ctx: Ctx, tableId: string, cfg: FormConfi
   for (const q of qs) {
     if ((q.column_id && !disabled.has(q.id)) || (only && !only.includes(q.id))) continue;
     const made = await createColumnFor(ctx, acc, q, qs.indexOf(q) + 1, taken);
-    out = patchQuestion(out, q.id, { column_id: made.column.key, ...(made.link.options ? { options: made.link.options, reveal: remapReveal(q, made.link.options) } : {}) });
+    out = patchQuestion(out, q.id, { column_id: made.column.key, ...(made.link.options ? { options: made.link.options } : {}) });
+    if (made.link.options) out = remapOptionRefs(out, q.id, q.options ?? [], made.link.options);
     created.push({ question_id: q.id, column_id: made.column.key, column_name: made.column.name });
   }
   return { cfg: out, created };
@@ -513,7 +510,9 @@ export const formManageOperations = [
           options = (q.options ?? []).map((o) => ({ id: fresh.get(key)!.options.find((c) => c.name.toLowerCase() === o.label.toLowerCase())?.id, label: o.label }));
         }
       }
-      await saveDraft(ctx, f, patchQuestion(f.draft, q.id, { column_id: key, ...(options ? { options, reveal: remapReveal(q, options) } : {}) }));
+      let next = patchQuestion(f.draft, q.id, { column_id: key, ...(options ? { options: options as { id?: string; label: string }[] } : {}) });
+      if (options) next = remapOptionRefs(next, q.id, q.options ?? [], options as { id?: string; label: string }[]);
+      await saveDraft(ctx, f, next);
       touch(ctx, f);
       return { question_id: q.id, column_id: key, column_name: name, created, options };
     },

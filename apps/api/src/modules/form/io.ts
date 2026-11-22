@@ -4,7 +4,7 @@ import { AppError, DH_NAME_MAX } from "@soe/shared";
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { HandlerCtx } from "../../core/types";
 import { STRUCTURE_EVENT } from "../datahub/shared";
-import { compatibleTypes, flatten, FormConfigSchema, FORM_SCHEMA, isSelect, publicConfig, questionsOf, type Block, type FormConfig, type Question } from "./config";
+import { compatibleTypes, flatten, FormConfigSchema, FORM_SCHEMA, isSelect, publicConfig, questionsOf, remapOptionRefs, type Block, type FormConfig, type Question } from "./config";
 import { canFill } from "./fill";
 import { createColumnsFor, createFormIn, disabledIds, ownTable, saveDraft } from "./ops";
 import { Id, fillable, latestConfig, liveColumns, loadFormRow, loadOwnForm, VERSION_COLUMN_NAME } from "./shared";
@@ -63,6 +63,7 @@ async function matchColumns(ctx: Ctx, tableId: string, cfg: FormConfig): Promise
   const taken = new Set<string>();
   const unmatched: Unmatched[] = [];
   const patch = new Map<string, Partial<Question>>();
+  const remaps: { id: string; from: { id?: string; label: string }[]; to: { id?: string; label: string }[] }[] = [];
   for (const q of questionsOf(cfg)) {
     const want = (q as Question & { column_name?: string }).column_name;
     if (!want) {
@@ -81,14 +82,7 @@ async function matchColumns(ctx: Ctx, tableId: string, cfg: FormConfig): Promise
       if (isSelect(q.input)) {
         const options = (q.options ?? []).map((o) => ({ id: col.options.find((c) => c.name.toLowerCase() === o.label.toLowerCase())!.id, label: o.label }));
         p.options = options;
-        if (q.reveal) {
-          const reveal: Record<string, string[]> = {};
-          for (const [old, targets] of Object.entries(q.reveal)) {
-            const label = q.options?.find((o) => o.id === old)?.label;
-            reveal[(label !== undefined ? options.find((o) => o.label.toLowerCase() === label.toLowerCase())?.id : undefined) ?? old] = targets;
-          }
-          p.reveal = reveal;
-        }
+        remaps.push({ id: q.id, from: q.options ?? [], to: options });
       }
       patch.set(q.id, p);
     }
@@ -100,7 +94,9 @@ async function matchColumns(ctx: Ctx, tableId: string, cfg: FormConfig): Promise
       const { column_name: _n, ...rest } = b as Question & { column_name?: string };
       return { ...rest, column_id: null, ...(patch.get(b.id) ?? {}) } as Block;
     });
-  return { cfg: { ...cfg, blocks: walk(cfg.blocks) }, unmatched };
+  let out: FormConfig = { ...cfg, blocks: walk(cfg.blocks) };
+  for (const r of remaps) out = remapOptionRefs(out, r.id, r.from, r.to);
+  return { cfg: out, unmatched };
 }
 
 /** Builds a form from a JSON: on a new table every question gets a column; on an existing table the questions join the columns of the same name. */

@@ -32,7 +32,7 @@ function CondEditor({ value, onChange, before }: { value?: Cond; onChange: (v: C
             <Select aria-label="Câu hỏi" className="min-w-0 flex-1" value={src.id} onChange={(e) => { const s = before.find((b) => b.id === e.target.value)!; edit(i, { field: s.id, op: opsFor(s.input)[0]!.op, value: undefined }); }}>{before.map((b) => <option key={b.id} value={b.id}>{b.label || b.id}</option>)}</Select>
             <Select aria-label="Phép so sánh" value={op.op} onChange={(e) => edit(i, { field: src.id, op: e.target.value, value: c.value })}>{ops.map((o) => <option key={o.op} value={o.op}>{o.label}</option>)}</Select>
             {!op.noValue && (isSelect(src.input) ? (
-              <Select aria-label="Giá trị" value={String(c.value ?? "")} onChange={(e) => edit(i, { field: src.id, op: op.op, value: e.target.value })}><option value="">Chọn…</option>{(src.options ?? []).map((o) => <option key={o.id ?? o.label} value={o.label}>{o.label}</option>)}</Select>
+              <Select aria-label="Giá trị" value={String(c.value ?? "")} onChange={(e) => edit(i, { field: src.id, op: op.op, value: e.target.value })}><option value="">Chọn…</option>{(src.options ?? []).map((o) => <option key={o.id ?? o.label} value={o.id ?? o.label}>{o.label}</option>)}</Select>
             ) : src.input === "checkbox" ? (
               <Select aria-label="Giá trị" value={String(c.value ?? "true")} onChange={(e) => edit(i, { field: src.id, op: op.op, value: e.target.value === "true" })}><option value="true">Có</option><option value="false">Không</option></Select>
             ) : (
@@ -118,11 +118,11 @@ function QuizSection({ q, set }: { q: Question; set: Patch }) {
       <p className="text-sm font-medium">Bài kiểm tra</p>
       <Field label="Điểm của câu"><Input type="number" min={0} value={q.points ?? ""} onChange={(e) => set({ points: e.target.value === "" ? undefined : Number(e.target.value) })} data-testid="q-points" /></Field>
       {manual ? <p className="text-xs text-muted-foreground">Câu này chấm tay. Thêm phiếu tiêu chí nếu muốn chấm theo tiêu chí.</p> : q.input === "single_select" ? (
-        <Field label="Đáp án đúng"><Select value={String(q.answer ?? "")} onChange={(e) => set({ answer: e.target.value || undefined })} data-testid="q-answer"><option value="">—</option>{opts.map((o) => <option key={o.id ?? o.label} value={o.label}>{o.label}</option>)}</Select></Field>
+        <Field label="Đáp án đúng"><Select value={String(q.answer ?? "")} onChange={(e) => set({ answer: e.target.value || undefined })} data-testid="q-answer"><option value="">—</option>{opts.map((o) => <option key={o.id ?? o.label} value={o.id ?? o.label}>{o.label}</option>)}</Select></Field>
       ) : q.input === "multi_select" ? (
         <div>
           <p className="text-sm">Đáp án đúng</p>
-          {opts.map((o) => { const cur = Array.isArray(q.answer) ? (q.answer as string[]) : []; return <Check key={o.id ?? o.label} checked={cur.includes(o.label)} onChange={(v) => set({ answer: v ? [...cur, o.label] : cur.filter((x) => x !== o.label) })}>{o.label}</Check>; })}
+          {opts.map((o) => { const cur = Array.isArray(q.answer) ? (q.answer as string[]) : []; return <Check key={o.id ?? o.label} checked={cur.includes(o.id ?? o.label)} onChange={(v) => set({ answer: v ? [...cur, o.id ?? o.label] : cur.filter((x) => x !== (o.id ?? o.label)) })}>{o.label}</Check>; })}
           <Check checked={!!q.partial} onChange={(v) => set({ partial: v })}>Chấm từng phần</Check>
         </div>
       ) : q.input === "checkbox" ? (
