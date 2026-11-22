@@ -1,0 +1,20 @@
+meta {
+  name: form.form.target_tables
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/api/v1/forms/target-tables
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Bảng form của tôi ghi vào được, gom theo datahub của tôi (đã loại bảng Quản lý Deal, bảng gộp, bảng template, bảng đã xoá).
+  Quyền: `form:form:create`.
+}

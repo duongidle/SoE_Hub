@@ -256,7 +256,7 @@ export const gradeOperations = [
           actor: toActorRef(ctx.actor),
           object: { type: "form", id: f.id },
           sourceEventId: stableId("form.graded", sc.response_id),
-          render: () => ({ title: "Bài kiểm tra đã chấm xong", body: `Bài "${f.name}" của bạn đã được chấm: ${sum.score}/${sum.max}${sum.result === "pass" ? " (Đạt)" : sum.result === "fail" ? " (Không đạt)" : ""}.`, link: `/form/bai-lam`, data: { form_id: f.id, response_id: sc.response_id } }),
+          render: () => ({ title: "Bài kiểm tra đã chấm xong", body: `Bài "${f.name}" của bạn đã được chấm: ${sum.score}/${sum.max}${sum.result === "pass" ? " (Đạt)" : sum.result === "fail" ? " (Không đạt)" : ""}.`, link: `/form/bai-lam?code=${f.code}`, data: { form_id: f.id, response_id: sc.response_id } }),
         });
       }
       return { response_id: sc.response_id, score: sum.score, max: sum.max, result: RESULT_LABEL[sum.result], pending: !done };

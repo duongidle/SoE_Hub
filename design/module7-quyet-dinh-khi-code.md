@@ -46,3 +46,13 @@
 
 - Đạt: cột "Người chấm" kiểu Văn bản; sự kiện mới `datahub.column.deleted` chỉ từ lệnh xoá cột; bỏ khoá ngoại `forms.table_id` (form tự tạm dừng khi bảng bị xoá cứng); không đặt ngưỡng thì Kết quả để trống.
 - Giao 7B1 sửa: hai lần nộp đồng thời của cùng người vượt số lần làm. Khoá theo (form, người) trong giao dịch gửi bài (`pg_advisory_xact_lock`) trước khi đếm lần làm / "mỗi người một phản hồi"; test hai lần nộp song song chỉ một lần qua khi giới hạn 1.
+
+## 7B1 (22/11/2026, Sonnet)
+
+- **Khoá gửi bài:** `pg_advisory_xact_lock(hashtext(form), hashtext(người))` trong `submitResponse` trước khi đếm lần làm / "mỗi người một phản hồi" (Opus rà 7A2).
+- **Server thêm:** `form.form.target_tables` (bảng ghi vào được, loại bảng Deal/gộp/template/đã xoá) để hộp Tạo form "dùng bảng có sẵn" không phải đoán; thông báo "đã chấm xong" trỏ `/form/bai-lam?code=<mã>`.
+- **Khoá trong cấu hình (web đặt):** heading/text dùng `text`; image `url`, `alt`; group `title`; `appearance` = `cover`, `logo` (URL), `accent` (khoá bảng màu `ACCENTS`), `width` (`narrow|medium|wide`), `thank_you {text, redirect_url, again}`.
+- **Giá trị câu lựa chọn trong điều kiện, đáp án và câu trả lời là TÊN lựa chọn** (không phải mã), vì server chỉ viết lại mã ở `options` và `reveal`, không viết lại `show_if`/`answer`. Đổi tên lựa chọn thì điều kiện/đáp án đang dùng tên cũ phải sửa lại.
+- **Kéo thả:** một `SortableContext` cho mọi khối; thả lên đầu nhóm = vào nhóm, thả cạnh con = vào nhóm đó, nhóm không vào nhóm. Thêm khối: bấm ở thanh trái (không kéo từ thanh trái). Nút Lên/Xuống chỉ đổi trong cùng danh sách.
+- **Trình soạn lưu nháp:** gửi cả cấu hình sau 600 ms, không dùng `version` (một người soạn). Sau lệnh server đổi nháp (nối cột, tạo cột, nhập JSON, bỏ thay đổi) web xả nháp chờ rồi tải lại nháp từ server.
+- **Dời trong 7B1:** đổi kiểu câu đã tạo (xoá và tạo lại), chọn từng Guest trong "Chọn người" (chỉ có mẫu Sale/Data), bảng lựa chọn, ảnh bìa/logo chỉ nhận URL (chưa tải ảnh lên), "Đặt tên cột theo câu hỏi", chấm lại.

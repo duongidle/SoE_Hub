@@ -71,3 +71,5 @@ Không chặn bước con; gom sửa một đợt. `stage1.spec.ts` phone "cài 
 - JSON/nhân bản: `form.form.export {form_id | code, source}`, `form.form.import {datahub_id | table_id, json, name?}`, `form.form.save_json`, `form.form.clone {form_id, datahub_id? | table_id?, name?}`; lỗi JSON `details.issues[{path,message}]`; `unmatched[]` của import/clone/save_json.
 - Cột kết quả của bảng đích (Điểm, Điểm tối đa, Kết quả, Lần làm, Người chấm, Ngày chấm) do hệ thống ghi, khoá chỉnh tay (`allow_edit: false`).
 **Dở/ghi nhận:** chưa chặn hai lần nộp đồng thời của cùng người (có thể vượt số lần một lượt); thời gian làm bài, xáo trộn, chấm lại theo đáp án mới đã dời (mục 14).
+
+**7B1 (đang làm, 22/11):** xong việc 0 (khoá gửi bài), 1–4 (web `apps/web/src/pages/form/`: danh sách, trình soạn, chia sẻ/thiết lập/bài kiểm tra, phản hồi, chấm bài); còn việc 5 (e2e `apps/web/e2e/stage7.spec.ts`).

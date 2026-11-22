@@ -483,3 +483,8 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Người điền không bao giờ nhận mã bảng, mã cột, tên datahub, đáp án: mọi đường trả cấu hình cho người điền qua `publicConfig`.
 - Không ghi dòng của form bằng đường khác `applyRowOps`. Không cấp quyền bảng cho người điền.
 - Điều kiện hiện/ẩn chỉ tin server (`visibleBlocks`), không tin trình duyệt.
+
+**7B1 (web: danh sách form, trình soạn, chia sẻ/thiết lập/bài kiểm tra, phản hồi, chấm bài)**
+- Web: `apps/web/src/pages/form/`. `model.ts` = kiểu cấu hình + helper cây khối (`insertBlock`, `moveBlock`, `dropBlock` cho kéo thả, `visibleIds` = bản trình duyệt của `visibleBlocks` server, `evalCond`) + `FormBrief/FormDetail`. `list.tsx` danh sách + hộp Tạo form (chọn bảng qua `form.form.target_tables`). `editor.tsx` trình soạn (dnd-kit, tự lưu nháp, xuất bản, lỗi xuất bản nhảy tới câu), `props.tsx` thanh thuộc tính (điều kiện, "Khi chọn thì hiện", nối cột, đáp án/điểm, phiếu chấm), `settings.tsx` tab Chia sẻ/Thiết lập/Bài kiểm tra + JSON, `responses.tsx` tab Phản hồi, `grading.tsx` Chấm bài (`/form/cham-bai`) và Bài làm của tôi (`/form/bai-lam?code=`). `renderer.tsx` `FormRenderer` = bộ điền form dùng chung (xem trước, 7B2 trang điền).
+- Muốn thêm kiểu câu hỏi ở web → `model.ts` `QUESTION_KINDS` + `renderer.tsx` `QuestionInput` + (nếu có lựa chọn riêng) `props.tsx`.
+- Server thêm cho web: `form.form.target_tables` (`ops.ts`, `GET /forms/target-tables`).

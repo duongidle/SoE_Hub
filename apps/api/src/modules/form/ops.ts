@@ -379,6 +379,28 @@ export const formManageOperations = [
   }),
 
   defineQuery({
+    name: "form.form.target_tables",
+    summary: "Bảng form của tôi ghi vào được, gom theo datahub của tôi (đã loại bảng Quản lý Deal, bảng gộp, bảng template, bảng đã xoá).",
+    permission: "form:form:create",
+    aiAllowed: true,
+    menu: "form",
+    input: z.object({}),
+    output: z.array(z.object({ datahub_id: Id, datahub_name: z.string(), tables: z.array(z.object({ id: Id, name: z.string() })) })),
+    http: { method: "GET", path: "/forms/target-tables" },
+    handler: async (ctx) => {
+      const r = await ctx.db.execute(sql`SELECT d.id AS dh_id, d.name AS dh_name, t.id AS t_id, t.name AS t_name FROM dh_datahubs d LEFT JOIN dh_tables t ON t.datahub_id = d.id AND t.deleted_at IS NULL AND t.kind <> 'merged' AND t.template_id IS NULL
+        WHERE /*scope:system*/ d.owner_id = ${ctx.actor.userId}::uuid AND d.deleted_at IS NULL AND d.system_key IS NULL ORDER BY d.name, t.position, t.name`);
+      const out = new Map<string, { datahub_id: string; datahub_name: string; tables: { id: string; name: string }[] }>();
+      for (const x of r.rows as { dh_id: string; dh_name: string; t_id: string | null; t_name: string | null }[]) {
+        const e = out.get(x.dh_id) ?? { datahub_id: x.dh_id, datahub_name: x.dh_name, tables: [] };
+        if (x.t_id) e.tables.push({ id: x.t_id, name: x.t_name! });
+        out.set(x.dh_id, e);
+      }
+      return [...out.values()];
+    },
+  }),
+
+  defineQuery({
     name: "form.form.get",
     summary: "Chi tiết form của tôi: thông tin, bản nháp (cấu hình `soe-form/1`), bản đã xuất bản, các câu bị tắt vì cột đã bị xoá.",
     permission: "form:form:create",
