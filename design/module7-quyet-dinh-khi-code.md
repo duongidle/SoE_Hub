@@ -56,3 +56,9 @@
 - **Kéo thả:** một `SortableContext` cho mọi khối; thả lên đầu nhóm = vào nhóm, thả cạnh con = vào nhóm đó, nhóm không vào nhóm. Thêm khối: bấm ở thanh trái (không kéo từ thanh trái). Nút Lên/Xuống chỉ đổi trong cùng danh sách.
 - **Trình soạn lưu nháp:** gửi cả cấu hình sau 600 ms, không dùng `version` (một người soạn). Sau lệnh server đổi nháp (nối cột, tạo cột, nhập JSON, bỏ thay đổi) web xả nháp chờ rồi tải lại nháp từ server.
 - **Dời trong 7B1:** đổi kiểu câu đã tạo (xoá và tạo lại), chọn từng Guest trong "Chọn người" (chỉ có mẫu Sale/Data), bảng lựa chọn, ảnh bìa/logo chỉ nhận URL (chưa tải ảnh lên), "Đặt tên cột theo câu hỏi", chấm lại.
+
+## Opus rà 7B1 (22/11/2026)
+
+- Đạt: khoá đồng thời gửi bài; lệnh `form.form.target_tables`; link "đã chấm xong" tới `/form/bai-lam?code=`; thêm khối bằng bấm, kéo thả chỉ đổi thứ tự; dnd-kit.
+- **Sửa ở 7B2:** điều kiện (`show_if`), đáp án (`answer`) và giá trị câu lựa chọn phải lưu **mã lựa chọn**, không lưu tên. Lý do: mục 2.2 "đổi tên lựa chọn: cùng mã, câu trả lời cũ hiện tên mới" và mục 2.8 "không bao giờ để chuỗi chết lặng lẽ": lưu tên thì đổi tên lựa chọn làm điều kiện ngừng chạy và chấm sai mọi bài sau đó mà không ai biết. Server chấm và tính điều kiện theo mã; web hiện tên; xuất bản báo lỗi khi điều kiện/đáp án trỏ lựa chọn không còn.
+- Môi trường: link hỏng trong `node_modules/.pnpm/node_modules` sửa bằng `rm -rf node_modules/.pnpm/node_modules && pnpm install --frozen-lockfile --prefer-offline --force` (không vá tay). Sau đó `pnpm typecheck` sạch: **mốc mới apps/api 0 lỗi, apps/web 0 lỗi** (15 + 31 lỗi cũ do môi trường).
