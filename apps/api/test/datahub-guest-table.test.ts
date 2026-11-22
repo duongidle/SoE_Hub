@@ -84,6 +84,13 @@ describe("whole-tree grant, columns Tên and Doanh thu", () => {
     expect((rows.items as { data: Record<string, unknown> }[]).map((r) => r.data[k("Doanh thu")]).sort()).toEqual([100, 200]);
     const one = await guest("datahub.row.get", { table_id: x.tableId, row_id: rows.items[0].id });
     expect(JSON.stringify(one)).not.toContain("bí mật");
+    // Who made or changed a row is another person's id: the Guest never gets it (list, get).
+    for (const r of [...rows.items, one] as Record<string, unknown>[]) {
+      expect(r).not.toHaveProperty("created_by");
+      expect(r).not.toHaveProperty("updated_by");
+      expect(r).toHaveProperty("created_at");
+    }
+    expect(Object.keys(await mgrA("datahub.row.get", { table_id: x.tableId, row_id: rows.items[0].id }))).toContain("created_by");
   });
 
   it("hidden columns cannot be filtered, sorted, grouped, searched or selected; nothing can be written; nothing else can be read", async () => {

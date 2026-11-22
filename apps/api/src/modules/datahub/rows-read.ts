@@ -55,6 +55,12 @@ async function awaitConsistency(db: Executor, tableId: string, o: ConsistencyOpt
 }
 
 const DEFAULT_META = ["id", "row_no", "version", "created_at", "created_by", "updated_at", "updated_by"];
+/** Who created or changed a row is another person's id: a Guest does not get it, on any channel (web, API, export). */
+const GUEST_HIDDEN_META = new Set(["created_by", "updated_by"]);
+const metaOf = (access: TableAccess, sel: ReturnType<TableSchema["parseSelect"]>): string[] => {
+  const meta = sel ? ["id", ...sel.meta.filter((m) => m !== "id")] : DEFAULT_META;
+  return access.guest ? meta.filter((m) => !GUEST_HIDDEN_META.has(m)) : meta;
+};
 
 /** Builds the `data` select for the chosen columns (`fields=`), or the whole JSONB when none is chosen. */
 function dataSelect(schema: TableSchema, sel: ReturnType<TableSchema["parseSelect"]>): SQL {
@@ -120,7 +126,7 @@ export async function listRows(db: Executor, access: TableAccess, schema: TableS
     filter,
     sortItems: sortItems.length ? sortItems : [{ field: "row_no", dir: "asc" }],
     defaultSort: [{ field: "row_no", dir: "asc" }],
-    select: (sel ? ["id", ...sel.meta.filter((m) => m !== "id")] : DEFAULT_META).join(","),
+    select: metaOf(access, sel).join(","),
     extraSelect: [dataSelect(schema, sel), ...marksSelect(schema, q.marks)],
     limit: q.limit,
     cursor: q.cursor,
@@ -162,7 +168,7 @@ async function attachPending(db: Executor, tableId: string, items: Shaped[], onl
 export async function getRow(db: Executor, access: TableAccess, schema: TableSchema, rowId: string, o: { fields?: string; labels?: boolean; includeDeleted?: boolean } & ConsistencyOpts = {}): Promise<Shaped> {
   const consistency = await awaitConsistency(db, access.tableId, o);
   const sel = schema.parseSelect(o.fields);
-  const meta = sel ? ["id", ...sel.meta.filter((m) => m !== "id")] : DEFAULT_META;
+  const meta = metaOf(access, sel);
   const res = await db.execute(sql`SELECT ${sql.join(meta.map((m) => sql.raw(m)), sql`, `)}, ${dataSelect(schema, sel)} FROM ${access.rel()} dh_rows WHERE ${access.rows()} AND id = ${rowId}::uuid ${o.includeDeleted ? sql`` : sql`AND deleted_at IS NULL`}`);
   const r = res.rows[0] as Record<string, unknown> | undefined;
   if (!r) throw new AppError("not_found", "Không tìm thấy dòng.");
