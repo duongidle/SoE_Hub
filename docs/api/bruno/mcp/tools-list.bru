@@ -1,0 +1,31 @@
+meta {
+  name: mcp tools/list
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/mcp
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list",
+    "params": {}
+  }
+}
+
+docs {
+  Kênh MCP (Streamable HTTP, JSON-RPC). Chỉ nhận token cá nhân `soe_pat_` của một kết nối đã được Admin duyệt (token chờ duyệt bắt tay được, mọi công cụ trả `connection_pending`).
+  Thử gọi công cụ: đổi method thành `tools/call`, params `{"name": "soe_whoami", "arguments": {}}`.
+}

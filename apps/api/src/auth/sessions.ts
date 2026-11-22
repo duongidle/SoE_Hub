@@ -121,7 +121,20 @@ export class SessionTokenResolver implements ActorResolver {
     return ActorSchema.parse({ userId: row.userId, via: "web", sessionId: row.id, ip: req.ip, userAgent: req.userAgent });
   }
 
-  private async fromToken(token: string, req: RequestInfo): Promise<Actor | null> {
+  /**
+   * The bearer of an `/mcp` call (module5 1, 2.4): ONLY a personal token `soe_pat_` (never a cookie or `soe_svc_`), actor `via: "mcp"`.
+   * A token still waiting for approval is accepted here (the handshake works) and every tool call answers `connection_pending`.
+   */
+  async resolveMcp(req: RequestInfo): Promise<Actor> {
+    const auth = header(req, "authorization");
+    if (!auth || !/^bearer\s+/i.test(auth)) throw new AppError("unauthenticated", "Cần token cá nhân soe_pat_ trong header Authorization: Bearer.");
+    const token = auth.replace(/^bearer\s+/i, "").trim();
+    if (!token.startsWith(PAT_PREFIX)) throw new AppError("unauthenticated", "/mcp chỉ nhận token cá nhân soe_pat_.");
+    const actor = await this.fromToken(token, req, { allowPending: true, via: "mcp" });
+    return actor!;
+  }
+
+  private async fromToken(token: string, req: RequestInfo, o: { allowPending?: boolean; via?: "api" | "mcp" } = {}): Promise<Actor | null> {
     if (!token.startsWith(PAT_PREFIX) && !token.startsWith(SVC_PREFIX)) throw new AppError("unauthenticated", "Token không hợp lệ.");
     const [row] = await this.db
       .select({ t: apiTokens, status: users.status, kind: users.kind })
@@ -131,8 +144,8 @@ export class SessionTokenResolver implements ActorResolver {
       .limit(1);
     if (!row) throw new AppError("unauthenticated", "Token không hợp lệ.");
     const t = row.t;
-    if (t.status === "pending") throw new AppError("connection_pending", "Kết nối đang chờ Admin duyệt. Báo Admin của bạn rồi thử lại.");
-    if (t.status !== "active") throw new AppError("unauthenticated", "Token đã bị thu hồi hoặc bị từ chối.");
+    if (t.status === "pending" && !o.allowPending) throw new AppError("connection_pending", "Kết nối đang chờ Admin duyệt. Báo Admin của bạn rồi thử lại.");
+    if (t.status !== "active" && t.status !== "pending") throw new AppError("unauthenticated", "Token đã bị thu hồi hoặc bị từ chối.");
     if (t.expiresAt.getTime() <= Date.now()) throw new AppError("unauthenticated", "Token đã hết hạn.");
     const expectedKind = t.kind === "service" ? "service" : "person";
     if (row.status !== "active" || row.kind !== expectedKind) throw new AppError("unauthenticated", "Tài khoản của token không hoạt động.");
@@ -140,7 +153,7 @@ export class SessionTokenResolver implements ActorResolver {
       await this.db.update(apiTokens).set({ lastUsedAt: sql`now()`, lastUsedIp: req.ip }).where(eq(apiTokens.id, t.id));
     }
     const personal = t.kind === "personal";
-    return ActorSchema.parse({ userId: t.userId, via: "api", connectionId: t.id, connectionKind: personal ? "personal" : "service", connectionName: t.name, scopes: personal ? [] : t.scopes, ip: req.ip, userAgent: req.userAgent });
+    return ActorSchema.parse({ userId: t.userId, via: o.via ?? "api", connectionId: t.id, connectionKind: personal ? "personal" : "service", connectionName: t.name, scopes: personal ? [] : t.scopes, ip: req.ip, userAgent: req.userAgent });
   }
 }
 

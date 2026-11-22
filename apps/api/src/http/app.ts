@@ -17,6 +17,7 @@ import type { OperationExecutor } from "../core/executor";
 import type { Registry } from "../core/registry";
 import { LocalStorageDriver, type StorageDriver } from "../storage";
 import { buildOpenApi } from "./openapi";
+import { registerMcp } from "./mcp";
 import { registerLocalStorageRoutes } from "./local-storage";
 import { AccessContext, scopeIncludes } from "../auth/access";
 import type { HttpResponder } from "../core/types";
@@ -110,6 +111,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // ---- identify the actor (pluggable) -----------------------------------------------------------
   // Session cookie or bearer token (auth/sessions.ts). Cookie writes must carry the CSRF header.
   app.addHook("onRequest", async (req) => {
+    // `/mcp` has its own bearer-only identification (http/mcp.ts): never a cookie, a pending token may shake hands.
+    if (req.url.split("?")[0] === "/mcp") return;
     const ua = req.headers["user-agent"];
     try {
       req.actor = await auth.resolver.resolve({ method: req.method, headers: req.headers, ip: req.ip, userAgent: typeof ua === "string" ? ua : null });
@@ -215,6 +218,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       },
     });
   }
+
+  // ---- /mcp (AI channel, module5) -------------------------------------------------------------------
+  registerMcp(app as unknown as FastifyInstance, { config, db: deps.db.db, registry, executor });
 
   // ---- /health ------------------------------------------------------------------------------------
   app.get("/health", async (_req, reply) => {

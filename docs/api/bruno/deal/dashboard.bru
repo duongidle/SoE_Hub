@@ -1,0 +1,20 @@
+meta {
+  name: deal.dashboard
+  type: http
+  seq: 30
+}
+
+get {
+  url: {{baseUrl}}/api/v1/deal/dashboard
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Mã dashboard hệ thống "Deals" của cây bạn (null nếu cây chưa có). Công cụ `deal_metrics` của MCP đọc dashboard này.
+  Quyền: `deal:deal:read`.
+}
