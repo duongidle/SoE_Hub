@@ -17,6 +17,7 @@ const ROOT = path.join(process.cwd(), "../..");
 let mgr: Session;
 let mgrApi: ApiClient;
 let userApi: ApiClient;
+let guestApi: ApiClient;
 let datahubId = "";
 let sessions: Session[] = [];
 
@@ -30,11 +31,13 @@ test.beforeAll(async ({ browser }, info) => {
     [
       { email: email("mgr"), name: `Manager 7 ${p}`, roles: ["manager"] },
       { email: email("u1"), name: `Thành viên 7 ${p}`, roles: ["user"], manager: email("mgr") },
+      { email: email("g1"), name: `Guest 7 ${p}`, roles: ["guest"], guestPreset: "sale" },
     ],
     PASSWORD(),
   );
   mgrApi = await new ApiClient(API).login(email("mgr"), PASSWORD());
   userApi = await new ApiClient(API).login(email("u1"), PASSWORD());
+  guestApi = await new ApiClient(API).login(email("g1"), PASSWORD());
   datahubId = (await mgrApi.call<{ id: string }>("POST", "/datahubs", { name: `Khảo sát ${p}` })).id;
   mgr = await Session.open(browser, p, "mgr");
   sessions = [mgr];
@@ -210,3 +213,122 @@ test.describe("7B1", () => {
     await expect(page.getByTestId("open-table")).toBeVisible();
   });
 });
+
+test.describe("7B2", () => {
+  /** A published form made through the API (blocks as the editor would save them), columns created for every question. */
+  async function makeForm(name: string, blocks: unknown[], access: "public" | "all_accounts", quiz?: Record<string, unknown>) {
+    const f = await mgrApi.call<{ id: string; code: string; table_id: string }>("POST", "/forms", { name, datahub_id: datahubId });
+    await mgrApi.call("PUT", `/forms/${f.id}/draft`, { config: { title: name, description: "", appearance: { accent: "green", thank_you: { text: "Đã nhận, cảm ơn bạn!" } }, ...(quiz ? { quiz } : {}), blocks } });
+    await mgrApi.call("POST", `/forms/${f.id}/create-columns`, {});
+    await mgrApi.call("PATCH", `/forms/${f.id}`, { access });
+    await mgrApi.call("POST", `/forms/${f.id}/publish`, {});
+    return f;
+  }
+  const kinds = [{ id: "oa", label: "Doanh nghiệp" }, { id: "ob", label: "Cá nhân" }];
+  const publicBlocks = () => [
+    { id: "name", type: "question", input: "text", label: "Họ tên", required: true },
+    { id: "kind", type: "question", input: "single_select", label: "Loại khách", param: "loai", options: kinds },
+    { id: "corp", type: "question", input: "text", label: "Tên công ty", show_if: { field: "kind", op: "eq", value: "oa" } },
+    { id: "pb", type: "page_break" },
+    { id: "note", type: "question", input: "long_text", label: "Ghi chú" },
+    { id: "src", type: "question", input: "text", label: "Nguồn", hidden: true, param: "nguon" },
+  ];
+  let publicForm: { id: string; code: string };
+
+  test("form công khai ở máy tính: không đăng nhập, câu điều kiện, hai trang, gửi, trang cảm ơn, dòng ở tab Phản hồi, trường ẩn từ link", async ({ browser }) => {
+    test.setTimeout(120_000);
+    publicForm = await makeForm(`Liên hệ ${p}`, publicBlocks(), "public");
+    const anon = await Session.open(browser, p, "anon");
+    sessions.push(anon);
+    anon.allow(401, /auth\/me/);
+    const page = anon.page;
+    await page.goto(`/f/${publicForm.code}?nguon=facebook`);
+    await expect(page.getByTestId("form-renderer")).toBeVisible();
+    await expect(page.getByTestId("form-progress")).toContainText("Trang 1 / 2");
+    await expect(page.getByText("Tên công ty")).toHaveCount(0);
+    await page.getByRole("radio", { name: "Doanh nghiệp" }).check();
+    await expect(page.getByLabel("Tên công ty")).toBeVisible();
+    await page.getByLabel("Họ tên").fill("Nguyễn An");
+    await page.getByLabel("Tên công ty").fill("Công ty ABC");
+    // a draft stays in the browser
+    await page.reload();
+    await expect(page.getByLabel("Họ tên")).toHaveValue("Nguyễn An");
+    await page.getByTestId("form-next").click();
+    await expect(page.getByTestId("form-progress")).toContainText("Trang 2 / 2");
+    await page.getByLabel("Ghi chú").fill("Cần báo giá gấp");
+    await page.waitForTimeout(3500); // a person needs at least 3 seconds
+    await page.getByTestId("form-submit").click();
+    await expect(page.getByTestId("fill-notice")).toContainText("Đã nhận, cảm ơn bạn!");
+    await expect(page.getByTestId("fill-again")).toBeVisible();
+    await anon.shot("form-cong-khai-cam-on");
+    // the row shows in the Responses tab, the hidden field came from the link
+    await mgr.page.goto(`/form/${publicForm.id}`);
+    await mgr.page.getByRole("tab", { name: /Phản hồi/ }).click();
+    await expect(mgr.page.getByTestId("response-table")).toContainText("Công ty ABC");
+    await expect(mgr.page.getByTestId("response-table")).toContainText("facebook");
+    await expect(mgr.page.getByTestId("response-table")).toContainText("Doanh nghiệp");
+  });
+
+  test("cùng form ở 375px: không tràn ngang, điền sẵn qua link (tên lựa chọn), gửi được", async ({ browser }) => {
+    test.setTimeout(120_000);
+    const anon = await Session.open(browser, p, "anon375");
+    sessions.push(anon);
+    anon.allow(401, /auth\/me/);
+    const page = anon.page;
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(`/f/${publicForm.code}?loai=${encodeURIComponent("Cá nhân")}&nguon=dien-thoai`);
+    await expect(page.getByTestId("form-renderer")).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Cá nhân" })).toBeChecked();
+    await anon.expectNoHorizontalOverflow();
+    await page.getByLabel("Họ tên").fill("Trần Bình");
+    await page.getByTestId("form-next").click();
+    await anon.expectNoHorizontalOverflow();
+    await page.getByLabel("Ghi chú").fill("Gửi từ điện thoại");
+    await page.waitForTimeout(3500);
+    await page.getByTestId("form-submit").click();
+    await expect(page.getByTestId("fill-notice")).toContainText("Đã nhận, cảm ơn bạn!");
+    await anon.expectNoHorizontalOverflow();
+    await anon.shot("form-cong-khai-375");
+  });
+
+  test("gửi quá nhanh (dưới 3 giây) bị từ chối với câu báo; câu trả lời được giữ", async ({ browser }) => {
+    test.setTimeout(60_000);
+    const anon = await Session.open(browser, p, "anonfast");
+    sessions.push(anon);
+    anon.allow(401, /auth\/me/).allow(429, /public\/forms/);
+    const page = anon.page;
+    await page.goto(`/f/${publicForm.code}`);
+    await page.getByLabel("Họ tên").fill("Gửi nhanh");
+    await page.getByTestId("form-next").click();
+    await page.getByLabel("Ghi chú").fill("Nhanh quá");
+    await page.getByTestId("form-submit").click();
+    await expect(page.getByTestId("fill-error")).toContainText("Bạn gửi quá nhanh");
+    await expect(page.getByLabel("Ghi chú")).toHaveValue("Nhanh quá");
+  });
+
+  test("form nội bộ bài kiểm tra: người dùng làm bài trên web (Đạt theo đáp án, Chờ chấm khi có câu tự luận); Guest không mở được", async ({ browser }) => {
+    test.setTimeout(120_000);
+    const quiz = { enabled: true, scale: "100", pass: { type: "percent", value: 50 }, max_attempts: 2, show: "score" };
+    const auto = await makeForm(`Trắc nghiệm ${p}`, [{ id: "c", type: "question", input: "single_select", label: "Thủ đô của Việt Nam", options: [{ id: "oa", label: "Hà Nội" }, { id: "ob", label: "Huế" }], answer: "Hà Nội", points: 5 }], "all_accounts", quiz);
+    const manual = await makeForm(`Tự luận ${p}`, [{ id: "e", type: "question", input: "long_text", label: "Viết về team của bạn", points: 5 }], "all_accounts", quiz);
+    const u = await Session.open(browser, p, "u1");
+    sessions.push(u);
+    u.allow(404, /fill\/|public\/forms/);
+    await u.login(email("u1"), PASSWORD());
+    await expect(u.page.getByRole("button", { name: "Đăng xuất" })).toBeVisible();
+    await u.page.goto(`/f/${auto.code}`);
+    await u.page.getByRole("radio", { name: "Hà Nội" }).check();
+    await u.page.getByTestId("form-submit").click();
+    await expect(u.page.getByTestId("quiz-result")).toContainText("Đạt");
+    await expect(u.page.getByTestId("my-quiz-link")).toBeVisible();
+    await u.page.getByTestId("my-quiz-link").click();
+    await expect(u.page.getByTestId("my-quiz-attempt")).toContainText("Đạt");
+    await u.page.goto(`/f/${manual.code}`);
+    await u.page.getByLabel("Viết về team của bạn").fill("Team nhỏ, chăm chỉ.");
+    await u.page.getByTestId("form-submit").click();
+    await expect(u.page.getByTestId("quiz-result")).toContainText("chờ chấm");
+    // a Guest is not in "every account"
+    await expect(guestApi.call("GET", `/fill/${auto.code}`)).rejects.toThrow();
+  });
+});
+
