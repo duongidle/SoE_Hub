@@ -19,3 +19,12 @@
 
 - Đạt. Đồng ý: câu "Người điền" không tự thêm thành viên bảng (form ngoài Onboarding báo lỗi rõ); `filler_column_missing`; mỗi người một lộ trình bằng chỉ mục duy nhất một phần.
 - Giao 9C: (1) bảng `forms`, `form_*` (Stage 7), `posts`, `post_versions` (Stage 8), `onb_*` (Stage 9) chưa `registerOwnedTable` như Module 0/1/2/3/6: đăng ký và gắn dấu scope cho truy vấn (chốt `checkScopedQuery`), để đồng bộ lớp bảo vệ; (2) nhân bản lộ trình: form bản sao của form đã xuất bản thì xuất bản luôn (nhân sự điền được ngay).
+
+## 9B (22/11/2026)
+
+- **Checkpoint** lưu ở `onb_checkpoints` (điều kiện là JSON), thuộc từng lộ trình (nhân bản thì sao chép, bỏ xác nhận, form ánh xạ như việc; form bị bỏ thì `form_id` null và điều kiện báo "chưa chọn form"). `plan.create`/`plan.save` nhận `checkpoints` (gửi lại cả danh sách; giữ `id` thì giữ xác nhận tay).
+- **Tính khi đọc**, không lưu sẵn, không nhớ đệm riêng (engine chỉ số đã có cache theo bảng). Mỗi điều kiện chạy `runDefinition` với bảng của form, quyền chủ form, lọc `person_field = nhân sự` (mặc định cột "Người điền"), khoảng ngày theo `_created_at` (giờ Việt Nam). `week` = dòng tạo trong tuần của checkpoint, `plan` = từ ngày bắt đầu, `since` = từ mốc giờ. Phiếu chấm: trung bình từng cột rồi trung bình trọng số trên các cột có dữ liệu; sàn từng cột (`floor` riêng hoặc chung).
+- **Trạng thái:** `not_yet` (tuần chưa tới), `running`, `passed`, `failed` (hết tuần mà chưa đạt), `passed_late` (hết tuần mới đạt: tính hai lần, lần một cắt ở cuối tuần, lần hai tới giờ). Không lưu "đạt lúc nào". Hệ quả: điều kiện `week` không thể đạt muộn (dòng tạo sau tuần không thuộc tuần); muốn chấp nhận nộp muộn dùng `plan` hoặc `since`. Checkpoint cuối (`is_final`, không gắn tuần): `running` tới khi đạt; lộ trình đã kết thúc mà chưa đạt thì `failed`.
+- **Xác nhận tay** (`checkpoint.confirm`) chỉ Leader trực tiếp / Manager (như sửa lộ trình); nhân sự bị `forbidden`. Điều kiện tay đạt khi đã xác nhận (và xác nhận trước mốc tính).
+- **Chốt đánh giá cuối** (`plan.finish`): `result` Đạt / Không đạt, ghi chú tuỳ chọn; không bắt buộc các checkpoint cuối phải đạt (Leader quyết). Ghi chú nằm ở `onb_plans.final_note`, chỉ có sau khi chốt nên nhân sự thấy khi lộ trình đã Hoàn thành.
+- **`progress.get`** trả cả `items_by_kind` (tổng, xong, trễ theo loại việc), `current_week`, `total_weeks` để 9C làm bảng Theo dõi.

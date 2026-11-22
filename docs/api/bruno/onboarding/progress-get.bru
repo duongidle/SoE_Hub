@@ -1,0 +1,20 @@
+meta {
+  name: onboarding.progress.get
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/onboarding/plans/{{planId}}/progress
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+}
+
+docs {
+  Tiến độ một nhân sự: checkpoint với giá trị thật so ngưỡng, việc theo loại, kết quả cuối.
+}

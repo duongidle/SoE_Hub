@@ -69,14 +69,17 @@ export interface PlanRow {
   stopReason: string | null;
   endedAt: string | null;
   sourcePlanId: string | null;
+  finalResult: "passed" | "failed" | null;
+  finalNote: string | null;
   version: number;
 }
-const ds = (v: unknown): string | null => (v instanceof Date ? v.toISOString().slice(0, 10) : v ? String(v).slice(0, 10) : null);
+export const ds = (v: unknown): string | null => (v instanceof Date ? v.toISOString().slice(0, 10) : v ? String(v).slice(0, 10) : null);
 export function planFrom(r: Record<string, unknown>): PlanRow {
   return {
     id: r.id as string, ownerId: r.owner_id as string, treeId: r.tree_id as string, name: r.name as string, isTemplate: !!r.is_template,
     staffId: (r.staff_id as string | null) ?? null, startDate: ds(r.start_date), followers: ((r.followers as string[] | null) ?? []), status: r.status as PlanRow["status"],
-    stopReason: (r.stop_reason as string | null) ?? null, endedAt: r.ended_at ? new Date(r.ended_at as string).toISOString() : null, sourcePlanId: (r.source_plan_id as string | null) ?? null, version: r.version as number,
+    stopReason: (r.stop_reason as string | null) ?? null, endedAt: r.ended_at ? new Date(r.ended_at as string).toISOString() : null, sourcePlanId: (r.source_plan_id as string | null) ?? null,
+    finalResult: (r.final_result as PlanRow["finalResult"]) ?? null, finalNote: (r.final_note as string | null) ?? null, version: r.version as number,
   };
 }
 export async function loadPlan(db: Executor, id: string): Promise<PlanRow> {

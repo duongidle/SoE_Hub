@@ -2,9 +2,11 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { businessDate } from "@soe/shared";
 import { orgMemberships, users } from "@soe/db";
 import { actorOf, as, drainOutbox, fails, unlimit } from "./dh-helpers";
 import { activeToken, seedOrg, type Org } from "./fixtures";
+import { resetMetricCache } from "../src/modules/metrics/runner";
 import { makeApp, type TestApp } from "./helpers";
 
 /**
@@ -155,5 +157,107 @@ describe("onboarding 9A", () => {
     expect(made.name).toBe("Do AI dựng");
     expect((await fails(lead("onboarding.item.tick", { occurrence_id: randomUUID() }))).code).toBe("ai_not_allowed");
     expect(t.c.registry.get("onboarding.item.tick")!.ai).toMatchObject({ forbidden: "hard" });
+  });
+});
+
+/** Stage 9B: checkpoints computed by the metrics engine, manual confirmation, the final verdict. Weeks are real: the plan starts on the Monday of the current week. */
+describe("onboarding 9B", () => {
+  const mondayThisWeek = (): string => {
+    const d = businessDate(new Date());
+    const w = new Date(`${d}T00:00:00Z`).getUTCDay();
+    const m = new Date(`${d}T00:00:00Z`);
+    m.setUTCDate(m.getUTCDate() - ((w + 6) % 7));
+    return m.toISOString().slice(0, 10);
+  };
+  /** A fresh running plan for UserA1 with the given structure and checkpoints (an earlier running plan is closed first). */
+  async function runPlan(weeks: unknown[], checkpoints: unknown[]) {
+    await t.c.db.db.execute(sql`/*scope:system*/ UPDATE onb_plans SET status = 'stopped' WHERE staff_id = ${org.userA1.id}::uuid AND status = 'active'`);
+    const made = await leader("onboarding.plan.create", { name: `Lộ trình ${randomUUID().slice(0, 6)}`, structure: { stages: [{ name: "Tháng 1", weeks }] }, checkpoints });
+    await leader("onboarding.plan.assign", { plan_id: made.id, staff_id: org.userA1.id, start_date: mondayThisWeek() });
+    return made.id as string;
+  }
+  const progress = async (id: string, who: typeof leader = leader) => (await who("onboarding.progress.get", { plan_id: id })) as any;
+  const addRows = async (f: { tableId: string }, n: number, data: (i: number) => Record<string, unknown>) => {
+    for (let i = 0; i < n; i++) await leader("datahub.row.create", { table_id: f.tableId, data: data(i) });
+    resetMetricCache(); // in production the worker drops the cache when rows change
+  };
+  const shareView = async (tableId: string) => {
+    const dhId = (await leader("datahub.table.get", { table_id: tableId })).datahub_id;
+    for (const g of [org.userA1.id, org.userA2.id]) await leader("datahub.share.set", { datahub_id: dhId, grantee_id: g, table_id: tableId, permission: "view" });
+  };
+
+  it("Q&A of week 1: 7 of 10 is still running with the real value, 10 is Đạt", async () => {
+    const f = await leaderForm();
+    await shareView(f.tableId);
+    const id = await runPlan([{ name: "W1", items: [] }], [{ week_no: 1, name: "Q&A tuần 1 ≥ 10", conditions: [{ type: "metric", form_id: f.id, agg: "count", range: "week", threshold: 10 }] }]);
+    await addRows(f, 7, (i) => ({ "Người điền": org.userA1.id, "Câu trả lời": `câu ${i}` }));
+    await addRows(f, 5, () => ({ "Người điền": org.userA2.id, "Câu trả lời": "của người khác" })); // other people's rows do not count
+    let cp = (await progress(id)).checkpoints[0];
+    expect(cp.status).toBe("running");
+    expect(cp.conditions[0]).toMatchObject({ value: 7, threshold: 10, met: false });
+    await addRows(f, 3, () => ({ "Người điền": org.userA1.id, "Câu trả lời": "thêm" }));
+    const p = await progress(id);
+    cp = p.checkpoints[0];
+    expect(cp.status).toBe("passed");
+    expect(cp.conditions[0].value).toBe(10);
+    expect(p.checkpoints_passed).toBe(1);
+    expect((await progress(id, staff)).checkpoints[0].status).toBe("passed"); // the person sees their own
+  });
+
+  it("weighted score sheet with the numbers of the mockup sheet: 3,96 < 4 is Chưa đạt, every criterion >= 3; the row not counted is left out", async () => {
+    const dh = await leader("datahub.datahub.create", { name: `Phiếu ${randomUUID().slice(0, 6)}` });
+    const f = await leader("form.form.create", { name: "Phiếu chấm", datahub_id: dh.id });
+    await leader("form.form.save_draft", { form_id: f.id, config: { schema: "soe-form/1", title: "Phiếu", description: "", appearance: {}, blocks: [q("p", "user", "Người được chấm")] } });
+    await leader("form.question.create_columns", { form_id: f.id });
+    const crit = ["Nghiệp vụ", "Phân tích", "Trình bày", "Tư duy", "Giao tiếp", "Chủ động", "Tuân thủ"];
+    for (const c of crit) await leader("datahub.column.create", { table_id: f.table_id, name: c, type: "number" });
+    await leader("datahub.column.create", { table_id: f.table_id, name: "Tính vào trung bình", type: "checkbox" });
+    await shareView(f.table_id);
+    const weights = [25, 25, 15, 15, 10, 5, 5];
+    const sums = [31, 30, 34, 32, 35, 31, 30]; // 8 graders: averages 3,88 3,75 4,25 4,00 4,38 3,88 3,75
+    const val = (s: number, i: number) => (s > 32 ? (i < s - 32 ? 5 : 4) : i < 32 - s ? 3 : 4);
+    await addRows({ tableId: f.table_id }, 8, (i) => ({ "Người được chấm": org.userA1.id, "Tính vào trung bình": true, ...Object.fromEntries(crit.map((c, k) => [c, val(sums[k]!, i)])) }));
+    await addRows({ tableId: f.table_id }, 1, () => ({ "Người được chấm": org.userA1.id, "Tính vào trung bình": false, ...Object.fromEntries(crit.map((c) => [c, 1])) }));
+    const cond = { type: "weighted", form_id: f.id, person_field: "Người được chấm", range: "plan", filter: { field: "Tính vào trung bình", op: "eq", value: true }, columns: crit.map((c, k) => ({ field: c, weight: weights[k] })), threshold: 4, floor: 3 };
+    const id = await runPlan([{ name: "W1", items: [] }], [{ week_no: 1, name: "Mockup", conditions: [cond] }]);
+    const r = (await progress(id)).checkpoints[0].conditions[0];
+    expect(r.value).toBeCloseTo(3.9625, 3);
+    expect(r.met).toBe(false);
+    expect(r.columns.map((c: any) => c.avg)).toEqual([3.875, 3.75, 4.25, 4, 4.375, 3.875, 3.75]);
+    expect(r.columns.every((c: any) => c.met)).toBe(true);
+    // the same sheet with a lower bar passes, with a higher floor it fails on the criteria
+    const id2 = await runPlan([{ name: "W1", items: [] }], [{ week_no: 1, name: "A", conditions: [{ ...cond, threshold: 3.9 }] }, { week_no: 1, name: "B", conditions: [{ ...cond, threshold: 3.9, floor: 4 }] }]);
+    const cps = (await progress(id2)).checkpoints;
+    expect(cps[0].status).toBe("passed");
+    expect(cps[1].status).toBe("running");
+  });
+
+  it("rows against the on-job sessions already passed", async () => {
+    const f = await leaderForm();
+    await shareView(f.tableId);
+    const id = await runPlan([{ name: "W1", items: [{ name: "On-job 1", kind: "on_job", weekday: 1 }, { name: "On-job 2", kind: "on_job", weekday: 1 }] }], [{ week_no: 1, name: "Đủ bài thu hoạch", conditions: [{ type: "vs_items", form_id: f.id, item_kind: "on_job", range: "plan" }] }]);
+    await addRows(f, 1, () => ({ "Người điền": org.userA1.id, "Câu trả lời": "bài 1" }));
+    let c = (await progress(id)).checkpoints[0].conditions[0];
+    expect(c).toMatchObject({ value: 1, threshold: 2, met: false });
+    await addRows(f, 1, () => ({ "Người điền": org.userA1.id, "Câu trả lời": "bài 2" }));
+    c = (await progress(id)).checkpoints[0].conditions[0];
+    expect(c).toMatchObject({ value: 2, threshold: 2, met: true });
+  });
+
+  it("manual confirmation and the final verdict: only the leader, never AI; the note shows after the verdict", async () => {
+    const id = await runPlan([{ name: "W1", items: [] }], [{ name: "Nhận deal", is_final: true, conditions: [{ type: "manual" }] }]);
+    const p = await progress(id);
+    expect(p.checkpoints[0]).toMatchObject({ status: "running", is_final: true });
+    expect(p.final).toEqual({ result: null, note: null });
+    expect((await fails(staff("onboarding.checkpoint.confirm", { checkpoint_id: p.checkpoints[0].id }))).code).toBe("forbidden");
+    await leader("onboarding.checkpoint.confirm", { checkpoint_id: p.checkpoints[0].id });
+    expect((await progress(id)).checkpoints[0].status).toBe("passed");
+    expect(t.c.registry.get("onboarding.checkpoint.confirm")!.ai).toMatchObject({ forbidden: "hard" });
+    expect(t.c.registry.get("onboarding.plan.finish")!.ai).toMatchObject({ forbidden: "hard" });
+    expect((await fails(staff("onboarding.plan.finish", { plan_id: id, result: "passed" }))).code).toBe("forbidden");
+    const done = await leader("onboarding.plan.finish", { plan_id: id, result: "passed", note: "Làm tốt" });
+    expect(done).toMatchObject({ status: "completed", final_result: "passed" });
+    expect((await progress(id, staff)).final).toEqual({ result: "passed", note: "Làm tốt" });
+    expect((await fails(leader("onboarding.plan.finish", { plan_id: id, result: "failed" }))).details.reason).toBe("plan_not_active");
   });
 });

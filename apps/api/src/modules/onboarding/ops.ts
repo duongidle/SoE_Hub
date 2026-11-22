@@ -6,6 +6,7 @@ import type { EventDef } from "../../core/events";
 import { defineCommand, defineQuery } from "../../core/registry";
 import type { HandlerCtx } from "../../core/types";
 import { cloneForm } from "../form/io";
+import { CheckpointIn, checkpointOperations, copyCheckpoints, readCheckpoints, writeCheckpoints } from "./checkpoints";
 import { applyGrants } from "./grants";
 import {
   Id, StructureIn, guardAi, isMonday, loadPerson, loadPlan, planFrom, requirePlan, rights, syncOccurrences, treeOf, type ItemInput, type PlanRow, type Structure,
@@ -106,7 +107,7 @@ async function readStructure(db: Executor, planId: string): Promise<{ stages: { 
   };
 }
 
-const planOut = (p: PlanRow, extra: Record<string, unknown> = {}) => ({ id: p.id, name: p.name, owner_id: p.ownerId, tree_id: p.treeId, is_template: p.isTemplate, staff_id: p.staffId, start_date: p.startDate, followers: p.followers, status: p.status, stop_reason: p.stopReason, ended_at: p.endedAt, source_plan_id: p.sourcePlanId, version: p.version, ...extra });
+const planOut = (p: PlanRow, extra: Record<string, unknown> = {}) => ({ id: p.id, name: p.name, owner_id: p.ownerId, tree_id: p.treeId, is_template: p.isTemplate, staff_id: p.staffId, start_date: p.startDate, followers: p.followers, status: p.status, stop_reason: p.stopReason, ended_at: p.endedAt, source_plan_id: p.sourcePlanId, final_result: p.finalResult, final_note: p.finalNote, version: p.version, ...extra });
 
 /** Structure input from a stored plan: `keepForms` false drops the form (the person has to choose their own), `keepIds` false makes every item new. */
 async function structureFor(db: Executor, planId: string, opts: { forms: Map<string, string> | "keep" | "drop" }): Promise<Structure> {
@@ -142,18 +143,20 @@ async function insertPlan(ctx: Ctx, p: { name: string; isTemplate: boolean; sour
 const touch = (ctx: Ctx, id: string) => ctx.db.execute(sql`UPDATE onb_plans SET version = version + 1, updated_at = now(), updated_by = ${ctx.actor.userId}::uuid WHERE id = ${id}::uuid`);
 
 export const onboardingOperations = [
+  ...checkpointOperations,
   defineCommand({
     name: "onboarding.plan.create",
     summary: "Tạo lộ trình từ đầu (nháp hoặc mẫu), có thể kèm luôn giai đoạn, tuần, việc.",
     description: "Cấu trúc: `stages[] → weeks[] → items[]`. Tuần tự đánh số 1, 2, 3... nếu không gửi `week_no`. Việc: loại, thứ, lặp (`once`, `daily_workdays`, `weekly`), giờ hạn, nhắc trước, form gắn kèm.",
     ...C,
-    input: z.object({ name: z.string().trim().min(1).max(200), is_template: z.boolean().optional(), structure: StructureIn.optional() }),
+    input: z.object({ name: z.string().trim().min(1).max(200), is_template: z.boolean().optional(), structure: StructureIn.optional(), checkpoints: z.array(CheckpointIn).max(200).optional() }),
     output: Out,
     http: { method: "POST", path: "/onboarding/plans", status: 201 },
     handler: async (ctx, i) => {
       await guardAi(ctx);
       const plan = await insertPlan(ctx, { name: i.name, isTemplate: i.is_template ?? false });
       if (i.structure) await writeStructure(ctx, plan, i.structure);
+      if (i.checkpoints) await writeCheckpoints(ctx, plan, i.checkpoints);
       ctx.audit({ type: "onboarding_plan", id: plan.id, details: { name: plan.name } });
       return planOut(plan);
     },
@@ -165,7 +168,7 @@ export const onboardingOperations = [
     description: "Việc giữ `id` thì giữ trạng thái tick. Lộ trình đã gắn nhân sự: ngày thật tính lại, việc mới được cấp quyền form/bảng cho nhân sự. Leader trực tiếp của nhân sự và Manager sửa được.",
     ...C,
     emits: GRANT_EVENTS,
-    input: z.object({ plan_id: Id, name: z.string().trim().min(1).max(200).optional(), followers: z.array(Id).max(20).optional(), structure: StructureIn.optional() }),
+    input: z.object({ plan_id: Id, name: z.string().trim().min(1).max(200).optional(), followers: z.array(Id).max(20).optional(), structure: StructureIn.optional(), checkpoints: z.array(CheckpointIn).max(200).optional().describe("Gửi lại toàn bộ checkpoint (giữ `id` thì giữ xác nhận tay; không còn trong danh sách thì xoá).") }),
     output: Out,
     http: { method: "PUT", path: "/onboarding/plans/:plan_id" },
     handler: async (ctx, i) => {
@@ -182,6 +185,7 @@ export const onboardingOperations = [
           if (plan.status === "active") await applyGrants(ctx, plan, plan.staffId, "up");
         }
       }
+      if (i.checkpoints) await writeCheckpoints(ctx, plan, i.checkpoints);
       await touch(ctx, plan.id);
       ctx.audit({ type: "onboarding_plan", id: plan.id });
       return planOut(await loadPlan(ctx.db, plan.id));
@@ -228,7 +232,7 @@ export const onboardingOperations = [
       const r = await rights(ctx.db, plan, ctx.actor.userId);
       const st = await readStructure(ctx.db, plan.id);
       const [c] = (await ctx.db.execute(sql`SELECT count(*)::int AS total, count(done_at)::int AS done FROM onb_occurrences WHERE plan_id = ${plan.id}::uuid`)).rows as { total: number; done: number }[];
-      return planOut(plan, { stages: st.stages, can_edit: r.edit, occurrences_total: c?.total ?? 0, occurrences_done: c?.done ?? 0 });
+      return planOut(plan, { stages: st.stages, checkpoints: await readCheckpoints(ctx.db, plan.id), can_edit: r.edit, occurrences_total: c?.total ?? 0, occurrences_done: c?.done ?? 0 });
     },
   }),
 
@@ -254,6 +258,7 @@ export const onboardingOperations = [
         }
       }
       await writeStructure(ctx, plan, await structureFor(ctx.db, src.id, { forms }));
+      await copyCheckpoints(ctx.db, src.id, plan.id, forms);
       ctx.audit({ type: "onboarding_plan", id: plan.id, details: { cloned_from: src.id } });
       return planOut(plan);
     },
@@ -284,6 +289,7 @@ export const onboardingOperations = [
       if (plan.isTemplate) {
         const copy = await insertPlan(ctx, { name: plan.name, isTemplate: false, sourcePlanId: plan.id, treeId: plan.treeId });
         await writeStructure(ctx, copy, await structureFor(ctx.db, plan.id, { forms: "keep" }));
+        await copyCheckpoints(ctx.db, plan.id, copy.id, "keep");
         plan = copy;
       }
       await ctx.db.execute(sql`UPDATE onb_plans SET staff_id = ${staff.id}::uuid, start_date = ${i.start_date}::date, status = 'active', followers = ${`{${(i.followers ?? plan.followers).join(",")}}`}::uuid[] WHERE id = ${plan.id}::uuid`);

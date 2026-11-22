@@ -1,0 +1,25 @@
+meta {
+  name: onboarding.plan.finish
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/api/v1/onboarding/plans/{{planId}}/finish
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  { "result": "passed", "note": "Làm tốt" }
+}
+
+docs {
+  Leader chốt đánh giá cuối (Đạt / Không đạt): lộ trình Hoàn thành. AI không gọi được.
+}

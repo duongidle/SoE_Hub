@@ -38,7 +38,7 @@ async function formsOf(ctx: Ctx, plan: PlanRow): Promise<FormUse[]> {
   return [...by.values()];
 }
 
-const ownerOf = (ctx: Ctx, ownerId: string): Ctx => ({ ...ctx, actor: { userId: ownerId, via: "web", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: null } as Actor });
+export const ownerOf = (ctx: Ctx, ownerId: string): Ctx => ({ ...ctx, actor: { userId: ownerId, via: "web", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: null } as Actor });
 
 /**
  * What assigning a plan gives the person (design module9 2), done as the owner of each form with the Datahub commands themselves:

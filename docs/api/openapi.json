@@ -21754,6 +21754,462 @@
         ]
       }
     },
+    "/api/v1/onboarding/plans/{plan_id}/progress": {
+      "get": {
+        "operationId": "onboarding.progress.get",
+        "summary": "Tiến độ một nhân sự: mọi checkpoint với giá trị thật so ngưỡng và trạng thái, việc theo loại, kết quả cuối.",
+        "description": "Checkpoint tính khi đọc bằng engine chỉ số (quyền chủ form). Trạng thái: `not_yet` (Chưa tới), `running` (Đang chạy), `passed` (Đạt), `failed` (Chưa đạt: hết tuần mà chưa đạt), `passed_late` (Đạt muộn). Nhân sự xem của mình; Leader, Manager, người theo dõi xem của người họ phụ trách.",
+        "tags": [
+          "onboarding"
+        ],
+        "x-command-name": "onboarding.progress.get",
+        "x-ai-allowed": true,
+        "x-permission": "onboarding:path:read",
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/onboarding/checkpoints/{checkpoint_id}/confirm": {
+      "post": {
+        "operationId": "onboarding.checkpoint.confirm",
+        "summary": "Leader trực tiếp / Manager xác nhận tay (hoặc bỏ xác nhận) một checkpoint có điều kiện \"Leader xác nhận\". AI không làm được.",
+        "tags": [
+          "onboarding"
+        ],
+        "x-command-name": "onboarding.checkpoint.confirm",
+        "x-ai-allowed": false,
+        "x-permission": "onboarding:path:create",
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "confirmed": {
+                    "default": true,
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/onboarding/plans/{plan_id}/finish": {
+      "post": {
+        "operationId": "onboarding.plan.finish",
+        "summary": "Leader trực tiếp / Manager chốt đánh giá cuối: Đạt hoặc Không đạt, kèm ghi chú. Lộ trình chuyển Hoàn thành, bảng chia sẻ hạ về quyền Xem. AI không làm được.",
+        "tags": [
+          "onboarding"
+        ],
+        "x-command-name": "onboarding.plan.finish",
+        "x-ai-allowed": false,
+        "x-permission": "onboarding:path:create",
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "result": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 5000
+                  }
+                },
+                "required": [
+                  "result"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
     "/api/v1/onboarding/plans": {
       "post": {
         "operationId": "onboarding.plan.create",
@@ -21962,6 +22418,326 @@
                     "required": [
                       "stages"
                     ]
+                  },
+                  "checkpoints": {
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "week_no": {
+                          "description": "Tuần của checkpoint; bỏ trống cho checkpoint cuối.",
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 200
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "is_final": {
+                          "default": false,
+                          "description": "Thuộc nhóm \"Đánh giá cuối\".",
+                          "type": "boolean"
+                        },
+                        "conditions": {
+                          "minItems": 1,
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "metric"
+                                  },
+                                  "form_id": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "Form của người tạo lộ trình; điều kiện đọc bảng của form này."
+                                  },
+                                  "person_field": {
+                                    "description": "Cột Người dùng chọn ra nhân sự (mặc định \"Người điền\"; phiếu chấm: \"Người được chấm\").",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "range": {
+                                    "default": "plan",
+                                    "description": "`week` = dòng tạo trong tuần của checkpoint; `plan` = từ đầu lộ trình; `since` = từ mốc giờ `since`.",
+                                    "type": "string",
+                                    "enum": [
+                                      "week",
+                                      "plan",
+                                      "since"
+                                    ]
+                                  },
+                                  "since": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                  },
+                                  "filter": {
+                                    "description": "Điều kiện thêm theo cú pháp lọc Datahub (ví dụ Tính vào trung bình = true).",
+                                    "$ref": "#/$defs/__schema0"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  },
+                                  "agg": {
+                                    "type": "string",
+                                    "enum": [
+                                      "count",
+                                      "sum",
+                                      "avg",
+                                      "max",
+                                      "min"
+                                    ]
+                                  },
+                                  "field": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "op": {
+                                    "default": "gte",
+                                    "type": "string",
+                                    "enum": [
+                                      "gte",
+                                      "gt",
+                                      "lte",
+                                      "lt",
+                                      "eq"
+                                    ]
+                                  },
+                                  "threshold": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "form_id",
+                                  "agg",
+                                  "threshold"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "weighted"
+                                  },
+                                  "form_id": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "Form của người tạo lộ trình; điều kiện đọc bảng của form này."
+                                  },
+                                  "person_field": {
+                                    "description": "Cột Người dùng chọn ra nhân sự (mặc định \"Người điền\"; phiếu chấm: \"Người được chấm\").",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "range": {
+                                    "default": "plan",
+                                    "description": "`week` = dòng tạo trong tuần của checkpoint; `plan` = từ đầu lộ trình; `since` = từ mốc giờ `since`.",
+                                    "type": "string",
+                                    "enum": [
+                                      "week",
+                                      "plan",
+                                      "since"
+                                    ]
+                                  },
+                                  "since": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                  },
+                                  "filter": {
+                                    "description": "Điều kiện thêm theo cú pháp lọc Datahub (ví dụ Tính vào trung bình = true).",
+                                    "$ref": "#/$defs/__schema0"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  },
+                                  "columns": {
+                                    "minItems": 1,
+                                    "maxItems": 30,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "field": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "weight": {
+                                          "type": "number",
+                                          "exclusiveMinimum": 0
+                                        },
+                                        "floor": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "field",
+                                        "weight"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "threshold": {
+                                    "type": "number",
+                                    "description": "Ngưỡng của trung bình trọng số."
+                                  },
+                                  "floor": {
+                                    "description": "Ngưỡng sàn mặc định cho từng cột (cột có `floor` riêng thì dùng của nó).",
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "form_id",
+                                  "columns",
+                                  "threshold"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "vs_items"
+                                  },
+                                  "form_id": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "Form của người tạo lộ trình; điều kiện đọc bảng của form này."
+                                  },
+                                  "person_field": {
+                                    "description": "Cột Người dùng chọn ra nhân sự (mặc định \"Người điền\"; phiếu chấm: \"Người được chấm\").",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "range": {
+                                    "default": "plan",
+                                    "description": "`week` = dòng tạo trong tuần của checkpoint; `plan` = từ đầu lộ trình; `since` = từ mốc giờ `since`.",
+                                    "type": "string",
+                                    "enum": [
+                                      "week",
+                                      "plan",
+                                      "since"
+                                    ]
+                                  },
+                                  "since": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                  },
+                                  "filter": {
+                                    "description": "Điều kiện thêm theo cú pháp lọc Datahub (ví dụ Tính vào trung bình = true).",
+                                    "$ref": "#/$defs/__schema0"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  },
+                                  "item_kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "session",
+                                      "session_cs",
+                                      "session_sale",
+                                      "test",
+                                      "mockup",
+                                      "review_1_1",
+                                      "on_job",
+                                      "self_study",
+                                      "off",
+                                      "other"
+                                    ],
+                                    "description": "Số dòng của bảng phải >= số việc loại này đã qua ngày."
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "form_id",
+                                  "item_kind"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "manual"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "conditions"
+                      ]
+                    }
                   }
                 },
                 "required": [
@@ -22413,6 +23189,327 @@
                     "required": [
                       "stages"
                     ]
+                  },
+                  "checkpoints": {
+                    "description": "Gửi lại toàn bộ checkpoint (giữ `id` thì giữ xác nhận tay; không còn trong danh sách thì xoá).",
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "week_no": {
+                          "description": "Tuần của checkpoint; bỏ trống cho checkpoint cuối.",
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 200
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "is_final": {
+                          "default": false,
+                          "description": "Thuộc nhóm \"Đánh giá cuối\".",
+                          "type": "boolean"
+                        },
+                        "conditions": {
+                          "minItems": 1,
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "metric"
+                                  },
+                                  "form_id": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "Form của người tạo lộ trình; điều kiện đọc bảng của form này."
+                                  },
+                                  "person_field": {
+                                    "description": "Cột Người dùng chọn ra nhân sự (mặc định \"Người điền\"; phiếu chấm: \"Người được chấm\").",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "range": {
+                                    "default": "plan",
+                                    "description": "`week` = dòng tạo trong tuần của checkpoint; `plan` = từ đầu lộ trình; `since` = từ mốc giờ `since`.",
+                                    "type": "string",
+                                    "enum": [
+                                      "week",
+                                      "plan",
+                                      "since"
+                                    ]
+                                  },
+                                  "since": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                  },
+                                  "filter": {
+                                    "description": "Điều kiện thêm theo cú pháp lọc Datahub (ví dụ Tính vào trung bình = true).",
+                                    "$ref": "#/$defs/__schema0"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  },
+                                  "agg": {
+                                    "type": "string",
+                                    "enum": [
+                                      "count",
+                                      "sum",
+                                      "avg",
+                                      "max",
+                                      "min"
+                                    ]
+                                  },
+                                  "field": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "op": {
+                                    "default": "gte",
+                                    "type": "string",
+                                    "enum": [
+                                      "gte",
+                                      "gt",
+                                      "lte",
+                                      "lt",
+                                      "eq"
+                                    ]
+                                  },
+                                  "threshold": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "form_id",
+                                  "agg",
+                                  "threshold"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "weighted"
+                                  },
+                                  "form_id": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "Form của người tạo lộ trình; điều kiện đọc bảng của form này."
+                                  },
+                                  "person_field": {
+                                    "description": "Cột Người dùng chọn ra nhân sự (mặc định \"Người điền\"; phiếu chấm: \"Người được chấm\").",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "range": {
+                                    "default": "plan",
+                                    "description": "`week` = dòng tạo trong tuần của checkpoint; `plan` = từ đầu lộ trình; `since` = từ mốc giờ `since`.",
+                                    "type": "string",
+                                    "enum": [
+                                      "week",
+                                      "plan",
+                                      "since"
+                                    ]
+                                  },
+                                  "since": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                  },
+                                  "filter": {
+                                    "description": "Điều kiện thêm theo cú pháp lọc Datahub (ví dụ Tính vào trung bình = true).",
+                                    "$ref": "#/$defs/__schema0"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  },
+                                  "columns": {
+                                    "minItems": 1,
+                                    "maxItems": 30,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "field": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 200
+                                        },
+                                        "weight": {
+                                          "type": "number",
+                                          "exclusiveMinimum": 0
+                                        },
+                                        "floor": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "field",
+                                        "weight"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "threshold": {
+                                    "type": "number",
+                                    "description": "Ngưỡng của trung bình trọng số."
+                                  },
+                                  "floor": {
+                                    "description": "Ngưỡng sàn mặc định cho từng cột (cột có `floor` riêng thì dùng của nó).",
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "form_id",
+                                  "columns",
+                                  "threshold"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "vs_items"
+                                  },
+                                  "form_id": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "Form của người tạo lộ trình; điều kiện đọc bảng của form này."
+                                  },
+                                  "person_field": {
+                                    "description": "Cột Người dùng chọn ra nhân sự (mặc định \"Người điền\"; phiếu chấm: \"Người được chấm\").",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                  },
+                                  "range": {
+                                    "default": "plan",
+                                    "description": "`week` = dòng tạo trong tuần của checkpoint; `plan` = từ đầu lộ trình; `since` = từ mốc giờ `since`.",
+                                    "type": "string",
+                                    "enum": [
+                                      "week",
+                                      "plan",
+                                      "since"
+                                    ]
+                                  },
+                                  "since": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                  },
+                                  "filter": {
+                                    "description": "Điều kiện thêm theo cú pháp lọc Datahub (ví dụ Tính vào trung bình = true).",
+                                    "$ref": "#/$defs/__schema0"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  },
+                                  "item_kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "session",
+                                      "session_cs",
+                                      "session_sale",
+                                      "test",
+                                      "mockup",
+                                      "review_1_1",
+                                      "on_job",
+                                      "self_study",
+                                      "off",
+                                      "other"
+                                    ],
+                                    "description": "Số dòng của bảng phải >= số việc loại này đã qua ngày."
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "form_id",
+                                  "item_kind"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "manual"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "maxLength": 200
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "conditions"
+                      ]
+                    }
                   }
                 }
               }
