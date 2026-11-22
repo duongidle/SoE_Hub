@@ -294,3 +294,52 @@ describe("onboarding 9B", () => {
     expect(await mineN(staff)).toHaveLength(1);
   });
 });
+
+describe("onboarding 9C", () => {
+  const monday = (): string => {
+    const d = businessDate(new Date());
+    const m = new Date(`${d}T00:00:00Z`);
+    m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7));
+    return m.toISOString().slice(0, 10);
+  };
+  async function runPlan(weeks: unknown[], checkpoints: unknown[] = [], who: typeof leader = leader, staffId: string = org.userA1.id) {
+    await t.c.db.db.execute(sql`/*scope:system*/ UPDATE onb_plans SET status = 'stopped' WHERE staff_id = ${staffId}::uuid AND status = 'active'`);
+    const made = await who("onboarding.plan.create", { name: `Lộ trình ${randomUUID().slice(0, 6)}`, structure: { stages: [{ name: "Tháng 1", weeks }] }, checkpoints });
+    await who("onboarding.plan.assign", { plan_id: made.id, staff_id: staffId, start_date: monday() });
+    return made.id as string;
+  }
+  const mine = async (who: typeof staff, type: string) => ((await who("notification.list", { limit: 100 })) as { items: { type: string; body: string; read_at: string | null }[] }).items.filter((n) => n.type === type);
+
+  it("overdue: the person and the leader are told once, however often the job runs", async () => {
+    const { runOnboardingDue } = await import("../src/modules/onboarding/reminders");
+    await runPlan([{ name: "W1", items: [{ name: "Báo cáo ngày", weekday: 1, due_time: "10:00", remind_before_min: 60 }] }]);
+    const mon = monday();
+    const before = new Date(`${mon}T09:30:00+07:00`); // inside the reminder window (09:00 to 10:00)
+    const after = new Date(`${mon}T10:30:00+07:00`);
+    const r1 = await runOnboardingDue(t.c.db.db, before);
+    expect(r1.reminded).toBeGreaterThanOrEqual(1);
+    expect(await mine(staff, "onboarding.due")).toHaveLength(1);
+    expect(await mine(leader, "onboarding.due")).toHaveLength(0);
+    await runOnboardingDue(t.c.db.db, before);
+    expect(await mine(staff, "onboarding.due")).toHaveLength(1);
+    await runOnboardingDue(t.c.db.db, after);
+    await runOnboardingDue(t.c.db.db, after);
+    expect(await mine(staff, "onboarding.overdue")).toHaveLength(1);
+    expect(await mine(leader, "onboarding.overdue")).toHaveLength(1);
+  });
+
+  it("ticks fold into one summary a day for the leader, rewritten as more comes in", async () => {
+    const id = await runPlan([{ name: "W1", items: [{ name: "Việc A", weekday: 1 }, { name: "Việc B", weekday: 1 }] }]);
+    const occ = occurrences(await leader("onboarding.plan.get", { plan_id: id }));
+    await staff("onboarding.item.tick", { occurrence_id: occ[0].id });
+    await drainOutbox(t);
+    const one = (await mine(leader, "onboarding.daily")).filter((n) => n.body.includes("xong 1 việc"));
+    expect(one).toHaveLength(1);
+    await staff("onboarding.item.tick", { occurrence_id: occ[1].id });
+    await drainOutbox(t);
+    const all = (await mine(leader, "onboarding.daily")).filter((n) => n.body.includes("xong 2 việc"));
+    expect(all).toHaveLength(1);
+    expect((await mine(leader, "onboarding.daily")).filter((n) => n.body.includes("xong 1 việc"))).toHaveLength(0); // rewritten, not a second one
+    expect(await mine(staff, "onboarding.daily")).toHaveLength(0);
+  });
+});

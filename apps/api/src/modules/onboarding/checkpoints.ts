@@ -10,9 +10,12 @@ import { applyGrants, ownerOf } from "./grants";
 import { FILLER_COLUMN_DEFAULT, Id, KINDS, addDays, dateOf, guardAi, loadPlan, requirePlan, rights, type PlanRow } from "./shared";
 
 type Ctx = HandlerCtx<Actor>;
+/** What the evaluation needs: a database handle and an actor (the form owner is substituted per form). Lets a job evaluate without a command context. */
+export type Calc = Pick<HandlerCtx<Actor>, "db" | "actor">;
 const GRANT_EVENTS = ["datahub.structure.changed", "datahub.share.changed"];
 const AGGS = ["count", "sum", "avg", "max", "min"] as const;
 const OPS = ["gte", "gt", "lte", "lt", "eq"] as const;
+export const GROUPS = ["test", "mockup", "on_job", "qna", "daily", "other"] as const;
 const RANGES = ["week", "plan", "since"] as const;
 
 const Common = {
@@ -40,6 +43,7 @@ export const CheckpointIn = z.object({
   week_no: z.number().int().min(1).max(200).nullable().optional().describe("Tuần của checkpoint; bỏ trống cho checkpoint cuối."),
   name: z.string().trim().min(1).max(300),
   is_final: z.boolean().default(false).describe('Thuộc nhóm "Đánh giá cuối".'),
+  group: z.enum(GROUPS).optional().describe("Cột của trang Theo dõi: Test, Mockup, On-job, Q&A, Báo cáo ngày, Khác. Bỏ trống: Khác."),
   conditions: z.array(ConditionIn).min(1).max(20),
 });
 export type CheckpointInput = z.infer<typeof CheckpointIn>;
@@ -70,26 +74,26 @@ export async function writeCheckpoints(ctx: Pick<Ctx, "db">, plan: PlanRow, list
     const id = c.id ?? newId();
     keep.push(id);
     const cond = JSON.stringify(c.conditions);
-    if (c.id) await ctx.db.execute(sql`UPDATE onb_checkpoints SET week_no = ${c.week_no ?? null}::int, position = ${i}::int, name = ${c.name}, is_final = ${c.is_final}, conditions = ${cond}::jsonb WHERE id = ${id}::uuid`);
-    else await ctx.db.execute(sql`INSERT INTO onb_checkpoints (id, plan_id, week_no, position, name, is_final, conditions) VALUES (${id}::uuid, ${plan.id}::uuid, ${c.week_no ?? null}::int, ${i}::int, ${c.name}, ${c.is_final}, ${cond}::jsonb)`);
+    if (c.id) await ctx.db.execute(sql`UPDATE onb_checkpoints SET week_no = ${c.week_no ?? null}::int, position = ${i}::int, name = ${c.name}, is_final = ${c.is_final}, group_key = ${c.group ?? null}, conditions = ${cond}::jsonb WHERE id = ${id}::uuid`);
+    else await ctx.db.execute(sql`INSERT INTO onb_checkpoints (id, plan_id, week_no, position, name, is_final, group_key, conditions) VALUES (${id}::uuid, ${plan.id}::uuid, ${c.week_no ?? null}::int, ${i}::int, ${c.name}, ${c.is_final}, ${c.group ?? null}, ${cond}::jsonb)`);
   }
   await ctx.db.execute(sql`DELETE FROM onb_checkpoints WHERE plan_id = ${plan.id}::uuid AND NOT (id = ANY(${`{${keep.join(",")}}`}::uuid[]))`);
 }
 
-interface CpRow { id: string; weekNo: number | null; name: string; isFinal: boolean; conditions: Condition[]; confirmedAt: Date | null; confirmedBy: string | null }
+interface CpRow { id: string; weekNo: number | null; name: string; isFinal: boolean; group: string | null; conditions: Condition[]; confirmedAt: Date | null; confirmedBy: string | null; passedNotifiedAt: Date | null }
 async function loadCheckpoints(db: Executor, planId: string): Promise<CpRow[]> {
   const rows = (await db.execute(sql`SELECT * FROM onb_checkpoints WHERE plan_id = ${planId}::uuid ORDER BY position`)).rows as Record<string, unknown>[];
-  return rows.map((r) => ({ id: r.id as string, weekNo: (r.week_no as number | null) ?? null, name: r.name as string, isFinal: !!r.is_final, conditions: r.conditions as Condition[], confirmedAt: r.confirmed_at ? new Date(r.confirmed_at as string) : null, confirmedBy: (r.confirmed_by as string | null) ?? null }));
+  return rows.map((r) => ({ id: r.id as string, weekNo: (r.week_no as number | null) ?? null, name: r.name as string, isFinal: !!r.is_final, group: (r.group_key as string | null) ?? null, conditions: r.conditions as Condition[], confirmedAt: r.confirmed_at ? new Date(r.confirmed_at as string) : null, confirmedBy: (r.confirmed_by as string | null) ?? null, passedNotifiedAt: r.passed_notified_at ? new Date(r.passed_notified_at as string) : null }));
 }
 /** Definitions (what the editor needs), with the confirmation of the manual ones. */
 export async function readCheckpoints(db: Executor, planId: string) {
-  return (await loadCheckpoints(db, planId)).map((c) => ({ id: c.id, week_no: c.weekNo, name: c.name, is_final: c.isFinal, conditions: c.conditions, confirmed_at: c.confirmedAt?.toISOString() ?? null }));
+  return (await loadCheckpoints(db, planId)).map((c) => ({ id: c.id, week_no: c.weekNo, name: c.name, is_final: c.isFinal, group: c.group, conditions: c.conditions, confirmed_at: c.confirmedAt?.toISOString() ?? null }));
 }
 /** Copies the checkpoints of a plan to another (clone, assign of a template): new ids, no confirmation, forms mapped (a dropped form leaves `form_id` null: "choose your form"). */
 export async function copyCheckpoints(db: Executor, fromId: string, toId: string, forms: Map<string, string> | "keep" | "drop"): Promise<void> {
   for (const c of await loadCheckpoints(db, fromId)) {
     const conds = c.conditions.map((k) => (k.type === "manual" ? k : { ...k, form_id: forms === "keep" ? k.form_id : forms === "drop" || !k.form_id ? null : (forms.get(k.form_id) ?? null) }));
-    await db.execute(sql`INSERT INTO onb_checkpoints (id, plan_id, week_no, position, name, is_final, conditions) SELECT ${newId()}::uuid, ${toId}::uuid, week_no, position, name, is_final, ${JSON.stringify(conds)}::jsonb FROM onb_checkpoints WHERE id = ${c.id}::uuid`);
+    await db.execute(sql`INSERT INTO onb_checkpoints (id, plan_id, week_no, position, name, is_final, group_key, conditions) SELECT ${newId()}::uuid, ${toId}::uuid, week_no, position, name, is_final, group_key, ${JSON.stringify(conds)}::jsonb FROM onb_checkpoints WHERE id = ${c.id}::uuid`);
   }
 }
 
@@ -114,7 +118,7 @@ const and = (nodes: (FilterNode | undefined)[]): FilterNode | undefined => {
 const endOfDay = (d: string) => new Date(`${d}T23:59:59.999+07:00`);
 
 interface Win { from: string; to: string; since?: string }
-interface Env { ctx: Ctx; plan: PlanRow; cp: CpRow; forms: Map<string, { ownerId: string; tableId: string | null }>; asOf: Date }
+interface Env { ctx: Calc; plan: PlanRow; cp: CpRow; forms: Map<string, { ownerId: string; tableId: string | null }>; asOf: Date }
 
 /** Days a condition reads: the week of the checkpoint, the whole plan, or since a moment; always cut at `asOf`. */
 function windowOf(env: Env, k: { range: (typeof RANGES)[number]; since?: string | undefined }): Win {
@@ -174,14 +178,14 @@ async function evalCondition(env: Env, k: Condition): Promise<CondResult> {
 }
 
 export type CpStatus = "not_yet" | "running" | "passed" | "failed" | "passed_late";
-async function evalCheckpoint(ctx: Ctx, plan: PlanRow, cp: CpRow, forms: Env["forms"], asOf: Date) {
+async function evalCheckpoint(ctx: Calc, plan: PlanRow, cp: CpRow, forms: Env["forms"], asOf: Date) {
   const env: Env = { ctx, plan, cp, forms, asOf };
   const results: CondResult[] = [];
   for (const k of cp.conditions) results.push(await evalCondition(env, k));
   return { results, met: results.every((r) => r.met) };
 }
 
-async function statusOf(ctx: Ctx, plan: PlanRow, cp: CpRow, forms: Env["forms"]): Promise<{ status: CpStatus; results: CondResult[] }> {
+async function statusOf(ctx: Calc, plan: PlanRow, cp: CpRow, forms: Env["forms"]): Promise<{ status: CpStatus; results: CondResult[] }> {
   const now = new Date();
   if (cp.weekNo && !cp.isFinal) {
     const start = dateOf(plan.startDate!, cp.weekNo, 1);
@@ -198,6 +202,20 @@ async function statusOf(ctx: Ctx, plan: PlanRow, cp: CpRow, forms: Env["forms"])
   if (cur.met) return { status: "passed", results: cur.results };
   return { status: plan.status === "completed" || plan.status === "stopped" ? "failed" : "running", results: cur.results };
 }
+
+/** Every checkpoint of a plan with its status and condition values (computed now). One query per condition through the metric engine, as the owner of the form. */
+export async function evaluatePlan(ctx: Calc, plan: PlanRow, only?: (c: CpRow) => boolean): Promise<{ cp: CpRow; status: CpStatus; results: CondResult[] }[]> {
+  const cps = (await loadCheckpoints(ctx.db, plan.id)).filter((c) => !only || only(c));
+  const formIds = [...new Set(cps.flatMap((c) => c.conditions.flatMap((k) => (k.type !== "manual" && k.form_id ? [k.form_id] : []))))];
+  const forms: Env["forms"] = new Map();
+  if (formIds.length) for (const r of (await ctx.db.execute(sql`SELECT id, owner_id, table_id FROM forms WHERE id = ANY(${`{${formIds.join(",")}}`}::uuid[]) AND deleted_at IS NULL`)).rows as { id: string; owner_id: string; table_id: string | null }[]) forms.set(r.id, { ownerId: r.owner_id, tableId: r.table_id });
+  const out = [];
+  for (const c of cps) out.push({ cp: c, ...(await statusOf(ctx, plan, c, forms)) });
+  return out;
+}
+/** Column of the follow-up page: the one set on the checkpoint, else "other". */
+export const groupOf = (c: CpRow): (typeof GROUPS)[number] => ((GROUPS as readonly string[]).includes(c.group ?? "") ? (c.group as (typeof GROUPS)[number]) : "other");
+export type { CpRow };
 
 const Out = z.record(z.string(), z.unknown());
 const C = { permission: "onboarding:path:create" as const };
@@ -216,15 +234,7 @@ export const checkpointOperations = [
       await guardAi(ctx);
       const plan = await requirePlan(ctx, i.plan_id, "view");
       if (!plan.staffId || !plan.startDate) throw new AppError("conflict", "Lộ trình chưa gắn cho nhân sự.", { reason: "plan_not_assigned" });
-      const cps = await loadCheckpoints(ctx.db, plan.id);
-      const formIds = [...new Set(cps.flatMap((c) => c.conditions.flatMap((k) => (k.type !== "manual" && k.form_id ? [k.form_id] : []))))];
-      const forms: Env["forms"] = new Map();
-      if (formIds.length) for (const r of (await ctx.db.execute(sql`SELECT id, owner_id, table_id FROM forms WHERE id = ANY(${`{${formIds.join(",")}}`}::uuid[]) AND deleted_at IS NULL`)).rows as { id: string; owner_id: string; table_id: string | null }[]) forms.set(r.id, { ownerId: r.owner_id, tableId: r.table_id });
-      const out = [];
-      for (const c of cps) {
-        const s = await statusOf(ctx, plan, c, forms);
-        out.push({ id: c.id, week_no: c.weekNo, name: c.name, is_final: c.isFinal, status: s.status, conditions: s.results, confirmed_at: c.confirmedAt?.toISOString() ?? null });
-      }
+      const out = (await evaluatePlan(ctx, plan)).map(({ cp: c, status, results }) => ({ id: c.id, week_no: c.weekNo, name: c.name, is_final: c.isFinal, group: groupOf(c), status, conditions: results, confirmed_at: c.confirmedAt?.toISOString() ?? null }));
       const kinds = (await ctx.db.execute(sql`SELECT i.kind, count(*)::int AS total, count(o.done_at)::int AS done,
           count(*) FILTER (WHERE o.done_at IS NULL AND o.due_at IS NOT NULL AND o.due_at < now())::int AS overdue
         FROM onb_occurrences o JOIN onb_items i ON i.id = o.item_id WHERE o.plan_id = ${plan.id}::uuid GROUP BY i.kind`)).rows as { kind: string; total: number; done: number; overdue: number }[];

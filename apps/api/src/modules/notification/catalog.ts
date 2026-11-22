@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { BUSINESS_TIMEZONE } from "@soe/shared";
+import { BUSINESS_TIMEZONE, businessDate } from "@soe/shared";
 import type { Db, OutboxRow } from "@soe/db";
 import { decrypt } from "../../auth/crypto";
 import { CODE_TTL_HOURS } from "../auth/codes";
@@ -42,6 +42,10 @@ export const NOTIFICATION_TYPES = {
   postPending: "post.pending",
   postApproved: "post.approved",
   postReturned: "post.returned",
+  onboardingDaily: "onboarding.daily",
+  onboardingDue: "onboarding.due",
+  onboardingOverdue: "onboarding.overdue",
+  onboardingWeekMissed: "onboarding.week_missed",
 } as const;
 
 const vnTime = (iso: string): string =>
@@ -496,3 +500,35 @@ defineNotification({
     return { title: "Một câu hỏi của form bị tắt", body: `Cột "${p.column_name ?? ""}" bị xoá nên câu hỏi nối với nó trong form "${x.form_name}" đã bị tắt. Form vẫn nhận các câu còn lại; khôi phục cột hoặc nối câu hỏi với cột khác.`, link: `/form/${x.form_id}`, data: { form_id: x.form_id } };
   },
 });
+
+// ---- 9C: onboarding (design module9 9) ---------------------------------------------------------------------------------------------------
+/**
+ * What a person on a plan did today, told to their direct Leader (the Manager when they have no Leader): one notification per person per day, rewritten as more comes in
+ * (merge key = person + day). Names of things only: no answer, no score.
+ */
+defineNotification({
+  type: NOTIFICATION_TYPES.onboardingDaily,
+  category: "onboarding",
+  on: ["onboarding.item.ticked", "onboarding.checkpoint.passed"],
+  mandatory: true,
+  mergeKey: (ev) => `onb.daily|${(ev.payload as { staff_id: string }).staff_id}|${businessDate(ev.createdAt)}`,
+  recipients: (ev) => {
+    const p = ev.payload as { notify_id: string | null };
+    return p.notify_id ? [p.notify_id] : [];
+  },
+  object: (ev) => ({ type: "onboarding_plan", id: (ev.payload as { plan_id: string }).plan_id }),
+  render: async (ev, _r, _by, _c, { db }) => {
+    const p = ev.payload as { plan_id: string; staff_id: string };
+    const day = businessDate(ev.createdAt);
+    const [u] = (await db.execute(sql`SELECT full_name FROM users WHERE /*scope:system*/ id = ${p.staff_id}::uuid`)).rows as { full_name: string }[];
+    const [t] = (await db.execute(sql`SELECT count(*)::int AS n FROM onb_occurrences WHERE plan_id = ${p.plan_id}::uuid AND (done_at AT TIME ZONE ${BUSINESS_TIMEZONE})::date = ${day}::date`)).rows as { n: number }[];
+    const cps = (await db.execute(sql`SELECT name FROM onb_checkpoints WHERE plan_id = ${p.plan_id}::uuid AND (passed_notified_at AT TIME ZONE ${BUSINESS_TIMEZONE})::date = ${day}::date ORDER BY position`)).rows as { name: string }[];
+    const parts = [`xong ${t?.n ?? 0} việc`];
+    if (cps.length) parts.push(`checkpoint đạt: ${cps.map((c) => `"${c.name}"`).join(", ")}`);
+    return { title: `${u?.full_name ?? "Nhân sự"} hôm nay`, body: `${u?.full_name ?? "Nhân sự"}: ${parts.join("; ")}.`, link: "/onboarding/theo-doi", data: { plan_id: p.plan_id, staff_id: p.staff_id, day, items_done: t?.n ?? 0, checkpoints: cps.map((c) => c.name) } };
+  },
+});
+/** Job-sent (no event): a work item reaches its reminder time, goes overdue, or a checkpoint of the week is still not met on Sunday evening. */
+defineNotification({ type: NOTIFICATION_TYPES.onboardingDue, category: "onboarding", priority: "important", mandatory: true, render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.onboardingOverdue, category: "onboarding", priority: "important", mandatory: true, render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.onboardingWeekMissed, category: "onboarding", priority: "important", mandatory: true, render: () => null });

@@ -22284,6 +22284,10 @@
                                     "type": "string",
                                     "maxLength": 2000
                                   },
+                                  "is_break": {
+                                    "description": "Tuần nghỉ (không việc, vẫn chiếm một tuần lịch).",
+                                    "type": "boolean"
+                                  },
                                   "items": {
                                     "default": [],
                                     "maxItems": 300,
@@ -22452,6 +22456,18 @@
                           "default": false,
                           "description": "Thuộc nhóm \"Đánh giá cuối\".",
                           "type": "boolean"
+                        },
+                        "group": {
+                          "description": "Cột của trang Theo dõi: Test, Mockup, On-job, Q&A, Báo cáo ngày, Khác. Bỏ trống: Khác.",
+                          "type": "string",
+                          "enum": [
+                            "test",
+                            "mockup",
+                            "on_job",
+                            "qna",
+                            "daily",
+                            "other"
+                          ]
                         },
                         "conditions": {
                           "minItems": 1,
@@ -23055,6 +23071,10 @@
                                     "type": "string",
                                     "maxLength": 2000
                                   },
+                                  "is_break": {
+                                    "description": "Tuần nghỉ (không việc, vẫn chiếm một tuần lịch).",
+                                    "type": "boolean"
+                                  },
                                   "items": {
                                     "default": [],
                                     "maxItems": 300,
@@ -23224,6 +23244,18 @@
                           "default": false,
                           "description": "Thuộc nhóm \"Đánh giá cuối\".",
                           "type": "boolean"
+                        },
+                        "group": {
+                          "description": "Cột của trang Theo dõi: Test, Mockup, On-job, Q&A, Báo cáo ngày, Khác. Bỏ trống: Khác.",
+                          "type": "string",
+                          "enum": [
+                            "test",
+                            "mockup",
+                            "on_job",
+                            "qna",
+                            "daily",
+                            "other"
+                          ]
                         },
                         "conditions": {
                           "minItems": 1,
@@ -24139,6 +24171,183 @@
         },
         "responses": {
           "201": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy đối tượng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/onboarding/plans/{plan_id}/week-break": {
+      "post": {
+        "operationId": "onboarding.plan.week_break",
+        "summary": "Đánh dấu hoặc bỏ \"tuần nghỉ\" trong lộ trình (kể cả đã gắn): thêm một tuần nghỉ vào vị trí `week_no`, mọi tuần từ đó trở đi dời xuống một tuần (việc, checkpoint, ngày thật); bỏ thì tuần nghỉ mất và các tuần sau dời lên.",
+        "tags": [
+          "onboarding"
+        ],
+        "x-command-name": "onboarding.plan.week_break",
+        "x-ai-allowed": true,
+        "x-permission": "onboarding:path:create",
+        "parameters": [
+          {
+            "name": "plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "week_no": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200
+                  },
+                  "is_break": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "week_no"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
             "description": "Thành công",
             "content": {
               "application/json": {

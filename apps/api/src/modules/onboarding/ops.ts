@@ -21,6 +21,8 @@ export const onboardingEvents: EventDef[] = [
   { name: "onboarding.plan.assigned", version: 1, description: "Một lộ trình được gắn cho nhân sự.", schema: z.object({ plan_id: z.uuid(), staff_id: z.uuid(), leader_id: z.uuid().nullable(), start_date: z.string() }), audience: (p: { staff_id: string; leader_id: string | null }) => ({ users: [p.staff_id, ...(p.leader_id ? [p.leader_id] : [])] }) },
   { name: "onboarding.item.due", version: 1, description: "Một việc của lộ trình tới hạn hoặc quá hạn (job nhắc của 9B phát).", schema: z.object({ plan_id: z.uuid(), occurrence_id: z.uuid(), item_id: z.uuid(), staff_id: z.uuid(), due_at: z.string(), overdue: z.boolean() }), audience: (p: { staff_id: string }) => ({ users: [p.staff_id] }) },
   { name: "onboarding.plan.ended", version: 1, description: "Một lộ trình kết thúc (dừng hoặc hoàn thành).", schema: z.object({ plan_id: z.uuid(), staff_id: z.uuid(), status: z.enum(["stopped", "completed"]) }), audience: (p: { staff_id: string }) => ({ users: [p.staff_id] }) },
+  { name: "onboarding.item.ticked", version: 1, description: "Nhân sự tick xong một việc (đi tới thông báo gom theo ngày cho leader).", schema: z.object({ plan_id: z.uuid(), staff_id: z.uuid(), notify_id: z.uuid().nullable() }) },
+  { name: "onboarding.checkpoint.passed", version: 1, description: "Một checkpoint chuyển sang Đạt (job quét phát; đi tới thông báo gom theo ngày cho leader).", schema: z.object({ plan_id: z.uuid(), staff_id: z.uuid(), notify_id: z.uuid().nullable(), checkpoint_id: z.uuid() }) },
 ];
 
 const Out = z.record(z.string(), z.unknown());
@@ -63,7 +65,7 @@ async function writeStructure(ctx: Ctx, plan: PlanRow, s: Structure): Promise<vo
   const keep: string[] = [];
   let pos = 0;
   for (const { stage, no, w } of weeks) {
-    await ctx.db.execute(sql`INSERT INTO onb_weeks (id, plan_id, stage_id, week_no, name, goal) VALUES (${newId()}::uuid, ${plan.id}::uuid, ${stageIds[stage]!}::uuid, ${no}::int, ${w.name}, ${w.goal ?? null})`);
+    await ctx.db.execute(sql`INSERT INTO onb_weeks (id, plan_id, stage_id, week_no, name, goal, is_break) VALUES (${newId()}::uuid, ${plan.id}::uuid, ${stageIds[stage]!}::uuid, ${no}::int, ${w.name}, ${w.goal ?? null}, ${w.is_break ?? false})`);
     for (const it of w.items) {
       const id = it.id ?? newId();
       keep.push(id);
@@ -87,9 +89,9 @@ async function upsertItem(db: Executor, planId: string, id: string, weekNo: numb
 }
 
 /** The structure of a plan as the `Structure` input shape (ids kept), used by `get`, clone and copy. */
-async function readStructure(db: Executor, planId: string): Promise<{ stages: { id: string; name: string; weeks: { week_no: number; name: string; goal: string | null; items: Record<string, unknown>[] }[] }[]}> {
+async function readStructure(db: Executor, planId: string): Promise<{ stages: { id: string; name: string; weeks: { week_no: number; name: string; goal: string | null; is_break: boolean; items: Record<string, unknown>[] }[] }[]}> {
   const stages = (await db.execute(sql`SELECT id, name FROM onb_stages WHERE plan_id = ${planId}::uuid ORDER BY position`)).rows as { id: string; name: string }[];
-  const weeks = (await db.execute(sql`SELECT stage_id, week_no, name, goal FROM onb_weeks WHERE plan_id = ${planId}::uuid ORDER BY week_no`)).rows as { stage_id: string | null; week_no: number; name: string; goal: string | null }[];
+  const weeks = (await db.execute(sql`SELECT stage_id, week_no, name, goal, is_break FROM onb_weeks WHERE plan_id = ${planId}::uuid ORDER BY week_no`)).rows as { stage_id: string | null; week_no: number; name: string; goal: string | null; is_break: boolean }[];
   const items = (await db.execute(sql`SELECT * FROM onb_items WHERE plan_id = ${planId}::uuid ORDER BY week_no, position`)).rows as Record<string, unknown>[];
   const occ = (await db.execute(sql`SELECT id, item_id, on_date, due_at, done_at FROM onb_occurrences WHERE plan_id = ${planId}::uuid ORDER BY on_date`)).rows as Record<string, unknown>[];
   const occBy = new Map<string, Record<string, unknown>[]>();
@@ -103,7 +105,7 @@ async function readStructure(db: Executor, planId: string): Promise<{ stages: { 
     form_id: r.form_id, need_form: r.need_form, share_table: r.share_table, filler_column: r.filler_column, leader_columns: r.leader_columns, link: r.link, occurrences: occBy.get(r.id as string) ?? [],
   });
   return {
-    stages: stages.map((s) => ({ id: s.id, name: s.name, weeks: weeks.filter((w) => w.stage_id === s.id).map((w) => ({ week_no: w.week_no, name: w.name, goal: w.goal, items: items.filter((i) => i.week_no === w.week_no).map(itemOut) })) })),
+    stages: stages.map((s) => ({ id: s.id, name: s.name, weeks: weeks.filter((w) => w.stage_id === s.id).map((w) => ({ week_no: w.week_no, name: w.name, goal: w.goal, is_break: w.is_break, items: items.filter((i) => i.week_no === w.week_no).map(itemOut) })) })),
   };
 }
 
@@ -116,7 +118,7 @@ async function structureFor(db: Executor, planId: string, opts: { forms: Map<str
     stages: st.stages.map((s) => ({
       name: s.name,
       weeks: s.weeks.map((w) => ({
-        week_no: w.week_no, name: w.name, goal: w.goal ?? undefined,
+        week_no: w.week_no, name: w.name, goal: w.goal ?? undefined, is_break: w.is_break,
         items: w.items.map((i) => {
           const fid = (i.form_id as string | null) ?? null;
           const mapped = opts.forms === "keep" ? fid : opts.forms === "drop" ? null : fid ? (opts.forms.get(fid) ?? null) : null;
@@ -304,6 +306,50 @@ export const onboardingOperations = [
   }),
 
   defineCommand({
+    name: "onboarding.plan.week_break",
+    summary: "Đánh dấu hoặc bỏ \"tuần nghỉ\" trong lộ trình (kể cả đã gắn): thêm một tuần nghỉ vào vị trí `week_no`, mọi tuần từ đó trở đi dời xuống một tuần (việc, checkpoint, ngày thật); bỏ thì tuần nghỉ mất và các tuần sau dời lên.",
+    ...C,
+    emits: GRANT_EVENTS,
+    input: z.object({ plan_id: Id, week_no: z.number().int().min(1).max(200), is_break: z.boolean().default(true), name: z.string().trim().min(1).max(300).optional() }),
+    output: Out,
+    http: { method: "POST", path: "/onboarding/plans/:plan_id/week-break" },
+    handler: async (ctx, i) => {
+      await guardAi(ctx);
+      const plan = await requirePlan(ctx, i.plan_id, "edit");
+      if (plan.status === "completed" || plan.status === "stopped") throw new AppError("conflict", "Lộ trình đã kết thúc, không sửa được.", { reason: "plan_ended" });
+      const pid = plan.id;
+      const dir = i.is_break ? 1 : -1;
+      const wk = (await ctx.db.execute(sql`SELECT stage_id, is_break FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no = ${i.week_no}::int`)).rows[0] as { stage_id: string | null; is_break: boolean } | undefined;
+      if (i.is_break) {
+        const prev = (await ctx.db.execute(sql`SELECT stage_id FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no < ${i.week_no}::int ORDER BY week_no DESC LIMIT 1`)).rows[0] as { stage_id: string | null } | undefined;
+        if (!wk && !prev) throw new AppError("validation_error", `Tuần ${i.week_no} không có trong lộ trình.`, { reason: "week_unknown" });
+      } else {
+        if (!wk?.is_break) throw new AppError("validation_error", `Tuần ${i.week_no} không phải tuần nghỉ.`, { reason: "not_break_week" });
+        const busy = await ctx.db.execute(sql`SELECT 1 FROM onb_items WHERE plan_id = ${pid}::uuid AND week_no = ${i.week_no}::int LIMIT 1`);
+        if (busy.rows.length) throw new AppError("conflict", "Tuần nghỉ còn việc, chuyển hoặc xoá việc trước.", { reason: "break_week_has_items" });
+      }
+      const from = i.is_break ? i.week_no : i.week_no + 1;
+      // Move from the far end so the unique (plan, week) never collides.
+      const later = (await ctx.db.execute(sql`SELECT week_no FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no >= ${from}::int ORDER BY week_no ${i.is_break ? sql`DESC` : sql`ASC`}`)).rows as { week_no: number }[];
+      if (!i.is_break) await ctx.db.execute(sql`DELETE FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no = ${i.week_no}::int`);
+      for (const { week_no } of later) await ctx.db.execute(sql`UPDATE onb_weeks SET week_no = ${week_no + dir}::int WHERE plan_id = ${pid}::uuid AND week_no = ${week_no}::int`);
+      await ctx.db.execute(sql`UPDATE onb_items SET week_no = week_no + ${dir}::int WHERE plan_id = ${pid}::uuid AND week_no >= ${from}::int`);
+      await ctx.db.execute(sql`UPDATE onb_items SET until_week_no = until_week_no + ${dir}::int WHERE plan_id = ${pid}::uuid AND until_week_no >= ${from}::int`);
+      await ctx.db.execute(sql`UPDATE onb_checkpoints SET week_no = week_no + ${dir}::int WHERE plan_id = ${pid}::uuid AND week_no >= ${from}::int`);
+      if (!i.is_break) {
+        await ctx.db.execute(sql`UPDATE onb_items SET until_week_no = GREATEST(until_week_no, week_no) WHERE plan_id = ${pid}::uuid AND until_week_no IS NOT NULL`);
+      } else {
+        const stage = wk?.stage_id ?? ((await ctx.db.execute(sql`SELECT stage_id FROM onb_weeks WHERE plan_id = ${pid}::uuid AND week_no < ${i.week_no}::int ORDER BY week_no DESC LIMIT 1`)).rows[0] as { stage_id: string | null }).stage_id;
+        await ctx.db.execute(sql`INSERT INTO onb_weeks (id, plan_id, stage_id, week_no, name, goal, is_break) VALUES (${newId()}::uuid, ${pid}::uuid, ${stage}::uuid, ${i.week_no}::int, ${i.name ?? "Tuần nghỉ"}, NULL, true)`);
+      }
+      if (plan.staffId) await syncOccurrences(ctx.db, plan);
+      await touch(ctx, pid);
+      ctx.audit({ type: "onboarding_plan", id: pid, details: { week_no: i.week_no, is_break: i.is_break } });
+      return planOut(await loadPlan(ctx.db, pid));
+    },
+  }),
+
+  defineCommand({
     name: "onboarding.plan.stop",
     summary: "Dừng lộ trình đang chạy, kèm lý do. Bảng chia sẻ cho nhân sự hạ về quyền Xem.",
     ...C,
@@ -346,6 +392,7 @@ export const onboardingOperations = [
     summary: "Nhân sự tick xong (hoặc bỏ tick) một việc của mình ở một ngày. AI không làm được.",
     permission: "onboarding:path:read",
     aiAllowed: false,
+    emits: ["onboarding.item.ticked"],
     input: z.object({ occurrence_id: Id, done: z.boolean().default(true) }),
     output: Out,
     http: { method: "POST", path: "/onboarding/occurrences/:occurrence_id/tick" },
@@ -356,6 +403,10 @@ export const onboardingOperations = [
       if (o.status !== "active") throw new AppError("conflict", "Lộ trình không còn chạy.", { reason: "plan_not_active" });
       await ctx.db.execute(sql`UPDATE onb_occurrences SET done_at = ${i.done ? sql`now()` : sql`NULL`}, done_by = ${i.done ? ctx.actor.userId : null}::uuid WHERE id = ${o.id}::uuid`);
       ctx.audit({ type: "onboarding_plan", id: o.plan_id, details: { occurrence_id: o.id, done: i.done } });
+      if (i.done) {
+        const me = await loadPerson(ctx.db, ctx.actor.userId);
+        await ctx.emit("onboarding.item.ticked", { aggregateType: "onboarding_plan", aggregateId: o.plan_id, payload: { plan_id: o.plan_id, staff_id: ctx.actor.userId, notify_id: me?.leaderId ?? me?.managerId ?? null } });
+      }
       const [x] = (await ctx.db.execute(sql`SELECT id, plan_id, item_id, on_date, due_at, done_at FROM onb_occurrences WHERE id = ${o.id}::uuid`)).rows as Record<string, unknown>[];
       return { ...x, on_date: x!.on_date instanceof Date ? (x!.on_date as Date).toISOString().slice(0, 10) : String(x!.on_date).slice(0, 10) };
     },

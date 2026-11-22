@@ -6,6 +6,7 @@ import type { Config } from "../config";
 import { purgeSessions } from "../auth/sessions";
 import { datahubJobs } from "../modules/datahub";
 import { addIndexMonths, runDueRules, runMorningDigest, snapshotAllTrees } from "../modules/deal";
+import { runCheckpointsPassed, runOnboardingDue, runWeekEnd } from "../modules/onboarding/reminders";
 import { notifyExpiringConnections, purgeNotifications, runDueReminders, scrubExpiredCodes } from "../modules/notification";
 
 /** The internal system account (a row of `users`, kind `system`, created by migration 0003). */
@@ -165,6 +166,34 @@ export const jobs: JobDef[] = [
     async run({ db, logger }) {
       const n = await notifyExpiringConnections(db);
       logger.info({ job: "notification-ai-expiring", notified: n }, "expiring connections notified");
+    },
+  },
+  {
+    name: "onboarding-due",
+    cron: "*/5 * * * *",
+    description: "Mỗi 5 phút: việc onboard tới giờ nhắc mà chưa tick thì nhắc nhân sự; quá hạn thì báo nhân sự và leader (mỗi lần xuất hiện một lần).",
+    async run({ db, logger }) {
+      const r = await runOnboardingDue(db);
+      if (r.reminded + r.overdue > 0) logger.info({ job: "onboarding-due", ...r }, "onboarding reminders sent");
+    },
+  },
+  {
+    name: "onboarding-checkpoints",
+    cron: "*/10 * * * *",
+    description: "Mỗi 10 phút: checkpoint onboard vừa chuyển Đạt thì đưa vào thông báo gom theo ngày cho leader.",
+    async run({ db, logger }) {
+      const n = await runCheckpointsPassed(db);
+      if (n > 0) logger.info({ job: "onboarding-checkpoints", passed: n }, "onboarding checkpoints passed");
+    },
+  },
+  {
+    name: "onboarding-week-end",
+    cron: "0 20 * * 0",
+    tz: BUSINESS_TIMEZONE,
+    description: "20:00 Chủ nhật: checkpoint của tuần onboard vừa qua chưa đạt thì báo nhân sự và leader.",
+    async run({ db, logger }) {
+      const n = await runWeekEnd(db);
+      logger.info({ job: "onboarding-week-end", sent: n }, "onboarding week-end notices sent");
     },
   },
   ...datahubJobs,

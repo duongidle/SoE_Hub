@@ -46,6 +46,8 @@ export interface NotificationDef {
   canView?: (ev: OutboxRow, recipient: string, ctx: unknown, deps: NotifyDeps) => boolean | Promise<boolean>;
   /** The person who caused it is told too (a reminder is for yourself). */
   selfNotify?: boolean;
+  /** Merges events into one notification: same key (and same person) = one row whose text is rewritten (and shown as unread) by the later event (onboarding daily summary). */
+  mergeKey?: (ev: OutboxRow) => string;
 }
 
 const defs: NotificationDef[] = [];
@@ -85,6 +87,8 @@ export interface SendInput {
   canView?: (recipient: string, ctx: unknown) => boolean | Promise<boolean>;
   /** Makes the send idempotent: same source + same person = one notification. */
   sourceEventId?: string | null;
+  /** With `sourceEventId`: a second send of the same source + person rewrites the text and marks it unread, instead of being dropped. */
+  merge?: boolean;
 }
 
 /** Who did it, as text, and the channel. */
@@ -161,7 +165,7 @@ export async function sendNotification(db: Db, input: SendInput, opts: { selfNot
           via: actor.via,
           sourceEventId: input.sourceEventId ? (m.key ? stableId(input.sourceEventId, m.key) : input.sourceEventId) : null,
         })
-        .onConflictDoNothing()
+        .onConflictDoUpdate({ target: [notifications.sourceEventId, notifications.userId], set: { title: m.content.title, body: m.content.body, data: m.content.data ?? {}, readAt: null, link: m.content.link ?? null }, setWhere: sql`${input.merge === true}` })
         .returning({ id: notifications.id });
       if (!row) continue;
       created++;
@@ -190,7 +194,8 @@ export async function deliverEvent(ev: OutboxRow, deps: NotifyDeps): Promise<voi
         recipients,
         actor: (ev.actor as ActorRef | null) ?? null,
         object: def.object?.(ev) ?? null,
-        sourceEventId: stableId(ev.id, def.type),
+        sourceEventId: stableId(def.mergeKey ? def.mergeKey(ev) : ev.id, def.type),
+        merge: !!def.mergeKey,
         render: (r, by, ctx) => def.render(ev, r, by, ctx, deps),
         canView: def.canView ? (r, ctx) => def.canView!(ev, r, ctx, deps) : undefined,
       },

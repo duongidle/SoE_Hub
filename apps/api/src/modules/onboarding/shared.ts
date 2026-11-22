@@ -33,7 +33,7 @@ export const ItemIn = z.object({
   link: z.string().trim().max(2000).optional(),
 });
 export type ItemInput = z.infer<typeof ItemIn>;
-export const WeekIn = z.object({ week_no: z.number().int().min(1).max(200).optional(), name: z.string().trim().min(1).max(300), goal: z.string().max(2000).optional(), items: z.array(ItemIn).max(300).default([]) });
+export const WeekIn = z.object({ week_no: z.number().int().min(1).max(200).optional(), name: z.string().trim().min(1).max(300), goal: z.string().max(2000).optional(), is_break: z.boolean().optional().describe("Tuần nghỉ (không việc, vẫn chiếm một tuần lịch)."), items: z.array(ItemIn).max(300).default([]) });
 export const StageIn = z.object({ name: z.string().trim().min(1).max(300), weeks: z.array(WeekIn).max(100).default([]) });
 export const StructureIn = z.object({ stages: z.array(StageIn).max(30) });
 export type Structure = z.infer<typeof StructureIn>;
