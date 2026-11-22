@@ -5,7 +5,7 @@ Cập nhật: 22/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–7 đã chốt (Module 6 chốt 21/11). Module 8–11 chưa làm.
-- **Code:** Stage 0–3 xong. Stage 4 đang làm: 4.1–4.6 xong (Opus rà đạt); 4.7 xong 22/11 (4.7A, 4.7B1, 4.7B2; Opus rà đạt); tiếp 4.8.
+- **Code:** Stage 0–3 xong. Stage 4 xong 22/11 (4.8 bản cơ bản, Opus rà đạt). Tiếp: Stage 5 (Module 5, kết nối AI).
 - **Git:** đã push `main` + `dev` tới 56b1834 (hết 4.4, Dương yêu cầu 21/11). Sau đó chưa push.
 - **Mốc test** (không chạy hai lệnh vitest song song, chung DB): mốc 4.7B (mã c9c807e) vitest 1235 pass 9 skip 0 fail; mốc trước (4.6E, mã 9695a8b) vitest 1218 pass 9 skip; e2e desktop 116–124 pass.
 
