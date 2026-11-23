@@ -13,6 +13,7 @@ Quy mô: 15–20 người dùng thường xuyên, nhiều người dùng thỉnh
 | `design/moduleX-<ten>.md` | Thiết kế đã chốt của từng module; `moduleX-quyet-dinh-khi-code.md`: quyết định khi code (tra khi cần) |
 | `design/quy-dinh-chung.md` | Quy định đã chốt ảnh hưởng nhiều module (kiến trúc, phân quyền, Datahub, Deal, AI). Đọc khi thiết kế, hoặc khi code/rà việc chạm phân quyền, chia sẻ, công thức, Deal, AI |
 | `design/update_v1.md` | Phần thiết kế đã chốt nhưng dời khi rà phạm vi stage; làm thành update đầu tiên sau phiên bản đầu (Dương chốt 22/11/2026). Mỗi lần dời thì ghi vào đây |
+| `design/stage12.md` | Việc giao diện Dương nêu khi dùng thử, gom để Stage 12 làm một lượt. Mỗi lần dời việc giao diện sang Stage 12 thì ghi vào đây |
 | `design/kinh-nghiem-quyet-dinh.md` | Kinh nghiệm ra quyết định (tiết kiệm token, gọn, linh hoạt): đọc trước khi thiết kế module và trước khi giao mỗi bước con |
 | `design/kiem-thu.md` | Chi tiết kiểm thử cuối stage, test chập chờn, điện thoại |
 | `design/chuan-giao-dien.md` | Chuẩn giao diện. Đọc khi code hoặc rà giao diện; việc chỉ đụng server thì không cần |
