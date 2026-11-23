@@ -147,7 +147,7 @@ Dựng một cây mẫu trên database **dev** (không dùng cho test hay produc
 ```bash
 pnpm --filter @soe/api demo:seed            # tạo phần còn thiếu; chạy lại khi cây đã có deal thì không làm gì
 pnpm --filter @soe/api demo:seed --reset    # xoá dữ liệu Deal và chính sách com của cây demo rồi dựng lại từ file
-pnpm --filter @soe/api demo:seed --reset-onboarding   # chỉ xoá và dựng lại phần onboarding (lộ trình, form, bài nộp của dữ liệu seed), không đụng Deal
+pnpm --filter @soe/api demo:seed --reset-onboarding   # chỉ xoá và dựng lại phần onboarding (lộ trình, form bài test, bài nộp của dữ liệu seed), không đụng Deal
 pnpm --filter @soe/api demo:seed --check    # không ghi gì: in bảng đối chiếu doanh thu theo tháng và kiểm Sổ com 5 deal mẫu
 ```
 

@@ -5,7 +5,7 @@ import ExcelJS from "exceljs";
 import { sql } from "drizzle-orm";
 import type { Actor } from "@soe/shared";
 import type { Container } from "../bootstrap";
-import { buildForms, ensureSamplePlan, FORM_SPECS, ONJOB_QUESTIONS, runner, samplePlan } from "../modules/onboarding/sample";
+import { ensureSamplePlan, FORM_SPECS, ONJOB_QUESTIONS, samplePlan } from "../modules/onboarding/sample";
 
 /**
  * Demo onboarding data for the DEV database (called from demo-seed.ts; every write goes through the registry commands).
@@ -18,7 +18,7 @@ const repoParent = new URL("../../../../../", import.meta.url).pathname;
 const ONBOARD_FILE = process.env.DEMO_ONBOARD_FILE ?? fileURLToPath(new URL("../../../../examples/Lộ trình onboard Dương.xlsx", import.meta.url));
 const TEST_FILE = process.env.DEMO_TEST_FILE ?? `${repoParent}SoE_hub_demo-test.json`;
 const PLAN_NAME = "Lộ trình onboard SoE";
-const HUB_NAME = "Onboarding SoE";
+const HUB_NAME = "Onboarding";
 const STARTS: Record<string, string> = { us1: "2026-09-07", us2: "2026-11-16" };
 
 type Q = Record<string, unknown>;
@@ -139,45 +139,35 @@ export async function seedOnboarding({ c, ids, names, drain, reset }: Args): Pro
     }
   };
 
-  // 0. reset: the plans, the forms (with tables) of the datahub of this data, and the rows of us1 ----------
+  // 0. reset: the plans, the quiz form (with its table), the rows of us1 in the forms of the Leader ------------
   if (reset) {
-    // one-off clean-up of the first version of this seed (plans "Lộ trình demo", the quiz form and the rows of us1 inside the system template datahub); not needed after it has run once
-    await dropPlans("Lộ trình demo");
-    const tplHub = await hubOf("Onboarding mẫu");
-    if (tplHub) {
-      for (const f of await hubForms(tplHub)) {
+    await dropPlans(PLAN_NAME);
+    const own = await hubOf(HUB_NAME);
+    if (own) {
+      for (const f of await hubForms(own)) {
         if (f.name === "Q&A" || f.name === "Bài thu hoạch on-job") for (const r of await rows<{ id: string }>(sql`SELECT id FROM dh_rows WHERE /*scope:system*/ table_id = ${f.table_id}::uuid AND created_by = ${us1}::uuid AND deleted_at IS NULL`)) await ld("datahub.row.delete", { table_id: f.table_id, row_id: r.id });
         if (test && f.name === test.title) await dropForm(f);
       }
     }
-    await dropPlans(PLAN_NAME);
-    const hub0 = await hubOf(HUB_NAME);
-    if (hub0) for (const f of await hubForms(hub0)) await dropForm(f);
-    await drain(c);
-    console.log("Onboarding: đã xoá lộ trình, form và bài nộp của dữ liệu seed.");
-  }
-
-  // 1. the system template of the Leader stays as it is -------------------------------------------------
-  if (await ensureSamplePlan(db, c.executor, ld1)) console.log("Onboarding: đã dựng lộ trình mẫu của hệ thống cho Leader.");
-
-  // 2. own datahub and forms of the Leader for this data (same declaration as the template) ---------------
-  const hub = (await hubOf(HUB_NAME)) ?? ((await ld("datahub.datahub.create", { name: HUB_NAME })).id as string);
-  let have = await hubForms(hub);
-  if (!have.some((f) => f.name === "Q&A")) {
-    const made: string[] = [];
-    try {
-      await buildForms(runner(c.executor, ld1), hub, FORM_SPECS.filter((s) => s.key !== "test2" || !test), made);
-    } catch (e) {
-      for (const f of await hubForms(hub)) await dropForm(f).catch(() => undefined); // never leave half-built forms behind
-      throw e;
+    // one-off clean-up of the second version of this seed (its own datahub "Onboarding SoE"); not needed after it has run once
+    const old = await hubOf("Onboarding SoE");
+    if (old) {
+      for (const f of await hubForms(old)) await dropForm(f);
+      await ld("datahub.datahub.delete", { datahub_id: old });
     }
-    console.log("Onboarding: đã dựng bộ form của lộ trình.");
+    await drain(c);
+    console.log("Onboarding: đã xoá lộ trình, form bài test và bài nộp của dữ liệu seed.");
   }
-  have = await hubForms(hub);
+
+  // 1. the sample plan of the Leader (system template, its datahub "Onboarding"): the forms are used as they are ------
+  if (await ensureSamplePlan(db, c.executor, ld1)) console.log("Onboarding: đã dựng lộ trình mẫu của hệ thống cho Leader.");
+  const hub = await hubOf(HUB_NAME);
+  if (!hub) throw new Error("Không thấy datahub Onboarding của Leader.");
+  let have = await hubForms(hub);
   const formOf = (name: string) => have.find((f) => f.name === name);
   const onjob = formOf("Bài thu hoạch on-job");
 
-  // 3. the quiz form --------------------------------------------------------------------------------------
+  // 2. the quiz form --------------------------------------------------------------------------------------
   let quizId: string | null = null;
   let withKey = false;
   if (!test) console.log(`Onboarding: không thấy file bài test (${TEST_FILE}); lộ trình dùng form Bài kiểm tra 2 như khai báo.`);
@@ -204,7 +194,7 @@ export async function seedOnboarding({ c, ids, names, drain, reset }: Args): Pro
     }
   }
 
-  // 4. the plans, assigned ---------------------------------------------------------------------------------
+  // 3. the plans, assigned ---------------------------------------------------------------------------------
   const plans = await rows<{ id: string; staff_id: string | null }>(sql`SELECT id, staff_id FROM onb_plans WHERE /*scope:system*/ owner_id = ${ld1}::uuid AND name = ${PLAN_NAME}`);
   const assigned: Record<string, string> = {};
   for (const key of ["us1", "us2"] as const) {

@@ -12,7 +12,8 @@ import type { OperationExecutor } from "../../core/executor";
  * and a run that fails half way deletes the forms it made.
  */
 export const SAMPLE_KEY = "sample";
-const DATAHUB_NAME = "Onboarding mẫu";
+const DATAHUB_NAME = "Onboarding";
+const OLD_DATAHUB_NAME = "Onboarding mẫu"; // the name before 23/11/2026 (migration 0036 renames it)
 const FILLER = "Người điền";
 const LEADER_COLS = ["Nhận xét của leader", "Đánh giá"];
 
@@ -158,7 +159,7 @@ export async function ensureSamplePlan(db: Db, executor: OperationExecutor, user
   const run = runner(executor, userId);
   const made: string[] = [];
   try {
-    const hubs = (await db.execute(sql`SELECT id FROM dh_datahubs WHERE /*scope:system*/ owner_id = ${userId}::uuid AND name = ${DATAHUB_NAME} AND deleted_at IS NULL`)).rows as { id: string }[];
+    const hubs = (await db.execute(sql`SELECT id FROM dh_datahubs WHERE /*scope:system*/ owner_id = ${userId}::uuid AND quota_exempt AND name IN (${DATAHUB_NAME}, ${OLD_DATAHUB_NAME}) AND deleted_at IS NULL ORDER BY (name = ${DATAHUB_NAME}) DESC`)).rows as { id: string }[];
     // Built by the system, so it is not counted in the person's datahub limit (`quota_exempt`, like the datahub "Quản lý Deal"); an ordinary datahub otherwise.
     let dhId = hubs[0]?.id;
     if (!dhId) {

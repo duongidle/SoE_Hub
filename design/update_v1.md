@@ -76,3 +76,5 @@
 | Trình sửa checkpoint: chọn cột từ danh sách cột của bảng (hiện gõ tay tên cột), ô sửa bộ lọc thêm của điều kiện | Module 9 mục 3, 7 | Stage 12 / khi leader dùng thật |
 | Bình luận theo dòng cho Datahub (luồng trao đổi, nhắc tên) | Module 9 mục 5 | Hiện chữa bài bằng cột "Nhận xét", "Đánh giá" |
 | **Nhân bản kiểu Lark cho datahub, bảng, form** (Dương chốt 22/11): chủ nhân bản kèm dữ liệu; người được chia sẻ nhân bản cấu trúc về datahub của mình (kèm dữ liệu chỉ những dòng đang thấy, nếu cho phép); nhân bản lộ trình của người khác kéo theo form | Module 9 mục 2 | Update v1 |
+| **Chặn xoá datahub "Onboarding" hệ thống tự sinh** (Dương 23/11): hiện là datahub thường (9C2 bỏ `system_key` vì cờ đó chặn làm đích form), chủ xoá được và lộ trình mẫu mất form. Cần cờ bảo vệ riêng: không xoá, không đổi tên, vẫn làm đích form được | Module 9 9C2 | Update v1 |
+| **Chặn xoá datahub/bảng đang là bảng đích của form** (Dương 23/11): hiện xoá được, form mất chỗ ghi. Chặn kèm thông báo tên form đang dùng (hoặc bắt xoá/đổi đích form trước) | Module 7 mục 1.1, Module 2 | Update v1 |
