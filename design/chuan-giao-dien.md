@@ -92,6 +92,17 @@ Giới hạn khi dùng skill trong dự án này:
 - Cột sắp xếp được có chỉ báo chiều sắp xếp. Quay lại trang trước giữ nguyên bộ lọc, vị trí cuộn; mọi màn chính có URL riêng để gửi link được.
 - Biểu đồ: đúng loại (xu hướng → đường, so sánh → cột, tỉ trọng → tròn, tối đa 5 phần; nhiều hơn thì dùng cột). Luôn có chú giải, tooltip hiện số chính xác, trục có đơn vị và kỳ (ngày/tuần/tháng). Không phân biệt chuỗi chỉ bằng cặp đỏ/xanh lá. Đường lưới nhạt. Không có dữ liệu thì hiện trạng thái rỗng, không vẽ khung trục trống.
 
+## Hiển thị người dùng (Dương chốt 23/11/2026, làm ở Stage 12)
+
+Dữ liệu luôn lưu id tài khoản nên không nhầm; rủi ro là hiển thị chỉ có tên, hai người trùng tên khó nhận ra. Mọi nơi hiện người dùng (ô Datahub kiểu Người dùng, câu "Người điền" của form, lộ trình, deal, thông báo, chia sẻ) dùng **một component "thẻ người" dùng chung** trong `components/ui`, không tự in `full_name`:
+
+- **Mặc định:** avatar (ảnh, chưa có thì chữ cái đầu) + tên.
+- **Di chuột / chạm:** thẻ chi tiết gồm email, team (Leader), vai trò, trạng thái (đang làm / đã nghỉ). Chỉ hiện thông tin người xem có quyền thấy.
+- **Trùng tên trong cùng danh sách hay bảng đang xem:** tự thêm phần đầu email để phân biệt, ví dụ "Linh Nguyễn (linh.nt)". Không trùng thì chỉ hiện tên.
+- **Ô chọn người** (gắn lộ trình, chia sẻ, chia com, cột Người dùng): luôn hiện email ở dòng thứ hai, kể cả khi không trùng tên. Đây là chỗ chọn nhầm gây sai dữ liệu thật.
+- **Export:** tuỳ chọn thêm cột email cạnh cột người dùng.
+- Server không đổi dữ liệu; chỉ trả thêm email, team cho phần hiển thị theo quyền xem thông tin người dùng hiện có.
+
 ## Dễ đọc, dễ thao tác
 
 - Độ tương phản WCAG AA: chữ thường ≥ 4.5:1 (kể cả placeholder và chữ phụ), chữ lớn, icon có nghĩa và viền thành phần ≥ 3:1.
