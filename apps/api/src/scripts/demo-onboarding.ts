@@ -5,7 +5,7 @@ import ExcelJS from "exceljs";
 import { sql } from "drizzle-orm";
 import type { Actor } from "@soe/shared";
 import type { Container } from "../bootstrap";
-import { ensureSamplePlan, FORM_SPECS, ONJOB_QUESTIONS, samplePlan } from "../modules/onboarding/sample";
+import { buildForms, ensureSamplePlan, FORM_SPECS, ONJOB_QUESTIONS, runner, samplePlan } from "../modules/onboarding/sample";
 
 /**
  * Demo onboarding data for the DEV database (called from demo-seed.ts; every write goes through the registry commands).
@@ -17,9 +17,9 @@ import { ensureSamplePlan, FORM_SPECS, ONJOB_QUESTIONS, samplePlan } from "../mo
 const repoParent = new URL("../../../../../", import.meta.url).pathname;
 const ONBOARD_FILE = process.env.DEMO_ONBOARD_FILE ?? fileURLToPath(new URL("../../../../examples/Lộ trình onboard Dương.xlsx", import.meta.url));
 const TEST_FILE = process.env.DEMO_TEST_FILE ?? `${repoParent}SoE_hub_demo-test.json`;
-export const DEMO_PLAN_NAME = "Lộ trình demo";
+const PLAN_NAME = "Lộ trình onboard SoE";
+const HUB_NAME = "Onboarding SoE";
 const STARTS: Record<string, string> = { us1: "2026-09-07", us2: "2026-11-16" };
-const OLD_ONJOB_LABELS = ["Hôm nay mình làm được gì", "Khó khăn gặp phải", "Bài học rút ra", "Việc cần làm tiếp"];
 
 type Q = Record<string, unknown>;
 const q = (id: string, input: string, label: string, extra: Q = {}): Q => ({ id, type: "question", input, label, ...extra });
@@ -126,91 +126,97 @@ export async function seedOnboarding({ c, ids, names, drain, reset }: Args): Pro
   const test: TestFile | null = existsSync(TEST_FILE) ? (JSON.parse(readFileSync(TEST_FILE, "utf8")) as TestFile) : null;
   if (test) test.title = test.title.normalize("NFC");
 
-  // 0. reset: the demo plans, the quiz form and the answers of us1 -------------------------------------
-  if (reset) {
-    for (const p of await rows<{ id: string; status: string }>(sql`SELECT id, status FROM onb_plans WHERE /*scope:system*/ owner_id = ${ld1}::uuid AND name = ${DEMO_PLAN_NAME}`)) {
-      if (p.status === "active") await ld("onboarding.plan.stop", { plan_id: p.id, reason: "Dựng lại dữ liệu demo" });
+  const hubForms = async (hubId: string) => rows<{ id: string; name: string; code: string; table_id: string }>(sql`SELECT f.id, f.name, f.code, f.table_id FROM forms f JOIN dh_tables t ON t.id = f.table_id WHERE /*scope:system*/ f.owner_id = ${ld1}::uuid AND t.datahub_id = ${hubId}::uuid AND f.deleted_at IS NULL ORDER BY f.created_at`);
+  const hubOf = async (name: string) => (await rows<{ id: string }>(sql`SELECT id FROM dh_datahubs WHERE /*scope:system*/ owner_id = ${ld1}::uuid AND name = ${name} AND deleted_at IS NULL`))[0]?.id;
+  const dropForm = async (f: { id: string; table_id: string | null }) => {
+    await ld("form.form.delete", { form_id: f.id });
+    if (f.table_id) await ld("datahub.table.delete", { table_id: f.table_id }); // a deleted form keeps its table: it goes too
+  };
+  const dropPlans = async (name: string) => {
+    for (const p of await rows<{ id: string; status: string }>(sql`SELECT id, status FROM onb_plans WHERE /*scope:system*/ owner_id = ${ld1}::uuid AND name = ${name}`)) {
+      if (p.status === "active") await ld("onboarding.plan.stop", { plan_id: p.id, reason: "Dựng lại dữ liệu onboarding" });
       await ld("onboarding.plan.delete", { plan_id: p.id });
     }
-    for (const spec of FORM_SPECS.filter((s) => s.key === "qna" || s.key === "onjob")) {
-      const f = (await rows<{ table_id: string }>(sql`SELECT table_id FROM forms WHERE /*scope:system*/ owner_id = ${ld1}::uuid AND name = ${spec.name} AND deleted_at IS NULL ORDER BY created_at LIMIT 1`))[0];
-      if (!f) continue;
-      for (const r of await rows<{ id: string }>(sql`SELECT id FROM dh_rows WHERE /*scope:system*/ table_id = ${f.table_id}::uuid AND created_by = ${us1}::uuid AND deleted_at IS NULL`)) await ld("datahub.row.delete", { table_id: f.table_id, row_id: r.id });
+  };
+
+  // 0. reset: the plans, the forms (with tables) of the datahub of this data, and the rows of us1 ----------
+  if (reset) {
+    // one-off clean-up of the first version of this seed (plans "Lộ trình demo", the quiz form and the rows of us1 inside the system template datahub); not needed after it has run once
+    await dropPlans("Lộ trình demo");
+    const tplHub = await hubOf("Onboarding mẫu");
+    if (tplHub) {
+      for (const f of await hubForms(tplHub)) {
+        if (f.name === "Q&A" || f.name === "Bài thu hoạch on-job") for (const r of await rows<{ id: string }>(sql`SELECT id FROM dh_rows WHERE /*scope:system*/ table_id = ${f.table_id}::uuid AND created_by = ${us1}::uuid AND deleted_at IS NULL`)) await ld("datahub.row.delete", { table_id: f.table_id, row_id: r.id });
+        if (test && f.name === test.title) await dropForm(f);
+      }
     }
-    if (test) for (const f of await rows<{ id: string; table_id: string | null }>(sql`SELECT id, table_id FROM forms WHERE /*scope:system*/ owner_id = ${ld1}::uuid AND name = ${test.title} AND deleted_at IS NULL`)) {
-      await ld("form.form.delete", { form_id: f.id });
-      if (f.table_id) await ld("datahub.table.delete", { table_id: f.table_id }); // the form keeps its table when deleted; the demo table goes too
-    }
+    await dropPlans(PLAN_NAME);
+    const hub0 = await hubOf(HUB_NAME);
+    if (hub0) for (const f of await hubForms(hub0)) await dropForm(f);
     await drain(c);
-    console.log("Onboarding demo: đã xoá lộ trình demo, form bài test demo và bài nộp của nhân sự demo.");
+    console.log("Onboarding: đã xoá lộ trình, form và bài nộp của dữ liệu seed.");
   }
 
-  // 1. the sample plan of the Leader, and its on-job form in the layout of the sheet --------------------
-  if (await ensureSamplePlan(db, c.executor, ld1)) console.log("Onboarding demo: đã dựng lộ trình mẫu cho Leader.");
-  const formOf = async (name: string) => (await rows<{ id: string; code: string; table_id: string }>(sql`SELECT id, code, table_id FROM forms WHERE /*scope:system*/ owner_id = ${ld1}::uuid AND name = ${name} AND deleted_at IS NULL ORDER BY created_at LIMIT 1`))[0];
-  const onjob = await formOf("Bài thu hoạch on-job");
-  if (onjob) {
-    const got = await ld("form.form.get", { form_id: onjob.id });
-    const blocks = (got.draft as { blocks: { id: string; column_id?: string }[] }).blocks;
-    if (blocks.some((b) => b.id === "a")) {
-      const spec = FORM_SPECS.find((s) => s.key === "onjob")!;
-      const next = JSON.parse(JSON.stringify(spec.config)) as { blocks: { id: string; column_id?: string }[] };
-      const keep = blocks.find((b) => b.id === "nguoi");
-      if (keep?.column_id) next.blocks.find((b) => b.id === "nguoi")!.column_id = keep.column_id;
-      await ld("form.form.save_draft", { form_id: onjob.id, config: next });
-      await ld("form.question.create_columns", { form_id: onjob.id });
-      const cols = (await ld("datahub.table.get", { table_id: onjob.table_id })).columns as { name: string }[];
-      for (const col of cols.filter((x) => OLD_ONJOB_LABELS.includes(x.name))) await ld("datahub.column.delete", { table_id: onjob.table_id, column: col.name });
-      await ld("form.form.publish", { form_id: onjob.id });
-      console.log("Onboarding demo: đã cập nhật form Bài thu hoạch on-job theo sheet.");
+  // 1. the system template of the Leader stays as it is -------------------------------------------------
+  if (await ensureSamplePlan(db, c.executor, ld1)) console.log("Onboarding: đã dựng lộ trình mẫu của hệ thống cho Leader.");
+
+  // 2. own datahub and forms of the Leader for this data (same declaration as the template) ---------------
+  const hub = (await hubOf(HUB_NAME)) ?? ((await ld("datahub.datahub.create", { name: HUB_NAME })).id as string);
+  let have = await hubForms(hub);
+  if (!have.some((f) => f.name === "Q&A")) {
+    const made: string[] = [];
+    try {
+      await buildForms(runner(c.executor, ld1), hub, FORM_SPECS.filter((s) => s.key !== "test2" || !test), made);
+    } catch (e) {
+      for (const f of await hubForms(hub)) await dropForm(f).catch(() => undefined); // never leave half-built forms behind
+      throw e;
     }
+    console.log("Onboarding: đã dựng bộ form của lộ trình.");
   }
+  have = await hubForms(hub);
+  const formOf = (name: string) => have.find((f) => f.name === name);
+  const onjob = formOf("Bài thu hoạch on-job");
 
-  // 2. the quiz form ------------------------------------------------------------------------------------
+  // 3. the quiz form --------------------------------------------------------------------------------------
   let quizId: string | null = null;
   let withKey = false;
-  if (!test) console.log(`Onboarding demo: không thấy file bài test (${TEST_FILE}); lộ trình dùng form Bài kiểm tra 2 của mẫu.`);
+  if (!test) console.log(`Onboarding: không thấy file bài test (${TEST_FILE}); lộ trình dùng form Bài kiểm tra 2 như khai báo.`);
   else {
-    const have = await formOf(test.title);
     const built = quizConfig(test);
     withKey = built.withKey;
-    if (have) quizId = have.id;
+    const exist = formOf(test.title);
+    if (exist) quizId = exist.id;
     else {
-      const hub = (await rows<{ id: string }>(sql`SELECT id FROM dh_datahubs WHERE /*scope:system*/ owner_id = ${ld1}::uuid AND name = 'Onboarding mẫu' AND deleted_at IS NULL`))[0];
-      if (!hub) throw new Error("Không thấy datahub Onboarding mẫu của Leader.");
-      const f = await ld("form.form.create", { name: test.title, datahub_id: hub.id });
+      const f = await ld("form.form.create", { name: test.title, datahub_id: hub });
       try {
         await ld("form.form.save_draft", { form_id: f.id, config: built.config });
         await ld("form.question.create_columns", { form_id: f.id });
         await ld("form.form.publish", { form_id: f.id });
         await ld("form.form.update", { form_id: f.id, access: "selected", audience: { user_ids: [] } });
       } catch (e) {
-        await ld("form.form.delete", { form_id: f.id }).catch(() => undefined); // never leave a half-built form behind
-        await ld("datahub.table.delete", { table_id: f.table_id }).catch(() => undefined);
+        await dropForm({ id: f.id, table_id: f.table_id }).catch(() => undefined); // never leave a half-built form behind
         throw e;
       }
       quizId = f.id;
-      console.log(`Onboarding demo: đã dựng form bài test (${test.sections.reduce((n, s) => n + s.questions.length, 0)} câu).`);
+      have = await hubForms(hub);
+      console.log(`Onboarding: đã dựng form bài test (${test.sections.reduce((n, s) => n + s.questions.length, 0)} câu).`);
       if (built.temporary > 0) console.warn(`CẢNH BÁO: file bài test chưa có đáp án đúng (trường k). ${built.temporary} câu đang dùng đáp án TẠM theo bài làm của Dương, cần đáp án thật. Không nộp bài làm của Dương để khỏi ra điểm giả.`);
     }
   }
 
-  // 3. the demo plan, assigned -----------------------------------------------------------------------------
-  const plans = await rows<{ id: string; staff_id: string | null }>(sql`SELECT id, staff_id FROM onb_plans WHERE /*scope:system*/ owner_id = ${ld1}::uuid AND name = ${DEMO_PLAN_NAME}`);
-  let template = plans.find((p) => !p.staff_id)?.id;
+  // 4. the plans, assigned ---------------------------------------------------------------------------------
+  const plans = await rows<{ id: string; staff_id: string | null }>(sql`SELECT id, staff_id FROM onb_plans WHERE /*scope:system*/ owner_id = ${ld1}::uuid AND name = ${PLAN_NAME}`);
   const assigned: Record<string, string> = {};
   for (const key of ["us1", "us2"] as const) {
     const staff = ids[key]!;
-    const have = plans.find((p) => p.staff_id === staff);
-    if (have) { assigned[key] = have.id; continue; }
-    if (!template) {
-      const formIds: Record<string, string> = {};
-      for (const spec of FORM_SPECS) { const f = await formOf(spec.name); if (f) formIds[spec.key] = f.id; }
-      if (quizId) formIds.test2 = quizId;
-      const { structure, checkpoints } = samplePlan(formIds);
-      template = (await ld("onboarding.plan.create", { name: DEMO_PLAN_NAME, is_template: true, structure, checkpoints })).id as string;
-    }
-    const plan = await ld("onboarding.plan.assign", { plan_id: template, staff_id: staff, start_date: STARTS[key]! });
+    const had = plans.find((p) => p.staff_id === staff);
+    if (had) { assigned[key] = had.id; continue; }
+    const formIds: Record<string, string> = {};
+    for (const spec of FORM_SPECS) { const f = formOf(spec.name); if (f) formIds[spec.key] = f.id; }
+    if (quizId) formIds.test2 = quizId;
+    const { structure, checkpoints } = samplePlan(formIds);
+    const draft = (await ld("onboarding.plan.create", { name: PLAN_NAME, is_template: false, structure, checkpoints })).id as string; // one plan of its own for each person
+    const plan = await ld("onboarding.plan.assign", { plan_id: draft, staff_id: staff, start_date: STARTS[key]! });
     assigned[key] = plan.id as string;
     console.log(`Onboarding demo: đã gắn lộ trình cho ${names[key] ?? key} từ ${STARTS[key]}.`);
     if (key === "us1") await submitAnswers(plan.id as string);
@@ -218,7 +224,7 @@ export async function seedOnboarding({ c, ids, names, drain, reset }: Args): Pro
 
   async function submitAnswers(planId: string): Promise<void> {
     const sheets = await readSheets();
-    const qna = await formOf("Q&A");
+    const qna = formOf("Q&A");
     if (!sheets || !qna || !onjob) { console.log("Onboarding demo: không có file lộ trình hoặc form, không nạp bài nộp."); return; }
     const me = as(us1!);
     const put = async (code: string, answers: Record<string, unknown>, date: string): Promise<void> => {

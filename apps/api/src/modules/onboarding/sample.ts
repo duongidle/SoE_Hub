@@ -34,7 +34,7 @@ export const ONJOB_QUESTIONS = [
 ];
 const QUIZ = { enabled: true, scale: "100", pass: { type: "points", value: 80 }, max_attempts: 2, show: "score" };
 
-interface FormSpec {
+export interface FormSpec {
   key: string;
   name: string;
   config: ReturnType<typeof cfg>;
@@ -127,11 +127,35 @@ export function samplePlan(f: Record<string, string>) {
 
 const actorOf = (userId: string): Actor => ({ userId, via: "web", connectionId: null, automationId: null, sessionId: null, scopes: [], ip: null, userAgent: "soe-worker" });
 
+/** Runs a registry command as one person. */
+export type Run = <T = unknown>(name: string, input: Record<string, unknown>) => Promise<T>;
+export const runner = (executor: OperationExecutor, userId: string): Run => async <T>(name: string, input: Record<string, unknown>): Promise<T> => (await executor.execute(name, input, { actor: actorOf(userId), requestId: randomUUID() })).result as T;
+
+/** Builds the forms of `specs` (with their tables) in the datahub `dhId` of the person who runs `run`; returns spec key -> form id. `made` collects the ids so a caller can delete them when a later step fails. */
+export async function buildForms(run: Run, dhId: string, specs: FormSpec[], made: string[] = []): Promise<Record<string, string>> {
+  const ids: Record<string, string> = {};
+  for (const spec of specs) {
+    const form = await run<{ id: string; table_id: string }>("form.form.create", { name: spec.name, datahub_id: dhId });
+    made.push(form.id);
+    ids[spec.key] = form.id;
+    await run("form.form.save_draft", { form_id: form.id, config: spec.config });
+    await run("form.question.create_columns", { form_id: form.id });
+    if (spec.leaderColumns) {
+      await run("datahub.column.create", { table_id: form.table_id, name: LEADER_COLS[0], type: "long_text" });
+      await run("datahub.column.create", { table_id: form.table_id, name: LEADER_COLS[1], type: "single_select", config: { options: [{ name: "Đúng" }, { name: "Cần sửa" }, { name: "Sai" }] } });
+    }
+    if (spec.notify) for (const c of LEADER_COLS) await run("datahub.column.update", { table_id: form.table_id, column: c, notify_on_change: { people_column: FILLER } });
+    if (spec.publish) await run("form.form.publish", { form_id: form.id });
+    await run("form.form.update", { form_id: form.id, access: "selected", audience: { user_ids: [] } });
+  }
+  return ids;
+}
+
 /** Builds the sample plan of one person (Manager or Leader of a tree). Returns the plan id, or null when they already have it. */
 export async function ensureSamplePlan(db: Db, executor: OperationExecutor, userId: string): Promise<string | null> {
   const have = await db.execute(sql`SELECT 1 FROM onb_plans WHERE /*scope:system*/ owner_id = ${userId}::uuid AND builtin = ${SAMPLE_KEY}`);
   if (have.rows.length) return null;
-  const run = async <T>(name: string, input: Record<string, unknown>): Promise<T> => (await executor.execute(name, input, { actor: actorOf(userId), requestId: randomUUID() })).result as T;
+  const run = runner(executor, userId);
   const made: string[] = [];
   try {
     const hubs = (await db.execute(sql`SELECT id FROM dh_datahubs WHERE /*scope:system*/ owner_id = ${userId}::uuid AND name = ${DATAHUB_NAME} AND deleted_at IS NULL`)).rows as { id: string }[];
@@ -141,21 +165,7 @@ export async function ensureSamplePlan(db: Db, executor: OperationExecutor, user
       dhId = randomUUID();
       await db.execute(sql`/*scope:system*/ INSERT INTO dh_datahubs (id, owner_id, name, quota_exempt, created_by, updated_by) VALUES (${dhId}::uuid, ${userId}::uuid, ${DATAHUB_NAME}, true, ${userId}::uuid, ${userId}::uuid)`);
     }
-    const ids: Record<string, string> = {};
-    for (const spec of FORM_SPECS) {
-      const form = await run<{ id: string; table_id: string }>("form.form.create", { name: spec.name, datahub_id: dhId });
-      made.push(form.id);
-      ids[spec.key] = form.id;
-      await run("form.form.save_draft", { form_id: form.id, config: spec.config });
-      await run("form.question.create_columns", { form_id: form.id });
-      if (spec.leaderColumns) {
-        await run("datahub.column.create", { table_id: form.table_id, name: LEADER_COLS[0], type: "long_text" });
-        await run("datahub.column.create", { table_id: form.table_id, name: LEADER_COLS[1], type: "single_select", config: { options: [{ name: "Đúng" }, { name: "Cần sửa" }, { name: "Sai" }] } });
-      }
-      if (spec.notify) for (const c of LEADER_COLS) await run("datahub.column.update", { table_id: form.table_id, column: c, notify_on_change: { people_column: FILLER } });
-      if (spec.publish) await run("form.form.publish", { form_id: form.id });
-      await run("form.form.update", { form_id: form.id, access: "selected", audience: { user_ids: [] } });
-    }
+    const ids = await buildForms(run, dhId, FORM_SPECS, made);
     const { structure, checkpoints } = samplePlan(ids);
     const plan = await run<{ id: string }>("onboarding.plan.create", { name: "Lộ trình mẫu (18 tuần)", is_template: true, structure, checkpoints });
     await db.execute(sql`/*scope:system*/ UPDATE onb_plans SET builtin = ${SAMPLE_KEY} WHERE id = ${plan.id}::uuid`);
