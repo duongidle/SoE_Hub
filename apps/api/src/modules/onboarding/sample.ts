@@ -8,7 +8,7 @@ import type { OperationExecutor } from "../../core/executor";
 /**
  * The sample plan of every Manager and Leader (design module9 1): a plan marked "Mẫu" with forms of the person's own, built from declarative data
  * (the structure of the sheet "Master plan": 4 stages, 18 weeks, Monday to Saturday; the final group of the sheet "Đánh giá thử việc").
- * Names and texts are written generically, nothing is copied from the files of `examples/`. Safe to run again: a person who has the plan is skipped,
+ * Names and texts are written generically, nothing is copied from the files of `examples/` except the four question headers of the on-job report (`ONJOB_QUESTIONS`, a template structure). Safe to run again: a person who has the plan is skipped,
  * and a run that fails half way deletes the forms it made.
  */
 export const SAMPLE_KEY = "sample";
@@ -25,6 +25,13 @@ const cfg = (title: string, blocks: Q[], quiz?: Q) => ({ schema: "soe-form/1", t
 export const MOCKUP_CRITERIA: [string, number][] = [["Hiểu nhu cầu khách", 25], ["Cấu trúc trình bày", 25], ["Nội dung sản phẩm", 15], ["Xử lý câu hỏi", 15], ["Giao tiếp", 10], ["Quản lý thời gian", 5], ["Chuẩn bị", 5]];
 export const MOCKUP_THRESHOLD = 4;
 export const MOCKUP_FLOOR = 3;
+/** The four questions of the on-job report: the headers of the sheet "Bài thu hoạch on-job" (file `examples/Lộ trình onboard Dương.xlsx`), kept as they are (CLAUDE.md: defaults come from the sample file). */
+export const ONJOB_QUESTIONS = [
+  "1. Nội dung chính của buổi meeting này là gì, của khách nào, CO/SoE nào phụ trách chính trong buổi?",
+  "2. Các vấn đề khách gặp trong buổi này là gì? Nguyên nhân của từng vấn đề?",
+  "3. CO/SoE đã xử lý vấn đề của khách như thế nào, và vì sao chọn cách đó thay vì cách khác?",
+  "4. Nếu đặt mình là CO/SoE phụ trách chính trong buổi này thì câu hỏi hoặc tình huống nào bạn chưa trả lời được?",
+];
 const QUIZ = { enabled: true, scale: "100", pass: { type: "points", value: 80 }, max_attempts: 2, show: "score" };
 
 interface FormSpec {
@@ -39,7 +46,7 @@ interface FormSpec {
 }
 export const FORM_SPECS: FormSpec[] = [
   { key: "qna", name: "Q&A", leaderColumns: true, notify: true, publish: true, config: cfg("Q&A", [filler(), q("ngay", "date", "Ngày"), q("app", "text", "Ứng dụng"), q("cau_hoi", "long_text", "Câu hỏi"), q("tra_loi", "long_text", "Trả lời")]) },
-  { key: "onjob", name: "Bài thu hoạch on-job", leaderColumns: true, notify: true, publish: true, config: cfg("Bài thu hoạch on-job", [filler(), q("a", "long_text", "Hôm nay mình làm được gì"), q("b", "long_text", "Khó khăn gặp phải"), q("c", "long_text", "Bài học rút ra"), q("d", "long_text", "Việc cần làm tiếp")]) },
+  { key: "onjob", name: "Bài thu hoạch on-job", leaderColumns: true, notify: true, publish: true, config: cfg("Bài thu hoạch on-job", [filler(), q("ngay", "date", "Ngày", { required: true }), ...ONJOB_QUESTIONS.map((label, i) => q(`c${i + 1}`, "long_text", label))]) },
   { key: "daily", name: "Báo cáo ngày", publish: true, config: cfg("Báo cáo ngày", [filler(), q("a", "long_text", "Việc đã làm hôm nay"), q("b", "long_text", "Việc chưa xong và lý do"), q("c", "long_text", "Điều học được"), q("d", "long_text", "Kế hoạch ngày mai")]) },
   {
     key: "mockup", name: "Phiếu chấm mockup", publish: true,

@@ -12,11 +12,14 @@ import { defaultSubscribers } from "../core/subscribers";
 import { BUILTIN_DEFAULT_SET, ensureTreeTemplates } from "../modules/deal";
 import { processPendingColumns, processPendingMerges, processPendingRefills } from "../modules/datahub";
 import { workerEmit } from "../modules/datahub/template-sync";
+import { seedOnboarding } from "./demo-onboarding";
 
 /**
  * Demo data for the DEV database (not the test database): five accounts in one tree; deals and commission policy come from the sample workbook in examples/ (read at run time, names replaced).
  *   pnpm --filter @soe/api demo:seed            create what is missing (a second run does nothing)
- *   pnpm --filter @soe/api demo:seed --reset    delete the deal data of the demo tree first, then seed again
+ *   pnpm --filter @soe/api demo:seed --reset    delete the deal data (and the demo onboarding data) of the demo tree first, then seed again
+ *   pnpm --filter @soe/api demo:seed --reset-onboarding   only the onboarding part is deleted and rebuilt (deals untouched)
+ * The onboarding part (demo-onboarding.ts) runs at the end, also when the deals already exist.
  * Everything goes through the registry commands (the same ones the web and the API call), so formulas, split lock, commission
  * ledger and row history behave as in real use. The real names and emails of the people are NOT in
  * the repository: they are read from the JSON file DEMO_PEOPLE_FILE (default: ../SoE_hub_demo-people.json next to the repo), and
@@ -226,7 +229,8 @@ async function main() {
       await drain(c);
       console.log("Đã xoá dữ liệu Deal của cây demo.");
     } else if ((await rowsOf(tables["Deals"]!)).length > 0) {
-      console.log("Cây demo đã có deal: không làm gì (chạy lại với --reset để dựng lại).");
+      console.log("Cây demo đã có deal: không dựng lại phần Deal (chạy lại với --reset để dựng lại).");
+      await seedOnboarding({ c, ids, names: Object.fromEntries(defs.map((p) => [p.key, p.name])), drain, reset: process.argv.includes("--reset-onboarding") });
       return;
     }
 
@@ -390,6 +394,7 @@ async function main() {
         console.log(`    ${whoId === w.soe ? "Leading" : "Associate"} tiền về ${amt.toLocaleString("en-US")}: Com sale ${cs.toLocaleString("en-US")} (kỳ vọng ${Math.round(expSale).toLocaleString("en-US")}), % com ${pct}, Com ${com.toLocaleString("en-US")} (kỳ vọng ${Math.round(exp).toLocaleString("en-US")}) ${ok ? "khớp" : "LỆCH"}`);
       }
     }
+    if (!dry) await seedOnboarding({ c, ids, names: Object.fromEntries(defs.map((p) => [p.key, p.name])), drain, reset });
   } finally {
     await c.db.close();
   }

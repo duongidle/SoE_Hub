@@ -11,6 +11,7 @@ Cập nhật: 23/11/2026
 
 ## Đã xong
 
+- **Demo onboarding (23/11):** `apps/api/src/scripts/demo-onboarding.ts` (lộ trình demo cho `us1` từ 2026-09-07 với 30 on-job + 109 Q&A từ sheet, `us2` từ 2026-11-16, form bài test từ `SoE_hub_demo-test.json`, đáp án tạm vì file chưa có `k`); form on-job mẫu theo sheet (`sample.ts`). Test: typecheck 0 lỗi, lint sạch, `vitest apps/api/test/onboarding.test.ts` 17 pass 0 fail (mã 9992d09 + thay đổi này). Seed chạy hai lần OK, checkpoint tuần khớp sheet. Chi tiết `module9-quyet-dinh-khi-code.md` "Demo onboarding".
 - **Com PS (23/11):** trần % com đọc từ cột vai trò `tran_com` (`Trần % com`, công thức: PS `Trần chia PS`, còn lại `Tỉ lệ SoE`), một nơi `comCapOf`; demo PS một Leading, com = quỹ × phần SoE. vitest cả bộ 1362 pass 10 skip 0 fail (`DH_EQUIV_EDITS=2500`, mã trước commit này là 5137100 + thay đổi com PS). Chi tiết `module4-quyet-dinh-khi-code.md` "Com PS".
 
 - **Stage 0–3:** nền tảng, tài khoản/phân quyền, Datahub (106 hàm, golden khớp Excel), metric + dashboard + Guest. Quyết định: `design/module{0..3}-*.md`, `design/module{2,3}-quyet-dinh-khi-code.md`.
