@@ -1,6 +1,6 @@
 # Module 9 — Onboarding
 
-> Trạng thái: **Đã chốt** · 22/11/2026 (Opus đề xuất, Dương phản biện và chốt trong chat cùng ngày).
+> Trạng thái: **Đã chốt** · 22/11/2026 (Opus đề xuất, Dương phản biện và chốt trong chat cùng ngày). Bổ sung 23/11/2026: chia sẻ lộ trình, xem bài nộp theo quyền lộ trình (mục 7, 8; làm ở `update_v1.md`).
 > Phụ thuộc: [Module 1](module1-tai-khoan-phan-quyen.md) (cây tổ chức, leader trực tiếp, chuyển giao), [Module 2](module2-datahub.md) (bảng, chia sẻ, khoá phân chia, cho phép sửa theo cột, view), [Module 3](module3-metric-dashboard.md) (engine chỉ số), [Module 5](module5-ket-noi-ai.md) (menu Onboarding, nhóm cấm), [Module 6](module6-thong-bao.md) (`notify.send`, job nhắc), [Module 7](module7-dynamic-form.md) (form nội bộ, bài kiểm tra, điền sẵn qua link).
 > Để module sau: Workspace (M10) nghe sự kiện của Onboarding nếu cần (mục 9).
 
@@ -80,6 +80,8 @@ Checkpoint **hoàn toàn tự đặt**, không có checkpoint viết cứng (l�
 **Leader, Manager, người theo dõi:**
 - **Theo dõi onboarding**: một bảng, mỗi dòng một nhân sự: lộ trình, tuần hiện tại / tổng tuần, tiến độ %, checkpoint đạt / tổng, cột theo nhóm checkpoint (theo loại việc của nguồn: Test, Mockup, On-job, Q&A, Báo cáo ngày, Khác), việc trễ, kết quả cuối; ô tô màu; lọc team, lộ trình; bấm vào dòng mở trang nhân sự.
 - **Trang nhân sự**: như nhân sự thấy, thêm sửa lộ trình, xác nhận tay checkpoint, chốt đánh giá cuối.
+  - Tab **"Bài nộp"** (Dương chốt 23/11, làm ở update v1): bài on-job, Q&A, báo cáo ngày, bài test của đúng nhân sự đó, kèm cột "Nhận xét của leader", "Đánh giá". Server đọc bảng bằng quyền chủ form, lọc theo cột "Người điền" (cùng cách tính checkpoint). Người xem chỉ đọc; chữa bài vẫn làm trong bảng của Leader (mục 5).
+  - Nút **"Chia sẻ"** (Dương chốt 23/11, làm ở update v1): thêm/gỡ người theo dõi lúc nào cũng được, chọn nhiều người (tối đa 20). Lúc gắn lộ trình cũng chọn được nhiều người.
 - **Danh sách lộ trình**: của tôi, mẫu, đang theo dõi; tạo, nhân bản, gắn, dừng.
 - **Trình sửa lộ trình**: bảng giai đoạn / tuần / việc / checkpoint (không kéo thả lịch kiểu calendar).
 
@@ -93,8 +95,11 @@ Checkpoint **hoàn toàn tự đặt**, không có checkpoint viết cứng (l�
 | Sửa một lộ trình, gắn, dừng, xác nhận checkpoint, chốt đánh giá cuối | **Leader trực tiếp** của nhân sự và **Manager** của cây (brief); người tạo lộ trình mẫu sửa lộ trình mẫu của mình |
 | Xem | Manager: mọi lộ trình trong cây; Leader: lộ trình của team và lộ trình mình theo dõi; người theo dõi; nhân sự: lộ trình của mình |
 | Leader khác | Nhân bản lộ trình mình thấy về làm của mình (brief) |
+| Xem bài nộp của nhân sự (Dương chốt 23/11) | **Ai xem được lộ trình thì xem được bài nộp** của nhân sự trong lộ trình đó (tab "Bài nộp"): Manager của cây, Leader trực tiếp, người được chia sẻ lộ trình. Người được chia sẻ lộ trình của A không thấy bài của B; gỡ chia sẻ thì mất quyền ngay |
 
 Admin không tạo lộ trình (không có quyền nghiệp vụ).
+
+Không share bảng Datahub của form cho Manager hay người theo dõi để xem bài (Dương chốt 23/11): khoá phân chia chỉ lọc theo "mình hoặc người mình quản lý", không lọc được theo "nhân sự tôi theo dõi"; đi theo quyền lộ trình thì một luật phủ cả hai và gỡ quyền có hiệu lực ngay. Bảng chỉ share cho nhân sự như mục 2.
 
 ## 9. Thông báo và sự kiện
 
