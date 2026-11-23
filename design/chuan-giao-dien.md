@@ -98,7 +98,7 @@ Dữ liệu luôn lưu id tài khoản nên không nhầm; rủi ro là hiển t
 
 - **Mặc định:** avatar (ảnh, chưa có thì chữ cái đầu) + tên.
 - **Di chuột / chạm:** thẻ chi tiết gồm email, team (Leader), vai trò, trạng thái (đang làm / đã nghỉ). Chỉ hiện thông tin người xem có quyền thấy.
-- **Trùng tên trong cùng danh sách hay bảng đang xem:** tự thêm phần đầu email để phân biệt, ví dụ "Linh Nguyễn (linh.nt)". Không trùng thì chỉ hiện tên.
+- **Trùng tên trong cùng danh sách hay bảng đang xem:** tự thêm phần đầu email để phân biệt, ví dụ "Nguyễn Văn A (vana.nt)". Không trùng thì chỉ hiện tên.
 - **Ô chọn người** (gắn lộ trình, chia sẻ, chia com, cột Người dùng): luôn hiện email ở dòng thứ hai, kể cả khi không trùng tên. Đây là chỗ chọn nhầm gây sai dữ liệu thật.
 - **Export:** tuỳ chọn thêm cột email cạnh cột người dùng.
 - Server không đổi dữ liệu; chỉ trả thêm email, team cho phần hiển thị theo quyền xem thông tin người dùng hiện có.
