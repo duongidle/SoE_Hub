@@ -11,6 +11,13 @@ Cập nhật: 27/11/2026
 - **Git:** `main` và `dev` đã push tới abe3d39 (23/11).
 - **Việc dời:** thiết kế đã chốt nhưng dời → `design/update_v1.md`; giao diện → `design/stage12.md`.
 
+## Đang làm: Stage 12C — Datahub (Dương 28/11: làm liền 12C→12F, không chờ duyệt giữa giai đoạn; không cần ảnh so sánh; đủ chức năng là được, tự do bố cục)
+
+Nguồn: `module12-giao-dien.md` mục 1–2; ảnh `design/giao_dien_mau/anh/soe_hub_datahub_onboarding.png`; `stage12.md` dòng Datahub. Kiểu Lark Base / Airtable. **Bảng đối chiếu chức năng** (agent A lập trước khi đổi, ghi ở `module12-quyet-dinh-khi-code.md` mục 12C): mọi thao tác Datahub hiện có → chỗ mới; không thao tác nào mất. E2e Datahub cũ (stage2c1–2e, 3b–3e) là lưới an toàn: chỉ sửa spec khi selector đổi do chuyển chỗ.
+
+- [ ] **12C-1 (agent A):** danh sách Datahub (tab "Tất cả" đứng đầu, datahub được chia sẻ kèm thẻ chủ, thẻ datahub gọn), trang datahub mở (`detail.tsx`, `view-tabs.tsx`, `view-tools.tsx`, `table-view.tsx`): dải tab bảng có Dashboard và "+" ghim trái, tab bảng cuộn ngang; thanh công cụ một dòng (chế độ xem, Thêm dòng, Thời gian, Lọc n, Sắp xếp n, Nhóm n, Ẩn cột n, Tô màu | ô tìm, mật độ dòng, "•••": Nhập, Xuất, Tìm trùng, Thùng rác, việc ít dùng); toast chồng nhau không che nút Hoàn tác; gắn hook URL cho bảng/view đang mở.
+- [ ] **12C-2 (agent B):** panel dòng (`row-panel.tsx`) thành Drawer phải; màu và kiểu grid canvas (đầu cột, dòng, chọn, mật độ) theo token; hộp thoại cột/công thức/nhập/xuất/trùng/gộp/thùng rác theo concept; dashboard của datahub (thẻ biểu đồ, gauge chữ lệch, lọc chéo khi cột < 1px); chạy cuối bước: vitest apps packages + e2e Datahub/dashboard (2c1–2e, 3b–3e).
+
 ## Đang làm: Stage 12B — Người dùng (rà phạm vi Opus 28/11, Dương duyệt "làm 12b")
 
 Phạm vi: `chuan-giao-dien.md` mục "Hiển thị người dùng" + `stage12.md` dòng "Thẻ người dùng chung", "Chọn nhiều người một lần". Rà theo kinh nghiệm: giữ hết, trừ hai chỗ dời (ghi `update_v1.md`): ảnh đại diện (chưa có tải ảnh, dùng chữ cái đầu) và thẻ chi tiết khi rê chuột **trong ô grid canvas** (grid chỉ hiện tên + phân biệt trùng tên; thẻ chi tiết xem ở panel dòng). Ô chọn người đã hiện email dòng 2 (`PersonPicker`).
