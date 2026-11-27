@@ -3,11 +3,13 @@ import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-route
 import * as Dialog from "@radix-ui/react-dialog";
 import { BookOpen, Briefcase, ChartColumn, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Database, FileText, FolderInput, LayoutDashboard, LogOut, Menu, Network, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { Brand, BRAND_NAME } from "@/components/brand";
 import { Button } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { can, useLiveUpdates, useMe } from "@/lib/session";
+import { useSearchHotkey } from "@/lib/search-hotkey";
 import { BellButton } from "./notify/inbox";
 import { SettingsLayout } from "./settings";
 
@@ -146,11 +148,13 @@ export function Shell() {
   const qc = useQueryClient();
   const meQ = useMe();
   const me = meQ.data;
+  const [closing, setClosing] = useState(false);
   // "Onboarding" shows for people who may create plans, and for anyone who has a plan (as the person or as a follower).
   const onb = useQuery({
     queryKey: ["onb", "nav"],
-    enabled: !!me && canAny(me, "onboarding:path:read") && !can(me, "onboarding:path:create"),
-    queryFn: async () => (await api<unknown[]>("GET", "/onboarding/plans?scope=mine")).length + (await api<unknown[]>("GET", "/onboarding/plans?scope=following")).length,
+    enabled: !!me && !closing && canAny(me, "onboarding:path:read") && !can(me, "onboarding:path:create"),
+        // Both requests leave together: a logout in between must not let the second one go out with a dead session (a stray 401).
+    queryFn: async () => (await Promise.all([api<unknown[]>("GET", "/onboarding/plans?scope=mine"), api<unknown[]>("GET", "/onboarding/plans?scope=following")])).reduce((n, l) => n + l.length, 0),
   });
   // The narrow-screen menu closes by itself when the page changes: it is "open" only for the path it was opened on.
   const [openPath, setOpenPath] = useState<string | null>(null);
@@ -166,7 +170,9 @@ export function Shell() {
       return !c;
     });
   };
-  useLiveUpdates(!!me);
+  // While the session is being closed the signed-in screens leave first, so no page, focus refetch or live stream goes out with the dying session (stray 401).
+  useLiveUpdates(!!me && !closing);
+  useSearchHotkey();
 
   useEffect(() => {
     if (meQ.isLoading || path.startsWith("/f/")) return;
@@ -185,8 +191,8 @@ export function Shell() {
   if (meQ.error) return <p className="p-6 text-sm text-bad" role="alert">Không kết nối được máy chủ. Hãy tải lại trang sau ít phút.</p>;
 
   // Signed out: only the public pages render. Everything else waits for the redirect above.
-  if (!me) {
-    return <div className="min-h-dvh px-4 py-6">{isPublic(path) && isPublic(shown) ? <Outlet /> : null}</div>;
+  if (!me || closing) {
+    return <div className="min-h-dvh px-4 py-6">{!closing && isPublic(path) && isPublic(shown) ? <Outlet /> : null}</div>;
   }
   if (me.must_set_password) {
     return <div className="min-h-dvh px-4 py-6">{path === "/dat-mat-khau" && shown === "/dat-mat-khau" ? <Outlet /> : null}</div>;
@@ -198,13 +204,16 @@ export function Shell() {
   const needed = requiredPermission(shown);
   const denied = needed !== null && !canAny(me, needed);
   const logout = async () => {
+    flushSync(() => setClosing(true));
     try {
+      await qc.cancelQueries();
       await api("POST", "/auth/logout");
     } finally {
       // Hide the signed-in pages first, then drop their cached data, so no page refetches with a dead session.
       qc.setQueryData(["me"], null);
       await nav({ to: "/dang-nhap", replace: true });
       qc.removeQueries({ predicate: (q) => q.queryKey[0] !== "me" });
+      setClosing(false);
     }
   };
 
@@ -252,7 +261,7 @@ export function Shell() {
           </Dialog.Portal>
 
           <div className="flex min-w-0 flex-1 flex-col bg-workspace">
-            <div className={cn("contain-scroll flex min-h-0 flex-1 flex-col", wide ? "overflow-hidden" : "overflow-y-auto")}>
+            <div data-scroll-restoration-id="shell-main" className={cn("contain-scroll flex min-h-0 flex-1 flex-col", wide ? "overflow-hidden" : "overflow-y-auto")}>
               <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b border-border-soft bg-card/85 px-3 backdrop-blur-md sm:px-5">
                 <Dialog.Trigger asChild>
                   <Button variant="ghost" className="shrink-0 !px-2 lg:hidden" aria-label="Mở menu" aria-expanded={open}>

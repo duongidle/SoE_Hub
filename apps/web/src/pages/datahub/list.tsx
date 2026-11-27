@@ -4,7 +4,7 @@ import { DhNameSchema, formatCount, formatRelative, SHARE_PERMISSION_LABELS } fr
 import { Database, MoreHorizontal, Pencil, Plus, Trash2, Trash, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Tabs, Textarea } from "@/components/ui/form";
+import { Button, ErrorText, Field, Input, Modal, PageTitle, Tabs, Textarea, errorMessage } from "@/components/ui/form";
 import { Menu, MenuItem } from "@/components/ui/dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
@@ -13,8 +13,10 @@ import { createDatahub, deleteDatahub, dhKeys, getLimits, listDatahubs, restoreD
 import type { DatahubBrief } from "@/lib/datahub/types";
 import { ImportDialog } from "./import-dialog";
 import { can, useMe } from "@/lib/session";
+import { useUrlState } from "@/lib/use-url-state";
 
 type Tab = "mine" | "shared";
+const URL_DEFAULTS = { tab: "mine" };
 
 /** Name rule of the design (module 2, section 2), checked here so the message appears under the field before the server is asked. */
 export function nameError(v: string): string | null {
@@ -24,8 +26,32 @@ export function nameError(v: string): string | null {
 
 export function DatahubListPage() {
   const me = useMe().data;
-  const [tab, setTab] = useState<Tab>("mine");
-  const [dialog, setDialog] = useState<{ kind: "create" } | { kind: "import" } | { kind: "rename"; dh: DatahubBrief } | { kind: "delete"; dh: DatahubBrief } | null>(null);
+  // The tab lives in the URL (?tab=shared): reload, shared link and back button keep it.
+  const [{ tab: tabParam }, setUrl] = useUrlState(URL_DEFAULTS);
+  const tab: Tab = tabParam === "shared" ? "shared" : "mine";
+  const setTab = (t: Tab) => setUrl({ tab: t });
+  const qc = useQueryClient();
+  const [dialog, setDialog] = useState<{ kind: "create" } | { kind: "import" } | { kind: "rename"; dh: DatahubBrief } | null>(null);
+  // Deleting goes to the trash with no question asked: the toast offers "Hoàn tác" for 8 seconds, and the trash keeps it 7 days.
+  const remove = useMutation({
+    mutationFn: (dh: DatahubBrief) => deleteDatahub(dh.id),
+    onSuccess: (_, dh) => {
+      void qc.invalidateQueries({ queryKey: dhKeys.list });
+      void qc.invalidateQueries({ queryKey: dhKeys.limits });
+      notify.ok(`Đã xoá datahub "${dh.name}"`, {
+        label: "Hoàn tác",
+        onClick: () =>
+          void restoreDatahub(dh.id)
+            .then(() => {
+              void qc.invalidateQueries({ queryKey: dhKeys.list });
+              void qc.invalidateQueries({ queryKey: dhKeys.limits });
+              notify.ok(`Đã khôi phục datahub "${dh.name}"`);
+            })
+            .catch(() => notify.error("Không khôi phục được. Tên có thể đã bị datahub khác dùng.")),
+      });
+    },
+    onError: (e) => notify.error(errorMessage(e)),
+  });
   const q = useQuery({ queryKey: dhKeys.list, queryFn: () => listDatahubs("all") });
   const limits = useQuery({ queryKey: dhKeys.limits, queryFn: getLimits });
 
@@ -73,7 +99,7 @@ export function DatahubListPage() {
           <EmptyState
             title="Bạn chưa có datahub nào"
             hint="Datahub là nơi bạn gom các bảng dữ liệu của mình, như một file Google Sheets."
-            action={canCreate && <Button onClick={() => setDialog({ kind: "create" })}><Plus size={16} aria-hidden /> Tạo datahub đầu tiên</Button>}
+            cta={canCreate ? { label: "Tạo datahub đầu tiên", icon: <Plus size={16} aria-hidden />, onClick: () => setDialog({ kind: "create" }) } : undefined}
           />
         ) : (
           <EmptyState title="Chưa có datahub nào được chia sẻ với bạn" hint="Khi ai đó chia sẻ datahub hoặc một bảng cho bạn, nó sẽ hiện ở đây." />
@@ -82,7 +108,7 @@ export function DatahubListPage() {
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-3">
           {shown.map((d) => (
             <li key={d.id}>
-              <DatahubCard dh={d} mine={tab === "mine"} onRename={() => setDialog({ kind: "rename", dh: d })} onDelete={() => setDialog({ kind: "delete", dh: d })} />
+              <DatahubCard dh={d} mine={tab === "mine"} onRename={() => setDialog({ kind: "rename", dh: d })} onDelete={() => remove.mutate(d)} />
             </li>
           ))}
         </ul>
@@ -91,7 +117,6 @@ export function DatahubListPage() {
       {dialog?.kind === "import" && <ImportDialog target={{}} onClose={() => setDialog(null)} />}
       {dialog?.kind === "create" && <NameDialog title="Tạo datahub" submit="Tạo datahub" onClose={() => setDialog(null)} />}
       {dialog?.kind === "rename" && <NameDialog title="Đổi tên datahub" submit="Lưu" dh={dialog.dh} onClose={() => setDialog(null)} />}
-      {dialog?.kind === "delete" && <DeleteDialog dh={dialog.dh} onClose={() => setDialog(null)} />}
     </>
   );
 }
@@ -178,34 +203,5 @@ function NameDialog({ title, submit, dh, onClose }: { title: string; submit: str
         </div>
       </form>
     </Modal>
-  );
-}
-
-function DeleteDialog({ dh, onClose }: { dh: DatahubBrief; onClose: () => void }) {
-  const qc = useQueryClient();
-  const m = useMutation({
-    mutationFn: () => deleteDatahub(dh.id),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: dhKeys.list });
-      void qc.invalidateQueries({ queryKey: dhKeys.limits });
-      notify.ok(`Đã xoá datahub "${dh.name}"`, {
-        label: "Hoàn tác",
-        onClick: () =>
-          void restoreDatahub(dh.id)
-            .then(() => {
-              void qc.invalidateQueries({ queryKey: dhKeys.list });
-              void qc.invalidateQueries({ queryKey: dhKeys.limits });
-              notify.ok(`Đã khôi phục datahub "${dh.name}"`);
-            })
-            .catch(() => notify.error("Không khôi phục được. Tên có thể đã bị datahub khác dùng.")),
-      });
-      onClose();
-    },
-  });
-  return (
-    <>
-      <ConfirmDialog title="Xoá datahub?" message={<>Datahub "{dh.name}" và {formatCount(dh.tables.length, "bảng")} của nó sẽ vào thùng rác. Bạn khôi phục được trong 7 ngày.</>} confirmLabel="Xoá datahub" busy={m.isPending} onConfirm={() => m.mutate()} onClose={onClose} />
-      {m.error && <div className="fixed bottom-4 left-1/2 z-[60] -translate-x-1/2"><ErrorText error={m.error} /></div>}
-    </>
   );
 }

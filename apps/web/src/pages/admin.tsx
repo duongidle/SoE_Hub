@@ -8,6 +8,8 @@ import { Button, ConfirmDialog, DateTimeInput, ErrorText, Field, Input, Modal, N
 import { ApiError, api, apiList, fmtTime, parseVnDateTime, qs } from "@/lib/api";
 import { listUserLimits, setUserLimit, type UserLimit } from "@/lib/datahub/api";
 import { notify } from "@/components/ui/toast";
+import { FilteredEmptyState } from "@/components/ui/states";
+import { useUrlState } from "@/lib/use-url-state";
 import { LEVELS, TokenTable, menusText, type TokenRow } from "./account";
 
 /* ------------------------------------------------------------------ shared pieces */
@@ -462,8 +464,9 @@ function buildAuditFilter(f: AuditFilters): object | undefined {
 }
 
 export function AuditLogPage() {
-  const [draft, setDraft] = useState<AuditFilters>(EMPTY_FILTERS);
-  const [applied, setApplied] = useState<AuditFilters>(EMPTY_FILTERS);
+  // The applied filters live in the URL (reload, shared link and back button keep them); the form holds the draft.
+  const [applied, setApplied] = useUrlState<AuditFilters>(EMPTY_FILTERS);
+  const [draft, setDraft] = useState<AuditFilters>(applied);
   // Cursor stack for server (keyset) pagination: pages[i] is the cursor that opens page i.
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -564,7 +567,7 @@ export function AuditLogPage() {
             <Button variant="ghost" className="mt-1" onClick={() => setSelected(r.id)}>Chi tiết</Button>
           </div>
         ))}
-        {q.data?.data.length === 0 && <p className="text-muted-foreground">Không có dòng nhật ký nào khớp bộ lọc.</p>}
+        {q.data?.data.length === 0 && (filter ? <FilteredEmptyState onClear={reset} /> : <p className="text-muted-foreground">Chưa có dòng nhật ký nào.</p>)}
       </div>
       <div className="hidden sm:block">
       <Table>
@@ -603,7 +606,7 @@ export function AuditLogPage() {
           ))}
           {q.data?.data.length === 0 && (
             <tr>
-              <td colSpan={7} className="text-muted-foreground">Không có dòng nhật ký nào khớp bộ lọc.</td>
+              <td colSpan={7} className="text-muted-foreground">{filter ? <FilteredEmptyState onClear={reset} /> : "Chưa có dòng nhật ký nào."}</td>
             </tr>
           )}
         </tbody>

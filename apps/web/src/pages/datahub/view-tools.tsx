@@ -30,6 +30,7 @@ import {
 } from "@/lib/datahub/view-config";
 import { OPTION_COLORS, optionVar } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { searchHotkeyProps } from "@/lib/search-hotkey";
 import { FilterEditor } from "./filter-editor";
 
 export type Change = (patch: Partial<Record<keyof ViewConfig, unknown>>) => void;
@@ -83,7 +84,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (s: string) =
   return (
     <div className="relative min-w-0 flex-1 basis-48 sm:max-w-64">
       <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-      <Input type="search" aria-label="Tìm trong bảng" placeholder="Tìm trong bảng" value={value} onChange={(e) => onChange(e.target.value)} className="!pl-8" autoComplete="off" maxLength={200} />
+      <Input type="search" {...searchHotkeyProps} aria-label="Tìm trong bảng" placeholder="Tìm trong bảng" value={value} onChange={(e) => onChange(e.target.value)} className="!pl-8" autoComplete="off" maxLength={200} />
     </div>
   );
 }

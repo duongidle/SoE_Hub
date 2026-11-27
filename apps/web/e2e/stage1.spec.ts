@@ -365,7 +365,15 @@ test("nhật ký: lọc theo hành động, người, kết quả; chi tiết c�
   await form.getByLabel("Từ lúc").fill("01/01/2000 00:00");
   await form.getByLabel("Đến lúc").fill("02/01/2000");
   await form.getByRole("button", { name: "Lọc", exact: true }).click();
-  await expect(admin.page.getByText("Không có dòng nhật ký nào khớp bộ lọc.").locator("visible=true")).toBeVisible();
+  await expect(admin.page.getByText("Không có kết quả phù hợp").locator("visible=true")).toBeVisible();
+  await admin.shot("17-audit-empty-state");
+  // The filters are in the URL, and the empty state clears them in one click.
+  await expect(admin.page).toHaveURL(/from=/);
+  await admin.page.getByRole("button", { name: "Xoá bộ lọc" }).locator("visible=true").click();
+  await expect(admin.page.getByText("Không có kết quả phù hợp")).toHaveCount(0);
+  await expect(admin.page).not.toHaveURL(/from=/);
+  await expect(form.getByLabel("Từ lúc")).toHaveValue("");
+  await admin.shot("17-audit-empty-cleared");
 
   // Server pagination over the whole log.
   await form.getByRole("button", { name: "Xoá lọc" }).click();

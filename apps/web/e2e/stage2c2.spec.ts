@@ -310,6 +310,15 @@ test("cột của view: ẩn, đổi thứ tự, cố định, chiều cao dòng
 test("tìm kiếm trong bảng; view dùng cột đã xoá vẫn mở được và báo rõ", async () => {
   const pg = owner.page;
   await open(owner);
+  // "/" jumps to the search box; Esc leaves it. A "/" typed inside the box stays a character.
+  await pg.locator("body").click({ position: { x: 5, y: 5 } });
+  await pg.keyboard.press("/");
+  await expect(pg.getByLabel("Tìm trong bảng")).toBeFocused();
+  await pg.keyboard.type("a/b");
+  await expect(pg.getByLabel("Tìm trong bảng")).toHaveValue("a/b");
+  await pg.keyboard.press("Escape");
+  await expect(pg.getByLabel("Tìm trong bảng")).not.toBeFocused();
+  await pg.getByLabel("Tìm trong bảng").fill("");
   await pg.getByLabel("Tìm trong bảng").fill("Ngọc Hân");
   await expect(pg.getByText("1 dòng", { exact: true })).toBeVisible();
   await pg.getByLabel("Tìm trong bảng").fill("không có chuỗi này");

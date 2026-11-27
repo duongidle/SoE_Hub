@@ -132,6 +132,11 @@ test("menu Datahub, danh sách: tạo, đổi tên, xoá và hoàn tác; 4 trạ
   await pg.getByRole("dialog", { name: "Tạo datahub" }).getByLabel("Tên *").fill("bảng nháp");
   await pg.getByRole("dialog", { name: "Tạo datahub" }).getByRole("button", { name: "Tạo datahub" }).click();
   await expect(pg.getByRole("dialog", { name: "Tạo datahub" }).getByRole("alert")).toBeVisible();
+  // A focused input shows one thin border and a soft ring, never the global 2px outline on top of them.
+  const nameField = pg.getByRole("dialog", { name: "Tạo datahub" }).getByLabel("Tên *");
+  await nameField.focus();
+  await expect(nameField).toHaveCSS("outline-style", "none");
+  await owner.shot("13-focus-input");
   await pg.getByRole("dialog", { name: "Tạo datahub" }).getByRole("button", { name: "Huỷ" }).click();
   await expect(pg.getByRole("dialog", { name: "Bỏ thay đổi?" })).toBeHidden();
 
@@ -144,8 +149,11 @@ test("menu Datahub, danh sách: tạo, đổi tên, xoá và hoàn tác; 4 trạ
 
   await pg.getByRole("button", { name: "Tuỳ chọn cho Bảng nháp 2" }).click();
   await pg.getByRole("menuitem", { name: "Xoá datahub" }).click();
-  await pg.getByRole("dialog", { name: "Xoá datahub?" }).getByRole("button", { name: "Xoá datahub" }).click();
+  // No question asked: it is gone at once and the toast offers "Hoàn tác".
+  await expect(pg.getByRole("dialog")).toHaveCount(0);
   await expect(pg.getByRole("link", { name: "Mở datahub Bảng nháp 2" })).toHaveCount(0);
+  await toast(pg, 'Đã xoá datahub "Bảng nháp 2"').waitFor();
+  await owner.shot("10a-dh-undo-toast");
   await toast(pg, 'Đã xoá datahub "Bảng nháp 2"').getByRole("button", { name: "Hoàn tác" }).click();
   await expect(pg.getByRole("link", { name: "Mở datahub Bảng nháp 2" })).toBeVisible();
   await owner.shot("10-dh-list");
@@ -153,6 +161,9 @@ test("menu Datahub, danh sách: tạo, đổi tên, xoá và hoàn tác; 4 trạ
   // Shared with me: the owner's name and the permission, no menu of options.
   await viewer.page.goto("/datahub");
   await viewer.page.getByRole("tab", { name: /Được chia sẻ với tôi/ }).click();
+  await expect(viewer.page).toHaveURL(/[?&]tab=shared/);
+  await viewer.page.reload();
+  await expect(viewer.page.getByRole("tab", { name: /Được chia sẻ với tôi/ })).toHaveAttribute("aria-selected", "true");
   await expect(viewer.page.getByText(`Chủ: Đặng Thị Ngọc Hân ${p}`)).toBeVisible();
   await expect(viewer.page.getByText("Xem", { exact: true }).first()).toBeVisible();
   await expect(viewer.page.getByRole("button", { name: /Tuỳ chọn cho/ })).toHaveCount(0);
@@ -162,6 +173,8 @@ test("menu Datahub, danh sách: tạo, đổi tên, xoá và hoàn tác; 4 trạ
   await viewer.page.getByRole("tab", { name: /Của tôi/ }).click();
   await expect(viewer.page.getByText("Bạn chưa có datahub nào")).toBeVisible();
   await expect(viewer.page.getByRole("button", { name: "Tạo datahub đầu tiên" })).toBeVisible();
+  await expect(viewer.page).not.toHaveURL(/tab=/);
+  await viewer.shot("12-dh-empty-cta");
 });
 
 test("trang datahub: tab bảng, URL gửi được, thêm / đổi tên / chuyển / xoá bảng", async () => {

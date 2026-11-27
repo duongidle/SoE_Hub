@@ -27,6 +27,9 @@ const lazyPage = <P extends string>(path: P, load: () => Promise<Record<string, 
   createRoute({ getParentRoute: () => rootRoute, path, component: lazyRouteComponent(load as never, exportName as never) });
 
 export const router = createRouter({
+  // Back or forward returns to the old scroll position; a new page opens at the top. The scrolling box is the Shell's (data-scroll-restoration-id).
+  scrollRestoration: true,
+  scrollToTopSelectors: ["[data-scroll-restoration-id='shell-main']"],
   routeTree: rootRoute.addChildren([
     r("/", Home),
     r("/he-thong", SystemPage),
