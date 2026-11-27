@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoE Hub — Dynamic Form (Lark Ergonomic Edition)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#5B5CE6',
+              dark: '#4849C9',
+              soft: '#EEF0FF',
+            },
+            ink: {
+              DEFAULT: '#1E1B3A',
+              muted: '#646A82',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Nền Mesh Light pastel dịu nhẹ */
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #1E1B3A;
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      background-color: #F2F4FB;
+      background-image:
+        radial-gradient(at 8% 6%, rgba(235, 238, 255, 0.98) 0px, transparent 52%),
+        radial-gradient(at 92% 8%, rgba(232, 249, 244, 0.94) 0px, transparent 48%),
+        radial-gradient(at 82% 92%, rgba(238, 240, 255, 0.92) 0px, transparent 50%),
+        radial-gradient(at 14% 94%, rgba(238, 248, 255, 0.88) 0px, transparent 48%);
+    }
+
+    h1, h2, h3, .font-display {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Khung ứng dụng nổi (Floating App Shell) bo góc 20px */
+    .floating-shell {
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      box-shadow:
+        0 24px 60px -14px rgba(30, 27, 58, 0.09),
+        0 4px 16px -4px rgba(30, 27, 58, 0.04),
+        0 0 0 1px rgba(226, 230, 242, 0.85);
+    }
+
+    /* Left Sidebar phẳng (220px / 64px) */
+    .left-sidebar {
+      background: #FAF9FE;
+      transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sidebar-collapsed {
+      width: 64px !important;
+    }
+    .sidebar-collapsed .sb-hide {
+      display: none !important;
+    }
+    .sidebar-collapsed .sb-center {
+      justify-content: center !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+    .sidebar-collapsed .sb-item {
+      justify-content: center;
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .sb-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 35px;
+      padding: 0 11px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #4B5068;
+      transition: all 0.14s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .sb-item:hover {
+      background: rgba(255, 255, 255, 0.95);
+      color: #1E1B3A;
+    }
+    .sb-item.active {
+      background: #EEF0FF;
+      color: #5B5CE6;
+      font-weight: 600;
+    }
+    .sb-item.active::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 7px;
+      bottom: 7px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: #5B5CE6;
+    }
+    .sb-item.active svg {
+      color: #5B5CE6;
+    }
+
+    /* Tờ Form thực thụ ở giữa (WYSIWYG Paper Sheet) */
+    .form-sheet {
+      background: #FFFFFF;
+      border-radius: 16px;
+      border: 1px solid #E4E7F2;
+      box-shadow:
+        0 10px 32px -12px rgba(30, 27, 58, 0.06),
+        0 2px 6px -2px rgba(30, 27, 58, 0.03);
+    }
+
+    /* Thẻ câu hỏi WYSIWYG trên tờ Form */
+    .wysiwyg-q {
+      position: relative;
+      padding: 18px 22px;
+      border-radius: 12px;
+      border: 1.5px solid transparent;
+      background: #FFFFFF;
+      transition: all 0.16s ease;
+    }
+    .wysiwyg-q:hover {
+      background: #FAF9FF;
+      border-color: #E2E6F8;
+    }
+    .wysiwyg-q.selected {
+      background: #FAF9FF;
+      border-color: #5B5CE6;
+      box-shadow: 0 8px 24px -12px rgba(91, 92, 230, 0.25);
+    }
+    .wysiwyg-q .q-floating-actions {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(4px);
+      transition: all 0.15s ease;
+    }
+    .wysiwyg-q:hover .q-floating-actions,
+    .wysiwyg-q.selected .q-floating-actions {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    /* Nút chèn nhanh giữa các câu hỏi (Inline Insert Line) */
+    .inline-insert-zone {
+      position: relative;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: -4px 0;
+      z-index: 10;
+    }
+    .inline-insert-zone .insert-line {
+      position: absolute;
+      left: 20px;
+      right: 20px;
+      height: 1.5px;
+      background: #5B5CE6;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .inline-insert-zone .insert-pill {
+      position: relative;
+      z-index: 2;
+      opacity: 0;
+      transform: scale(0.92);
+      transition: all 0.15s ease;
+    }
+    .inline-insert-zone:hover .insert-line {
+      opacity: 0.45;
+    }
+    .inline-insert-zone:hover .insert-pill {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Công tắc gạt hiện đại (Toggle Switch) */
+    .toggle-switch {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      width: 36px;
+      height: 20px;
+      border-radius: 9999px;
+      background: #D8DCE8;
+      transition: background-color 0.18s ease;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .toggle-switch.on {
+      background: #5B5CE6;
+    }
+    .toggle-switch .toggle-knob {
+      width: 16px;
+      height: 16px;
+      border-radius: 9999px;
+      background: #FFFFFF;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+      transform: translateX(2px);
+      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .toggle-switch.on .toggle-knob {
+      transform: translateX(18px);
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 155, 180, 0.35); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100, 106, 130, 0.55); }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden p-2 sm:p-3.5 flex items-center justify-center">
+
+  <!-- KHUNG ỨNG DỤNG NỔI (FLOATING APP SHELL) -->
+  <div class="floating-shell w-full h-full flex overflow-hidden relative">
+
+    <!-- ================================================================ -->
+    <!-- 1. LEFT SIDEBAR PHẲNG (220PX MỞ RỘNG / 64PX THU GỌN)               -->
+    <!-- ================================================================ -->
+    <aside id="leftSidebar" class="left-sidebar w-[220px] shrink-0 border-r border-slate-200/80 flex flex-col justify-between select-none z-20">
+      
+      <!-- Logo & Nút thu gọn -->
+      <div class="shrink-0">
+        <div class="sb-center h-[48px] px-3.5 border-b border-slate-200/75 flex items-center justify-between gap-2">
+          <a href="#" onclick="event.preventDefault()" class="flex items-center gap-2.5 min-w-0">
+            <div class="w-7 h-7 rounded-[8px] bg-[#5B5CE6] flex items-center justify-center text-white font-display font-bold text-[12px] tracking-tight shrink-0">
+              SH
+            </div>
+            <div class="sb-hide leading-none truncate">
+              <span class="font-display font-bold text-[14px] text-[#1E1B3A] tracking-tight block">SoE Hub</span>
+              <span class="text-[10px] font-medium text-[#646A82] block mt-0.5">Internal Workspace</span>
+            </div>
+          </a>
+
+          <button onclick="toggleSidebar()" title="Thu gọn thanh bên" class="sb-hide w-7 h-7 rounded-[7px] text-slate-400 hover:text-[#1E1B3A] hover:bg-white border border-transparent hover:border-slate-200/80 flex items-center justify-center transition-all shrink-0">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+          </button>
+        </div>
+
+        <div id="expandBtnWrap" class="hidden pt-2 px-2 justify-center">
+          <button onclick="toggleSidebar()" title="Mở rộng thanh bên" class="w-9 h-8 rounded-[8px] text-slate-500 hover:text-[#5B5CE6] hover:bg-white border border-transparent hover:border-slate-200/80 flex items-center justify-center transition-all">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Danh sách 11 phân hệ điều hướng phẳng đồng cấp (Form active) -->
+      <nav class="flex-1 overflow-y-auto px-2.5 py-2.5 space-y-0.5 no-scrollbar" aria-label="Điều hướng SoE Hub">
+        <a href="#" onclick="setSidebarNav(this, event)" title="Tổng quan" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span class="sb-hide truncate">Tổng quan</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Datahub" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span class="sb-hide truncate">Datahub</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Quản lý Deal" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <span class="sb-hide truncate">Quản lý Deal</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Form" class="sb-item active">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span class="sb-hide truncate">Form</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Onboarding" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+          <span class="sb-hide truncate">Onboarding</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Knowledge" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          <span class="sb-hide truncate">Knowledge</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="AI Hub" class="sb-item justify-between">
+          <span class="flex items-center gap-2.5 min-w-0">
+            <svg class="w-[16px] h-[16px] text-indigo-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg>
+            <span class="sb-hide truncate">AI Hub</span>
+          </span>
+          <span class="sb-hide px-1.5 py-0.2 rounded bg-indigo-50 text-[#5B5CE6] border border-indigo-200/80 text-[9.5px] font-bold">AI</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Dashboard chia sẻ" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span class="sb-hide truncate">Dashboard chia sẻ</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Nhắc hẹn" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="sb-hide truncate">Nhắc hẹn</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Thông báo chung" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M3 11l18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          <span class="sb-hide truncate">Thông báo chung</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Org chart" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/></svg>
+          <span class="sb-hide truncate">Org chart</span>
+        </a>
+      </nav>
+
+      <!-- Đáy Sidebar gọn: chỉ nút Đăng xuất -->
+      <div class="shrink-0 border-t border-slate-200/75 p-2">
+        <button onclick="showToast('Đã lưu tự động biểu mẫu')" title="Đăng xuất" class="sb-item w-full text-slate-500 hover:!text-rose-600 hover:!bg-rose-50/70">
+          <svg class="w-[16px] h-[16px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="sb-hide truncate text-[12.5px]">Đăng xuất</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ================================================================ -->
+    <!-- 2. VÙNG LÀM VIỆC CHÍNH BÊN PHẢI                                  -->
+    <!-- ================================================================ -->
+    <div class="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
+
+      <!-- TOP NAVIGATOR BAR DUY NHẤT (48PX) -->
+      <header class="shrink-0 h-[48px] px-4 lg:px-5 bg-white border-b border-slate-200/80 flex items-center justify-between gap-3 relative z-30">
+        
+        <!-- Trái: Breadcrumb đồng cỡ chữ 14.5px -->
+        <div class="flex items-center gap-2 min-w-0">
+          <button onclick="openFormsModal()" class="inline-flex items-center gap-1.5 text-[14.5px] font-semibold text-[#646A82] hover:text-[#5B5CE6] transition-colors shrink-0">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>Danh sách Form</span>
+          </button>
+          <span class="text-[14.5px] font-medium text-slate-300 select-none">/</span>
+          <span id="navBreadcrumbTitle" class="text-[14.5px] font-semibold text-[#1E1B3A] truncate">
+            Work+ Advanced (Wework &amp; Service)
+          </span>
+        </div>
+
+        <!-- Phải: Trạng thái "Đang nhận", Chuông (11), Hồ sơ Khuê Võ -->
+        <div class="flex items-center gap-2.5 shrink-0">
+          <button onclick="toggleFormStatus(this)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/90 text-emerald-700 text-[12px] font-semibold transition-colors">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="formStatusText">Đang nhận</span>
+          </button>
+
+          <div class="h-4 w-[1px] bg-slate-200"></div>
+
+          <!-- Chuông thông báo (badge 11) -->
+          <div class="relative">
+            <button onclick="togglePopover('notifPopover', event)" title="11 thông báo chưa đọc" class="relative w-8 h-8 rounded-[8px] text-[#4B5068] hover:text-[#1E1B3A] hover:bg-slate-100 flex items-center justify-center transition-colors">
+              <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span class="absolute -top-0.5 -right-0.5 min-w-[17px] h-[16px] px-1 rounded-full bg-rose-600 text-white text-[9.5px] font-bold flex items-center justify-center ring-2 ring-white tabular">11</span>
+            </button>
+
+            <div id="notifPopover" class="app-popover hidden absolute right-0 top-10 w-[330px] rounded-[14px] bg-white border border-slate-200 shadow-xl z-50 overflow-hidden">
+              <div class="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+                <span class="text-[12.5px] font-bold text-[#1E1B3A]">Thông báo chưa đọc (11)</span>
+                <button onclick="closeAllPopovers()" class="text-[11px] font-semibold text-[#5B5CE6] hover:underline">Đánh dấu đã đọc</button>
+              </div>
+              <div class="divide-y divide-slate-100 text-[12px]">
+                <div class="p-3 bg-rose-50/45 flex items-start gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-rose-600 mt-1.5 shrink-0"></span>
+                  <div>
+                    <p class="text-[#1E1B3A] leading-snug"><span class="font-semibold">Linh Nguyễn</span> chưa nộp <span class="font-medium">"Báo cáo ngày"</span></p>
+                    <span class="text-[10.5px] text-rose-600 font-medium mt-0.5 block">Quá hạn 18:00</span>
+                  </div>
+                </div>
+                <div class="p-3 flex items-start gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-[#5B5CE6] mt-1.5 shrink-0"></span>
+                  <div>
+                    <p class="text-slate-700 leading-snug"><span class="font-semibold text-[#1E1B3A]">Dương Trần</span> vừa gửi phản hồi #120 cho biểu mẫu này</p>
+                    <span class="text-[10.5px] text-[#646A82] mt-0.5 block">4 phút trước</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hồ sơ Khuê Võ -->
+          <button class="inline-flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-[8px] hover:bg-slate-100 transition-colors">
+            <span class="w-6 h-6 rounded-full bg-[#5B5CE6] text-white font-display font-bold text-[10px] flex items-center justify-center shrink-0">KV</span>
+            <span class="text-[12.5px] font-semibold text-[#1E1B3A] hidden sm:inline">Khuê Võ</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- ============================================================== -->
+      <!-- THANH ĐIỀU HƯỚNG FORM CÔNG THÁI HỌC 1 DÒNG DUY NHẤT (46PX)     -->
+      <!-- ============================================================== -->
+      <div class="shrink-0 h-[46px] px-4 lg:px-5 bg-white border-b border-slate-200/80 flex items-center justify-between gap-3 z-20">
+        
+        <!-- Trái: Trạng thái lưu tự động -->
+        <div class="hidden xl:flex items-center gap-1.5 text-[12px] text-[#646A82] shrink-0">
+          <svg class="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Đã lưu vào Datahub</span>
+        </div>
+
+        <!-- Giữa: Segmented Control 4 bước rõ ràng (Thiết kế · Thiết lập · Chia sẻ · Phản hồi) -->
+        <nav class="inline-flex items-center p-1 rounded-[11px] bg-[#F4F5FA] border border-slate-200/80 overflow-x-auto no-scrollbar" aria-label="Các bước cấu hình Form">
+          <button onclick="switchFormStep('design', this)" class="step-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] bg-white text-[#5B5CE6] shadow-2xs text-[12.5px] font-semibold transition-all shrink-0">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span>1. Thiết kế</span>
+          </button>
+
+          <button onclick="switchFormStep('settings', this)" class="step-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-[#646A82] hover:text-[#1E1B3A] text-[12.5px] font-medium transition-all shrink-0">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>2. Thiết lập</span>
+          </button>
+
+          <button onclick="switchFormStep('share', this)" class="step-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-[#646A82] hover:text-[#1E1B3A] text-[12.5px] font-medium transition-all shrink-0">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <span>3. Chia sẻ</span>
+          </button>
+
+          <button onclick="switchFormStep('responses', this)" class="step-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-[#646A82] hover:text-[#1E1B3A] text-[12.5px] font-medium transition-all shrink-0 tabular">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span>4. Phản hồi</span>
+            <span class="px-1.5 py-0.2 rounded-full bg-indigo-100/80 text-[#5B5CE6] text-[10.5px] font-bold">120</span>
+          </button>
+        </nav>
+
+        <!-- Phải: Xem trước nhanh (Desktop / Mobile) & Xuất bản -->
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="inline-flex items-center rounded-[9px] bg-white border border-slate-200/90 p-0.5">
+            <button onclick="openPreviewModal('desktop')" title="Xem trước giao diện máy tính" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-[7px] hover:bg-[#EEF0FF] text-[#4B5068] hover:text-[#5B5CE6] text-[12px] font-medium transition-colors">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              <span class="hidden sm:inline">Xem trước</span>
+            </button>
+            <button onclick="openPreviewModal('mobile')" title="Xem trước giao diện điện thoại" class="w-7 h-7 rounded-[7px] hover:bg-[#EEF0FF] text-[#4B5068] hover:text-[#5B5CE6] flex items-center justify-center transition-colors">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            </button>
+          </div>
+
+          <button onclick="publishForm()" class="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[9px] bg-[#5B5CE6] hover:bg-[#4849C9] text-white text-[12.5px] font-semibold shadow-2xs transition-colors">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Xuất bản</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- BƯỚC 1: KHÔNG GIAN THIẾT KẾ WYSIWYG CHUẨN LARK FORM            -->
+      <!-- ============================================================== -->
+      <div id="stepDesign" class="flex-1 flex min-h-0 overflow-hidden bg-[#F6F7FB]">
+
+        <!-- VÙNG GIỮA RỘNG RÃI: TỜ FORM THỰC THỤ (MAX-WIDTH 720PX) -->
+        <main class="flex-1 overflow-y-auto px-4 py-6 lg:px-8 relative">
+          <div class="max-w-[720px] mx-auto pb-16 relative">
+
+            <!-- Tờ Form thực thụ (WYSIWYG Paper Sheet) -->
+            <div class="form-sheet overflow-hidden">
+              
+              <!-- Dải banner pastel tím - xanh tinh tế ở đỉnh tờ Form -->
+              <div class="h-3 bg-gradient-to-r from-[#5B5CE6] via-[#7B7DF2] to-[#34D399]"></div>
+
+              <!-- Phần đầu Form: Sửa trực tiếp Tiêu đề & Mô tả tại chỗ -->
+              <div class="px-6 pt-6 pb-5 border-b border-slate-100">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EEF0FF] text-[#5B5CE6] text-[11px] font-semibold">
+                    Datahub · Onboarding
+                  </span>
+                  <span class="text-[11.5px] text-[#646A82] tabular">7 câu hỏi · Tự động đồng bộ bảng</span>
+                </div>
+
+                <input
+                  id="wysiwygTitleInput"
+                  type="text"
+                  value="Work+ Advanced (Wework & Service)"
+                  oninput="syncTitleEverywhere(this.value)"
+                  class="w-full font-display text-[22px] font-bold text-[#1E1B3A] bg-transparent border border-transparent hover:border-slate-200 focus:border-[#5B5CE6] focus:bg-[#FAF9FF] rounded-[9px] px-2 py-1 -ml-2 focus:outline-none transition-colors"
+                />
+
+                <textarea
+                  id="wysiwygDescInput"
+                  rows="2"
+                  oninput="syncDescEverywhere(this.value)"
+                  placeholder="Thêm mô tả hướng dẫn điền biểu mẫu..."
+                  class="w-full mt-1.5 text-[13.5px] text-[#646A82] leading-relaxed bg-transparent border border-transparent hover:border-slate-200 focus:border-[#5B5CE6] focus:bg-[#FAF9FF] rounded-[9px] px-2 py-1.5 -ml-2 focus:outline-none resize-none transition-colors"
+                >Biểu mẫu đánh giá năng lực vận hành nâng cao cho phân hệ Wework &amp; Service. Vui lòng chọn đầy đủ các phương án chính xác.</textarea>
+              </div>
+
+              <!-- Nội dung các trường trên tờ Form -->
+              <div class="p-4 sm:p-5 space-y-2">
+
+                <!-- Trường hệ thống: Người dùng (Tự động nhận diện) -->
+                <div class="px-5 py-3.5 rounded-[12px] bg-[#FAF9FC] border border-slate-200/75 flex flex-wrap items-center justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-full bg-[#5B5CE6] text-white font-display font-bold text-[11px] flex items-center justify-center shrink-0">KV</span>
+                    <div>
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-[13px] font-semibold text-[#1E1B3A]">Người điền</span>
+                        <span class="px-1.5 py-0.2 rounded bg-slate-200/70 text-[#646A82] text-[10px] font-semibold">Trường hệ thống</span>
+                      </div>
+                      <span class="text-[12px] text-[#646A82] block mt-0.5">Tự động ghi nhận tài khoản nội bộ đang đăng nhập (Khuê Võ)</span>
+                    </div>
+                  </div>
+                  <span class="text-[11.5px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">Tự động nhận diện</span>
+                </div>
+
+                <!-- Khối Nhóm câu: Wework, Platform -->
+                <div class="pt-2 pb-1 px-2 flex items-center gap-3">
+                  <div class="flex items-center gap-2 px-3 py-1 rounded-[8px] bg-[#EEF0FF] border border-[#D8DCFF]">
+                    <span class="w-2 h-2 rounded-full bg-[#5B5CE6]"></span>
+                    <span class="text-[12px] font-bold text-[#5B5CE6]">Nhóm câu: Wework, Platform</span>
+                  </div>
+                  <div class="flex-1 h-[1px] bg-slate-200/80"></div>
+                </div>
+
+                <!-- Danh sách câu hỏi WYSIWYG (Render động) -->
+                <div id="wysiwygQuestionsContainer" class="space-y-1">
+                  <!-- Render bằng JS -->
+                </div>
+
+                <!-- Nút "+ Thêm câu hỏi" cuối tờ Form -->
+                <div class="pt-3 px-2">
+                  <button onclick="openFieldPicker(QUESTIONS.length, this, event)" class="w-full py-3 rounded-[12px] border-2 border-dashed border-[#C7CEFA] hover:border-[#5B5CE6] bg-[#FAF9FF] hover:bg-[#EEF0FF]/70 text-[#5B5CE6] text-[13.5px] font-semibold flex items-center justify-center gap-2 transition-all">
+                    <span class="w-6 h-6 rounded-full bg-[#5B5CE6] text-white flex items-center justify-center text-[15px] leading-none">+</span>
+                    <span>Thêm câu hỏi mới (17 loại trường dữ liệu)</span>
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </main>
+
+        <!-- ============================================================ -->
+        <!-- PANEL THUỘC TÍNH BÊN PHẢI (CONTEXT INSPECTOR 320PX)          -->
+        <!-- ============================================================ -->
+        <aside class="w-[320px] shrink-0 bg-white border-l border-slate-200/80 overflow-y-auto p-4 space-y-4 z-10">
+          
+          <!-- Đầu Panel: Loại trường & Số thứ tự -->
+          <div class="flex items-center justify-between pb-2.5 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <span id="inspTypeBadge" class="px-2.5 py-1 rounded-[7px] bg-[#EEF0FF] text-[#5B5CE6] text-[12px] font-bold">
+                Nhiều lựa chọn
+              </span>
+            </div>
+            <span id="inspQuestionNum" class="text-[12px] font-semibold text-[#646A82] tabular">Câu #1</span>
+          </div>
+
+          <!-- Nhãn câu hỏi -->
+          <div>
+            <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1.5">Nhãn câu hỏi</label>
+            <textarea id="inspLabelInput" rows="2" oninput="updateQuestionField('label', this.value)" class="w-full px-3 py-2 rounded-[9px] border border-slate-200 focus:border-[#5B5CE6] focus:outline-none text-[12.5px] font-medium text-[#1E1B3A] resize-none"></textarea>
+          </div>
+
+          <!-- Mô tả & Gợi ý trong ô -->
+          <div class="space-y-2.5">
+            <div>
+              <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1">Mô tả hướng dẫn</label>
+              <input id="inspDescInput" type="text" placeholder="Thêm ghi chú nhỏ dưới câu hỏi..." oninput="updateQuestionField('desc', this.value)" class="w-full px-3 py-1.5 rounded-[8px] border border-slate-200 focus:border-[#5B5CE6] focus:outline-none text-[12.5px] text-[#1E1B3A] placeholder:text-slate-400" />
+            </div>
+
+            <div id="inspPlaceholderWrap">
+              <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1">Gợi ý trong ô (Placeholder)</label>
+              <input id="inspPlaceholderInput" type="text" placeholder="Ví dụ: Nhập câu trả lời..." oninput="updateQuestionField('placeholder', this.value)" class="w-full px-3 py-1.5 rounded-[8px] border border-slate-200 focus:border-[#5B5CE6] focus:outline-none text-[12.5px] text-[#1E1B3A] placeholder:text-slate-400" />
+            </div>
+          </div>
+
+          <!-- Các công tắc gạt hiện đại (Toggle Switches) -->
+          <div class="p-3 rounded-[12px] bg-[#FAF9FC] border border-slate-200/80 space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <span class="text-[12.5px] font-semibold text-[#1E1B3A] block">Bắt buộc trả lời</span>
+                <span class="text-[11px] text-[#646A82]">Không thể gửi form nếu bỏ trống</span>
+              </div>
+              <button id="toggleRequired" type="button" onclick="toggleQuestionSwitch('required')" class="toggle-switch on" role="switch" aria-checked="true">
+                <span class="toggle-knob"></span>
+              </button>
+            </div>
+
+            <div class="h-[1px] bg-slate-200/70"></div>
+
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <span class="text-[12.5px] font-semibold text-[#1E1B3A] block">Xáo trộn thứ tự lựa chọn</span>
+                <span class="text-[11px] text-[#646A82]">Chống sao chép khi làm bài test</span>
+              </div>
+              <button id="toggleShuffle" type="button" onclick="toggleQuestionSwitch('shuffle')" class="toggle-switch" role="switch" aria-checked="false">
+                <span class="toggle-knob"></span>
+              </button>
+            </div>
+
+            <div class="h-[1px] bg-slate-200/70"></div>
+
+            <div>
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <span class="text-[12.5px] font-semibold text-[#1E1B3A] block">Trường ẩn (lấy từ URL)</span>
+                  <span class="text-[11px] text-[#646A82]">Tự động điền qua tham số link</span>
+                </div>
+                <button id="toggleHidden" type="button" onclick="toggleQuestionSwitch('hidden')" class="toggle-switch" role="switch" aria-checked="false">
+                  <span class="toggle-knob"></span>
+                </button>
+              </div>
+
+              <div id="hiddenParamBox" class="hidden mt-2.5 pt-2.5 border-t border-slate-200/70">
+                <label class="block text-[11px] font-semibold text-[#646A82] mb-1">Mã tham số URL</label>
+                <input id="inspParamInput" type="text" placeholder="cong_ty" oninput="updateQuestionField('param', this.value)" class="w-full px-2.5 py-1.5 rounded-[7px] bg-white border border-slate-200 focus:border-[#5B5CE6] focus:outline-none text-[12px] font-mono text-[#5B5CE6]" />
+                <span class="text-[10.5px] text-[#646A82] mt-1 block">Ví dụ: <code class="text-[#5B5CE6]">?cong_ty=SoE</code></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Khu vực Quản lý Lựa chọn & Logic rẽ nhánh -->
+          <div id="inspOptionsBlock" class="space-y-2.5 pt-1">
+            <div class="flex items-center justify-between">
+              <span class="text-[12.5px] font-bold text-[#1E1B3A]">Danh sách lựa chọn</span>
+              <button onclick="addOptionToActive()" class="text-[12px] font-semibold text-[#5B5CE6] hover:underline">+ Thêm đáp án</button>
+            </div>
+
+            <div id="inspOptionsList" class="space-y-2">
+              <!-- Render bằng JS -->
+            </div>
+          </div>
+
+        </aside>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- BƯỚC 2: THIẾT LẬP BIỂU MẪU (SETTINGS)                          -->
+      <!-- ============================================================== -->
+      <div id="stepSettings" class="hidden flex-1 overflow-y-auto bg-[#F6F7FB] p-6">
+        <div class="max-w-[740px] mx-auto space-y-4">
+          <div>
+            <h2 class="font-display text-[18px] font-bold text-[#1E1B3A]">Thiết lập thu thập &amp; Chế độ bài kiểm tra</h2>
+            <p class="text-[12.5px] text-[#646A82] mt-0.5">Cấu hình quy tắc gửi bài, tính điểm tự động và thời gian hiệu lực của biểu mẫu</p>
+          </div>
+
+          <!-- Thẻ 1: Chế độ Bài kiểm tra -->
+          <div class="bg-white rounded-[14px] border border-slate-200/90 p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-[10px] bg-indigo-50 text-[#5B5CE6] flex items-center justify-center font-bold text-[15px]">✓</div>
+                <div>
+                  <h3 class="text-[14px] font-bold text-[#1E1B3A]">Bật chế độ Bài kiểm tra (Quiz &amp; Chấm điểm)</h3>
+                  <p class="text-[12px] text-[#646A82]">Gán điểm số cho từng câu hỏi trắc nghiệm và tự động chấm điểm khi nộp bài</p>
+                </div>
+              </div>
+              <button onclick="this.classList.toggle('on')" class="toggle-switch on"><span class="toggle-knob"></span></button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+              <div class="p-3 rounded-[10px] bg-[#FAF9FC] border border-slate-200/80">
+                <label class="text-[11.5px] font-semibold text-[#646A82] block mb-1">Điểm đạt yêu cầu (Pass Score)</label>
+                <div class="flex items-center gap-2">
+                  <input type="number" value="80" class="w-20 px-2.5 py-1 rounded-[7px] bg-white border border-slate-200 text-[13px] font-bold text-[#1E1B3A] tabular" />
+                  <span class="text-[12.5px] font-medium text-[#646A82]">/ 100 điểm</span>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-[10px] bg-[#FAF9FC] border border-slate-200/80">
+                <label class="text-[11.5px] font-semibold text-[#646A82] block mb-1">Thời lượng làm bài tối đa</label>
+                <div class="flex items-center gap-2">
+                  <input type="number" value="30" class="w-20 px-2.5 py-1 rounded-[7px] bg-white border border-slate-200 text-[13px] font-bold text-[#1E1B3A] tabular" />
+                  <span class="text-[12.5px] font-medium text-[#646A82]">phút</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thẻ 2: Giới hạn phản hồi & Thời gian mở/đóng -->
+          <div class="bg-white rounded-[14px] border border-slate-200/90 p-5 space-y-4">
+            <h3 class="text-[14px] font-bold text-[#1E1B3A]">Giới hạn &amp; Thời gian mở biểu mẫu</h3>
+
+            <div class="flex items-center justify-between py-1">
+              <div>
+                <span class="text-[13px] font-semibold text-[#1E1B3A] block">Mỗi thành viên chỉ được gửi 1 lần</span>
+                <span class="text-[12px] text-[#646A82]">Dựa trên tài khoản nội bộ SoE Hub đang đăng nhập</span>
+              </div>
+              <button onclick="this.classList.toggle('on')" class="toggle-switch on"><span class="toggle-knob"></span></button>
+            </div>
+
+            <div class="h-[1px] bg-slate-100"></div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="text-[12px] font-semibold text-[#1E1B3A] block mb-1">Thời gian mở nhận phản hồi</label>
+                <input type="datetime-local" value="2026-11-24T08:00" class="w-full px-3 py-1.5 rounded-[8px] border border-slate-200 text-[12.5px] text-[#1E1B3A]" />
+              </div>
+              <div>
+                <label class="text-[12px] font-semibold text-[#1E1B3A] block mb-1">Tự động đóng biểu mẫu lúc</label>
+                <input type="datetime-local" value="2026-11-30T18:00" class="w-full px-3 py-1.5 rounded-[8px] border border-slate-200 text-[12.5px] text-[#1E1B3A]" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- BƯỚC 3: CHIA SẺ BIỂU MẪU (SHARE)                               -->
+      <!-- ============================================================== -->
+      <div id="stepShare" class="hidden flex-1 overflow-y-auto bg-[#F6F7FB] p-6">
+        <div class="max-w-[740px] mx-auto space-y-4">
+          <div>
+            <h2 class="font-display text-[18px] font-bold text-[#1E1B3A]">Chia sẻ biểu mẫu tới đội ngũ</h2>
+            <p class="text-[12.5px] text-[#646A82] mt-0.5">Phân quyền truy cập cho 20 nhân sự nội bộ hoặc sao chép liên kết / mã QR</p>
+          </div>
+
+          <!-- Link & QR Code -->
+          <div class="bg-white rounded-[14px] border border-slate-200/90 p-5 flex flex-col sm:flex-row items-center gap-5">
+            <div class="flex-1 space-y-3 w-full">
+              <div class="flex items-center justify-between">
+                <span class="text-[13px] font-bold text-[#1E1B3A]">Liên kết điền biểu mẫu trực tiếp</span>
+                <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">Đang mở</span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <input id="shareUrlInput" type="text" readonly value="https://hub.soe.vn/f/work-plus-advanced-wework" class="flex-1 px-3 py-2 rounded-[9px] bg-[#FAF9FC] border border-slate-200 text-[12.5px] font-mono text-[#4B5068]" />
+                <button onclick="copyShareUrl()" class="px-3.5 py-2 rounded-[9px] bg-[#5B5CE6] hover:bg-[#4849C9] text-white text-[12.5px] font-semibold shrink-0 transition-colors">
+                  Sao chép link
+                </button>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                <button onclick="showToast('Đã sao chép mã nhúng <iframe>')" class="px-3 py-1.5 rounded-[8px] bg-white border border-slate-200 hover:bg-slate-50 text-[12px] font-medium text-[#1E1B3A]">
+                  &lt;/&gt; Lấy mã nhúng iframe
+                </button>
+                <button onclick="showToast('Đã gửi thông báo nhắc điền form tới 20 thành viên')" class="px-3 py-1.5 rounded-[8px] bg-[#EEF0FF] hover:bg-indigo-100 text-[12px] font-semibold text-[#5B5CE6]">
+                  Gửi nhắc nhở tới 20 nhân sự
+                </button>
+              </div>
+            </div>
+
+            <!-- Khối QR Code Vector sắc nét -->
+            <div class="w-[126px] h-[126px] rounded-[12px] border border-slate-200 bg-white p-2.5 flex flex-col items-center justify-center shrink-0">
+              <svg class="w-20 h-20 text-[#1E1B3A]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13-2h3v2h-3v-2zm-3 0h2v3h-2v-3zm3 3h3v5h-5v-2h2v-3zm-3 3h2v2h-2v-2z"/>
+              </svg>
+              <span class="text-[10px] font-semibold text-[#646A82] mt-1">Quét mã QR</span>
+            </div>
+          </div>
+
+          <!-- Quyền truy cập nội bộ 20 nhân sự -->
+          <div class="bg-white rounded-[14px] border border-slate-200/90 p-5 space-y-3">
+            <h3 class="text-[13.5px] font-bold text-[#1E1B3A]">Phạm vi truy cập nội bộ (20 thành viên)</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <label class="p-3 rounded-[10px] border-2 border-[#5B5CE6] bg-[#EEF0FF]/40 flex items-start gap-2.5 cursor-pointer">
+                <input type="radio" name="accessScope" checked class="mt-1 text-[#5B5CE6]" />
+                <div>
+                  <span class="text-[13px] font-bold text-[#1E1B3A] block">Toàn bộ 20 nhân sự SoE Hub</span>
+                  <span class="text-[11.5px] text-[#646A82]">Tự động định danh người điền qua SSO</span>
+                </div>
+              </label>
+
+              <label class="p-3 rounded-[10px] border border-slate-200 hover:border-slate-300 flex items-start gap-2.5 cursor-pointer">
+                <input type="radio" name="accessScope" class="mt-1 text-[#5B5CE6]" />
+                <div>
+                  <span class="text-[13px] font-bold text-[#1E1B3A] block">Công khai ngoài công ty</span>
+                  <span class="text-[11.5px] text-[#646A82]">Bất kỳ ai có liên kết đều điền được</span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- BƯỚC 4: PHẢN HỒI & BIỂU ĐỒ TÓM TẮT (120 PHẢN HỒI)              -->
+      <!-- ============================================================== -->
+      <div id="stepResponses" class="hidden flex-1 overflow-y-auto bg-[#F6F7FB] p-6">
+        <div class="max-w-[820px] mx-auto space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="font-display text-[18px] font-bold text-[#1E1B3A]">Phản hồi biểu mẫu (120)</h2>
+              <p class="text-[12.5px] text-[#646A82] mt-0.5">Dữ liệu đã được đồng bộ trực tiếp về bảng <strong class="text-[#5B5CE6]">Work+ Advanced (Wework &amp; Service)</strong> trong Datahub</p>
+            </div>
+            <button onclick="showToast('Đang mở bảng dữ liệu 120 phản hồi trong Datahub...')" class="px-3.5 py-2 rounded-[9px] bg-[#5B5CE6] hover:bg-[#4849C9] text-white text-[12.5px] font-semibold">
+              Mở bảng trong Datahub →
+            </button>
+          </div>
+
+          <!-- 3 Thẻ chỉ số nhanh -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="bg-white rounded-[12px] border border-slate-200/90 p-4">
+              <span class="text-[11.5px] font-medium text-[#646A82]">Tổng lượt nộp bài</span>
+              <div class="text-[22px] font-display font-bold text-[#1E1B3A] mt-1 tabular">120 <span class="text-[12px] font-semibold text-emerald-600">+14 hôm nay</span></div>
+            </div>
+            <div class="bg-white rounded-[12px] border border-slate-200/90 p-4">
+              <span class="text-[11.5px] font-medium text-[#646A82]">Điểm trung bình</span>
+              <div class="text-[22px] font-display font-bold text-[#5B5CE6] mt-1 tabular">86.5 / 100</div>
+            </div>
+            <div class="bg-white rounded-[12px] border border-slate-200/90 p-4">
+              <span class="text-[11.5px] font-medium text-[#646A82]">Thời gian hoàn thành TB</span>
+              <div class="text-[22px] font-display font-bold text-[#1E1B3A] mt-1 tabular">06p 42s</div>
+            </div>
+          </div>
+
+          <!-- Biểu đồ phân bố câu trả lời mẫu -->
+          <div class="bg-white rounded-[14px] border border-slate-200/90 p-5 space-y-3">
+            <span class="text-[13px] font-bold text-[#1E1B3A] block">Câu 1: Wework: Thành viên nào có quyền nhập công việc vào dự án từ file Excel?</span>
+            <div class="space-y-2.5 text-[12.5px]">
+              <div>
+                <div class="flex justify-between mb-1"><span class="font-medium text-[#1E1B3A]">Quản trị hệ thống cấp cao</span><span class="font-bold text-[#5B5CE6] tabular">98 (81.6%)</span></div>
+                <div class="h-2 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-[#5B5CE6] rounded-full" style="width: 81.6%"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between mb-1"><span class="font-medium text-[#1E1B3A]">Quản lý dự án/phòng ban</span><span class="font-bold text-emerald-600 tabular">84 (70.0%)</span></div>
+                <div class="h-2 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-emerald-500 rounded-full" style="width: 70%"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between mb-1"><span class="font-medium text-[#1E1B3A]">Quản trị ứng dụng Wework</span><span class="font-bold text-amber-600 tabular">62 (51.6%)</span></div>
+                <div class="h-2 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-amber-500 rounded-full" style="width: 51.6%"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- POPOVER LƯỚI 2 CỘT PHÂN NHÓM MÀU CHO 17 LOẠI TRƯỜNG (LARK STYLE)   -->
+  <!-- ================================================================== -->
+  <div id="fieldPickerPopover" class="hidden fixed z-50 w-[390px] max-w-[94vw] rounded-[16px] bg-white border border-slate-200 shadow-2xl p-3.5 space-y-3" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+      <span class="text-[12.5px] font-bold text-[#1E1B3A]">Chèn loại trường câu hỏi</span>
+      <button onclick="closeFieldPicker()" class="w-6 h-6 rounded-md text-slate-400 hover:text-[#1E1B3A] hover:bg-slate-100 flex items-center justify-center text-[12px]">✕</button>
+    </div>
+
+    <!-- Nhóm 1: Văn bản & Số (Tím chàm) -->
+    <div>
+      <span class="text-[10.5px] font-bold uppercase tracking-wider text-[#5B5CE6] block mb-1.5">Văn bản &amp; Số liệu</span>
+      <div class="grid grid-cols-2 gap-1.5">
+        <button onclick="insertQuestionAtIndex('Văn bản ngắn')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-[#EEF0FF] text-[12px] font-medium text-[#1E1B3A] hover:text-[#5B5CE6] text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-indigo-50 text-[#5B5CE6] flex items-center justify-center font-bold text-[11px] shrink-0">T</span>
+          <span>Văn bản ngắn</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Văn bản dài')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-[#EEF0FF] text-[12px] font-medium text-[#1E1B3A] hover:text-[#5B5CE6] text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-indigo-50 text-[#5B5CE6] flex items-center justify-center font-bold text-[11px] shrink-0">¶</span>
+          <span>Văn bản dài</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Số')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-[#EEF0FF] text-[12px] font-medium text-[#1E1B3A] hover:text-[#5B5CE6] text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-indigo-50 text-[#5B5CE6] flex items-center justify-center font-bold text-[11px] shrink-0">#</span>
+          <span>Số</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Tiền')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-[#EEF0FF] text-[12px] font-medium text-[#1E1B3A] hover:text-[#5B5CE6] text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-indigo-50 text-[#5B5CE6] flex items-center justify-center font-bold text-[11px] shrink-0">₫</span>
+          <span>Tiền</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Phần trăm')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-[#EEF0FF] text-[12px] font-medium text-[#1E1B3A] hover:text-[#5B5CE6] text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-indigo-50 text-[#5B5CE6] flex items-center justify-center font-bold text-[11px] shrink-0">%</span>
+          <span>Phần trăm</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Nhóm 2: Lựa chọn & Đánh giá (Xanh ngọc & Hổ phách) -->
+    <div>
+      <span class="text-[10.5px] font-bold uppercase tracking-wider text-emerald-600 block mb-1.5">Lựa chọn &amp; Đánh giá</span>
+      <div class="grid grid-cols-2 gap-1.5">
+        <button onclick="insertQuestionAtIndex('Một lựa chọn')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-emerald-50 text-[12px] font-medium text-[#1E1B3A] hover:text-emerald-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-[11px] shrink-0">◉</span>
+          <span>Một lựa chọn</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Nhiều lựa chọn')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-emerald-50 text-[12px] font-medium text-[#1E1B3A] hover:text-emerald-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-[11px] shrink-0">☑</span>
+          <span>Nhiều lựa chọn</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Hộp tích')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-emerald-50 text-[12px] font-medium text-[#1E1B3A] hover:text-emerald-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-[11px] shrink-0">✓</span>
+          <span>Hộp tích</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Đánh giá sao')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-amber-50 text-[12px] font-medium text-[#1E1B3A] hover:text-amber-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-amber-50 text-amber-500 flex items-center justify-center font-bold text-[11px] shrink-0">★</span>
+          <span>Đánh giá sao</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Thang điểm')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-amber-50 text-[12px] font-medium text-[#1E1B3A] hover:text-amber-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-[10px] shrink-0">1-5</span>
+          <span>Thang điểm</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Nhóm 3: Thời gian, Liên hệ & Hệ thống (Xanh dương) -->
+    <div>
+      <span class="text-[10.5px] font-bold uppercase tracking-wider text-blue-600 block mb-1.5">Thời gian, Liên hệ &amp; Hệ thống</span>
+      <div class="grid grid-cols-2 gap-1.5">
+        <button onclick="insertQuestionAtIndex('Ngày')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-blue-50 text-[12px] font-medium text-[#1E1B3A] hover:text-blue-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[11px] shrink-0">📅</span>
+          <span>Ngày</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Ngày giờ')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-blue-50 text-[12px] font-medium text-[#1E1B3A] hover:text-blue-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[11px] shrink-0">⏰</span>
+          <span>Ngày giờ</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Email')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-blue-50 text-[12px] font-medium text-[#1E1B3A] hover:text-blue-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[11px] shrink-0">@</span>
+          <span>Email</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Điện thoại')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-blue-50 text-[12px] font-medium text-[#1E1B3A] hover:text-blue-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[11px] shrink-0">☎</span>
+          <span>Điện thoại</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Đường dẫn')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-blue-50 text-[12px] font-medium text-[#1E1B3A] hover:text-blue-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[11px] shrink-0">🔗</span>
+          <span>Đường dẫn</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Đính kèm')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-blue-50 text-[12px] font-medium text-[#1E1B3A] hover:text-blue-700 text-left transition-colors">
+          <span class="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[11px] shrink-0">📎</span>
+          <span>Đính kèm</span>
+        </button>
+        <button onclick="insertQuestionAtIndex('Người dùng')" class="flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] hover:bg-blue-50 text-[12px] font-medium text-[#1E1B3A] hover:text-blue-700 text-left transition-colors col-span-2">
+          <span class="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[11px] shrink-0">👤</span>
+          <span>Người dùng (Chọn nhân sự nội bộ)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- MODAL XEM TRƯỚC THỰC TẾ (DESKTOP / MOBILE TOGGLE)                  -->
+  <!-- ================================================================== -->
+  <div id="previewModal" class="hidden fixed inset-0 z-50 bg-[#1E1B3A]/45 backdrop-blur-[2px] flex items-center justify-center p-4" onclick="closePreviewModal()">
+    <div class="w-full max-w-[820px] max-h-[92vh] rounded-[20px] bg-[#F4F5FA] border border-white shadow-2xl flex flex-col overflow-hidden" onclick="event.stopPropagation()">
+      
+      <!-- Thanh điều khiển Modal Xem trước -->
+      <div class="shrink-0 h-[50px] px-5 bg-white border-b border-slate-200 flex items-center justify-between gap-3">
+        <span class="text-[13.5px] font-bold text-[#1E1B3A]">Xem trước biểu mẫu trực tiếp</span>
+
+        <div class="inline-flex items-center p-1 rounded-[10px] bg-[#F4F5FA] border border-slate-200/80">
+          <button id="prevDesktopSwitch" onclick="setModalDevice('desktop')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-[7px] bg-white text-[#5B5CE6] shadow-2xs text-[12px] font-semibold">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>Máy tính</span>
+          </button>
+          <button id="prevMobileSwitch" onclick="setModalDevice('mobile')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-[7px] text-[#646A82] hover:text-[#1E1B3A] text-[12px] font-medium">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            <span>Điện thoại</span>
+          </button>
+        </div>
+
+        <button onclick="closePreviewModal()" class="w-8 h-8 rounded-[8px] text-slate-400 hover:text-[#1E1B3A] hover:bg-slate-100 flex items-center justify-center">✕</button>
+      </div>
+
+      <!-- Khung hiển thị Form -->
+      <div class="flex-1 overflow-y-auto p-5">
+        <div id="previewDeviceContainer" class="mx-auto bg-white rounded-[16px] border border-slate-200 shadow-lg overflow-hidden transition-all duration-200 max-w-[660px]">
+          <div class="h-2.5 bg-gradient-to-r from-[#5B5CE6] via-[#7B7DF2] to-[#34D399]"></div>
+          <div class="p-6 space-y-5">
+            <div>
+              <h2 id="modalPreviewTitle" class="font-display text-[20px] font-bold text-[#1E1B3A]">Work+ Advanced (Wework &amp; Service)</h2>
+              <p id="modalPreviewDesc" class="text-[13px] text-[#646A82] mt-1"></p>
+            </div>
+            <div id="modalPreviewBody" class="space-y-4"></div>
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span class="text-[12px] text-[#646A82]">Người điền: <strong class="text-[#1E1B3A]">Khuê Võ</strong></span>
+              <button onclick="showToast('Đã gửi phản hồi thử nghiệm thành công!'); closePreviewModal()" class="px-4 py-2 rounded-[9px] bg-[#5B5CE6] hover:bg-[#4849C9] text-white text-[13px] font-semibold">
+                Gửi câu trả lời
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DANH SÁCH 8 BIỂU MẪU -->
+  <div id="formsListModal" class="hidden fixed inset-0 z-50 bg-[#1E1B3A]/45 backdrop-blur-[2px] flex items-center justify-center p-4" onclick="closeFormsModal()">
+    <div class="w-full max-w-[640px] rounded-[18px] bg-white border border-slate-200 shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+      <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+        <span class="font-display text-[15px] font-bold text-[#1E1B3A]">Chuyển nhanh biểu mẫu (8)</span>
+        <button onclick="closeFormsModal()" class="w-7 h-7 rounded-md text-slate-400 hover:text-[#1E1B3A] hover:bg-slate-100 flex items-center justify-center">✕</button>
+      </div>
+      <div class="p-3 max-h-[65vh] overflow-y-auto divide-y divide-slate-100">
+        <button onclick="switchActiveForm('Work+ Advanced (Wework & Service)')" class="w-full p-3 rounded-[10px] hover:bg-[#EEF0FF]/70 flex items-center justify-between text-left transition-colors">
+          <div>
+            <span class="text-[13.5px] font-bold text-[#5B5CE6] block">Work+ Advanced (Wework &amp; Service)</span>
+            <span class="text-[11.5px] text-[#646A82]">120 phản hồi · bảng Work+ Advanced (Wework &amp; Service)</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">Đang nhận</span>
+        </button>
+        <button onclick="switchActiveForm('Bài kiểm tra 3')" class="w-full p-3 rounded-[10px] hover:bg-slate-50 flex items-center justify-between text-left transition-colors">
+          <div>
+            <span class="text-[13.5px] font-bold text-[#1E1B3A] block">Bài kiểm tra 3</span>
+            <span class="text-[11.5px] text-[#646A82]">0 phản hồi · bảng Bài kiểm tra 3</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-slate-100 text-[#646A82] text-[11px] font-semibold">Nháp</span>
+        </button>
+        <button onclick="switchActiveForm('Phiếu chấm mockup')" class="w-full p-3 rounded-[10px] hover:bg-slate-50 flex items-center justify-between text-left transition-colors">
+          <div>
+            <span class="text-[13.5px] font-bold text-[#1E1B3A] block">Phiếu chấm mockup</span>
+            <span class="text-[11.5px] text-[#646A82]">0 phản hồi · bảng Phiếu chấm mockup</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">Đang nhận</span>
+        </button>
+        <button onclick="switchActiveForm('Báo cáo ngày')" class="w-full p-3 rounded-[10px] hover:bg-slate-50 flex items-center justify-between text-left transition-colors">
+          <div>
+            <span class="text-[13.5px] font-bold text-[#1E1B3A] block">Báo cáo ngày</span>
+            <span class="text-[11.5px] text-[#646A82]">0 phản hồi · bảng Báo cáo ngày</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">Đang nhận</span>
+        </button>
+        <button onclick="switchActiveForm('Bài thu hoạch on-job')" class="w-full p-3 rounded-[10px] hover:bg-slate-50 flex items-center justify-between text-left transition-colors">
+          <div>
+            <span class="text-[13.5px] font-bold text-[#1E1B3A] block">Bài thu hoạch on-job</span>
+            <span class="text-[11.5px] text-[#646A82]">120 phản hồi · bảng Bài thu hoạch on-job</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">Đang nhận</span>
+        </button>
+        <button onclick="switchActiveForm('Q&A')" class="w-full p-3 rounded-[10px] hover:bg-slate-50 flex items-center justify-between text-left transition-colors">
+          <div>
+            <span class="text-[13.5px] font-bold text-[#1E1B3A] block">Q&amp;A</span>
+            <span class="text-[11.5px] text-[#646A82]">436 phản hồi · bảng Q&amp;A</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">Đang nhận</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST THÔNG BÁO NHẸ -->
+  <div id="feedbackToast" class="fixed bottom-5 right-5 z-50 px-3.5 py-2.5 rounded-[10px] bg-[#1E1B3A] text-white text-[12.5px] font-medium shadow-lg opacity-0 pointer-events-none translate-y-2 transition-all duration-200">
+    Đã cập nhật
+  </div>
+
+  <script>
+    // Dữ liệu câu hỏi WYSIWYG Wework thực tế
+    let QUESTIONS = [
+      {
+        id: 1,
+        type: 'Nhiều lựa chọn',
+        label: 'Wework: Thành viên nào có quyền nhập công việc vào dự án từ file Excel?',
+        desc: 'Chọn tất cả các vai trò được phân quyền mặc định trong dự án.',
+        placeholder: '',
+        required: true,
+        shuffle: false,
+        hidden: false,
+        param: '',
+        options: [
+          { text: 'Quản trị hệ thống cấp cao', hasRule: false, targetQ: 'Câu #2' },
+          { text: 'Quản lý dự án/phòng ban', hasRule: false, targetQ: 'Câu #2' },
+          { text: 'Quản trị ứng dụng Wework', hasRule: false, targetQ: 'Câu #2' }
+        ]
+      },
+      {
+        id: 2,
+        type: 'Nhiều lựa chọn',
+        label: 'Wework: Thực hiện tác vụ hàng loạt về công việc cho phép thao tác những trường nào?',
+        desc: '',
+        placeholder: '',
+        required: true,
+        shuffle: true,
+        hidden: false,
+        param: '',
+        options: [
+          { text: 'Đổi người thực hiện & người theo dõi', hasRule: false, targetQ: 'Câu #3' },
+          { text: 'Cập nhật thời hạn & mức độ ưu tiên', hasRule: false, targetQ: 'Câu #3' },
+          { text: 'Di chuyển sang nhóm công việc khác', hasRule: false, targetQ: 'Câu #3' }
+        ]
+      },
+      {
+        id: 3,
+        type: 'Một lựa chọn',
+        label: 'Wework: Hiện tại Base đang giới hạn số lượng công việc con (sub-task) tối đa là bao nhiêu?',
+        desc: '',
+        placeholder: '',
+        required: false,
+        shuffle: false,
+        hidden: false,
+        param: '',
+        options: [
+          { text: '50 công việc con / 1 công việc cha', hasRule: false, targetQ: 'Câu #4' },
+          { text: '100 công việc con / 1 công việc cha', hasRule: false, targetQ: 'Câu #4' },
+          { text: 'Không giới hạn số lượng', hasRule: false, targetQ: 'Câu #4' }
+        ]
+      },
+      {
+        id: 4,
+        type: 'Một lựa chọn',
+        label: 'Wework: To-do của checklist khác sub-task ở điểm nào quan trọng nhất?',
+        desc: '',
+        placeholder: '',
+        required: false,
+        shuffle: false,
+        hidden: false,
+        param: '',
+        options: [
+          { text: 'To-do không có trường tùy chỉnh và báo cáo riêng', hasRule: false, targetQ: 'Câu #5' },
+          { text: 'To-do không thể gắn deadline độc lập', hasRule: false, targetQ: 'Câu #5' }
+        ]
+      },
+      {
+        id: 5,
+        type: 'Đánh giá sao',
+        label: 'Đánh giá mức độ nắm vững quy trình triển khai Wework & Service của bạn',
+        desc: 'Chọn từ 1 đến 5 sao dựa trên mức độ tự tin khi tư vấn khách hàng.',
+        placeholder: '',
+        required: true,
+        shuffle: false,
+        hidden: false,
+        param: '',
+        options: []
+      },
+      {
+        id: 6,
+        type: 'Văn bản ngắn',
+        label: 'Tình huống thực tế khó nhất bạn từng gặp khi triển khai Wework là gì?',
+        desc: '',
+        placeholder: 'Nhập ngắn gọn bài toán hoặc vướng mắc của khách hàng...',
+        required: false,
+        shuffle: false,
+        hidden: false,
+        param: '',
+        options: []
+      },
+      {
+        id: 7,
+        type: 'Người dùng',
+        label: 'Leader phụ trách duyệt bài thu hoạch',
+        desc: '',
+        placeholder: 'Chọn quản lý trực tiếp trong danh sách 20 nhân sự...',
+        required: true,
+        shuffle: false,
+        hidden: false,
+        param: '',
+        options: []
+      }
+    ];
+
+    let activeQuestionId = 1;
+    let pendingInsertIndex = QUESTIONS.length;
+
+    // Render giao diện câu hỏi WYSIWYG trực quan trên tờ Form
+    function renderWysiwygControl(q) {
+      if (q.type === 'Nhiều lựa chọn' || q.type === 'Một lựa chọn') {
+        const isRadio = q.type === 'Một lựa chọn';
+        return `
+          <div class="space-y-2 mt-3">
+            ${q.options.map((opt, idx) => `
+              <div class="flex items-center gap-2.5 px-3 py-2 rounded-[9px] bg-white border border-slate-200/85 hover:border-[#C7CEFA] transition-colors">
+                <span class="w-4 h-4 ${isRadio ? 'rounded-full' : 'rounded-[4px]'} border-2 border-slate-300 shrink-0"></span>
+                <span class="text-[13px] text-[#1E1B3A] flex-1">${opt.text}</span>
+                ${opt.hasRule ? `<span class="px-2 py-0.5 rounded bg-indigo-50 text-[#5B5CE6] text-[10.5px] font-semibold">↳ Hiện ${opt.targetQ}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      if (q.type === 'Đánh giá sao') {
+        return `
+          <div class="flex items-center gap-2 mt-3">
+            ${[1, 2, 3, 4, 5].map(n => `
+              <span class="w-9 h-9 rounded-[9px] bg-amber-50/70 border border-amber-200/80 text-amber-400 flex items-center justify-center text-[18px]">★</span>
+            `).join('')}
+            <span class="text-[12px] text-[#646A82] ml-2">Thang đánh giá 5 sao</span>
+          </div>
+        `;
+      }
+
+      if (q.type === 'Thang điểm') {
+        return `
+          <div class="flex items-center gap-1.5 mt-3">
+            ${[1, 2, 3, 4, 5].map(n => `
+              <span class="w-10 h-9 rounded-[8px] bg-white border border-slate-200 text-[#1E1B3A] font-semibold text-[13px] flex items-center justify-center tabular">${n}</span>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      if (q.type === 'Văn bản dài') {
+        return `
+          <div class="mt-3 px-3.5 py-3 rounded-[9px] bg-white border border-slate-200/90 text-[12.5px] text-slate-400 h-[72px]">
+            ${q.placeholder || 'Vùng nhập đoạn văn bản chi tiết...'}
+          </div>
+        `;
+      }
+
+      if (q.type === 'Người dùng') {
+        return `
+          <div class="mt-3 px-3 py-2 rounded-[9px] bg-white border border-slate-200/90 flex items-center justify-between text-[12.5px] text-slate-500">
+            <span class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full bg-indigo-100 text-[#5B5CE6] font-bold text-[10px] flex items-center justify-center">👤</span>
+              <span>${q.placeholder || 'Chọn thành viên từ danh sách SoE Hub...'}</span>
+            </span>
+            <span class="text-slate-400">▾</span>
+          </div>
+        `;
+      }
+
+      if (q.type === 'Đính kèm') {
+        return `
+          <div class="mt-3 p-3.5 rounded-[9px] border border-dashed border-slate-300 bg-white text-center text-[12px] text-[#646A82]">
+            📎 Kéo thả tệp tin hoặc bấm để tải lên (PDF, XLSX, PNG · Tối đa 25MB)
+          </div>
+        `;
+      }
+
+      return `
+        <div class="mt-3 px-3.5 py-2 rounded-[9px] bg-white border border-slate-200/90 text-[12.5px] text-slate-400">
+          ${q.placeholder || `Ô nhập liệu kiểu ${q.type}...`}
+        </div>
+      `;
+    }
+
+    // Render toàn bộ danh sách câu hỏi trên tờ Form
+    function renderWysiwygSheet() {
+      const container = document.getElementById('wysiwygQuestionsContainer');
+      container.innerHTML = QUESTIONS.map((q, idx) => {
+        const isSelected = q.id === activeQuestionId;
+        return `
+          <!-- Đường chèn nhanh phía trên câu hỏi -->
+          <div class="inline-insert-zone">
+            <div class="insert-line"></div>
+            <button onclick="openFieldPicker(${idx}, this, event)" class="insert-pill inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#5B5CE6] text-white text-[11px] font-semibold shadow-sm">
+              <span>+ Chèn câu hỏi tại đây</span>
+            </button>
+          </div>
+
+          <div onclick="selectQuestion(${q.id})" class="wysiwyg-q ${isSelected ? 'selected' : ''} cursor-pointer">
+            <!-- Thanh công cụ nổi gọn phía trên bên phải khi chọn / hover -->
+            <div class="q-floating-actions absolute right-3 top-2.5 flex items-center gap-1 bg-white border border-slate-200/90 rounded-[8px] px-1.5 py-0.5 shadow-xs" onclick="event.stopPropagation()">
+              <button onclick="duplicateQuestion(${idx})" title="Nhân bản câu hỏi" class="w-6 h-6 rounded hover:bg-slate-100 text-slate-500 hover:text-[#1E1B3A] flex items-center justify-center text-[11px]">⧉</button>
+              <button onclick="moveQuestion(${idx}, -1)" title="Đẩy lên" class="w-6 h-6 rounded hover:bg-slate-100 text-slate-500 hover:text-[#1E1B3A] flex items-center justify-center text-[11px]">↑</button>
+              <button onclick="moveQuestion(${idx}, 1)" title="Đẩy xuống" class="w-6 h-6 rounded hover:bg-slate-100 text-slate-500 hover:text-[#1E1B3A] flex items-center justify-center text-[11px]">↓</button>
+              <div class="w-[1px] h-3.5 bg-slate-200 mx-0.5"></div>
+              <button onclick="deleteQuestion(${q.id})" title="Xóa câu hỏi" class="w-6 h-6 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center text-[11px]">✕</button>
+            </div>
+
+            <!-- Nhãn số thứ tự & Loại trường -->
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-[11.5px] font-bold text-[#5B5CE6] tabular">Câu ${idx + 1}</span>
+              <span class="text-slate-300">·</span>
+              <span class="text-[11.5px] font-medium text-[#646A82]">${q.type}</span>
+              ${q.hidden ? '<span class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200/80 text-[10px] font-semibold">Trường ẩn</span>' : ''}
+            </div>
+
+            <!-- Tiêu đề câu hỏi -->
+            <div class="text-[14.5px] font-semibold text-[#1E1B3A] leading-snug pr-24">
+              ${q.label}
+              ${q.required ? '<span class="text-rose-600 ml-0.5 font-bold">*</span>' : ''}
+            </div>
+
+            ${q.desc ? `<p class="text-[12.5px] text-[#646A82] mt-1">${q.desc}</p>` : ''}
+
+            <!-- Giao diện trường nhập liệu thực tế (WYSIWYG) -->
+            ${renderWysiwygControl(q)}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectQuestion(qId) {
+      activeQuestionId = qId;
+      renderWysiwygSheet();
+      renderInspectorPanel();
+    }
+
+    // Đồng bộ Panel thuộc tính bên phải
+    function renderInspectorPanel() {
+      const idx = QUESTIONS.findIndex(item => item.id === activeQuestionId);
+      const q = QUESTIONS[idx] || QUESTIONS[0];
+      if (!q) return;
+
+      document.getElementById('inspTypeBadge').textContent = q.type;
+      document.getElementById('inspQuestionNum').textContent = `Câu #${idx + 1}`;
+      document.getElementById('inspLabelInput').value = q.label;
+      document.getElementById('inspDescInput').value = q.desc || '';
+      document.getElementById('inspPlaceholderInput').value = q.placeholder || '';
+
+      const hasOptions = Array.isArray(q.options) && q.options.length > 0;
+      document.getElementById('inspPlaceholderWrap').classList.toggle('hidden', hasOptions || q.type === 'Đánh giá sao' || q.type === 'Thang điểm');
+
+      // Toggle switches
+      setSwitchVisual('toggleRequired', !!q.required);
+      setSwitchVisual('toggleShuffle', !!q.shuffle);
+      setSwitchVisual('toggleHidden', !!q.hidden);
+
+      const paramBox = document.getElementById('hiddenParamBox');
+      paramBox.classList.toggle('hidden', !q.hidden);
+      document.getElementById('inspParamInput').value = q.param || '';
+
+      // Danh sách lựa chọn & Logic rẽ nhánh
+      const optBlock = document.getElementById('inspOptionsBlock');
+      const optList = document.getElementById('inspOptionsList');
+      if (!hasOptions) {
+        optBlock.classList.add('hidden');
+        return;
+      }
+
+      optBlock.classList.remove('hidden');
+      optList.innerHTML = q.options.map((opt, optIdx) => `
+        <div class="p-2.5 rounded-[10px] bg-[#FAF9FC] border border-slate-200/85 space-y-2">
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-300 text-[12px] select-none">⋮⋮</span>
+            <input
+              type="text"
+              value="${opt.text}"
+              oninput="updateOptionText(${optIdx}, this.value)"
+              class="flex-1 px-2.5 py-1 rounded-[7px] bg-white border border-slate-200 focus:border-[#5B5CE6] focus:outline-none text-[12px] font-medium text-[#1E1B3A]"
+            />
+            <button onclick="removeOption(${optIdx})" title="Xóa đáp án" class="w-6 h-6 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center text-[11px]">✕</button>
+          </div>
+
+          <div class="flex items-center justify-between pt-0.5">
+            <button onclick="toggleBranchRule(${optIdx})" class="inline-flex items-center gap-1 text-[11px] font-semibold ${opt.hasRule ? 'text-[#5B5CE6]' : 'text-[#646A82] hover:text-[#5B5CE6]'} transition-colors">
+              <span>↳</span>
+              <span>${opt.hasRule ? 'Đang bật rẽ nhánh' : 'Thêm logic rẽ nhánh'}</span>
+            </button>
+          </div>
+
+          ${opt.hasRule ? `
+            <div class="p-2 rounded-[8px] bg-[#EEF0FF]/70 border border-[#D8DCFF] flex items-center gap-1.5 text-[11px]">
+              <span class="font-semibold text-[#5B5CE6] shrink-0">Nếu chọn → Hiện:</span>
+              <select onchange="updateBranchTarget(${optIdx}, this.value)" class="flex-1 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[11px] font-medium text-[#1E1B3A] focus:outline-none">
+                ${QUESTIONS.map((targetQ, tIdx) => `
+                  <option value="Câu #${tIdx + 1}" ${opt.targetQ === `Câu #${tIdx + 1}` ? 'selected' : ''}>Câu #${tIdx + 1}: ${targetQ.label.slice(0, 24)}...</option>
+                `).join('')}
+              </select>
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    function setSwitchVisual(elId, isOn) {
+      const el = document.getElementById(elId);
+      el.classList.toggle('on', isOn);
+      el.setAttribute('aria-checked', String(isOn));
+    }
+
+    function toggleQuestionSwitch(field) {
+      const q = QUESTIONS.find(item => item.id === activeQuestionId);
+      if (!q) return;
+      q[field] = !q[field];
+      renderWysiwygSheet();
+      renderInspectorPanel();
+    }
+
+    function updateQuestionField(field, value) {
+      const q = QUESTIONS.find(item => item.id === activeQuestionId);
+      if (!q) return;
+      q[field] = value;
+      renderWysiwygSheet();
+    }
+
+    function updateOptionText(optIdx, value) {
+      const q = QUESTIONS.find(item => item.id === activeQuestionId);
+      if (q && q.options[optIdx]) {
+        q.options[optIdx].text = value;
+        renderWysiwygSheet();
+      }
+    }
+
+    function toggleBranchRule(optIdx) {
+      const q = QUESTIONS.find(item => item.id === activeQuestionId);
+      if (q && q.options[optIdx]) {
+        q.options[optIdx].hasRule = !q.options[optIdx].hasRule;
+        renderWysiwygSheet();
+        renderInspectorPanel();
+      }
+    }
+
+    function updateBranchTarget(optIdx, val) {
+      const q = QUESTIONS.find(item => item.id === activeQuestionId);
+      if (q && q.options[optIdx]) {
+        q.options[optIdx].targetQ = val;
+        renderWysiwygSheet();
+      }
+    }
+
+    function addOptionToActive() {
+      const q = QUESTIONS.find(item => item.id === activeQuestionId);
+      if (!q) return;
+      q.options.push({ text: `Lựa chọn ${q.options.length + 1}`, hasRule: false, targetQ: 'Câu #2' });
+      renderWysiwygSheet();
+      renderInspectorPanel();
+    }
+
+    function removeOption(optIdx) {
+      const q = QUESTIONS.find(item => item.id === activeQuestionId);
+      if (q && q.options.length > 1) {
+        q.options.splice(optIdx, 1);
+        renderWysiwygSheet();
+        renderInspectorPanel();
+      } else {
+        showToast('Cần giữ tối thiểu 1 đáp án');
+      }
+    }
+
+    // Popover Lưới 2 cột 17 loại trường
+    function openFieldPicker(insertIdx, btnEl, e) {
+      if (e) e.stopPropagation();
+      pendingInsertIndex = insertIdx;
+      const picker = document.getElementById('fieldPickerPopover');
+      const rect = btnEl.getBoundingClientRect();
+
+      picker.classList.remove('hidden');
+      const topPos = Math.min(window.innerHeight - picker.offsetHeight - 16, Math.max(60, rect.bottom + 6));
+      const leftPos = Math.min(window.innerWidth - picker.offsetWidth - 20, Math.max(20, rect.left + rect.width / 2 - picker.offsetWidth / 2));
+
+      picker.style.top = `${topPos}px`;
+      picker.style.left = `${leftPos}px`;
+    }
+
+    function closeFieldPicker() {
+      document.getElementById('fieldPickerPopover').classList.add('hidden');
+    }
+
+    function insertQuestionAtIndex(typeName) {
+      const newId = Date.now();
+      const isChoice = typeName === 'Một lựa chọn' || typeName === 'Nhiều lựa chọn';
+      const newQ = {
+        id: newId,
+        type: typeName,
+        label: `Câu hỏi ${typeName.toLowerCase()} mới`,
+        desc: '',
+        placeholder: '',
+        required: false,
+        shuffle: false,
+        hidden: false,
+        param: '',
+        options: isChoice
+          ? [
+              { text: 'Phương án A', hasRule: false, targetQ: 'Câu #2' },
+              { text: 'Phương án B', hasRule: false, targetQ: 'Câu #2' }
+            ]
+          : []
+      };
+
+      QUESTIONS.splice(pendingInsertIndex, 0, newQ);
+      activeQuestionId = newId;
+      closeFieldPicker();
+      renderWysiwygSheet();
+      renderInspectorPanel();
+      showToast(`Đã chèn câu hỏi "${typeName}"`);
+    }
+
+    function duplicateQuestion(idx) {
+      const orig = QUESTIONS[idx];
+      const copy = JSON.parse(JSON.stringify(orig));
+      copy.id = Date.now();
+      copy.label = `${orig.label} (Bản sao)`;
+      QUESTIONS.splice(idx + 1, 0, copy);
+      activeQuestionId = copy.id;
+      renderWysiwygSheet();
+      renderInspectorPanel();
+      showToast('Đã nhân bản câu hỏi');
+    }
+
+    function moveQuestion(idx, dir) {
+      const target = idx + dir;
+      if (target < 0 || target >= QUESTIONS.length) return;
+      const tmp = QUESTIONS[idx];
+      QUESTIONS[idx] = QUESTIONS[target];
+      QUESTIONS[target] = tmp;
+      renderWysiwygSheet();
+      renderInspectorPanel();
+    }
+
+    function deleteQuestion(qId) {
+      if (QUESTIONS.length <= 1) {
+        showToast('Biểu mẫu cần có ít nhất 1 câu hỏi');
+        return;
+      }
+      QUESTIONS = QUESTIONS.filter(item => item.id !== qId);
+      if (activeQuestionId === qId) activeQuestionId = QUESTIONS[0].id;
+      renderWysiwygSheet();
+      renderInspectorPanel();
+      showToast('Đã xóa câu hỏi');
+    }
+
+    // Chuyển giữa 4 bước: Thiết kế · Thiết lập · Chia sẻ · Phản hồi
+    function switchFormStep(stepKey, btnEl) {
+      document.querySelectorAll('.step-pill').forEach(pill => {
+        pill.classList.remove('bg-white', 'text-[#5B5CE6]', 'shadow-2xs', 'font-semibold');
+        pill.classList.add('text-[#646A82]', 'font-medium');
+      });
+      btnEl.classList.add('bg-white', 'text-[#5B5CE6]', 'shadow-2xs', 'font-semibold');
+      btnEl.classList.remove('text-[#646A82]', 'font-medium');
+
+      ['stepDesign', 'stepSettings', 'stepShare', 'stepResponses'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+
+      const map = {
+        design: 'stepDesign',
+        settings: 'stepSettings',
+        share: 'stepShare',
+        responses: 'stepResponses'
+      };
+      document.getElementById(map[stepKey]).classList.remove('hidden');
+    }
+
+    // Modal Xem trước Desktop / Mobile
+    function openPreviewModal(device) {
+      document.getElementById('modalPreviewTitle').textContent = document.getElementById('wysiwygTitleInput').value;
+      document.getElementById('modalPreviewDesc').textContent = document.getElementById('wysiwygDescInput').value;
+
+      const body = document.getElementById('modalPreviewBody');
+      body.innerHTML = QUESTIONS.filter(q => !q.hidden).map((q, idx) => `
+        <div class="p-4 rounded-[12px] bg-[#FAF9FC] border border-slate-200/85 space-y-2">
+          <div class="text-[13.5px] font-semibold text-[#1E1B3A]">
+            ${idx + 1}. ${q.label}
+            ${q.required ? '<span class="text-rose-600 ml-0.5">*</span>' : ''}
+          </div>
+          ${q.desc ? `<p class="text-[12px] text-[#646A82]">${q.desc}</p>` : ''}
+          ${renderWysiwygControl(q)}
+        </div>
+      `).join('');
+
+      document.getElementById('previewModal').classList.remove('hidden');
+      setModalDevice(device);
+    }
+
+    function setModalDevice(device) {
+      const box = document.getElementById('previewDeviceContainer');
+      const btnD = document.getElementById('prevDesktopSwitch');
+      const btnM = document.getElementById('prevMobileSwitch');
+
+      if (device === 'desktop') {
+        box.className = 'mx-auto bg-white rounded-[16px] border border-slate-200 shadow-lg overflow-hidden transition-all duration-200 max-w-[660px]';
+        btnD.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-[7px] bg-white text-[#5B5CE6] shadow-2xs text-[12px] font-semibold';
+        btnM.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-[7px] text-[#646A82] hover:text-[#1E1B3A] text-[12px] font-medium';
+      } else {
+        box.className = 'mx-auto bg-white rounded-[28px] border-[6px] border-[#1E1B3A] shadow-2xl overflow-hidden transition-all duration-200 max-w-[375px]';
+        btnM.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-[7px] bg-white text-[#5B5CE6] shadow-2xs text-[12px] font-semibold';
+        btnD.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-[7px] text-[#646A82] hover:text-[#1E1B3A] text-[12px] font-medium';
+      }
+    }
+
+    function closePreviewModal() {
+      document.getElementById('previewModal').classList.add('hidden');
+    }
+
+    // Modal Chuyển nhanh danh sách 8 Form
+    function openFormsModal() {
+      document.getElementById('formsListModal').classList.remove('hidden');
+    }
+    function closeFormsModal() {
+      document.getElementById('formsListModal').classList.add('hidden');
+    }
+    function switchActiveForm(title) {
+      document.getElementById('wysiwygTitleInput').value = title;
+      syncTitleEverywhere(title);
+      closeFormsModal();
+      showToast(`Đã chuyển sang biểu mẫu "${title}"`);
+    }
+
+    function syncTitleEverywhere(val) {
+      document.getElementById('navBreadcrumbTitle').textContent = val || 'Biểu mẫu không tiêu đề';
+    }
+    function syncDescEverywhere() {}
+
+    function toggleFormStatus(btn) {
+      const txt = document.getElementById('formStatusText');
+      const isReceiving = txt.textContent === 'Đang nhận';
+      if (isReceiving) {
+        txt.textContent = 'Tạm dừng';
+        btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[#646A82] text-[12px] font-semibold transition-colors';
+      } else {
+        txt.textContent = 'Đang nhận';
+        btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/90 text-emerald-700 text-[12px] font-semibold transition-colors';
+      }
+    }
+
+    function copyShareUrl() {
+      const input = document.getElementById('shareUrlInput');
+      input.select();
+      document.execCommand('copy');
+      showToast('Đã sao chép liên kết biểu mẫu vào bộ nhớ tạm!');
+    }
+
+    function publishForm() {
+      showToast('Đã xuất bản biểu mẫu & đồng bộ cột dữ liệu vào Datahub!');
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('leftSidebar');
+      const expandWrap = document.getElementById('expandBtnWrap');
+      const isCollapsed = sidebar.classList.toggle('sidebar-collapsed');
+      expandWrap.classList.toggle('hidden', !isCollapsed);
+      expandWrap.classList.toggle('flex', isCollapsed);
+    }
+
+    function setSidebarNav(el, e) {
+      e.preventDefault();
+      document.querySelectorAll('.sb-item').forEach(item => item.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function togglePopover(id, e) {
+      if (e) e.stopPropagation();
+      const target = document.getElementById(id);
+      const isHidden = target.classList.contains('hidden');
+      closeAllPopovers();
+      if (isHidden) target.classList.remove('hidden');
+    }
+
+    function closeAllPopovers() {
+      document.querySelectorAll('.app-popover').forEach(el => el.classList.add('hidden'));
+      closeFieldPicker();
+    }
+
+    document.addEventListener('click', () => closeAllPopovers());
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('feedbackToast');
+      el.textContent = msg;
+      el.classList.remove('opacity-0', 'translate-y-2');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.classList.add('opacity-0', 'translate-y-2');
+      }, 2200);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderWysiwygSheet();
+      renderInspectorPanel();
+    });
+  </script>
+</body>
+</html>

@@ -6,7 +6,7 @@ Thống nhất concept giao diện cho Stage 12. File này ngắn, chỉ nói c�
 
 ## 1. Nguồn
 
-- Mockup và mô tả phong cách: `design/giao_dien_mau/` (8 màn HTML + `Luminous Bento Workspace.md`). Chỉ có trên máy, không commit.
+- Mockup và mô tả phong cách: `design/giao_dien_mau/` (8 màn HTML + `Luminous Bento Workspace.md`). Dữ liệu trong mockup là giả (Dương xác nhận 27/11/2026), commit cùng repo.
 - **Mockup chỉ để hình dung cách trình bày, không phải đặc tả chức năng.** Chức năng theo thiết kế module đã chốt. Mockup có mà thiết kế không có thì không làm (ví dụ: việc của tôi, tải việc đội ngũ, người trực tuyến, tim/lưu bài, ghế, webhook, nút "Lưu thay đổi" chung). Ngoại lệ: tiện ích thuần giao diện, làm nhanh, không đổi dữ liệu hay quyền (ví dụ thu gọn sidebar, phím tắt chọn đáp án, bản đồ câu hỏi ở form) thì được làm, ghi vào quyết định khi code.
 - Màn chưa có mockup (Onboarding, AI Hub, Duyệt bài, đăng nhập, chuông, ngăn kéo chi tiết, điện thoại của app) dựng theo concept ở mục 2, ghép từ màn cùng loại.
 - Những gì đã chốt và đã code (menu sau khi gom vào chuông và Tổng quan, tên "Dynamic Form", dropdown riêng thay `<select>`, thẻ người…) giữ nguyên; mockup lệch thì theo cái đã chốt.

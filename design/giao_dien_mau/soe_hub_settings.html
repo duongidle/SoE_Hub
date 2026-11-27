@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoE Hub — Cài đặt hệ thống</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#4F46E5',
+              dark: '#4338CA',
+              soft: '#EEF0FF',
+            },
+            ink: {
+              DEFAULT: '#1E1B3A',
+              muted: '#646A82',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Nền Mesh Light pastel tím/xanh ngọc dịu nhẹ đồng bộ toàn bộ SoE Hub */
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #1E1B3A;
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      background-color: #F4F5F9;
+      background-image:
+        radial-gradient(at 8% 6%, rgba(235, 238, 255, 0.96) 0px, transparent 52%),
+        radial-gradient(at 92% 8%, rgba(232, 249, 244, 0.92) 0px, transparent 48%),
+        radial-gradient(at 82% 92%, rgba(238, 240, 255, 0.9) 0px, transparent 50%),
+        radial-gradient(at 14% 94%, rgba(238, 248, 255, 0.86) 0px, transparent 48%);
+    }
+
+    h1, h2, h3, .font-display {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Khung ứng dụng nổi (Floating App Shell) */
+    .floating-shell {
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 18px;
+      border: 1px solid #E4E7F0;
+      box-shadow:
+        0 24px 60px -14px rgba(30, 27, 58, 0.09),
+        0 4px 16px -4px rgba(30, 27, 58, 0.04);
+    }
+
+    /* Left Sidebar chính (220px -> 64px) */
+    .left-sidebar {
+      background: #FAF9FE;
+      transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sidebar-collapsed {
+      width: 64px !important;
+    }
+    .sidebar-collapsed .sb-hide {
+      display: none !important;
+    }
+    .sidebar-collapsed .sb-center {
+      justify-content: center !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+    .sidebar-collapsed .sb-item {
+      justify-content: center;
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .sb-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 35px;
+      padding: 0 11px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #4B5068;
+      transition: all 0.14s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .sb-item:hover {
+      background: rgba(255, 255, 255, 0.95);
+      color: #1E1B3A;
+    }
+    .sb-item.active {
+      background: #EEF0FF;
+      color: #4F46E5;
+      font-weight: 600;
+    }
+    .sb-item.active::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 7px;
+      bottom: 7px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: #4F46E5;
+    }
+    .sb-item.active svg {
+      color: #4F46E5;
+    }
+
+    /* Mục điều hướng cột Cài đặt bên trong */
+    .set-nav-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #4B5068;
+      transition: all 0.14s ease;
+      text-align: left;
+    }
+    .set-nav-btn:hover {
+      background: #F4F5FA;
+      color: #1E1B3A;
+    }
+    .set-nav-btn.active {
+      background: #EEF0FF;
+      color: #4F46E5;
+      font-weight: 600;
+    }
+    .set-nav-btn.active svg {
+      color: #4F46E5;
+    }
+
+    /* Thẻ nội dung tiêu chuẩn */
+    .set-card {
+      background: #FFFFFF;
+      border-radius: 13px;
+      border: 1px solid #E6E8F0;
+    }
+
+    /* Công tắc gạt Toggle Switch chuẩn công thái học */
+    .toggle-switch {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      width: 38px;
+      height: 21px;
+      border-radius: 9999px;
+      background: #CBD5E1;
+      transition: background-color 0.18s ease;
+      cursor: pointer;
+      shrink: 0;
+    }
+    .toggle-switch[data-checked="true"] {
+      background: #4F46E5;
+    }
+    .toggle-switch .toggle-knob {
+      width: 15px;
+      height: 15px;
+      border-radius: 9999px;
+      background: #FFFFFF;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
+      transform: translateX(3px);
+      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .toggle-switch[data-checked="true"] .toggle-knob {
+      transform: translateX(20px);
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 155, 180, 0.35); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100, 106, 130, 0.55); }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden p-2 sm:p-3.5 flex items-center justify-center">
+
+  <!-- KHUNG ỨNG DỤNG NỔI (FLOATING APP SHELL) -->
+  <div class="floating-shell w-full h-full flex overflow-hidden relative">
+
+    <!-- ================================================================ -->
+    <!-- 1. LEFT SIDEBAR PHẲNG ĐỒNG CẤP (220PX / 64PX THU GỌN)            -->
+    <!-- ================================================================ -->
+    <aside id="leftSidebar" class="left-sidebar w-[220px] shrink-0 border-r border-slate-200/80 flex flex-col justify-between select-none z-20">
+      
+      <!-- Logo SoE Hub & Nút thu gọn -->
+      <div class="shrink-0">
+        <div class="sb-center h-[48px] px-3.5 border-b border-slate-200/75 flex items-center justify-between gap-2">
+          <a href="#" onclick="event.preventDefault()" class="flex items-center gap-2.5 min-w-0">
+            <div id="brandLogoBox" class="w-7 h-7 rounded-[8px] bg-[#4F46E5] flex items-center justify-center text-white font-display font-bold text-[12px] tracking-tight shrink-0 transition-colors">
+              SH
+            </div>
+            <div class="sb-hide leading-none truncate">
+              <span id="sidebarWorkspaceName" class="font-display font-bold text-[14px] text-[#1E1B3A] tracking-tight block">SoE Hub</span>
+              <span class="text-[10px] font-medium text-[#646A82] block mt-0.5">Internal Workspace</span>
+            </div>
+          </a>
+
+          <button onclick="toggleSidebar()" title="Thu gọn thanh bên" class="sb-hide w-7 h-7 rounded-[7px] text-slate-400 hover:text-[#1E1B3A] hover:bg-white border border-transparent hover:border-slate-200/80 flex items-center justify-center transition-all shrink-0">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+          </button>
+        </div>
+
+        <div id="expandBtnWrap" class="hidden pt-2 px-2 justify-center">
+          <button onclick="toggleSidebar()" title="Mở rộng thanh bên" class="w-9 h-8 rounded-[8px] text-slate-500 hover:text-[#4F46E5] hover:bg-white border border-transparent hover:border-slate-200/80 flex items-center justify-center transition-all">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Danh sách 11 phân hệ điều hướng phẳng đồng cấp -->
+      <nav class="flex-1 overflow-y-auto px-2.5 py-2.5 space-y-0.5 no-scrollbar" aria-label="Điều hướng SoE Hub">
+        <a href="#" onclick="setSidebarNav(this, event)" title="Tổng quan" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span class="sb-hide truncate">Tổng quan</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Datahub" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span class="sb-hide truncate">Datahub</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Quản lý Deal" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <span class="sb-hide truncate">Quản lý Deal</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Form" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span class="sb-hide truncate">Form</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Onboarding" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+          <span class="sb-hide truncate">Onboarding</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Knowledge" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          <span class="sb-hide truncate">Knowledge</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="AI Hub" class="sb-item justify-between">
+          <span class="flex items-center gap-2.5 min-w-0">
+            <svg class="w-[16px] h-[16px] text-indigo-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg>
+            <span class="sb-hide truncate">AI Hub</span>
+          </span>
+          <span class="sb-hide px-1.5 py-0.2 rounded bg-indigo-50 text-[#4F46E5] border border-indigo-200/80 text-[9.5px] font-bold">AI</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Dashboard chia sẻ" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span class="sb-hide truncate">Dashboard chia sẻ</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Nhắc hẹn" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="sb-hide truncate">Nhắc hẹn</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Thông báo chung" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M3 11l18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          <span class="sb-hide truncate">Thông báo chung</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Org chart" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/></svg>
+          <span class="sb-hide truncate">Org chart</span>
+        </a>
+      </nav>
+
+      <!-- Đáy sidebar: Cài đặt (active) & Đăng xuất dưới đường kẻ mảnh -->
+      <div class="shrink-0 border-t border-slate-200/75 p-2 space-y-0.5">
+        <a href="#" onclick="setSidebarNav(this, event)" title="Cài đặt" class="sb-item active">
+          <svg class="w-[16px] h-[16px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="sb-hide truncate">Cài đặt</span>
+        </a>
+
+        <button onclick="showToast('Đang đăng xuất khỏi phiên làm việc...')" title="Đăng xuất" class="sb-item w-full text-slate-500 hover:!text-rose-600 hover:!bg-rose-50/70">
+          <svg class="w-[16px] h-[16px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="sb-hide truncate text-[12.5px]">Đăng xuất</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ================================================================ -->
+    <!-- 2. VÙNG LÀM VIỆC CHÍNH BÊN PHẢI                                  -->
+    <!-- ================================================================ -->
+    <div class="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
+
+      <!-- ============================================================== -->
+      <!-- TOP NAVIGATOR BAR DUY NHẤT (48PX)                              -->
+      <!-- ============================================================== -->
+      <header class="shrink-0 h-[48px] px-4 lg:px-5 bg-white border-b border-slate-200/80 flex items-center justify-between gap-3 relative z-30">
+        
+        <!-- Trái: Breadcrumb cỡ chữ đồng đều "Cài đặt / Thành viên & Phân quyền" -->
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-[14.5px] font-semibold text-[#646A82] tracking-tight shrink-0">Cài đặt</span>
+          <span class="text-[14.5px] text-slate-300">/</span>
+          <span id="topBreadcrumbCurrent" class="text-[14.5px] font-semibold text-[#1E1B3A] tracking-tight truncate">Thành viên &amp; Phân quyền</span>
+          <span id="unsavedBadge" class="hidden ml-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-semibold shrink-0">
+            Chưa lưu thay đổi
+          </span>
+        </div>
+
+        <!-- Phải: Tìm kiếm nhanh (⌘K), Lưu thay đổi, Thông báo (11), Hồ sơ Khuê Võ -->
+        <div class="flex items-center gap-2 shrink-0">
+
+          <!-- Ô tìm kiếm nhanh cài đặt (⌘K) -->
+          <div class="relative hidden md:flex items-center">
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input id="quickSettingSearch" type="text" oninput="filterSettingsSearch(this.value)" placeholder="Tìm cài đặt..." class="h-8 w-[195px] lg:w-[220px] pl-8 pr-11 rounded-[8px] bg-[#F7F8FC] border border-slate-200/90 focus:border-[#4F46E5] focus:bg-white focus:outline-none text-[12px] text-[#1E1B3A] placeholder-[#646A82] transition-all" />
+            <kbd class="absolute right-2 px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[10px] font-semibold text-[#646A82]">⌘K</kbd>
+          </div>
+
+          <!-- Nút Lưu thay đổi -->
+          <button id="saveChangesBtn" onclick="saveAllSettings()" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-[8px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12px] font-semibold shadow-2xs transition-colors">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Lưu thay đổi</span>
+          </button>
+
+          <div class="h-4 w-[1px] bg-slate-200"></div>
+
+          <!-- Chuông thông báo (11) -->
+          <div class="relative">
+            <button onclick="togglePopover('notifPopover', event)" title="11 thông báo chưa đọc" class="relative w-8 h-8 rounded-[8px] text-[#4B5068] hover:text-[#1E1B3A] hover:bg-slate-100 flex items-center justify-center transition-colors">
+              <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span class="absolute -top-0.5 -right-0.5 min-w-[17px] h-[16px] px-1 rounded-full bg-rose-600 text-white text-[9.5px] font-bold flex items-center justify-center ring-2 ring-white tabular">11</span>
+            </button>
+
+            <div id="notifPopover" class="app-popover hidden fixed right-6 top-14 w-[330px] rounded-[14px] bg-white border border-slate-200 shadow-xl z-50 overflow-hidden">
+              <div class="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+                <span class="text-[12.5px] font-bold text-[#1E1B3A]">Thông báo hệ thống (11)</span>
+                <button onclick="closeAllPopovers()" class="text-[11px] font-semibold text-[#4F46E5] hover:underline">Đánh dấu đã đọc</button>
+              </div>
+              <div class="divide-y divide-slate-100 text-[12px]">
+                <div class="p-3 bg-amber-50/40 flex items-start gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
+                  <div>
+                    <p class="text-[#1E1B3A] leading-snug"><span class="font-semibold">Linh Nguyễn</span> có việc quá hạn: chưa xong <span class="font-medium">"Báo cáo cuối ngày"</span> (hạn 18:00).</p>
+                    <span class="text-[10.5px] text-amber-700 font-medium mt-0.5 block">Nhắc tự động lúc 18:05</span>
+                  </div>
+                </div>
+                <div class="p-3 flex items-start gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-[#4F46E5] mt-1.5 shrink-0"></span>
+                  <div>
+                    <p class="text-slate-700 leading-snug"><span class="font-semibold text-[#1E1B3A]">Hoàng Nam</span> vừa chấp nhận lời mời tham gia workspace SoE Hub.</p>
+                    <span class="text-[10.5px] text-[#646A82] mt-0.5 block">35 phút trước</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hồ sơ Khuê Võ -->
+          <button onclick="switchSettingsSection('profile')" class="inline-flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-[8px] hover:bg-slate-100 transition-colors">
+            <span class="w-6 h-6 rounded-full bg-[#4F46E5] text-white font-display font-bold text-[10px] flex items-center justify-center shrink-0">KV</span>
+            <span class="text-[12.5px] font-semibold text-[#1E1B3A] hidden sm:inline">Khuê Võ</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- ============================================================== -->
+      <!-- BỐ CỤC CÀI ĐẶT 2 CỘT CÔNG THÁI HỌC (LINEAR / LARK ADMIN)       -->
+      <!-- ============================================================== -->
+      <div class="flex-1 flex min-h-0 overflow-hidden">
+
+        <!-- ============================================================ -->
+        <!-- CỘT ĐIỀU HƯỚNG CÀI ĐẶT BÊN TRÁI (232PX)                      -->
+        <!-- ============================================================ -->
+        <aside class="w-[232px] shrink-0 border-r border-slate-200/80 bg-[#FCFDFE] overflow-y-auto p-3.5 space-y-5 select-none hidden sm:block">
+          
+          <!-- Nhóm 1: KHÔNG GIAN LÀM VIỆC -->
+          <div class="space-y-1">
+            <div class="px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-[#646A82]">Không gian làm việc</div>
+            
+            <button id="nav-general" onclick="switchSettingsSection('general')" class="set-nav-btn">
+              <span class="flex items-center gap-2.5 min-w-0">
+                <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                <span class="truncate">Thông tin chung</span>
+              </span>
+            </button>
+
+            <button id="nav-members" onclick="switchSettingsSection('members')" class="set-nav-btn active">
+              <span class="flex items-center gap-2.5 min-w-0">
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span class="truncate">Thành viên &amp; Quyền</span>
+              </span>
+              <span id="sidebarSeatBadge" class="px-1.5 py-0.2 rounded-full bg-[#4F46E5] text-white text-[10px] font-bold tabular">20/25</span>
+            </button>
+
+            <button id="nav-departments" onclick="switchSettingsSection('departments')" class="set-nav-btn">
+              <span class="flex items-center gap-2.5 min-w-0">
+                <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span class="truncate">Phòng ban &amp; Vai trò</span>
+              </span>
+            </button>
+          </div>
+
+          <!-- Nhóm 2: HỆ THỐNG & DỮ LIỆU -->
+          <div class="space-y-1">
+            <div class="px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-[#646A82]">Hệ thống &amp; Dữ liệu</div>
+
+            <button id="nav-integrations" onclick="switchSettingsSection('integrations')" class="set-nav-btn">
+              <span class="flex items-center gap-2.5 min-w-0">
+                <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span class="truncate">Tích hợp &amp; Webhook</span>
+              </span>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            </button>
+
+            <button id="nav-notifications" onclick="switchSettingsSection('notifications')" class="set-nav-btn">
+              <span class="flex items-center gap-2.5 min-w-0">
+                <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <span class="truncate">Thông báo &amp; Nhắc hẹn</span>
+              </span>
+            </button>
+
+            <button id="nav-audit" onclick="switchSettingsSection('audit')" class="set-nav-btn">
+              <span class="flex items-center gap-2.5 min-w-0">
+                <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                <span class="truncate">Nhật ký hoạt động</span>
+              </span>
+            </button>
+          </div>
+
+          <!-- Nhóm 3: CÁ NHÂN -->
+          <div class="space-y-1">
+            <div class="px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-[#646A82]">Cá nhân</div>
+
+            <button id="nav-profile" onclick="switchSettingsSection('profile')" class="set-nav-btn">
+              <span class="flex items-center gap-2.5 min-w-0">
+                <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="truncate">Tài khoản của tôi</span>
+              </span>
+            </button>
+          </div>
+        </aside>
+
+        <!-- ============================================================ -->
+        <!-- VÙNG NỘI DUNG CÀI ĐẶT CHÍNH BÊN PHẢI (#F6F7FB)               -->
+        <!-- ============================================================ -->
+        <main class="flex-1 overflow-y-auto bg-[#F6F7FB] p-4 lg:p-6">
+
+          <!-- Thanh chọn nhanh trên mobile -->
+          <div class="flex sm:hidden gap-1.5 overflow-x-auto pb-3 mb-3 border-b border-slate-200 no-scrollbar">
+            <button onclick="switchSettingsSection('members')" class="px-3 py-1.5 rounded-lg bg-[#EEF0FF] text-[#4F46E5] text-xs font-semibold shrink-0">Thành viên (20)</button>
+            <button onclick="switchSettingsSection('general')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium shrink-0">Thông tin chung</button>
+            <button onclick="switchSettingsSection('departments')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium shrink-0">Phòng ban</button>
+            <button onclick="switchSettingsSection('integrations')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium shrink-0">Tích hợp</button>
+            <button onclick="switchSettingsSection('notifications')" class="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-medium shrink-0">Thông báo</button>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- MỤC 1 (MẶC ĐỊNH): THÀNH VIÊN & PHÂN QUYỀN (20 NHÂN SỰ)     -->
+          <!-- ========================================================== -->
+          <div id="section-members" class="settings-panel max-w-[1040px] mx-auto space-y-4">
+            
+            <!-- Tiêu đề mục & Nút mời thành viên -->
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h1 class="font-display text-[18px] font-bold text-[#1E1B3A]">Thành viên &amp; Phân quyền</h1>
+                <p class="text-[13px] text-[#646A82] mt-0.5">Quản lý 20 nhân sự nội bộ, phân bổ vai trò và quyền truy cập từng phân hệ trên SoE Hub.</p>
+              </div>
+
+              <button onclick="openInviteModal()" class="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-[9px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[13px] font-semibold shadow-2xs transition-colors">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                <span>+ Mời thành viên</span>
+              </button>
+            </div>
+
+            <!-- Dải tóm tắt nhanh gói ghế & cơ cấu vai trò -->
+            <div class="set-card p-3.5 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex flex-wrap items-center gap-2.5 text-[12.5px]">
+                <span class="inline-flex items-center gap-1.5 font-semibold text-[#1E1B3A]">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <strong id="totalActiveCount" class="tabular">20</strong> thành viên hoạt động
+                </span>
+                <span class="text-slate-300">·</span>
+                <span class="px-2 py-0.5 rounded-full bg-[#EEF0FF] text-[#4F46E5] text-[11.5px] font-semibold tabular">3 Admin</span>
+                <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/70 text-[11.5px] font-semibold tabular">4 Leader</span>
+                <span class="px-2 py-0.5 rounded-full bg-slate-100 text-[#4B5068] text-[11.5px] font-semibold tabular">13 Thành viên</span>
+              </div>
+
+              <div class="flex items-center gap-2.5">
+                <div class="w-28 h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div id="seatProgressBar" class="h-full bg-[#4F46E5] rounded-full transition-all" style="width: 80%"></div>
+                </div>
+                <span id="seatRemainText" class="text-[12px] font-semibold text-[#646A82] tabular">Còn 5 ghế trống (20/25)</span>
+              </div>
+            </div>
+
+            <!-- Sub-tabs: Danh sách nhân sự | Ma trận phân quyền phân hệ -->
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="inline-flex p-1 rounded-[10px] bg-slate-200/65 border border-slate-200/80">
+                <button id="subTabListBtn" onclick="switchMembersSubTab('list')" class="px-3 py-1 rounded-[7px] bg-white text-[#1E1B3A] shadow-2xs text-[12.5px] font-semibold transition-all">
+                  Danh sách nhân sự (20)
+                </button>
+                <button id="subTabMatrixBtn" onclick="switchMembersSubTab('matrix')" class="px-3 py-1 rounded-[7px] text-[#646A82] hover:text-[#1E1B3A] text-[12.5px] font-medium transition-all">
+                  Ma trận phân quyền phân hệ
+                </button>
+              </div>
+
+              <!-- Bộ lọc tìm kiếm & Vai trò -->
+              <div id="memberFilterControls" class="flex flex-wrap items-center gap-2">
+                <div class="relative">
+                  <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input id="memberSearchInput" type="text" oninput="renderMembersTable()" placeholder="Tìm tên, email, phòng ban..." class="h-8 w-[210px] pl-8 pr-3 rounded-[8px] bg-white border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[12px]" />
+                </div>
+
+                <select id="memberRoleFilter" onchange="renderMembersTable()" class="h-8 px-2.5 rounded-[8px] bg-white border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[12px] font-medium text-[#1E1B3A] cursor-pointer">
+                  <option value="ALL">Vai trò: Tất cả</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Leader">Leader</option>
+                  <option value="Thành viên">Thành viên</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- BẢNG DANH SÁCH NHÂN SỰ NỘI BỘ -->
+            <div id="membersListContainer" class="set-card overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-[#FAF9FC] border-b border-slate-200/80 text-[11.5px] font-semibold text-[#646A82]">
+                      <th class="py-2.5 px-4">Thành viên</th>
+                      <th class="py-2.5 px-3">Phòng ban</th>
+                      <th class="py-2.5 px-3">Vai trò</th>
+                      <th class="py-2.5 px-3">Phân hệ truy cập</th>
+                      <th class="py-2.5 px-3">Trạng thái</th>
+                      <th class="py-2.5 px-4 text-right">Quyền chi tiết</th>
+                    </tr>
+                  </thead>
+                  <tbody id="membersTableBody" class="divide-y divide-slate-100 text-[12.5px]">
+                    <!-- Render qua JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- MA TRẬN PHÂN QUYỀN PHÂN HỆ (SUB-TAB 2) -->
+            <div id="membersMatrixContainer" class="hidden set-card overflow-hidden">
+              <div class="px-4 py-3 border-b border-slate-100 bg-[#FAF9FC] flex items-center justify-between">
+                <span class="text-[12.5px] font-semibold text-[#1E1B3A]">Cấu hình quyền mặc định theo từng nhóm Vai trò trên SoE Hub</span>
+                <span class="text-[11.5px] text-[#646A82]">Bấm vào ô công tắc để bật/tắt quyền tức thì</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-[12.5px]">
+                  <thead>
+                    <tr class="border-b border-slate-200/80 bg-white text-[11.5px] font-semibold text-[#646A82]">
+                      <th class="py-3 px-4">Phân hệ &amp; Thao tác</th>
+                      <th class="py-3 px-4 text-center text-[#4F46E5]">Admin (3)</th>
+                      <th class="py-3 px-4 text-center text-amber-800">Leader (4)</th>
+                      <th class="py-3 px-4 text-center text-[#1E1B3A]">Thành viên (13)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="permissionMatrixBody" class="divide-y divide-slate-100">
+                    <!-- Render qua JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- MỤC 2: THÔNG TIN CHUNG (WORKSPACE PROFILE)                 -->
+          <!-- ========================================================== -->
+          <div id="section-general" class="settings-panel hidden max-w-[820px] mx-auto space-y-4">
+            <div>
+              <h1 class="font-display text-[18px] font-bold text-[#1E1B3A]">Thông tin chung</h1>
+              <p class="text-[13px] text-[#646A82] mt-0.5">Thiết lập nhận diện thương hiệu, múi giờ và chuẩn định dạng dữ liệu cho toàn bộ SoE Hub.</p>
+            </div>
+
+            <div class="set-card p-5 space-y-5">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1.5">Tên Workspace</label>
+                  <input id="wsNameInput" type="text" value="SoE Hub" oninput="markUnsaved(); document.getElementById('sidebarWorkspaceName').textContent = this.value || 'SoE Hub'" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[13px] font-medium" />
+                </div>
+
+                <div>
+                  <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1.5">Mã định danh nội bộ (Slug)</label>
+                  <div class="flex items-center h-9 rounded-[9px] border border-slate-200 bg-[#FAF9FC] px-3 text-[13px] text-[#646A82]">
+                    <span>workspace.internal/</span>
+                    <input type="text" value="soe-hub" oninput="markUnsaved()" class="bg-transparent font-semibold text-[#1E1B3A] focus:outline-none ml-0.5 w-full" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Màu nhận diện chủ đạo -->
+              <div class="pt-4 border-t border-slate-100">
+                <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1">Màu nhận diện chủ đạo</label>
+                <p class="text-[11.5px] text-[#646A82] mb-2.5">Áp dụng cho nút hành động chính, mục điều hướng đang mở và huy hiệu hệ thống.</p>
+                <div class="flex flex-wrap items-center gap-2.5">
+                  <button onclick="selectBrandAccent('#4F46E5', 'Tím chàm (Mặc định)', this)" class="accent-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-[9px] border-2 border-[#4F46E5] bg-[#EEF0FF] text-[12px] font-semibold text-[#4F46E5]">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#4F46E5]"></span>
+                    <span>Tím chàm</span>
+                  </button>
+                  <button onclick="selectBrandAccent('#2563EB', 'Xanh dương', this)" class="accent-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-[9px] border border-slate-200 bg-white text-[12px] font-medium text-[#4B5068]">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#2563EB]"></span>
+                    <span>Xanh dương</span>
+                  </button>
+                  <button onclick="selectBrandAccent('#059669', 'Xanh ngọc lục bảo', this)" class="accent-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-[9px] border border-slate-200 bg-white text-[12px] font-medium text-[#4B5068]">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#059669]"></span>
+                    <span>Xanh ngọc</span>
+                  </button>
+                  <button onclick="selectBrandAccent('#7C3AED', 'Tím Violet', this)" class="accent-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-[9px] border border-slate-200 bg-white text-[12px] font-medium text-[#4B5068]">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#7C3AED]"></span>
+                    <span>Tím Violet</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Ngôn ngữ, Múi giờ, Định dạng ngày & Tiền tệ -->
+              <div class="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1.5">Ngôn ngữ giao diện</label>
+                  <select onchange="markUnsaved()" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 bg-white text-[13px] font-medium">
+                    <option selected>Tiếng Việt (Việt Nam)</option>
+                    <option>English (US)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1.5">Múi giờ chuẩn</label>
+                  <select onchange="markUnsaved()" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 bg-white text-[13px] font-medium">
+                    <option selected>(GMT+07:00) Hồ Chí Minh, Hà Nội</option>
+                    <option>(GMT+08:00) Singapore</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1.5">Định dạng ngày tháng</label>
+                  <select onchange="markUnsaved()" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 bg-white text-[13px] font-medium tabular">
+                    <option selected>DD/MM/YYYY (Ví dụ: 12/09/2026)</option>
+                    <option>YYYY-MM-DD (Ví dụ: 2026-09-12)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1.5">Đơn vị tiền tệ (Quản lý Deal &amp; Com)</label>
+                  <select onchange="markUnsaved()" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 bg-white text-[13px] font-medium tabular">
+                    <option selected>VNĐ — Đồng Việt Nam (340.000.000 đ)</option>
+                    <option>USD — Đô la Mỹ ($14,200)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- MỤC 3: PHÒNG BAN & VAI TRÒ                                 -->
+          <!-- ========================================================== -->
+          <div id="section-departments" class="settings-panel hidden max-w-[920px] mx-auto space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 class="font-display text-[18px] font-bold text-[#1E1B3A]">Phòng ban &amp; Vai trò</h1>
+                <p class="text-[13px] text-[#646A82] mt-0.5">Cơ cấu 4 nhóm chuyên môn trực tiếp đồng bộ với Org chart và bộ lọc dữ liệu trên toàn hệ thống.</p>
+              </div>
+              <button onclick="showToast('Mở biểu mẫu thêm nhóm chuyên môn mới')" class="h-8 px-3 rounded-[8px] bg-white border border-slate-200 hover:border-[#4F46E5] text-[12.5px] font-semibold text-[#1E1B3A] hover:text-[#4F46E5] transition-colors">
+                + Thêm phòng ban
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div class="set-card p-4 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="px-2.5 py-0.5 rounded-full bg-indigo-50 text-[#4F46E5] text-[12px] font-semibold">Admin / Leader</span>
+                  <span class="text-[12px] font-bold text-[#1E1B3A] tabular">4 nhân sự</span>
+                </div>
+                <p class="text-[12.5px] text-[#646A82]">Điều hành chung, duyệt chính sách hoa hồng, chấm bài kiểm tra và quản trị toàn bộ Datahub.</p>
+                <div class="pt-1 text-[11.5px] text-[#4B5068] font-medium">Trưởng nhóm: <strong class="text-[#1E1B3A]">Khuê Võ</strong></div>
+              </div>
+
+              <div class="set-card p-4 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[12px] font-semibold">Sales &amp; Deal</span>
+                  <span class="text-[12px] font-bold text-[#1E1B3A] tabular">6 nhân sự</span>
+                </div>
+                <p class="text-[12.5px] text-[#646A82]">Quản lý cơ hội POD bán mới, PS không kèm POD, theo dõi Forecast và đối soát số com theo kỳ.</p>
+                <div class="pt-1 text-[11.5px] text-[#4B5068] font-medium">Trưởng nhóm: <strong class="text-[#1E1B3A]">Hà Tùng</strong></div>
+              </div>
+
+              <div class="set-card p-4 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[12px] font-semibold">Onboarding &amp; Đào tạo</span>
+                  <span class="text-[12px] font-bold text-[#1E1B3A] tabular">5 nhân sự</span>
+                </div>
+                <p class="text-[12.5px] text-[#646A82]">Phụ trách Q&amp;A nghiệp vụ, bài thu hoạch on-job, phiếu chấm mockup và lộ trình hội nhập nhân sự mới.</p>
+                <div class="pt-1 text-[11.5px] text-[#4B5068] font-medium">Trưởng nhóm: <strong class="text-[#1E1B3A]">Dương Trần</strong></div>
+              </div>
+
+              <div class="set-card p-4 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 text-[12px] font-semibold">Product &amp; Service</span>
+                  <span class="text-[12px] font-bold text-[#1E1B3A] tabular">5 nhân sự</span>
+                </div>
+                <p class="text-[12.5px] text-[#646A82]">Vận hành luồng Base Request, Wework, Service SLA và xây dựng tài liệu chuẩn trên Knowledge.</p>
+                <div class="pt-1 text-[11.5px] text-[#4B5068] font-medium">Trưởng nhóm: <strong class="text-[#1E1B3A]">Linh Nguyễn</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- MỤC 4: TÍCH HỢP & WEBHOOK                                  -->
+          <!-- ========================================================== -->
+          <div id="section-integrations" class="settings-panel hidden max-w-[920px] mx-auto space-y-4">
+            <div>
+              <h1 class="font-display text-[18px] font-bold text-[#1E1B3A]">Tích hợp &amp; Webhook</h1>
+              <p class="text-[13px] text-[#646A82] mt-0.5">Kết nối đồng bộ dữ liệu hai chiều giữa SoE Hub với hệ sinh thái làm việc nội bộ.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <!-- Base.vn -->
+              <div class="set-card p-4 flex flex-col justify-between gap-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-[10px] bg-indigo-50 text-[#4F46E5] font-display font-bold text-[13px] flex items-center justify-center shrink-0">BS</div>
+                    <div>
+                      <h3 class="text-[13.5px] font-bold text-[#1E1B3A]">Base.vn (Request · Wework · Service)</h3>
+                      <span class="text-[11.5px] text-emerald-600 font-semibold">● Đã kết nối · Đồng bộ mỗi 5 phút</span>
+                    </div>
+                  </div>
+                  <div class="toggle-switch" data-checked="true" onclick="toggleSwitch(this, 'Base.vn')">
+                    <span class="toggle-knob"></span>
+                  </div>
+                </div>
+                <p class="text-[12px] text-[#646A82]">Tự động đẩy dữ liệu phê duyệt công tác, SLA Service và trạng thái công việc về bảng Datahub.</p>
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span class="text-[11px] text-[#646A82] tabular">Webhook: 3 luồng đang chạy</span>
+                  <button onclick="showToast('Đang mở cấu hình Webhook Base.vn')" class="px-2.5 py-1 rounded-[7px] border border-slate-200 hover:border-[#4F46E5] text-[12px] font-semibold text-[#1E1B3A] hover:text-[#4F46E5]">Cấu hình</button>
+                </div>
+              </div>
+
+              <!-- Lark / Chat nội bộ -->
+              <div class="set-card p-4 flex flex-col justify-between gap-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-[10px] bg-sky-50 text-sky-600 font-display font-bold text-[13px] flex items-center justify-center shrink-0">LK</div>
+                    <div>
+                      <h3 class="text-[13.5px] font-bold text-[#1E1B3A]">Lark Bot &amp; Nhắc việc nhóm</h3>
+                      <span class="text-[11.5px] text-emerald-600 font-semibold">● Đã kết nối · Nhóm SoE Team (20)</span>
+                    </div>
+                  </div>
+                  <div class="toggle-switch" data-checked="true" onclick="toggleSwitch(this, 'Lark Bot')">
+                    <span class="toggle-knob"></span>
+                  </div>
+                </div>
+                <p class="text-[12px] text-[#646A82]">Gửi thẻ thông báo khi có bài nộp Dynamic Form mới, nhắc báo cáo cuối ngày lúc 18:00.</p>
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span class="text-[11px] text-[#646A82]">Bot ID: soe-notifier-v2</span>
+                  <button onclick="showToast('Đã gửi tin nhắn kiểm tra tới nhóm Lark')" class="px-2.5 py-1 rounded-[7px] border border-slate-200 hover:border-[#4F46E5] text-[12px] font-semibold text-[#1E1B3A] hover:text-[#4F46E5]">Gửi thử</button>
+                </div>
+              </div>
+
+              <!-- Google Workspace -->
+              <div class="set-card p-4 flex flex-col justify-between gap-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-[10px] bg-emerald-50 text-emerald-700 font-display font-bold text-[13px] flex items-center justify-center shrink-0">GW</div>
+                    <div>
+                      <h3 class="text-[13.5px] font-bold text-[#1E1B3A]">Google Workspace &amp; Calendar</h3>
+                      <span class="text-[11.5px] text-emerald-600 font-semibold">● Đã kết nối · SSO đăng nhập nhanh</span>
+                    </div>
+                  </div>
+                  <div class="toggle-switch" data-checked="true" onclick="toggleSwitch(this, 'Google Workspace')">
+                    <span class="toggle-knob"></span>
+                  </div>
+                </div>
+                <p class="text-[12px] text-[#646A82]">Cho phép 20 nhân sự đăng nhập bằng email công ty và đồng bộ lịch Nhắc hẹn lên Google Calendar.</p>
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span class="text-[11px] text-[#646A82]">Tên miền: @soehub.vn</span>
+                  <button onclick="showToast('Đang mở tùy chọn đồng bộ lịch')" class="px-2.5 py-1 rounded-[7px] border border-slate-200 hover:border-[#4F46E5] text-[12px] font-semibold text-[#1E1B3A] hover:text-[#4F46E5]">Cấu hình</button>
+                </div>
+              </div>
+
+              <!-- API Token nội bộ -->
+              <div class="set-card p-4 flex flex-col justify-between gap-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-[10px] bg-amber-50 text-amber-700 font-display font-bold text-[13px] flex items-center justify-center shrink-0">API</div>
+                    <div>
+                      <h3 class="text-[13.5px] font-bold text-[#1E1B3A]">REST API &amp; AI Hub Connector</h3>
+                      <span class="text-[11.5px] text-[#646A82] font-medium">Khóa truy cập đọc/ghi Datahub</span>
+                    </div>
+                  </div>
+                  <div class="toggle-switch" data-checked="true" onclick="toggleSwitch(this, 'API Token')">
+                    <span class="toggle-knob"></span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input id="apiTokenField" type="text" readonly value="soe_live_98f4a21c77b0e4d29a10" class="flex-1 h-8 px-2.5 rounded-[7px] bg-[#FAF9FC] border border-slate-200 text-[11.5px] font-mono text-[#4B5068]" />
+                  <button onclick="copyApiToken()" class="h-8 px-2.5 rounded-[7px] bg-[#EEF0FF] text-[#4F46E5] text-[11.5px] font-semibold hover:bg-indigo-100">Sao chép</button>
+                </div>
+                <div class="pt-1 flex items-center justify-between text-[11px] text-[#646A82]">
+                  <span>Tạo bởi Khuê Võ · 14/09/2026</span>
+                  <button onclick="regenerateApiToken()" class="text-[#4F46E5] font-semibold hover:underline">Tạo khóa mới</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- MỤC 5: THÔNG BÁO & NHẮC HẸN TỰ ĐỘNG                        -->
+          <!-- ========================================================== -->
+          <div id="section-notifications" class="settings-panel hidden max-w-[820px] mx-auto space-y-4">
+            <div>
+              <h1 class="font-display text-[18px] font-bold text-[#1E1B3A]">Thông báo &amp; Nhắc hẹn tự động</h1>
+              <p class="text-[13px] text-[#646A82] mt-0.5">Thiết lập các quy tắc tự động cảnh báo quá hạn và nhắc nhở vận hành cho toàn đội ngũ.</p>
+            </div>
+
+            <div class="set-card divide-y divide-slate-100">
+              <div class="p-4 flex items-center justify-between gap-4">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[13.5px] font-bold text-[#1E1B3A]">Nhắc nộp Báo cáo cuối ngày lúc 18:00</span>
+                    <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10.5px] font-semibold">Đang áp dụng</span>
+                  </div>
+                  <p class="text-[12px] text-[#646A82] mt-1">Tự động gửi thông báo nổi &amp; gắn cờ quá hạn nếu nhân sự chưa hoàn tất phiếu "Báo cáo cuối ngày" trước 18:00.</p>
+                </div>
+                <div class="toggle-switch" data-checked="true" onclick="toggleSwitch(this, 'Nhắc báo cáo 18:00')">
+                  <span class="toggle-knob"></span>
+                </div>
+              </div>
+
+              <div class="p-4 flex items-center justify-between gap-4">
+                <div>
+                  <span class="text-[13.5px] font-bold text-[#1E1B3A]">Cảnh báo Deal quá hạn mốc Cohort chín (90 ngày)</span>
+                  <p class="text-[12px] text-[#646A82] mt-1">Thông báo cho Sales phụ trách và Leader khi có cơ hội chưa ký quá 75 ngày kể từ tháng nhận.</p>
+                </div>
+                <div class="toggle-switch" data-checked="true" onclick="toggleSwitch(this, 'Cảnh báo Cohort')">
+                  <span class="toggle-knob"></span>
+                </div>
+              </div>
+
+              <div class="p-4 flex items-center justify-between gap-4">
+                <div>
+                  <span class="text-[13.5px] font-bold text-[#1E1B3A]">Thông báo ngay khi có bài nộp Dynamic Form mới</span>
+                  <p class="text-[12px] text-[#646A82] mt-1">Gửi thông báo cho người chấm bài khi có phản hồi mới từ Form "Bài thu hoạch on-job" hoặc "Q&amp;A".</p>
+                </div>
+                <div class="toggle-switch" data-checked="true" onclick="toggleSwitch(this, 'Thông báo Form mới')">
+                  <span class="toggle-knob"></span>
+                </div>
+              </div>
+
+              <div class="p-4 flex items-center justify-between gap-4">
+                <div>
+                  <span class="text-[13.5px] font-bold text-[#1E1B3A]">Bản tin tổng hợp KPI sáng thứ Hai hàng tuần</span>
+                  <p class="text-[12px] text-[#646A82] mt-1">Tự động gửi tóm tắt doanh thu tính com, tiến độ Onboarding và các đầu việc ưu tiên vào 08:30 thứ Hai.</p>
+                </div>
+                <div class="toggle-switch" data-checked="false" onclick="toggleSwitch(this, 'Bản tin thứ Hai')">
+                  <span class="toggle-knob"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- MỤC 6: NHẬT KÝ HOẠT ĐỘNG (AUDIT LOG)                       -->
+          <!-- ========================================================== -->
+          <div id="section-audit" class="settings-panel hidden max-w-[920px] mx-auto space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h1 class="font-display text-[18px] font-bold text-[#1E1B3A]">Nhật ký hoạt động</h1>
+                <p class="text-[13px] text-[#646A82] mt-0.5">Theo dõi lịch sử thay đổi phân quyền, cấu hình hệ thống và thao tác dữ liệu quan trọng.</p>
+              </div>
+              <button onclick="showToast('Đang xuất file CSV nhật ký hoạt động 30 ngày gần nhất')" class="h-8 px-3 rounded-[8px] bg-white border border-slate-200 text-[12px] font-semibold text-[#1E1B3A] hover:border-[#4F46E5]">
+                Xuất nhật ký (.CSV)
+              </button>
+            </div>
+
+            <div class="set-card divide-y divide-slate-100 text-[12.5px]">
+              <div class="p-3.5 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <span class="w-7 h-7 rounded-full bg-indigo-100 text-[#4F46E5] font-bold text-[10.5px] flex items-center justify-center">KV</span>
+                  <div>
+                    <p class="text-[#1E1B3A]"><strong class="font-semibold">Khuê Võ</strong> cập nhật quyền truy cập phân hệ <span class="font-semibold text-[#4F46E5]">Quản lý Deal</span> cho <strong class="font-semibold">Hà Tùng</strong></p>
+                    <span class="text-[11px] text-[#646A82]">IP: 118.69.142.18 · Trình duyệt Chrome</span>
+                  </div>
+                </div>
+                <span class="text-[11.5px] text-[#646A82] tabular shrink-0">Hôm nay, 00:42</span>
+              </div>
+
+              <div class="p-3.5 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <span class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[10.5px] flex items-center justify-center">HT</span>
+                  <div>
+                    <p class="text-[#1E1B3A]"><strong class="font-semibold">Hà Tùng</strong> xuất bản biểu mẫu <span class="font-semibold text-[#4F46E5]">Work+ Advanced (Wework &amp; Service)</span></p>
+                    <span class="text-[11px] text-[#646A82]">Trạng thái chuyển từ Nháp → Đang nhận</span>
+                  </div>
+                </div>
+                <span class="text-[11.5px] text-[#646A82] tabular shrink-0">Hôm qua, 17:15</span>
+              </div>
+
+              <div class="p-3.5 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <span class="w-7 h-7 rounded-full bg-amber-100 text-amber-800 font-bold text-[10.5px] flex items-center justify-center">DT</span>
+                  <div>
+                    <p class="text-[#1E1B3A]"><strong class="font-semibold">Dương Trần</strong> nhập 17 dòng dữ liệu mới vào bảng <span class="font-semibold text-[#4F46E5]">Datahub / Onboarding (Q&amp;A)</span></p>
+                    <span class="text-[11px] text-[#646A82]">Tổng số bản ghi tăng lên 109 dòng</span>
+                  </div>
+                </div>
+                <span class="text-[11.5px] text-[#646A82] tabular shrink-0">22/11/2026</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- MỤC 7: TÀI KHOẢN CỦA TÔI (KHUÊ VÕ)                         -->
+          <!-- ========================================================== -->
+          <div id="section-profile" class="settings-panel hidden max-w-[820px] mx-auto space-y-4">
+            <div>
+              <h1 class="font-display text-[18px] font-bold text-[#1E1B3A]">Tài khoản của tôi</h1>
+              <p class="text-[13px] text-[#646A82] mt-0.5">Quản lý thông tin hồ sơ cá nhân và bảo mật đăng nhập trên SoE Hub.</p>
+            </div>
+
+            <div class="set-card p-5 space-y-4">
+              <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-[#4F46E5] text-white font-display font-bold text-[18px] flex items-center justify-center shrink-0">KV</div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h2 class="font-display text-[16px] font-bold text-[#1E1B3A]">Khuê Võ</h2>
+                    <span class="px-2 py-0.5 rounded-full bg-[#EEF0FF] text-[#4F46E5] text-[11px] font-semibold">Admin · Leader</span>
+                  </div>
+                  <p class="text-[12.5px] text-[#646A82] mt-0.5">khue.vo@soehub.vn · Phòng Admin / Điều hành</p>
+                </div>
+              </div>
+
+              <div class="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1.5">Họ và tên hiển thị</label>
+                  <input type="text" value="Khuê Võ" oninput="markUnsaved()" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 text-[13px] font-medium" />
+                </div>
+                <div>
+                  <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1.5">Chức danh</label>
+                  <input type="text" value="Workspace Admin & Operations Lead" oninput="markUnsaved()" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 text-[13px] font-medium" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL MỜI THÀNH VIÊN MỚI -->
+  <div id="inviteModal" class="hidden fixed inset-0 z-50 bg-[#1E1B3A]/45 backdrop-blur-[2px] flex items-center justify-center p-4" onclick="closeInviteModal()">
+    <div class="w-full max-w-[460px] rounded-[18px] bg-white border border-slate-200 shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+      <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+        <span class="font-display text-[15px] font-bold text-[#1E1B3A]">Mời thành viên vào SoE Hub</span>
+        <button onclick="closeInviteModal()" class="w-7 h-7 rounded-md text-slate-400 hover:text-[#1E1B3A] hover:bg-slate-100 flex items-center justify-center">✕</button>
+      </div>
+      <div class="p-5 space-y-3.5 text-[13px]">
+        <div>
+          <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1">Họ và tên</label>
+          <input id="inviteNameInput" type="text" placeholder="Ví dụ: Ngọc Trâm" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none" />
+        </div>
+        <div>
+          <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1">Email công việc</label>
+          <input id="inviteEmailInput" type="email" placeholder="tram.nguyen@soehub.vn" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1">Phòng ban</label>
+            <select id="inviteDeptSelect" class="w-full h-9 px-2.5 rounded-[9px] border border-slate-200 bg-white">
+              <option value="Sales & Deal">Sales &amp; Deal</option>
+              <option value="Onboarding">Onboarding</option>
+              <option value="Product & Service">Product &amp; Service</option>
+              <option value="Admin / Leader">Admin / Leader</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1">Vai trò</label>
+            <select id="inviteRoleSelect" class="w-full h-9 px-2.5 rounded-[9px] border border-slate-200 bg-white">
+              <option value="Thành viên">Thành viên</option>
+              <option value="Leader">Leader</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+        <button onclick="closeInviteModal()" class="px-3.5 py-1.5 rounded-[8px] border border-slate-200 bg-white text-[12.5px] font-medium">Hủy</button>
+        <button onclick="submitInviteMember()" class="px-3.5 py-1.5 rounded-[8px] bg-[#4F46E5] text-white text-[12.5px] font-semibold">Gửi lời mời</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NGĂN KÉO CHỈNH QUYỀN CHI TIẾT TỪNG NHÂN SỰ -->
+  <div id="memberDrawerBackdrop" class="hidden fixed inset-0 z-50 bg-[#1E1B3A]/35 backdrop-blur-[1px] flex justify-end" onclick="closeMemberDrawer()">
+    <div class="w-full max-w-[400px] h-full bg-white border-l border-slate-200 shadow-2xl flex flex-col justify-between" onclick="event.stopPropagation()">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div id="drawerAvatar" class="w-10 h-10 rounded-full bg-indigo-100 text-[#4F46E5] font-display font-bold text-[13px] flex items-center justify-center">HT</div>
+          <div>
+            <h3 id="drawerMemberName" class="font-display text-[15px] font-bold text-[#1E1B3A]">Hà Tùng</h3>
+            <p id="drawerMemberMeta" class="text-[12px] text-[#646A82]">ha.tung@soehub.vn · Sales &amp; Deal</p>
+          </div>
+        </div>
+        <button onclick="closeMemberDrawer()" class="w-7 h-7 rounded-md text-slate-400 hover:text-[#1E1B3A] hover:bg-slate-100 flex items-center justify-center">✕</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-5 space-y-4">
+        <div class="text-[12px] font-bold uppercase tracking-wider text-[#646A82]">Quyền truy cập theo phân hệ</div>
+        <div id="drawerModuleToggles" class="space-y-2.5">
+          <!-- Render qua JS -->
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+        <button onclick="closeMemberDrawer()" class="px-3.5 py-1.5 rounded-[8px] border border-slate-200 bg-white text-[12.5px] font-medium">Đóng</button>
+        <button onclick="closeMemberDrawer(); showToast('Đã lưu phân quyền chi tiết cho thành viên')" class="px-3.5 py-1.5 rounded-[8px] bg-[#4F46E5] text-white text-[12.5px] font-semibold">Áp dụng quyền</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST THÔNG BÁO -->
+  <div id="feedbackToast" class="fixed bottom-5 right-5 z-50 px-3.5 py-2.5 rounded-[10px] bg-[#1E1B3A] text-white text-[12.5px] font-medium shadow-lg opacity-0 pointer-events-none translate-y-2 transition-all duration-200">
+    Đã lưu thay đổi
+  </div>
+
+  <script>
+    // Danh sách 20 nhân sự nội bộ SoE Hub
+    const MEMBERS = [
+      { id: 1, name: 'Khuê Võ', initials: 'KV', color: 'bg-indigo-100 text-[#4F46E5]', email: 'khue.vo@soehub.vn', dept: 'Admin / Leader', role: 'Admin', status: 'Đang hoạt động', modules: ['Datahub', 'Quản lý Deal', 'Form', 'Onboarding'] },
+      { id: 2, name: 'Hà Tùng', initials: 'HT', color: 'bg-emerald-100 text-emerald-800', email: 'ha.tung@soehub.vn', dept: 'Sales & Deal', role: 'Leader', status: 'Đang hoạt động', modules: ['Quản lý Deal', 'Datahub', 'Dashboard chia sẻ'] },
+      { id: 3, name: 'Dương Trần', initials: 'DT', color: 'bg-amber-100 text-amber-800', email: 'duong.tran@soehub.vn', dept: 'Onboarding', role: 'Leader', status: 'Đang hoạt động', modules: ['Onboarding', 'Datahub', 'Form', 'Knowledge'] },
+      { id: 4, name: 'Linh Nguyễn', initials: 'LN', color: 'bg-sky-100 text-sky-800', email: 'linh.nguyen@soehub.vn', dept: 'Product & Service', role: 'Leader', status: 'Đang hoạt động', modules: ['Datahub', 'Form', 'Knowledge', 'AI Hub'] },
+      { id: 5, name: 'Minh Anh', initials: 'MA', color: 'bg-purple-100 text-purple-800', email: 'minh.anh@soehub.vn', dept: 'Sales & Deal', role: 'Admin', status: 'Đang hoạt động', modules: ['Quản lý Deal', 'Datahub', 'Onboarding'] },
+      { id: 6, name: 'Tuấn Kiệt', initials: 'TK', color: 'bg-blue-100 text-blue-800', email: 'tuan.kiet@soehub.vn', dept: 'Product & Service', role: 'Admin', status: 'Đang hoạt động', modules: ['Datahub', 'AI Hub', 'Form', 'Org chart'] },
+      { id: 7, name: 'Thảo Vy', initials: 'TV', color: 'bg-rose-100 text-rose-800', email: 'thao.vy@soehub.vn', dept: 'Onboarding', role: 'Leader', status: 'Đang hoạt động', modules: ['Onboarding', 'Form', 'Knowledge'] },
+      { id: 8, name: 'Hoàng Nam', initials: 'HN', color: 'bg-teal-100 text-teal-800', email: 'hoang.nam@soehub.vn', dept: 'Sales & Deal', role: 'Thành viên', status: 'Chờ kích hoạt', modules: ['Quản lý Deal', 'Datahub'] },
+      { id: 9, name: 'Phương Thảo', initials: 'PT', color: 'bg-indigo-100 text-[#4F46E5]', email: 'phuong.thao@soehub.vn', dept: 'Sales & Deal', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Quản lý Deal', 'Form'] },
+      { id: 10, name: 'Đức Huy', initials: 'ĐH', color: 'bg-emerald-100 text-emerald-800', email: 'duc.huy@soehub.vn', dept: 'Product & Service', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Datahub', 'Knowledge'] },
+      { id: 11, name: 'Bảo Ngọc', initials: 'BN', color: 'bg-amber-100 text-amber-800', email: 'bao.ngoc@soehub.vn', dept: 'Onboarding', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Onboarding', 'Form'] },
+      { id: 12, name: 'Quốc Bảo', initials: 'QB', color: 'bg-sky-100 text-sky-800', email: 'quoc.bao@soehub.vn', dept: 'Sales & Deal', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Quản lý Deal', 'Datahub'] },
+      { id: 13, name: 'Khánh Linh', initials: 'KL', color: 'bg-purple-100 text-purple-800', email: 'khanh.linh@soehub.vn', dept: 'Product & Service', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Datahub', 'AI Hub'] },
+      { id: 14, name: 'Gia Huy', initials: 'GH', color: 'bg-blue-100 text-blue-800', email: 'gia.huy@soehub.vn', dept: 'Sales & Deal', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Quản lý Deal'] },
+      { id: 15, name: 'Thanh Trúc', initials: 'TT', color: 'bg-rose-100 text-rose-800', email: 'thanh.truc@soehub.vn', dept: 'Onboarding', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Onboarding', 'Knowledge'] },
+      { id: 16, name: 'Trung Kiên', initials: 'TK', color: 'bg-teal-100 text-teal-800', email: 'trung.kien@soehub.vn', dept: 'Product & Service', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Datahub', 'Form'] },
+      { id: 17, name: 'Hải Yến', initials: 'HY', color: 'bg-indigo-100 text-[#4F46E5]', email: 'hai.yen@soehub.vn', dept: 'Onboarding', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Onboarding', 'Form'] },
+      { id: 18, name: 'Nhật Minh', initials: 'NM', color: 'bg-emerald-100 text-emerald-800', email: 'nhat.minh@soehub.vn', dept: 'Sales & Deal', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Quản lý Deal', 'Datahub'] },
+      { id: 19, name: 'Mai Phương', initials: 'MP', color: 'bg-amber-100 text-amber-800', email: 'mai.phuong@soehub.vn', dept: 'Product & Service', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Knowledge', 'AI Hub'] },
+      { id: 20, name: 'Văn Dũng', initials: 'VD', color: 'bg-sky-100 text-sky-800', email: 'van.dung@soehub.vn', dept: 'Admin / Leader', role: 'Thành viên', status: 'Đang hoạt động', modules: ['Datahub', 'Org chart'] }
+    ];
+
+    const DEPT_BADGE = {
+      'Admin / Leader': 'bg-indigo-50 text-[#4F46E5]',
+      'Sales & Deal': 'bg-emerald-50 text-emerald-700',
+      'Onboarding': 'bg-amber-50 text-amber-800',
+      'Product & Service': 'bg-sky-50 text-sky-700'
+    };
+
+    const MATRIX_ROWS = [
+      { label: 'Datahub — Xem & Sửa bảng dữ liệu', admin: true, leader: true, member: true },
+      { label: 'Datahub — Xuất file Excel/CSV & Xóa bảng', admin: true, leader: true, member: false },
+      { label: 'Quản lý Deal — Xem toàn bộ Forecast & Số com team', admin: true, leader: true, member: false },
+      { label: 'Quản lý Deal — Chốt đối soát & Thanh toán com', admin: true, leader: false, member: false },
+      { label: 'Dynamic Form — Tạo biểu mẫu & Xuất bản', admin: true, leader: true, member: true },
+      { label: 'Onboarding — Chấm điểm Q&A & Bài thu hoạch on-job', admin: true, leader: true, member: false },
+      { label: 'Cài đặt hệ thống — Mời thành viên & Sửa phân quyền', admin: true, leader: false, member: false }
+    ];
+
+    const SECTION_TITLES = {
+      members: 'Thành viên & Phân quyền',
+      general: 'Thông tin chung',
+      departments: 'Phòng ban & Vai trò',
+      integrations: 'Tích hợp & Webhook',
+      notifications: 'Thông báo & Nhắc hẹn tự động',
+      audit: 'Nhật ký hoạt động',
+      profile: 'Tài khoản của tôi'
+    };
+
+    function renderMembersTable() {
+      const q = (document.getElementById('memberSearchInput').value || '').toLowerCase().trim();
+      const roleFilter = document.getElementById('memberRoleFilter').value;
+      const tbody = document.getElementById('membersTableBody');
+
+      const filtered = MEMBERS.filter(m => {
+        const matchRole = roleFilter === 'ALL' || m.role === roleFilter;
+        const matchText = !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || m.dept.toLowerCase().includes(q);
+        return matchRole && matchText;
+      });
+
+      tbody.innerHTML = filtered.map(m => {
+        const deptClass = DEPT_BADGE[m.dept] || 'bg-slate-100 text-slate-700';
+        const isActive = m.status === 'Đang hoạt động';
+        return `
+          <tr class="hover:bg-[#FAF9FF] transition-colors">
+            <td class="py-2.5 px-4">
+              <div class="flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-full ${m.color} font-display font-bold text-[11px] flex items-center justify-center shrink-0">${m.initials}</span>
+                <div class="min-w-0">
+                  <div class="font-semibold text-[#1E1B3A] truncate">${m.name}</div>
+                  <div class="text-[11.5px] text-[#646A82] truncate">${m.email}</div>
+                </div>
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="px-2.5 py-0.5 rounded-full ${deptClass} text-[11.5px] font-semibold whitespace-nowrap">${m.dept}</span>
+            </td>
+            <td class="py-2.5 px-3">
+              <select onchange="changeMemberRole(${m.id}, this.value)" class="h-7 px-2 rounded-[7px] bg-white border border-slate-200 hover:border-[#4F46E5] text-[12px] font-semibold text-[#1E1B3A] focus:outline-none cursor-pointer">
+                <option value="Admin" ${m.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                <option value="Leader" ${m.role === 'Leader' ? 'selected' : ''}>Leader</option>
+                <option value="Thành viên" ${m.role === 'Thành viên' ? 'selected' : ''}>Thành viên</option>
+              </select>
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="flex flex-wrap gap-1 max-w-[230px]">
+                ${m.modules.slice(0, 2).map(mod => `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-[#4B5068] text-[11px] font-medium">${mod}</span>`).join('')}
+                ${m.modules.length > 2 ? `<span class="px-1.5 py-0.5 rounded bg-[#EEF0FF] text-[#4F46E5] text-[11px] font-semibold">+${m.modules.length - 2}</span>` : ''}
+              </div>
+            </td>
+            <td class="py-2.5 px-3">
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}">
+                <span class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-amber-500'}"></span>
+                ${m.status}
+              </span>
+            </td>
+            <td class="py-2.5 px-4 text-right">
+              <button onclick="openMemberDrawer(${m.id})" class="px-2.5 py-1 rounded-[7px] bg-white border border-slate-200 hover:border-[#4F46E5] text-[11.5px] font-semibold text-[#4B5068] hover:text-[#4F46E5] transition-colors">
+                Phân quyền
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderPermissionMatrix() {
+      const tbody = document.getElementById('permissionMatrixBody');
+      tbody.innerHTML = MATRIX_ROWS.map((row, idx) => `
+        <tr class="hover:bg-[#FAF9FF]">
+          <td class="py-3 px-4 font-medium text-[#1E1B3A]">${row.label}</td>
+          <td class="py-3 px-4 text-center">
+            <div class="toggle-switch mx-auto" data-checked="${row.admin}" onclick="toggleSwitch(this, 'Quyền Admin')">
+              <span class="toggle-knob"></span>
+            </div>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <div class="toggle-switch mx-auto" data-checked="${row.leader}" onclick="toggleSwitch(this, 'Quyền Leader')">
+              <span class="toggle-knob"></span>
+            </div>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <div class="toggle-switch mx-auto" data-checked="${row.member}" onclick="toggleSwitch(this, 'Quyền Thành viên')">
+              <span class="toggle-knob"></span>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function changeMemberRole(id, newRole) {
+      const member = MEMBERS.find(m => m.id === id);
+      if (!member) return;
+      member.role = newRole;
+      markUnsaved();
+      showToast(`Đã đổi vai trò của ${member.name} thành ${newRole}`);
+    }
+
+    function switchMembersSubTab(tab) {
+      const listBtn = document.getElementById('subTabListBtn');
+      const matrixBtn = document.getElementById('subTabMatrixBtn');
+      const listBox = document.getElementById('membersListContainer');
+      const matrixBox = document.getElementById('membersMatrixContainer');
+      const filters = document.getElementById('memberFilterControls');
+
+      if (tab === 'list') {
+        listBtn.className = 'px-3 py-1 rounded-[7px] bg-white text-[#1E1B3A] shadow-2xs text-[12.5px] font-semibold transition-all';
+        matrixBtn.className = 'px-3 py-1 rounded-[7px] text-[#646A82] hover:text-[#1E1B3A] text-[12.5px] font-medium transition-all';
+        listBox.classList.remove('hidden');
+        filters.classList.remove('hidden');
+        matrixBox.classList.add('hidden');
+      } else {
+        matrixBtn.className = 'px-3 py-1 rounded-[7px] bg-white text-[#1E1B3A] shadow-2xs text-[12.5px] font-semibold transition-all';
+        listBtn.className = 'px-3 py-1 rounded-[7px] text-[#646A82] hover:text-[#1E1B3A] text-[12.5px] font-medium transition-all';
+        matrixBox.classList.remove('hidden');
+        listBox.classList.add('hidden');
+        filters.classList.add('hidden');
+      }
+    }
+
+    function switchSettingsSection(sectionKey) {
+      document.querySelectorAll('.settings-panel').forEach(p => p.classList.add('hidden'));
+      document.querySelectorAll('.set-nav-btn').forEach(b => b.classList.remove('active'));
+
+      const targetPanel = document.getElementById(`section-${sectionKey}`);
+      const targetNav = document.getElementById(`nav-${sectionKey}`);
+      if (targetPanel) targetPanel.classList.remove('hidden');
+      if (targetNav) targetNav.classList.add('active');
+
+      document.getElementById('topBreadcrumbCurrent').textContent = SECTION_TITLES[sectionKey] || 'Cài đặt';
+    }
+
+    function filterSettingsSearch(query) {
+      const q = query.toLowerCase().trim();
+      if (!q) return;
+      if (q.includes('thành viên') || q.includes('quyền') || q.includes('admin')) switchSettingsSection('members');
+      else if (q.includes('chung') || q.includes('màu') || q.includes('tiền')) switchSettingsSection('general');
+      else if (q.includes('phòng') || q.includes('vai trò')) switchSettingsSection('departments');
+      else if (q.includes('tích hợp') || q.includes('api') || q.includes('webhook') || q.includes('base')) switchSettingsSection('integrations');
+      else if (q.includes('thông báo') || q.includes('nhắc') || q.includes('18:00')) switchSettingsSection('notifications');
+      else if (q.includes('nhật ký') || q.includes('log')) switchSettingsSection('audit');
+      else if (q.includes('tài khoản') || q.includes('khuê')) switchSettingsSection('profile');
+    }
+
+    function toggleSwitch(el, label) {
+      const current = el.getAttribute('data-checked') === 'true';
+      el.setAttribute('data-checked', (!current).toString());
+      markUnsaved();
+      showToast(`${!current ? 'Đã bật' : 'Đã tắt'}: ${label}`);
+    }
+
+    function selectBrandAccent(hex, name, btnEl) {
+      document.querySelectorAll('.accent-btn').forEach(b => {
+        b.className = 'accent-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-[9px] border border-slate-200 bg-white text-[12px] font-medium text-[#4B5068]';
+      });
+      btnEl.className = 'accent-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-[9px] border-2 border-[#4F46E5] bg-[#EEF0FF] text-[12px] font-semibold text-[#4F46E5]';
+      document.getElementById('brandLogoBox').style.backgroundColor = hex;
+      markUnsaved();
+      showToast(`Đã chọn màu nhận diện: ${name}`);
+    }
+
+    // Modal mời thành viên
+    function openInviteModal() {
+      document.getElementById('inviteModal').classList.remove('hidden');
+    }
+    function closeInviteModal() {
+      document.getElementById('inviteModal').classList.add('hidden');
+    }
+    function submitInviteMember() {
+      const name = document.getElementById('inviteNameInput').value.trim();
+      const email = document.getElementById('inviteEmailInput').value.trim();
+      const dept = document.getElementById('inviteDeptSelect').value;
+      const role = document.getElementById('inviteRoleSelect').value;
+
+      if (!name || !email) {
+        showToast('Vui lòng nhập đầy đủ họ tên và email công việc');
+        return;
+      }
+      const initials = name.split(' ').map(w => w[0]).slice(-2).join('').toUpperCase();
+      MEMBERS.unshift({
+        id: Date.now(),
+        name,
+        initials,
+        color: 'bg-indigo-100 text-[#4F46E5]',
+        email,
+        dept,
+        role,
+        status: 'Chờ kích hoạt',
+        modules: ['Datahub', 'Onboarding']
+      });
+
+      document.getElementById('totalActiveCount').textContent = MEMBERS.length;
+      document.getElementById('sidebarSeatBadge').textContent = `${MEMBERS.length}/25`;
+      document.getElementById('seatRemainText').textContent = `Còn ${25 - MEMBERS.length} ghế trống (${MEMBERS.length}/25)`;
+      document.getElementById('seatProgressBar').style.width = `${(MEMBERS.length / 25) * 100}%`;
+      document.getElementById('subTabListBtn').textContent = `Danh sách nhân sự (${MEMBERS.length})`;
+
+      renderMembersTable();
+      closeInviteModal();
+      document.getElementById('inviteNameInput').value = '';
+      document.getElementById('inviteEmailInput').value = '';
+      showToast(`Đã gửi lời mời tham gia SoE Hub tới ${email}`);
+    }
+
+    // Drawer phân quyền từng thành viên
+    function openMemberDrawer(id) {
+      const m = MEMBERS.find(item => item.id === id);
+      if (!m) return;
+      document.getElementById('drawerAvatar').textContent = m.initials;
+      document.getElementById('drawerMemberName').textContent = m.name;
+      document.getElementById('drawerMemberMeta').textContent = `${m.email} · ${m.dept}`;
+
+      const allModules = ['Tổng quan', 'Datahub', 'Quản lý Deal', 'Form', 'Onboarding', 'Knowledge', 'AI Hub', 'Dashboard chia sẻ'];
+      document.getElementById('drawerModuleToggles').innerHTML = allModules.map(mod => {
+        const checked = m.modules.includes(mod) || m.role === 'Admin';
+        return `
+          <div class="p-3 rounded-[10px] border border-slate-200/80 bg-[#FAF9FC] flex items-center justify-between">
+            <span class="text-[13px] font-semibold text-[#1E1B3A]">${mod}</span>
+            <div class="toggle-switch" data-checked="${checked}" onclick="toggleSwitch(this, '${mod}')">
+              <span class="toggle-knob"></span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('memberDrawerBackdrop').classList.remove('hidden');
+    }
+    function closeMemberDrawer() {
+      document.getElementById('memberDrawerBackdrop').classList.add('hidden');
+    }
+
+    function copyApiToken() {
+      const input = document.getElementById('apiTokenField');
+      input.select();
+      document.execCommand('copy');
+      showToast('Đã sao chép API Token vào bộ nhớ tạm');
+    }
+    function regenerateApiToken() {
+      const rand = Math.random().toString(36).substring(2, 14) + Math.random().toString(36).substring(2, 10);
+      document.getElementById('apiTokenField').value = `soe_live_${rand}`;
+      markUnsaved();
+      showToast('Đã khởi tạo API Token mới');
+    }
+
+    function markUnsaved() {
+      document.getElementById('unsavedBadge').classList.remove('hidden');
+    }
+    function saveAllSettings() {
+      document.getElementById('unsavedBadge').classList.add('hidden');
+      showToast('Đã lưu toàn bộ cấu hình SoE Hub thành công');
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('leftSidebar');
+      const expandWrap = document.getElementById('expandBtnWrap');
+      const isCollapsed = sidebar.classList.toggle('sidebar-collapsed');
+      expandWrap.classList.toggle('hidden', !isCollapsed);
+      expandWrap.classList.toggle('flex', isCollapsed);
+    }
+
+    function setSidebarNav(el, e) {
+      e.preventDefault();
+      document.querySelectorAll('.sb-item').forEach(item => item.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function togglePopover(id, e) {
+      if (e) e.stopPropagation();
+      const target = document.getElementById(id);
+      const isHidden = target.classList.contains('hidden');
+      closeAllPopovers();
+      if (isHidden) target.classList.remove('hidden');
+    }
+    function closeAllPopovers() {
+      document.querySelectorAll('.app-popover').forEach(el => el.classList.add('hidden'));
+    }
+    document.addEventListener('click', () => closeAllPopovers());
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        document.getElementById('quickSettingSearch').focus();
+      }
+    });
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('feedbackToast');
+      el.textContent = msg;
+      el.classList.remove('opacity-0', 'translate-y-2');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.classList.add('opacity-0', 'translate-y-2');
+      }, 2200);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderMembersTable();
+      renderPermissionMatrix();
+    });
+  </script>
+</body>
+</html>

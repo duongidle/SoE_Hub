@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SoE Hub — Quản lý Deal / Template</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-canvas: #F4F5FA;
+      --bg-workspace: #F8F9FC;
+      --bg-sidebar: #FAF9FE;
+      --bg-surface: #FFFFFF;
+      --border-subtle: #ECEEF5;
+      --border-card: #E2E8F0;
+      --text-primary: #1E1B3A;
+      --text-secondary: #646A82;
+      --text-muted: #94A3B8;
+      --accent-primary: #4F46E5;
+      --accent-hover: #4338CA;
+      --accent-soft: #EEF0FF;
+      --font-text: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-num: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      font-family: var(--font-text);
+      color: var(--text-primary);
+      background:
+        radial-gradient(circle at 10% 8%, rgba(165, 180, 252, 0.30), transparent 36%),
+        radial-gradient(circle at 88% 12%, rgba(167, 243, 208, 0.24), transparent 38%),
+        radial-gradient(circle at 50% 94%, rgba(221, 214, 254, 0.28), transparent 44%),
+        var(--bg-canvas);
+      margin: 0;
+      overflow: hidden;
+    }
+
+    .num {
+      font-family: var(--font-num);
+      font-variant-numeric: tabular-nums;
+    }
+    .code-font {
+      font-family: var(--font-mono);
+    }
+
+    /* Floating App Shell */
+    .app-shell {
+      box-shadow:
+        0 20px 50px -12px rgba(30, 27, 58, 0.08),
+        0 0 0 1px rgba(226, 232, 240, 0.9);
+    }
+
+    /* Bento Card */
+    .bento-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      box-shadow:
+        0 4px 20px -4px rgba(30, 27, 58, 0.04),
+        0 1px 3px rgba(30, 27, 58, 0.02);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+    /* Column Row Hover Silk Indicator */
+    .col-row {
+      position: relative;
+      transition: background-color 140ms ease, border-color 140ms ease;
+    }
+    .col-row::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 0 4px 4px 0;
+      background: #4F46E5;
+      opacity: 0;
+      transition: opacity 140ms ease;
+    }
+    .col-row:hover::before { opacity: 1; }
+  </style>
+</head>
+<body class="h-screen p-2 sm:p-3 flex select-none">
+
+  <!-- ===================================================================== -->
+  <!-- FLOATING APP SHELL (TẦNG 1)                                           -->
+  <!-- ===================================================================== -->
+  <div class="app-shell flex-1 bg-white rounded-[20px] flex overflow-hidden min-w-0">
+
+    <!-- =================================================================== -->
+    <!-- 1. LEFT SIDEBAR PHẲNG (220px <-> 64px)                              -->
+    <!-- =================================================================== -->
+    <aside id="leftSidebar" class="w-[220px] bg-[#FAF9FE] border-r border-[#ECEEF5] flex flex-col justify-between shrink-0 transition-all duration-200">
+      <div class="flex flex-col min-h-0 flex-1">
+        <!-- Workspace Brand Header -->
+        <div class="h-[48px] px-3.5 border-b border-[#ECEEF5] flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-7 h-7 rounded-[9px] bg-[#4F46E5] text-white flex items-center justify-center font-bold text-[13px] shrink-0 shadow-2xs">
+              S
+            </div>
+            <div class="sidebar-label truncate">
+              <div class="font-bold text-[13.5px] text-[#1E1B3A] leading-tight">SoE Hub</div>
+              <div class="text-[10.5px] text-[#646A82] leading-tight">Internal Workspace</div>
+            </div>
+          </div>
+          <button onclick="toggleSidebar()" title="Thu gọn / Mở rộng thanh bên" class="w-7 h-7 rounded-[8px] text-[#646A82] hover:text-[#1E1B3A] hover:bg-[#EEF0FF] flex items-center justify-center transition-colors shrink-0">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+          </button>
+        </div>
+
+        <!-- Flat Single-Level Module Navigation -->
+        <nav id="sidebarNavList" class="flex-1 overflow-y-auto py-2.5 px-2 space-y-0.5">
+          <!-- Rendered by JS -->
+        </nav>
+      </div>
+
+      <!-- Bottom Fixed Actions -->
+      <div class="p-2 border-t border-[#ECEEF5] space-y-0.5 shrink-0">
+        <button onclick="showToast('Đang mở Cài đặt hệ thống')" class="w-full h-8 px-2.5 rounded-[9px] text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-200/50 flex items-center gap-2.5 text-[12.5px] font-medium transition-colors">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="sidebar-label truncate">Cài đặt</span>
+        </button>
+        <button onclick="showToast('Đã đăng xuất phiên làm việc')" class="w-full h-8 px-2.5 rounded-[9px] text-[#646A82] hover:text-rose-600 hover:bg-rose-50/70 flex items-center gap-2.5 text-[12.5px] font-medium transition-colors">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="sidebar-label truncate">Đăng xuất</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- =================================================================== -->
+    <!-- 2. MAIN WORKSPACE COLUMN                                            -->
+    <!-- =================================================================== -->
+    <div class="flex-1 flex flex-col min-w-0 bg-[#F8F9FC]">
+
+      <!-- TOP NAVIGATOR BAR (48px - ĐƠN TUYẾN, BREADCRUMB ĐỀU CỠ CHỮ) -->
+      <header class="h-[48px] bg-white/85 backdrop-blur-md border-b border-[#ECEEF5] px-4 sm:px-5 flex items-center justify-between gap-3 shrink-0 z-20">
+        <!-- Left: Uniform Breadcrumb + Scope Info Tooltip -->
+        <div class="flex items-center gap-2.5 min-w-0">
+          <button onclick="showToast('Quay lại Quản lý Deal')" class="inline-flex items-center gap-1.5 text-[14px] font-medium text-[#646A82] hover:text-[#4F46E5] transition-colors shrink-0">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>Quản lý Deal</span>
+          </button>
+          <span class="text-slate-300 text-[14px]">/</span>
+          <span class="text-[14px] font-semibold text-[#1E1B3A] truncate">Template</span>
+
+          <!-- Subtle Scope Hint Pill -->
+          <div class="hidden xl:flex items-center gap-1.5 ml-2 px-2.5 py-1 rounded-full bg-[#FAF9FE] border border-[#ECEEF5] text-[11.5px] text-[#646A82]">
+            <svg class="w-3.5 h-3.5 text-[#4F46E5] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Áp dụng ngay cho <strong class="num text-[#1E1B3A]">5</strong> người trong phạm vi · Cột riêng không bị ảnh hưởng</span>
+          </div>
+        </div>
+
+        <!-- Right: Primary Action + Notification + User -->
+        <div class="flex items-center gap-2.5 shrink-0">
+          <button onclick="openCreateTableModal()" class="h-8 px-3.5 rounded-[10px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12.5px] font-semibold shadow-2xs flex items-center gap-1.5 transition-colors">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Tạo bảng template</span>
+          </button>
+
+          <div class="w-[1px] h-4 bg-slate-200 mx-0.5"></div>
+
+          <!-- Notification Bell -->
+          <div class="relative">
+            <button onclick="toggleNotifPopover()" class="w-8 h-8 rounded-[9px] hover:bg-slate-100 text-[#646A82] hover:text-[#1E1B3A] flex items-center justify-center relative transition-colors">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span class="num absolute top-1 right-1 min-w-[15px] h-[15px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">1</span>
+            </button>
+
+            <div id="notifPopover" class="hidden absolute right-0 mt-2 w-[300px] bento-card rounded-[14px] p-3 z-50">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                <span class="font-semibold text-[12.5px] text-[#1E1B3A]">Thông báo mới (<span class="num">1</span>)</span>
+                <button onclick="toggleNotifPopover()" class="text-[11px] text-[#4F46E5] font-medium">Đóng</button>
+              </div>
+              <div class="p-2.5 rounded-[10px] bg-[#FAF9FE] border border-indigo-100 text-[12px] space-y-1">
+                <div class="font-semibold text-[#1E1B3A]">Cập nhật công thức cột Closing date</div>
+                <div class="text-[#646A82] text-[11.5px]">Khuê Võ vừa đồng bộ trường Ngày tiền về đầu tiên cho template Deals.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Profile -->
+          <div class="flex items-center gap-2 pl-1 pr-2 py-1 rounded-[10px] hover:bg-slate-100 cursor-pointer transition-colors">
+            <div class="w-6 h-6 rounded-full bg-indigo-100 text-[#4F46E5] font-bold text-[11px] flex items-center justify-center">
+              HT
+            </div>
+            <span class="text-[12.5px] font-medium text-[#1E1B3A] hidden sm:inline">Hà Tùng</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- ================================================================= -->
+      <!-- 3. TWO-COLUMN SCHEMA BUILDER BODY                                 -->
+      <!-- ================================================================= -->
+      <div class="flex-1 flex min-h-0 overflow-hidden">
+
+        <!-- LEFT: CÂY CỦA TÔI (248px) -->
+        <aside class="w-[248px] bg-[#FAFBFD] border-r border-[#ECEEF5] flex flex-col shrink-0">
+          <div class="p-3.5 border-b border-[#ECEEF5] space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-[#646A82]">Cây của tôi</span>
+              <span id="treeCountBadge" class="num px-2 py-0.5 rounded-full bg-[#EEF0FF] text-[#4F46E5] text-[11px] font-semibold">9 bảng</span>
+            </div>
+            <!-- Quick Filter Input -->
+            <div class="relative">
+              <svg class="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input id="treeSearchInput" type="text" oninput="renderTableTree()" placeholder="Tìm bảng trong cây..."
+                class="w-full h-8 pl-8 pr-2.5 rounded-[9px] bg-white border border-slate-200/90 focus:border-[#4F46E5] focus:outline-none text-[12px] text-[#1E1B3A] placeholder-[#94A3B8]" />
+            </div>
+          </div>
+
+          <!-- Table Tree Items -->
+          <div id="tableTreeContainer" class="flex-1 overflow-y-auto p-2.5 space-y-1">
+            <!-- Rendered by JS -->
+          </div>
+
+          <!-- Footer Admin Note -->
+          <div class="p-3 border-t border-[#ECEEF5] bg-white/60 text-[11px] text-[#646A82] leading-relaxed">
+            Bộ mặc định cho cây mới do Admin cấu hình tại <span class="text-[#4F46E5] font-medium cursor-pointer hover:underline" onclick="showToast('Chuyển tới Cài đặt hệ thống')">Cài đặt hệ thống</span>.
+          </div>
+        </aside>
+
+        <!-- RIGHT: CONFIGURATION CANVAS -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div class="max-w-[920px] mx-auto space-y-4">
+
+            <!-- TABLE IDENTITY HEADER -->
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <div class="w-9 h-9 rounded-[11px] bg-[#EEF0FF] border border-indigo-200/70 text-[#4F46E5] flex items-center justify-center shrink-0">
+                  <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <h1 id="activeTableName" class="text-[19px] font-bold text-[#1E1B3A] tracking-tight">Deals</h1>
+                    <span id="activeTableScopeBadge" class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[11.5px] font-semibold">
+                      Bảng chung
+                    </span>
+                    <span class="num inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-[#646A82] text-[11.5px] font-medium">
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      Áp dụng cho <span id="activeTableMembers">5</span> người
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <button onclick="renameActiveTable()" class="h-8 px-3 rounded-[9px] bg-white hover:bg-slate-50 border border-slate-200 text-[#1E1B3A] text-[12px] font-medium flex items-center gap-1.5 transition-colors">
+                  <svg class="w-3.5 h-3.5 text-[#646A82]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  <span>Đổi tên</span>
+                </button>
+                <button onclick="showToast('Đã chuyển bảng vào kho lưu trữ nháp')" class="h-8 px-3 rounded-[9px] bg-white hover:bg-slate-50 border border-slate-200 text-[#646A82] hover:text-[#1E1B3A] text-[12px] font-medium flex items-center gap-1.5 transition-colors">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                  <span>Lưu trữ</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- BENTO CARD 1: QUYỀN THEO BẢNG (COMPACT SINGLE-ROW BAR ~52px)  -->
+            <!-- ============================================================= -->
+            <section class="bento-card rounded-[14px] overflow-hidden">
+              <!-- Compact Single-Row Strip -->
+              <div class="px-4 py-2.5 min-h-[52px] flex flex-wrap items-center justify-between gap-2.5 bg-white">
+                <!-- Left: Shield Icon + Title + Inline Default Permission Select -->
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <div class="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#1E1B3A] shrink-0">
+                    <span class="w-6 h-6 rounded-[7px] bg-[#EEF0FF] text-[#4F46E5] flex items-center justify-center">
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </span>
+                    <span>Quyền theo bảng</span>
+                  </div>
+
+                  <span class="text-slate-200 hidden sm:inline">|</span>
+
+                  <div class="inline-flex items-center gap-1.5">
+                    <span class="text-[11.5px] text-[#646A82] hidden md:inline">Quyền mặc định:</span>
+                    <select id="defaultPermSelect" onchange="showToast('Đã cập nhật quyền theo bảng')"
+                      class="h-7 px-2.5 rounded-[8px] bg-[#FAF9FE] hover:bg-[#EEF0FF]/60 border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[12px] font-semibold text-[#1E1B3A] cursor-pointer transition-colors">
+                      <option value="edit_allowed">Sửa dữ liệu (ở cột cho phép)</option>
+                      <option value="view_only">Chỉ xem dữ liệu</option>
+                      <option value="full_edit">Toàn quyền chỉnh sửa</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Middle & Right: Inline Toggle Pills + Expand Details -->
+                <div class="flex items-center gap-2 flex-wrap ml-auto">
+                  <!-- Toggle Pill 1: Leader thêm cột team -->
+                  <button id="leaderPillBtn" type="button" onclick="toggleLeaderPill()"
+                    class="h-7 px-2.5 rounded-[8px] border border-slate-200 bg-slate-50/80 hover:bg-slate-100 text-[#646A82] text-[11.5px] font-medium inline-flex items-center gap-1.5 transition-all">
+                    <span id="leaderPillDot" class="w-2 h-2 rounded-full bg-slate-300 transition-colors"></span>
+                    <span>Leader thêm cột team</span>
+                    <span id="leaderPillState" class="text-[10.5px] font-semibold text-slate-400">Tắt</span>
+                  </button>
+
+                  <!-- Toggle Pill 2: Khoá phân chia -->
+                  <button id="partitionPillBtn" type="button" onclick="togglePartitionPill()"
+                    class="h-7 px-2.5 rounded-[8px] border border-indigo-200 bg-[#EEF0FF] text-[#4F46E5] text-[11.5px] font-semibold inline-flex items-center gap-1.5 transition-all">
+                    <span id="partitionPillDot" class="w-2 h-2 rounded-full bg-[#4F46E5] transition-colors"></span>
+                    <span id="partitionPillLabel">Khoá phân chia: Người tham gia</span>
+                  </button>
+
+                  <!-- Expand / Collapse Drawer Button -->
+                  <button id="togglePermDrawerBtn" type="button" onclick="togglePermDrawer()"
+                    class="h-7 px-2.5 rounded-[8px] bg-white hover:bg-slate-50 border border-slate-200 text-[#1E1B3A] text-[11.5px] font-semibold inline-flex items-center gap-1 transition-colors">
+                    <span id="togglePermDrawerText">Chi tiết khoá</span>
+                    <svg id="togglePermDrawerChevron" class="w-3.5 h-3.5 text-[#646A82] transition-transform duration-150" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Collapsible Drawer (Closed by default) -->
+              <div id="permDetailsDrawer" class="hidden px-4 py-3 bg-[#FAF9FE] border-t border-[#ECEEF5] space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="text-[12px] text-[#646A82]">
+                    <strong class="text-[#1E1B3A]">Phạm vi hiển thị dòng:</strong> Mỗi thành viên chỉ thấy dòng có tên mình (và cấp dưới) theo các cột khoá bên dưới (<span id="lockColCountText" class="num font-semibold text-[#4F46E5]">1/5</span> cột).
+                  </div>
+                  <button type="button" onclick="savePartitionConfig()"
+                    class="h-7 px-3 rounded-[8px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[11.5px] font-semibold shadow-2xs transition-colors">
+                    Lưu khoá phân chia
+                  </button>
+                </div>
+
+                <!-- Selected Lock Columns + Add Lock Column Dropdown -->
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <div id="lockColumnsChipsContainer" class="flex flex-wrap items-center gap-1.5">
+                    <!-- Rendered by JS -->
+                  </div>
+
+                  <div id="addLockColWrapper" class="relative inline-block">
+                    <select id="addLockColSelect" onchange="handleAddLockColumn(this)"
+                      class="h-7 pl-2.5 pr-6 rounded-[8px] bg-white hover:bg-[#EEF0FF]/60 border border-dashed border-indigo-300 text-[#4F46E5] text-[11.5px] font-semibold focus:outline-none cursor-pointer">
+                      <option value="">+ Thêm cột khoá...</option>
+                      <option value="Người tạo">Người tạo</option>
+                      <option value="Owner">Owner</option>
+                      <option value="Leader phụ trách">Leader phụ trách</option>
+                      <option value="CSKH phụ trách">CSKH phụ trách</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- ============================================================= -->
+            <!-- BENTO CARD 2: CỘT CỦA BẢNG (ERGONOMIC SCHEMA LIST)            -->
+            <!-- ============================================================= -->
+            <section class="bento-card rounded-[16px] overflow-hidden">
+              <!-- Toolbar Header (Single-line clean) -->
+              <div class="p-4 sm:px-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-white">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <h2 class="text-[14.5px] font-bold text-[#1E1B3A]">Cột của bảng</h2>
+                  <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-[9px]">
+                    <button id="filterAllColsBtn" onclick="setColGroupFilter('all')" class="num px-2.5 py-1 rounded-[7px] bg-white text-[#4F46E5] shadow-2xs text-[11.5px] font-semibold transition-all">
+                      Tất cả (10)
+                    </button>
+                    <button id="filterBasicColsBtn" onclick="setColGroupFilter('basic')" class="num px-2.5 py-1 rounded-[7px] text-[#646A82] hover:text-[#1E1B3A] text-[11.5px] font-medium transition-all">
+                      Cơ bản (8)
+                    </button>
+                    <button id="filterFormulaColsBtn" onclick="setColGroupFilter('formula')" class="num px-2.5 py-1 rounded-[7px] text-[#646A82] hover:text-[#1E1B3A] text-[11.5px] font-medium transition-all">
+                      Công thức (2)
+                    </button>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <!-- Search column -->
+                  <div class="relative">
+                    <svg class="w-3.5 h-3.5 text-[#94A3B8] absolute left-2.5 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input id="colSearchInput" type="text" oninput="renderColumnsList()" placeholder="Tìm tên cột..."
+                      class="w-[170px] sm:w-[200px] h-8 pl-8 pr-2.5 rounded-[9px] bg-[#FAF9FE] border border-slate-200 focus:border-[#4F46E5] focus:bg-white focus:outline-none text-[12px] text-[#1E1B3A] placeholder-[#94A3B8]" />
+                  </div>
+
+                  <button onclick="openAddColumnModal()" class="h-8 px-3 rounded-[9px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12px] font-semibold flex items-center gap-1.5 shadow-2xs transition-colors">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>Thêm cột</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Sub-header Strip -->
+              <div class="px-5 py-2 bg-[#FAF9FE] border-b border-slate-100 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-[#646A82]">
+                <span>Lớp Cơ bản & Công thức · Áp dụng cho 5 thành viên</span>
+                <span class="hidden sm:inline">Thao tác cấu hình</span>
+              </div>
+
+              <!-- Columns List -->
+              <div id="columnsListContainer" class="divide-y divide-slate-100">
+                <!-- Rendered by JS -->
+              </div>
+            </section>
+
+          </div>
+        </main>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 4. MODAL SỬA CỘT / CÔNG THỨC ("Sửa cột Closing date")                 -->
+  <!-- ===================================================================== -->
+  <div id="editColumnModal" class="hidden fixed inset-0 z-50 bg-[#1E1B3A]/35 backdrop-blur-[3px] flex items-center justify-center p-3 sm:p-5">
+    <div class="bg-white rounded-[20px] border border-slate-200 shadow-2xl w-full max-w-[660px] max-h-[92vh] flex flex-col overflow-hidden">
+
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-[9px] bg-[#EEF0FF] text-[#4F46E5] flex items-center justify-center font-bold text-[14px]">
+            ƒx
+          </div>
+          <div>
+            <h3 id="modalTitleText" class="text-[16px] font-bold text-[#1E1B3A]">Sửa cột "Closing date"</h3>
+            <p class="text-[11.5px] text-[#646A82]">Cấu hình thuộc tính, công thức tự động và kiểu hiển thị</p>
+          </div>
+        </div>
+        <button onclick="closeColumnModal()" class="w-8 h-8 rounded-[9px] hover:bg-slate-100 text-[#646A82] hover:text-[#1E1B3A] flex items-center justify-center transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- Modal Scrollable Body -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-4">
+        <!-- Scope Notice Banner -->
+        <div class="p-3 rounded-[11px] bg-[#FAF9FE] border border-indigo-100 text-[12px] text-[#646A82] flex items-start gap-2.5">
+          <svg class="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Cột của template, lớp <strong class="text-[#1E1B3A]">Cơ bản</strong>, hiện cho <strong class="num text-[#1E1B3A]">5</strong> người. Người nhận không sửa được cột này, chỉ thêm cột riêng của mình.</span>
+        </div>
+
+        <!-- Row: Tên cột & Kiểu cột -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1">
+              Tên cột <span class="text-rose-500">*</span>
+            </label>
+            <input id="modalColNameInput" type="text" value="Closing date"
+              class="w-full h-9 px-3 rounded-[9px] bg-white border border-slate-200 focus:border-[#4F46E5] focus:ring-2 focus:ring-indigo-500/15 focus:outline-none text-[13px] font-medium text-[#1E1B3A]" />
+            <p class="text-[11px] text-[#646A82] mt-1">Không trùng tên cột khác, không chứa <code class="code-font text-[10.5px]">[</code> hoặc <code class="code-font text-[10.5px]">]</code>.</p>
+          </div>
+
+          <div>
+            <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1">
+              Kiểu cột
+            </label>
+            <select id="modalColTypeSelect" onchange="toggleFormulaSectionVisibility()"
+              class="w-full h-9 px-3 rounded-[9px] bg-[#FAF9FE] border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[13px] font-medium text-[#1E1B3A]">
+              <option value="Công thức">Công thức (Formula)</option>
+              <option value="Văn bản">Văn bản</option>
+              <option value="Một lựa chọn">Một lựa chọn</option>
+              <option value="Ngày">Ngày</option>
+              <option value="Tiền tệ">Tiền tệ</option>
+              <option value="Ngày sửa của cột">Ngày sửa của cột</option>
+            </select>
+            <p class="text-[11px] text-[#646A82] mt-1">Không đổi được kiểu khi cột đã phát sinh dữ liệu.</p>
+          </div>
+        </div>
+
+        <!-- Formula Editor Section -->
+        <div id="formulaEditorSection" class="space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <label class="text-[12px] font-semibold text-[#1E1B3A]">
+              Công thức <span class="text-rose-500">*</span>
+            </label>
+            <!-- Quick Insert Buttons -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <button type="button" onclick="insertFormulaToken('IF([Status]=&quot;Won&quot;, [Ngày tiền về đầu tiên], &quot;&quot;)')" class="h-7 px-2.5 rounded-[8px] bg-[#FAF9FE] hover:bg-[#EEF0FF] border border-slate-200 hover:border-indigo-200 text-[#1E1B3A] hover:text-[#4F46E5] text-[11.5px] font-medium flex items-center gap-1 transition-colors">
+                <span class="code-font font-bold text-[#4F46E5]">∑</span>
+                <span>Chèn hàm</span>
+              </button>
+              <button type="button" onclick="insertFormulaToken('[Ngày đóng (sửa tay)]')" class="h-7 px-2.5 rounded-[8px] bg-[#FAF9FE] hover:bg-[#EEF0FF] border border-slate-200 hover:border-indigo-200 text-[#1E1B3A] hover:text-[#4F46E5] text-[11.5px] font-medium flex items-center gap-1 transition-colors">
+                <span class="code-font font-bold text-emerald-600">{}</span>
+                <span>Chèn cột hoặc bảng</span>
+              </button>
+              <button type="button" onclick="resetDefaultClosingFormula()" class="h-7 px-2.5 rounded-[8px] bg-[#FAF9FE] hover:bg-[#EEF0FF] border border-slate-200 hover:border-indigo-200 text-[#1E1B3A] hover:text-[#4F46E5] text-[11.5px] font-medium flex items-center gap-1 transition-colors">
+                <span>📖</span>
+                <span>Công thức mẫu</span>
+              </button>
+            </div>
+          </div>
+
+          <textarea id="modalFormulaInput" rows="4"
+            class="code-font w-full p-3.5 rounded-[12px] bg-[#FAF9FE] border border-slate-200 focus:border-[#4F46E5] focus:bg-white focus:ring-2 focus:ring-indigo-500/15 focus:outline-none text-[12px] text-[#1E1B3A] leading-relaxed">=IF([Ngày đóng (sửa tay)]&lt;&gt;"",[Ngày đóng (sửa tay)],IF([Status]="Won",[Ngày tiền về đầu tiên],IF(OR([Status]="Lost",[Status]="Disqualified",[Status]="Convert to POD",[Status]="Huỷ"),INT([Ngày đổi Status]),"")))</textarea>
+
+          <p class="text-[11px] text-[#646A82]">
+            Bắt đầu bằng dấu <code class="code-font bg-slate-100 px-1 rounded">=</code>. Gõ <code class="code-font bg-slate-100 px-1 rounded">[</code> để chọn cột, bảng hoặc datahub; gõ tên hàm để xem gợi ý.
+          </p>
+
+          <!-- Live 5-Row Preview Box -->
+          <div class="rounded-[12px] bg-[#FAFBFD] border border-slate-200/90 overflow-hidden">
+            <div class="px-3.5 py-2.5 border-b border-slate-200/80 flex items-center justify-between gap-2 bg-white">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-[12px] font-bold text-[#1E1B3A]">Xem trước 5 dòng đầu</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[11.5px] text-[#646A82]">Kiểu kết quả</span>
+                <select id="formulaResultTypeSelect" class="h-7 px-2.5 rounded-[7px] bg-[#FAF9FE] border border-slate-200 text-[12px] font-semibold text-[#1E1B3A] focus:outline-none">
+                  <option value="Ngày">Ngày</option>
+                  <option value="Văn bản">Văn bản</option>
+                  <option value="Số">Số</option>
+                  <option value="Tiền tệ">Tiền tệ</option>
+                </select>
+              </div>
+            </div>
+
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-200/70 text-[11px] font-semibold text-[#646A82]">
+                  <th class="py-2 px-3.5 w-24">Dòng</th>
+                  <th class="py-2 px-3.5">Kết quả tính toán</th>
+                  <th class="py-2 px-3.5 text-right">Trạng thái nguồn</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-[12px]">
+                <tr class="hover:bg-white">
+                  <td class="num py-2 px-3.5 font-semibold text-[#646A82]">#1110</td>
+                  <td class="num py-2 px-3.5 font-semibold text-[#1E1B3A]">11/09/2021</td>
+                  <td class="py-2 px-3.5 text-right"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10.5px] font-semibold">Won</span></td>
+                </tr>
+                <tr class="hover:bg-white">
+                  <td class="num py-2 px-3.5 font-semibold text-[#646A82]">#1111</td>
+                  <td class="num py-2 px-3.5 font-semibold text-[#1E1B3A]">12/04/2022</td>
+                  <td class="py-2 px-3.5 text-right"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10.5px] font-semibold">Won</span></td>
+                </tr>
+                <tr class="hover:bg-white">
+                  <td class="num py-2 px-3.5 font-semibold text-[#646A82]">#1112</td>
+                  <td class="num py-2 px-3.5 font-semibold text-[#1E1B3A]">05/04/2022</td>
+                  <td class="py-2 px-3.5 text-right"><span class="px-2 py-0.5 rounded-full bg-slate-100 text-[#646A82] text-[10.5px] font-semibold">Lost</span></td>
+                </tr>
+                <tr class="hover:bg-white">
+                  <td class="num py-2 px-3.5 font-semibold text-[#646A82]">#1113</td>
+                  <td class="num py-2 px-3.5 font-semibold text-[#1E1B3A]">29/04/2022</td>
+                  <td class="py-2 px-3.5 text-right"><span class="px-2 py-0.5 rounded-full bg-indigo-50 text-[#4F46E5] text-[10.5px] font-semibold">Sửa tay</span></td>
+                </tr>
+                <tr class="hover:bg-white">
+                  <td class="num py-2 px-3.5 font-semibold text-[#646A82]">#1114</td>
+                  <td class="num py-2 px-3.5 font-semibold text-[#1E1B3A]">04/04/2022</td>
+                  <td class="py-2 px-3.5 text-right"><span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10.5px] font-semibold">Convert to POD</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Description Field -->
+        <div>
+          <label class="block text-[12px] font-semibold text-[#1E1B3A] mb-1">Mô tả cột</label>
+          <textarea id="modalColDescInput" rows="2" placeholder="Nhập hướng dẫn ý nghĩa cột để thành viên dễ hiểu..."
+            class="w-full p-2.5 rounded-[10px] bg-white border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[12.5px] text-[#1E1B3A] placeholder-[#94A3B8]">Tự động lấy ngày đóng deal thực tế theo ngày sửa tay, ngày tiền về đầu tiên hoặc ngày chuyển trạng thái kết thúc.</textarea>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3.5 border-t border-slate-100 bg-[#FAFBFD] flex items-center justify-end gap-2.5 shrink-0">
+        <button onclick="closeColumnModal()" class="h-9 px-4 rounded-[10px] bg-white hover:bg-slate-50 border border-slate-200 text-[#1E1B3A] text-[12.5px] font-semibold transition-colors">
+          Huỷ
+        </button>
+        <button onclick="saveColumnChanges()" class="h-9 px-5 rounded-[10px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12.5px] font-semibold shadow-2xs transition-colors">
+          Lưu cột
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toastBox" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-[#1E1B3A] text-white px-4 py-2 rounded-[11px] shadow-xl text-[12px] font-medium flex items-center gap-2">
+    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+    <span id="toastMessage">Đã lưu thay đổi</span>
+  </div>
+
+  <script>
+    // =========================================================================
+    // DỮ LIỆU SIDEBAR & CÂY 9 BẢNG TEMPLATE QUẢN LÝ DEAL
+    // =========================================================================
+    const SIDEBAR_MODULES = [
+      { id: 'overview', label: 'Tổng quan', active: false },
+      { id: 'datahub', label: 'Datahub', active: false },
+      { id: 'deal', label: 'Quản lý Deal', active: true },
+      { id: 'form', label: 'Form', active: false },
+      { id: 'onboarding', label: 'Onboarding', active: false },
+      { id: 'knowledge', label: 'Knowledge', active: false },
+      { id: 'aihub', label: 'AI Hub', active: false },
+      { id: 'approval', label: 'Duyệt bài', active: false },
+      { id: 'shared_dash', label: 'Dashboard chia sẻ', active: false },
+      { id: 'reminder', label: 'Nhắc hẹn', active: false },
+      { id: 'announcement', label: 'Thông báo chung', active: false },
+      { id: 'orgchart', label: 'Org chart', active: false },
+      { id: 'guest', label: 'Cấp dữ liệu Guest', active: false }
+    ];
+
+    const TEMPLATE_TABLES = [
+      { id: 'tham_so_com', name: 'Tham số com', scope: 'Chung', members: 5 },
+      { id: 'chinh_sach_com', name: 'Chính sách com', scope: 'Chung', members: 5 },
+      { id: 'tien_ve', name: 'Tiền về', scope: 'Chung', members: 5 },
+      { id: 'dot_thanh_toan', name: 'Đợt thanh toán', scope: 'Chung', members: 5 },
+      { id: 'deals', name: 'Deals', scope: 'Chung', members: 5 },
+      { id: 'doanh_thu_nguoi', name: 'Doanh thu theo người', scope: 'Chung', members: 5 },
+      { id: 'index', name: 'Index', scope: 'Riêng', members: 5 },
+      { id: 'probation_kpi', name: 'Probation KPI', scope: 'Chung', members: 5 },
+      { id: 'so_com', name: 'Sổ com', scope: 'Chung', members: 5 }
+    ];
+
+    let COLUMNS_BY_TABLE = {
+      deals: [
+        { id: 1, name: 'Tên công ty', type: 'Văn bản', group: 'basic', role: 'Tên công ty', permission: 'Thành viên sửa được ô', desc: 'Tên doanh nghiệp hoặc khách hàng ký hợp đồng.' },
+        { id: 2, name: 'Loại deal', type: 'Một lựa chọn', group: 'basic', role: 'Loại deal', permission: 'Chỉ người tạo bảng sửa ô', desc: 'Phân loại POD bán mới hoặc PS không kèm POD.' },
+        { id: 3, name: 'Start date', type: 'Ngày', group: 'basic', role: 'Ngày bắt đầu (Start date)', permission: 'Thành viên sửa được ô', desc: 'Ngày khởi tạo cơ hội kinh doanh.' },
+        { id: 4, name: 'Ngày dự kiến chốt', type: 'Ngày', group: 'basic', role: 'Ngày dự kiến chốt', permission: 'Thành viên sửa được ô', desc: 'Mốc dự kiến ký hợp đồng trong kỳ.' },
+        { id: 5, name: 'Status', type: 'Một lựa chọn', group: 'basic', role: 'Trạng thái (Status)', permission: 'Thành viên sửa được ô', desc: 'Trạng thái hiện tại của deal (Won, Lost, Đang theo...).' },
+        { id: 6, name: 'Ngày đổi Status', type: 'Ngày sửa của cột', group: 'basic', role: '', permission: 'Chỉ người tạo bảng sửa ô', desc: 'Tự động ghi nhận thời điểm thay đổi trạng thái.' },
+        { id: 7, name: 'Ngày đóng (sửa tay)', type: 'Ngày', group: 'basic', role: 'Ngày đóng (sửa tay)', permission: 'Chỉ người tạo bảng sửa ô', desc: 'Ngày đóng deal nhập thủ công trong trường hợp đặc biệt.' },
+        {
+          id: 8,
+          name: 'Closing date',
+          type: 'Công thức',
+          group: 'formula',
+          role: 'Lớp Công thức',
+          permission: 'Không sửa trực tiếp',
+          formula: '=IF([Ngày đóng (sửa tay)]<>"",[Ngày đóng (sửa tay)],IF([Status]="Won",[Ngày tiền về đầu tiên],IF(OR([Status]="Lost",[Status]="Disqualified",[Status]="Convert to POD",[Status]="Huỷ"),INT([Ngày đổi Status]),"")))',
+          desc: 'Tự động lấy ngày đóng deal thực tế theo ngày sửa tay, ngày tiền về đầu tiên hoặc ngày chuyển trạng thái kết thúc.'
+        },
+        { id: 9, name: 'Doanh thu dự kiến', type: 'Tiền tệ', group: 'basic', role: 'Doanh thu dự kiến', permission: 'Thành viên sửa được ô', desc: 'Giá trị hợp đồng trước thuế (VNĐ).' },
+        {
+          id: 10,
+          name: 'Tỷ lệ com áp dụng',
+          type: 'Công thức',
+          group: 'formula',
+          role: 'Lớp Công thức',
+          permission: 'Không sửa trực tiếp',
+          formula: '=IF([Loại deal]="POD bán mới", 0.08, 0.05)',
+          desc: 'Tự động tra cứu mức hoa hồng theo loại deal và chính sách com trong kỳ.'
+        }
+      ]
+    };
+
+    let activeTableId = 'deals';
+    let colGroupFilter = 'all';
+    let editingColumnId = null;
+    let sidebarCollapsed = false;
+
+    // Compact Permission Bar State
+    let leaderCanAddCol = false;
+    let partitionLockEnabled = true;
+    let permDrawerOpen = false;
+    let selectedLockColumns = ['Người tham gia'];
+    const ALL_LOCK_CANDIDATES = ['Người tham gia', 'Người tạo', 'Owner', 'Leader phụ trách', 'CSKH phụ trách'];
+
+    // =========================================================================
+    // SIDEBAR & TABLE TREE RENDERERS
+    // =========================================================================
+    function renderSidebar() {
+      const nav = document.getElementById('sidebarNavList');
+      nav.innerHTML = SIDEBAR_MODULES.map(m => `
+        <button onclick="selectSidebarModule('${m.id}', '${m.label}')"
+          class="relative w-full h-8 px-2.5 rounded-[9px] flex items-center gap-2.5 text-[12.5px] transition-colors ${
+            m.active
+              ? 'bg-[#EEF0FF] text-[#4F46E5] font-semibold'
+              : 'text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-200/50 font-medium'
+          }">
+          ${m.active ? '<span class="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-[#4F46E5]"></span>' : ''}
+          <span class="w-4 h-4 rounded-[5px] flex items-center justify-center shrink-0 ${m.active ? 'text-[#4F46E5]' : 'text-[#94A3B8]'}">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          </span>
+          <span class="sidebar-label truncate ${sidebarCollapsed ? 'hidden' : ''}">${m.label}</span>
+        </button>
+      `).join('');
+    }
+
+    function selectSidebarModule(id, label) {
+      SIDEBAR_MODULES.forEach(m => { m.active = (m.id === id); });
+      renderSidebar();
+      showToast(`Đang xem phân hệ ${label}`);
+    }
+
+    function toggleSidebar() {
+      sidebarCollapsed = !sidebarCollapsed;
+      const sidebar = document.getElementById('leftSidebar');
+      sidebar.classList.toggle('w-[220px]', !sidebarCollapsed);
+      sidebar.classList.toggle('w-[64px]', sidebarCollapsed);
+      document.querySelectorAll('.sidebar-label').forEach(el => {
+        el.classList.toggle('hidden', sidebarCollapsed);
+      });
+    }
+
+    function renderTableTree() {
+      const query = document.getElementById('treeSearchInput').value.trim().toLowerCase();
+      const filtered = TEMPLATE_TABLES.filter(t => t.name.toLowerCase().includes(query));
+      document.getElementById('treeCountBadge').textContent = `${filtered.length} bảng`;
+
+      const container = document.getElementById('tableTreeContainer');
+      container.innerHTML = filtered.map(t => {
+        const isActive = t.id === activeTableId;
+        const isShared = t.scope === 'Chung';
+        return `
+          <button onclick="selectTemplateTable('${t.id}')"
+            class="w-full text-left px-3 py-2.5 rounded-[11px] transition-all flex items-center justify-between gap-2 ${
+              isActive
+                ? 'bg-white border border-indigo-200/90 shadow-2xs ring-1 ring-indigo-500/10'
+                : 'hover:bg-white/70 border border-transparent'
+            }">
+            <div class="min-w-0">
+              <div class="text-[12.5px] truncate ${isActive ? 'font-bold text-[#4F46E5]' : 'font-semibold text-[#1E1B3A]'}">
+                ${t.name}
+              </div>
+              <div class="flex items-center gap-1.5 mt-1">
+                <span class="px-1.5 py-0.5 rounded text-[10.5px] font-semibold ${
+                  isShared
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-amber-50 text-amber-700'
+                }">${t.scope}</span>
+                <span class="num text-[11px] text-[#646A82]">${t.members} người</span>
+              </div>
+            </div>
+            ${isActive ? '<span class="w-1.5 h-1.5 rounded-full bg-[#4F46E5] shrink-0"></span>' : ''}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectTemplateTable(tableId) {
+      activeTableId = tableId;
+      const table = TEMPLATE_TABLES.find(t => t.id === tableId);
+      if (!table) return;
+
+      document.getElementById('activeTableName').textContent = table.name;
+      const badge = document.getElementById('activeTableScopeBadge');
+      badge.textContent = table.scope === 'Chung' ? 'Bảng chung' : 'Bảng riêng';
+      badge.className = table.scope === 'Chung'
+        ? 'px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[11.5px] font-semibold'
+        : 'px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/80 text-[11.5px] font-semibold';
+      document.getElementById('activeTableMembers').textContent = table.members;
+
+      if (!COLUMNS_BY_TABLE[tableId]) {
+        COLUMNS_BY_TABLE[tableId] = [
+          { id: 101, name: 'Tên bản ghi', type: 'Văn bản', group: 'basic', role: 'Mã định danh', permission: 'Thành viên sửa được ô', desc: '' },
+          { id: 102, name: 'Người phụ trách', type: 'Một lựa chọn', group: 'basic', role: 'Nhân sự', permission: 'Thành viên sửa được ô', desc: '' },
+          { id: 103, name: 'Ngày hiệu lực', type: 'Ngày', group: 'basic', role: 'Ngày áp dụng', permission: 'Chỉ người tạo bảng sửa ô', desc: '' }
+        ];
+      }
+
+      renderTableTree();
+      renderColumnsList();
+    }
+
+    // =========================================================================
+    // COMPACT PERMISSION BAR & LOCK COLUMNS LOGIC
+    // =========================================================================
+    function toggleLeaderPill() {
+      leaderCanAddCol = !leaderCanAddCol;
+      const btn = document.getElementById('leaderPillBtn');
+      const dot = document.getElementById('leaderPillDot');
+      const state = document.getElementById('leaderPillState');
+
+      if (leaderCanAddCol) {
+        btn.className = 'h-7 px-2.5 rounded-[8px] border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11.5px] font-semibold inline-flex items-center gap-1.5 transition-all';
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-500 transition-colors';
+        state.className = 'text-[10.5px] font-bold text-emerald-700';
+        state.textContent = 'Bật';
+      } else {
+        btn.className = 'h-7 px-2.5 rounded-[8px] border border-slate-200 bg-slate-50/80 hover:bg-slate-100 text-[#646A82] text-[11.5px] font-medium inline-flex items-center gap-1.5 transition-all';
+        dot.className = 'w-2 h-2 rounded-full bg-slate-300 transition-colors';
+        state.className = 'text-[10.5px] font-semibold text-slate-400';
+        state.textContent = 'Tắt';
+      }
+      showToast('Đã cập nhật quyền theo bảng');
+    }
+
+    function togglePartitionPill() {
+      partitionLockEnabled = !partitionLockEnabled;
+      updatePartitionPillDisplay();
+      showToast('Đã cập nhật quyền theo bảng');
+    }
+
+    function updatePartitionPillDisplay() {
+      const btn = document.getElementById('partitionPillBtn');
+      const dot = document.getElementById('partitionPillDot');
+      const label = document.getElementById('partitionPillLabel');
+
+      if (partitionLockEnabled) {
+        btn.className = 'h-7 px-2.5 rounded-[8px] border border-indigo-200 bg-[#EEF0FF] text-[#4F46E5] text-[11.5px] font-semibold inline-flex items-center gap-1.5 transition-all';
+        dot.className = 'w-2 h-2 rounded-full bg-[#4F46E5] transition-colors';
+        if (selectedLockColumns.length === 0) {
+          label.textContent = 'Khoá phân chia: Chưa chọn cột';
+        } else if (selectedLockColumns.length === 1) {
+          label.textContent = `Khoá phân chia: ${selectedLockColumns[0]}`;
+        } else {
+          label.textContent = `Khoá phân chia: ${selectedLockColumns[0]} +${selectedLockColumns.length - 1}`;
+        }
+      } else {
+        btn.className = 'h-7 px-2.5 rounded-[8px] border border-slate-200 bg-slate-50/80 hover:bg-slate-100 text-[#646A82] text-[11.5px] font-medium inline-flex items-center gap-1.5 transition-all';
+        dot.className = 'w-2 h-2 rounded-full bg-slate-300 transition-colors';
+        label.textContent = 'Khoá phân chia: Tắt';
+      }
+    }
+
+    function togglePermDrawer() {
+      permDrawerOpen = !permDrawerOpen;
+      document.getElementById('permDetailsDrawer').classList.toggle('hidden', !permDrawerOpen);
+      document.getElementById('togglePermDrawerText').textContent = permDrawerOpen ? 'Thu gọn' : 'Chi tiết khoá';
+      document.getElementById('togglePermDrawerChevron').style.transform = permDrawerOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+
+    function renderLockColumnsChips() {
+      const container = document.getElementById('lockColumnsChipsContainer');
+      document.getElementById('lockColCountText').textContent = `${selectedLockColumns.length}/5`;
+
+      container.innerHTML = selectedLockColumns.map(colName => `
+        <span class="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[8px] bg-white border border-indigo-200 text-[#4F46E5] text-[11.5px] font-semibold shadow-2xs">
+          <span>${colName}</span>
+          <button type="button" onclick="removeLockColumn('${colName}')" title="Gỡ cột khoá"
+            class="w-4 h-4 rounded-full hover:bg-indigo-100 text-indigo-400 hover:text-indigo-700 flex items-center justify-center transition-colors">
+            ×
+          </button>
+        </span>
+      `).join('');
+
+      const select = document.getElementById('addLockColSelect');
+      const remaining = ALL_LOCK_CANDIDATES.filter(c => !selectedLockColumns.includes(c));
+      select.innerHTML = `<option value="">+ Thêm cột khoá...</option>` +
+        remaining.map(c => `<option value="${c}">${c}</option>`).join('');
+      document.getElementById('addLockColWrapper').classList.toggle('hidden', selectedLockColumns.length >= 5 || remaining.length === 0);
+
+      updatePartitionPillDisplay();
+    }
+
+    function handleAddLockColumn(selectEl) {
+      const val = selectEl.value;
+      if (!val || selectedLockColumns.length >= 5) return;
+      if (!selectedLockColumns.includes(val)) {
+        selectedLockColumns.push(val);
+        partitionLockEnabled = true;
+        renderLockColumnsChips();
+        showToast(`Đã thêm cột khoá "${val}"`);
+      }
+      selectEl.value = '';
+    }
+
+    function removeLockColumn(colName) {
+      selectedLockColumns = selectedLockColumns.filter(c => c !== colName);
+      renderLockColumnsChips();
+      showToast(`Đã gỡ cột khoá "${colName}"`);
+    }
+
+    function savePartitionConfig() {
+      showToast('Đã lưu cấu hình khoá phân chia');
+      if (permDrawerOpen) togglePermDrawer();
+    }
+
+    // =========================================================================
+    // COLUMNS SCHEMA LIST & FILTERING
+    // =========================================================================
+    function getTypeBadgeStyle(type) {
+      switch (type) {
+        case 'Công thức':
+          return 'bg-purple-50 text-purple-700 border-purple-200/80';
+        case 'Một lựa chọn':
+          return 'bg-blue-50 text-blue-700 border-blue-200/80';
+        case 'Ngày':
+        case 'Ngày sửa của cột':
+          return 'bg-amber-50 text-amber-700 border-amber-200/80';
+        case 'Tiền tệ':
+          return 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
+        default:
+          return 'bg-slate-100 text-[#646A82] border-slate-200/80';
+      }
+    }
+
+    function setColGroupFilter(group) {
+      colGroupFilter = group;
+      const activeCls = 'num px-2.5 py-1 rounded-[7px] bg-white text-[#4F46E5] shadow-2xs text-[11.5px] font-semibold transition-all';
+      const inactiveCls = 'num px-2.5 py-1 rounded-[7px] text-[#646A82] hover:text-[#1E1B3A] text-[11.5px] font-medium transition-all';
+
+      document.getElementById('filterAllColsBtn').className = group === 'all' ? activeCls : inactiveCls;
+      document.getElementById('filterBasicColsBtn').className = group === 'basic' ? activeCls : inactiveCls;
+      document.getElementById('filterFormulaColsBtn').className = group === 'formula' ? activeCls : inactiveCls;
+
+      renderColumnsList();
+    }
+
+    function renderColumnsList() {
+      const cols = COLUMNS_BY_TABLE[activeTableId] || [];
+      const query = document.getElementById('colSearchInput').value.trim().toLowerCase();
+
+      const totalCount = cols.length;
+      const basicCount = cols.filter(c => c.group === 'basic').length;
+      const formulaCount = cols.filter(c => c.group === 'formula').length;
+
+      document.getElementById('filterAllColsBtn').textContent = `Tất cả (${totalCount})`;
+      document.getElementById('filterBasicColsBtn').textContent = `Cơ bản (${basicCount})`;
+      document.getElementById('filterFormulaColsBtn').textContent = `Công thức (${formulaCount})`;
+
+      const filtered = cols.filter(c => {
+        const matchGroup = colGroupFilter === 'all' || c.group === colGroupFilter;
+        const matchQuery = !query || c.name.toLowerCase().includes(query) || (c.role && c.role.toLowerCase().includes(query));
+        return matchGroup && matchQuery;
+      });
+
+      const container = document.getElementById('columnsListContainer');
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="py-10 text-center text-[13px] text-[#646A82]">
+            Không tìm thấy cột nào khớp với bộ lọc hiện tại.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(col => `
+        <div class="col-row px-5 py-3 bg-white hover:bg-[#FAF9FE]/70 flex flex-wrap items-center justify-between gap-3">
+          <div class="min-w-0 flex-1 space-y-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[13.5px] font-bold text-[#1E1B3A]">${col.name}</span>
+              ${col.group === 'formula' ? '<span class="code-font px-1.5 py-0.5 rounded bg-purple-100/80 text-purple-700 text-[10px] font-bold">ƒx</span>' : ''}
+            </div>
+            <div class="flex items-center gap-2 flex-wrap text-[11.5px]">
+              <span class="px-2 py-0.5 rounded-md border font-semibold ${getTypeBadgeStyle(col.type)}">
+                ${col.type}
+              </span>
+              ${col.role ? `
+                <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[#1E1B3A] font-medium">
+                  Vai trò: ${col.role}
+                </span>
+              ` : ''}
+              <span class="text-[#646A82]">${col.permission}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="openEditColumnModal(${col.id})"
+              class="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#EEF0FF] border border-slate-200 hover:border-indigo-200 text-[#1E1B3A] hover:text-[#4F46E5] text-[12px] font-medium inline-flex items-center gap-1 transition-colors">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>Sửa</span>
+            </button>
+
+            <button onclick="cycleColumnRole(${col.id})"
+              class="h-7 px-2.5 rounded-[8px] bg-white hover:bg-slate-50 border border-slate-200 text-[#646A82] hover:text-[#1E1B3A] text-[12px] font-medium transition-colors">
+              Vai trò
+            </button>
+
+            <button onclick="removeColumn(${col.id})"
+              class="h-7 px-2.5 rounded-[8px] bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-rose-600 text-[12px] font-medium inline-flex items-center gap-1 transition-colors">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+              <span>Bỏ</span>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renameActiveTable() {
+      const table = TEMPLATE_TABLES.find(t => t.id === activeTableId);
+      if (!table) return;
+      const nextName = table.name.endsWith(' (Q4)') ? table.name.replace(' (Q4)', '') : table.name + ' (Q4)';
+      table.name = nextName;
+      document.getElementById('activeTableName').textContent = nextName;
+      renderTableTree();
+      showToast(`Đã đổi tên bảng thành "${nextName}"`);
+    }
+
+    function openCreateTableModal() {
+      const newId = 'custom_' + Date.now();
+      TEMPLATE_TABLES.push({ id: newId, name: 'Hoa hồng quý 4', scope: 'Chung', members: 5 });
+      selectTemplateTable(newId);
+      showToast('Đã tạo bảng template mới "Hoa hồng quý 4"');
+    }
+
+    function cycleColumnRole(colId) {
+      const cols = COLUMNS_BY_TABLE[activeTableId] || [];
+      const col = cols.find(c => c.id === colId);
+      if (!col) return;
+      const roles = ['Tên công ty', 'Loại deal', 'Trạng thái (Status)', 'Ngày đóng chuẩn', 'Doanh thu tính com', ''];
+      const nextIdx = (roles.indexOf(col.role) + 1) % roles.length;
+      col.role = roles[nextIdx];
+      renderColumnsList();
+      showToast(col.role ? `Đã gán vai trò: ${col.role}` : 'Đã gỡ vai trò hệ thống của cột');
+    }
+
+    function removeColumn(colId) {
+      const cols = COLUMNS_BY_TABLE[activeTableId] || [];
+      if (cols.length <= 1) {
+        showToast('Bảng cần giữ lại ít nhất 1 cột');
+        return;
+      }
+      COLUMNS_BY_TABLE[activeTableId] = cols.filter(c => c.id !== colId);
+      renderColumnsList();
+      showToast('Đã bỏ cột khỏi template');
+    }
+
+    // =========================================================================
+    // MODAL SỬA CỘT & CÔNG THỨC
+    // =========================================================================
+    function openEditColumnModal(colId) {
+      const cols = COLUMNS_BY_TABLE[activeTableId] || [];
+      const col = cols.find(c => c.id === colId);
+      if (!col) return;
+
+      editingColumnId = col.id;
+      document.getElementById('modalTitleText').textContent = `Sửa cột "${col.name}"`;
+      document.getElementById('modalColNameInput').value = col.name;
+      document.getElementById('modalColTypeSelect').value = col.type;
+      document.getElementById('modalColDescInput').value = col.desc || '';
+      if (col.formula) {
+        document.getElementById('modalFormulaInput').value = col.formula;
+      }
+
+      toggleFormulaSectionVisibility();
+      document.getElementById('editColumnModal').classList.remove('hidden');
+    }
+
+    function openAddColumnModal() {
+      editingColumnId = null;
+      document.getElementById('modalTitleText').textContent = 'Thêm cột mới vào template';
+      document.getElementById('modalColNameInput').value = 'Tỷ lệ hoa hồng áp dụng';
+      document.getElementById('modalColTypeSelect').value = 'Công thức';
+      document.getElementById('modalFormulaInput').value = '=IF([Loại deal]="POD bán mới", 0.08, 0.05)';
+      document.getElementById('modalColDescInput').value = '';
+      toggleFormulaSectionVisibility();
+      document.getElementById('editColumnModal').classList.remove('hidden');
+    }
+
+    function closeColumnModal() {
+      document.getElementById('editColumnModal').classList.add('hidden');
+    }
+
+    function toggleFormulaSectionVisibility() {
+      const type = document.getElementById('modalColTypeSelect').value;
+      document.getElementById('formulaEditorSection').classList.toggle('hidden', type !== 'Công thức');
+    }
+
+    function insertFormulaToken(token) {
+      const input = document.getElementById('modalFormulaInput');
+      input.value = input.value ? `${input.value} ${token}` : `=${token}`;
+      input.focus();
+    }
+
+    function resetDefaultClosingFormula() {
+      document.getElementById('modalFormulaInput').value =
+        '=IF([Ngày đóng (sửa tay)]<>"",[Ngày đóng (sửa tay)],IF([Status]="Won",[Ngày tiền về đầu tiên],IF(OR([Status]="Lost",[Status]="Disqualified",[Status]="Convert to POD",[Status]="Huỷ"),INT([Ngày đổi Status]),"")))';
+      showToast('Đã khôi phục công thức chuẩn Closing date');
+    }
+
+    function saveColumnChanges() {
+      const name = document.getElementById('modalColNameInput').value.trim();
+      const type = document.getElementById('modalColTypeSelect').value;
+      const formula = document.getElementById('modalFormulaInput').value.trim();
+      const desc = document.getElementById('modalColDescInput').value.trim();
+
+      if (!name) {
+        showToast('Vui lòng nhập tên cột');
+        return;
+      }
+
+      const cols = COLUMNS_BY_TABLE[activeTableId] || [];
+      if (editingColumnId !== null) {
+        const target = cols.find(c => c.id === editingColumnId);
+        if (target) {
+          target.name = name;
+          target.type = type;
+          target.group = type === 'Công thức' ? 'formula' : 'basic';
+          target.formula = type === 'Công thức' ? formula : '';
+          target.desc = desc;
+        }
+        showToast(`Đã lưu thay đổi cột "${name}"`);
+      } else {
+        cols.push({
+          id: Date.now(),
+          name,
+          type,
+          group: type === 'Công thức' ? 'formula' : 'basic',
+          role: '',
+          permission: type === 'Công thức' ? 'Tự động tính toán' : 'Thành viên sửa được ô',
+          formula: type === 'Công thức' ? formula : '',
+          desc
+        });
+        showToast(`Đã thêm cột mới "${name}"`);
+      }
+
+      closeColumnModal();
+      renderColumnsList();
+    }
+
+    // =========================================================================
+    // POPOVER & TOAST
+    // =========================================================================
+    function toggleNotifPopover() {
+      document.getElementById('notifPopover').classList.toggle('hidden');
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const box = document.getElementById('toastBox');
+      document.getElementById('toastMessage').textContent = msg;
+      box.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => box.classList.add('hidden'), 2400);
+    }
+
+    window.onload = function () {
+      renderSidebar();
+      renderTableTree();
+      renderLockColumnsChips();
+      renderColumnsList();
+    };
+  </script>
+</body>
+</html>

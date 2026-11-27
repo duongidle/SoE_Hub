@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoE Hub — Tổng quan</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#5B5CE6',
+              dark: '#4849C9',
+              soft: '#EEF0FF',
+            },
+            ink: {
+              DEFAULT: '#1E1B3A',
+              muted: '#646A82',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Nền Mesh Light pastel dịu nhẹ */
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #1E1B3A;
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      background-color: #F2F4FB;
+      background-image:
+        radial-gradient(at 8% 6%, rgba(235, 238, 255, 0.98) 0px, transparent 52%),
+        radial-gradient(at 92% 8%, rgba(232, 249, 244, 0.94) 0px, transparent 48%),
+        radial-gradient(at 82% 92%, rgba(238, 240, 255, 0.92) 0px, transparent 50%),
+        radial-gradient(at 14% 94%, rgba(238, 248, 255, 0.88) 0px, transparent 48%);
+    }
+
+    h1, h2, h3, .font-display {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Khung ứng dụng nổi (Floating App Shell) */
+    .floating-shell {
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      box-shadow:
+        0 24px 60px -14px rgba(30, 27, 58, 0.09),
+        0 4px 16px -4px rgba(30, 27, 58, 0.04),
+        0 0 0 1px rgba(226, 230, 242, 0.85);
+    }
+
+    /* Left Sidebar phẳng (220px / 64px) */
+    .left-sidebar {
+      background: #FAF9FE;
+      transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sidebar-collapsed {
+      width: 64px !important;
+    }
+    .sidebar-collapsed .sb-hide {
+      display: none !important;
+    }
+    .sidebar-collapsed .sb-center {
+      justify-content: center !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+    .sidebar-collapsed .sb-item {
+      justify-content: center;
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .sb-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 35px;
+      padding: 0 11px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #4B5068;
+      transition: all 0.14s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .sb-item:hover {
+      background: rgba(255, 255, 255, 0.95);
+      color: #1E1B3A;
+    }
+    .sb-item.active {
+      background: #EEF0FF;
+      color: #5B5CE6;
+      font-weight: 600;
+    }
+    .sb-item.active::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 7px;
+      bottom: 7px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: #5B5CE6;
+    }
+    .sb-item.active svg {
+      color: #5B5CE6;
+    }
+
+    /* Thẻ Dashboard có thể kéo thả sắp xếp ưu tiên */
+    .dash-card {
+      background: #FFFFFF;
+      border: 1px solid #E4E7F1;
+      border-radius: 14px;
+      transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+    }
+    .dash-card:hover {
+      border-color: #C7CEFA;
+      box-shadow: 0 10px 26px -8px rgba(30, 27, 58, 0.08);
+    }
+    .dash-card.priority-one {
+      border-color: #C7CEFA;
+      box-shadow: 0 8px 24px -8px rgba(91, 92, 230, 0.14);
+    }
+    .dash-card.dragging {
+      opacity: 0.52;
+      transform: scale(0.985);
+      border-style: dashed;
+      border-color: #5B5CE6;
+    }
+    .dash-card.drag-over {
+      border-color: #5B5CE6;
+      background: #FAF9FF;
+      box-shadow: 0 0 0 2px rgba(91, 92, 230, 0.22);
+    }
+
+    /* Thẻ KPI & Bento */
+    .surface-card {
+      background: #FFFFFF;
+      border: 1px solid #E4E7F1;
+      border-radius: 14px;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 155, 180, 0.35); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100, 106, 130, 0.55); }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden p-2 sm:p-3.5 flex items-center justify-center">
+
+  <!-- KHUNG ỨNG DỤNG NỔI (FLOATING APP SHELL) -->
+  <div class="floating-shell w-full h-full flex overflow-hidden relative">
+
+    <!-- 1. LEFT SIDEBAR PHẲNG (220PX MỞ RỘNG / 64PX THU GỌN) -->
+    <aside id="leftSidebar" class="left-sidebar w-[220px] shrink-0 border-r border-slate-200/80 flex flex-col justify-between select-none z-20">
+      
+      <!-- Logo & Nút thu gọn -->
+      <div class="shrink-0">
+        <div class="sb-center h-[48px] px-3.5 border-b border-slate-200/75 flex items-center justify-between gap-2">
+          <a href="#" onclick="event.preventDefault()" class="flex items-center gap-2.5 min-w-0">
+            <div class="w-7 h-7 rounded-[8px] bg-[#5B5CE6] flex items-center justify-center text-white font-display font-bold text-[12px] tracking-tight shrink-0">
+              SH
+            </div>
+            <div class="sb-hide leading-none truncate">
+              <span class="font-display font-bold text-[14px] text-[#1E1B3A] tracking-tight block">SoE Hub</span>
+              <span class="text-[10px] font-medium text-[#646A82] block mt-0.5">Internal Workspace</span>
+            </div>
+          </a>
+
+          <button onclick="toggleSidebar()" title="Thu gọn thanh bên" class="sb-hide w-7 h-7 rounded-[7px] text-slate-400 hover:text-[#1E1B3A] hover:bg-white border border-transparent hover:border-slate-200/80 flex items-center justify-center transition-all shrink-0">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+          </button>
+        </div>
+
+        <div id="expandBtnWrap" class="hidden pt-2 px-2 justify-center">
+          <button onclick="toggleSidebar()" title="Mở rộng thanh bên" class="w-9 h-8 rounded-[8px] text-slate-500 hover:text-[#5B5CE6] hover:bg-white border border-transparent hover:border-slate-200/80 flex items-center justify-center transition-all">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Danh sách 11 phân hệ điều hướng phẳng đồng cấp -->
+      <nav class="flex-1 overflow-y-auto px-2.5 py-2.5 space-y-0.5 no-scrollbar" aria-label="Điều hướng SoE Hub">
+        <a href="#" onclick="setSidebarNav(this, event)" title="Tổng quan" class="sb-item active">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span class="sb-hide truncate">Tổng quan</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Datahub" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span class="sb-hide truncate">Datahub</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Quản lý Deal" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <span class="sb-hide truncate">Quản lý Deal</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Form" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span class="sb-hide truncate">Form</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Onboarding" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+          <span class="sb-hide truncate">Onboarding</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Knowledge" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          <span class="sb-hide truncate">Knowledge</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="AI Hub" class="sb-item justify-between">
+          <span class="flex items-center gap-2.5 min-w-0">
+            <svg class="w-[16px] h-[16px] text-indigo-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg>
+            <span class="sb-hide truncate">AI Hub</span>
+          </span>
+          <span class="sb-hide px-1.5 py-0.2 rounded bg-indigo-50 text-[#5B5CE6] border border-indigo-200/80 text-[9.5px] font-bold">AI</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Dashboard chia sẻ" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span class="sb-hide truncate">Dashboard chia sẻ</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Nhắc hẹn" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="sb-hide truncate">Nhắc hẹn</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Thông báo chung" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M3 11l18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          <span class="sb-hide truncate">Thông báo chung</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Org chart" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/></svg>
+          <span class="sb-hide truncate">Org chart</span>
+        </a>
+      </nav>
+
+      <!-- Đáy Sidebar gọn: chỉ nút Đăng xuất -->
+      <div class="shrink-0 border-t border-slate-200/75 p-2">
+        <button onclick="showFeedback('Đã lưu trạng thái phiên làm việc')" title="Đăng xuất" class="sb-item w-full text-slate-500 hover:!text-rose-600 hover:!bg-rose-50/70">
+          <svg class="w-[16px] h-[16px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="sb-hide truncate text-[12.5px]">Đăng xuất</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- 2. VÙNG LÀM VIỆC CHÍNH BÊN PHẢI -->
+    <div class="flex-1 flex flex-col min-w-0 bg-[#FAF9FC] overflow-hidden">
+
+      <!-- TOP NAVIGATOR BAR (48PX) -->
+      <header class="shrink-0 h-[48px] px-4 lg:px-6 bg-white border-b border-slate-200/80 flex items-center justify-between gap-3 relative z-30">
+        
+        <!-- Trái: Breadcrumb cỡ chữ đồng đều 14.5px -->
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-[14.5px] font-semibold text-[#1E1B3A] shrink-0">Tổng quan</span>
+          <span class="text-[14.5px] font-medium text-slate-300 select-none">/</span>
+          <span class="text-[14.5px] font-medium text-[#646A82] truncate">Không gian làm việc của Khuê Võ</span>
+          <span class="hidden md:inline-flex items-center gap-1.5 ml-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-[11px] font-semibold text-emerald-700 shrink-0">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            18/20 trực tuyến
+          </span>
+        </div>
+
+        <!-- Phải: Tùy chỉnh bố cục, Chuông thông báo (11), Tài khoản Khuê Võ -->
+        <div class="flex items-center gap-2 shrink-0">
+          <button onclick="openPinModal()" class="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-[8px] bg-white border border-slate-200 hover:border-[#5B5CE6]/60 hover:bg-[#EEF0FF]/50 text-[12px] font-medium text-[#1E1B3A] transition-colors">
+            <svg class="w-3.5 h-3.5 text-[#5B5CE6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            <span class="hidden sm:inline">Tùy chỉnh bố cục</span>
+          </button>
+
+          <div class="h-4 w-[1px] bg-slate-200 mx-0.5"></div>
+
+          <!-- Chuông thông báo (11) -->
+          <div class="relative">
+            <button onclick="togglePopover('notifPopover', event)" title="11 thông báo chưa đọc" class="relative w-8 h-8 rounded-[8px] text-[#4B5068] hover:text-[#1E1B3A] hover:bg-slate-100 flex items-center justify-center transition-colors">
+              <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span class="absolute -top-0.5 -right-0.5 min-w-[17px] h-[16px] px-1 rounded-full bg-rose-600 text-white text-[9.5px] font-bold flex items-center justify-center ring-2 ring-white tabular">11</span>
+            </button>
+
+            <!-- Popover Thông báo -->
+            <div id="notifPopover" class="app-popover hidden absolute right-0 top-10 w-[335px] rounded-[14px] bg-white border border-slate-200 shadow-xl z-50 overflow-hidden">
+              <div class="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+                <span class="text-[12.5px] font-bold text-[#1E1B3A]">Thông báo chưa đọc (11)</span>
+                <button onclick="closeAllPopovers()" class="text-[11px] font-semibold text-[#5B5CE6] hover:underline">Đánh dấu đã đọc</button>
+              </div>
+              <div class="divide-y divide-slate-100 max-h-[260px] overflow-y-auto text-[12px]">
+                <div class="p-3 bg-rose-50/45 hover:bg-rose-50/80 flex items-start gap-2.5 cursor-pointer">
+                  <span class="w-2 h-2 rounded-full bg-rose-600 mt-1.5 shrink-0"></span>
+                  <div>
+                    <p class="text-[#1E1B3A] leading-snug"><span class="font-semibold">Linh Nguyễn</span> có việc quá hạn: <span class="font-medium">"Báo cáo cuối ngày"</span></p>
+                    <span class="text-[10.5px] text-rose-600 font-medium mt-0.5 block">Hạn 18:00 23-11 · Quá hạn</span>
+                  </div>
+                </div>
+                <div class="p-3 hover:bg-slate-50 flex items-start gap-2.5 cursor-pointer">
+                  <span class="w-2 h-2 rounded-full bg-[#5B5CE6] mt-1.5 shrink-0"></span>
+                  <div>
+                    <p class="text-slate-700 leading-snug"><span class="font-semibold text-[#1E1B3A]">Dương Trần</span> đã bổ sung 17 câu hỏi mới vào <span class="font-medium text-[#5B5CE6]">Datahub · Onboarding</span></p>
+                    <span class="text-[10.5px] text-[#646A82] mt-0.5 block">14 phút trước</span>
+                  </div>
+                </div>
+                <div class="p-3 hover:bg-slate-50 flex items-start gap-2.5 cursor-pointer">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span>
+                  <div>
+                    <p class="text-slate-700 leading-snug"><span class="font-semibold text-[#1E1B3A]">Minh Hoàng</span> vừa chốt thành công <span class="font-medium text-emerald-700">Deal Enterprise 450tr</span></p>
+                    <span class="text-[10.5px] text-[#646A82] mt-0.5 block">1 giờ trước</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hồ sơ Khuê Võ -->
+          <button class="inline-flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-[8px] hover:bg-slate-100 transition-colors">
+            <span class="w-6 h-6 rounded-full bg-[#5B5CE6] text-white font-display font-bold text-[10px] flex items-center justify-center shrink-0">KV</span>
+            <span class="text-[12.5px] font-semibold text-[#1E1B3A] hidden sm:inline">Khuê Võ</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- NỘI DUNG CHÍNH TRANG TỔNG QUAN (CUỘN DỌC MƯỢT MÀ) -->
+      <main class="flex-1 overflow-y-auto px-4 lg:px-6 py-5">
+        <div class="max-w-[1360px] mx-auto space-y-6">
+
+          <!-- ============================================================ -->
+          <!-- SECTION 1: DASHBOARD GHIM ƯU TIÊN (PINNED DASHBOARDS)        -->
+          <!-- ============================================================ -->
+          <section aria-labelledby="pinnedDashTitle" class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <h1 id="pinnedDashTitle" class="font-display text-[16px] font-bold text-[#1E1B3A] tracking-tight">
+                  Dashboard ghim ưu tiên
+                </h1>
+                <span id="pinnedCountPill" class="px-2 py-0.5 rounded-full bg-[#EEF0FF] text-[#5B5CE6] text-[11px] font-bold tabular">
+                  3 đang ghim
+                </span>
+                <span class="hidden sm:inline-flex items-center gap-1 text-[12px] text-[#646A82]">
+                  <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                  Kéo thả thẻ hoặc bấm mũi tên để đưa dashboard lên ưu tiên #1
+                </span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <button onclick="openPinModal()" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-[9px] bg-[#5B5CE6] hover:bg-[#4849C9] text-white text-[12px] font-semibold shadow-2xs transition-colors">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span>Ghim Dashboard</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Lưới 3 cột hiển thị các Dashboard được ghim -->
+            <div id="pinnedDashboardGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <!-- Render động bằng JS -->
+            </div>
+          </section>
+
+          <!-- ============================================================ -->
+          <!-- SECTION 2: CHỈ SỐ CÔNG VIỆC TRỌNG TÂM (WORK KPIS)            -->
+          <!-- ============================================================ -->
+          <section aria-labelledby="workKpiTitle" class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h2 id="workKpiTitle" class="font-display text-[15px] font-bold text-[#1E1B3A] tracking-tight">
+                Chỉ số công việc trọng tâm
+              </h2>
+              <span class="text-[12px] font-medium text-[#646A82]">Cập nhật theo thời gian thực · Tuần 47</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+              <!-- KPI 1: Tổng việc đang chạy -->
+              <div class="surface-card p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  <span class="text-[12.5px] font-medium text-[#646A82]">Tổng việc đang chạy</span>
+                  <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[11px] font-semibold tabular">+12%</span>
+                </div>
+                <div class="mt-3 flex items-end justify-between gap-2">
+                  <div>
+                    <div class="font-display text-[24px] font-bold text-[#1E1B3A] leading-none tabular">142</div>
+                    <span class="text-[11.5px] text-[#646A82] mt-1.5 block">Trên 6 dự án đang hoạt động</span>
+                  </div>
+                  <!-- Sparkline SVG -->
+                  <svg class="w-24 h-10 shrink-0" viewBox="0 0 96 40" fill="none">
+                    <path d="M2 32 L18 28 L34 30 L50 20 L66 22 L80 11 L94 6" stroke="#5B5CE6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="94" cy="6" r="3" fill="#5B5CE6"/>
+                  </svg>
+                </div>
+              </div>
+
+              <!-- KPI 2: Tỷ lệ hoàn thành đúng hạn -->
+              <div class="surface-card p-4 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <span class="text-[12.5px] font-medium text-[#646A82] block">Hoàn thành đúng hạn</span>
+                  <div class="font-display text-[24px] font-bold text-[#5B5CE6] leading-none mt-2.5 tabular">88.4%</div>
+                  <span class="text-[11.5px] text-emerald-700 font-medium mt-1.5 block">Vượt mục tiêu 85%</span>
+                </div>
+                <!-- Vòng tròn Donut mini -->
+                <div class="relative w-14 h-14 shrink-0 flex items-center justify-center">
+                  <svg class="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                    <circle cx="28" cy="28" r="22" stroke="#EEF0FF" stroke-width="6" fill="none"/>
+                    <circle cx="28" cy="28" r="22" stroke="#5B5CE6" stroke-width="6" stroke-linecap="round" fill="none" stroke-dasharray="138.2" stroke-dashoffset="16"/>
+                  </svg>
+                  <span class="absolute text-[11px] font-bold text-[#1E1B3A] tabular">88%</span>
+                </div>
+              </div>
+
+              <!-- KPI 3: Việc sắp đến hạn hôm nay -->
+              <div class="surface-card p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  <span class="text-[12.5px] font-medium text-[#646A82]">Sắp đến hạn hôm nay</span>
+                  <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 text-[11px] font-semibold">Ưu tiên</span>
+                </div>
+                <div class="mt-3">
+                  <div class="flex items-baseline justify-between">
+                    <span class="font-display text-[24px] font-bold text-amber-600 leading-none tabular">9 việc</span>
+                    <span class="text-[11.5px] font-medium text-[#646A82] tabular">6 đã xong · 3 chờ chốt</span>
+                  </div>
+                  <div class="mt-2.5 h-2 rounded-full bg-amber-100/80 overflow-hidden">
+                    <div class="h-full bg-amber-500 rounded-full" style="width: 67%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KPI 4: Cần duyệt & Phản hồi -->
+              <div class="surface-card p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  <span class="text-[12.5px] font-medium text-[#646A82]">Cần duyệt &amp; Phản hồi</span>
+                  <span class="px-2 py-0.5 rounded-full bg-[#EEF0FF] text-[#5B5CE6] border border-indigo-200/80 text-[11px] font-semibold">Hàng đợi</span>
+                </div>
+                <div class="mt-3 flex items-end justify-between">
+                  <div>
+                    <div class="font-display text-[24px] font-bold text-[#1E1B3A] leading-none tabular">6 việc</div>
+                    <span class="text-[11.5px] text-[#646A82] mt-1.5 block">4 Request · 2 Mockup</span>
+                  </div>
+                  <button onclick="showFeedback('Đã mở hàng đợi phê duyệt (6 mục)')" class="px-2.5 py-1 rounded-[7px] bg-[#EEF0FF] hover:bg-[#5B5CE6] text-[#5B5CE6] hover:text-white text-[11.5px] font-semibold transition-colors">
+                    Xử lý ngay
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ============================================================ -->
+          <!-- SECTION 3: CÔNG VIỆC CỦA TÔI & TẢI VIỆC ĐỘI NGŨ (20 NGƯỜI)   -->
+          <!-- ============================================================ -->
+          <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 pb-2">
+            
+            <!-- Cột trái (7/12): Danh sách việc ưu tiên của Khuê Võ -->
+            <div class="lg:col-span-7 surface-card overflow-hidden flex flex-col">
+              <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <h2 class="font-display text-[14.5px] font-bold text-[#1E1B3A]">Công việc của tôi</h2>
+                  <span id="myTaskRemainPill" class="px-2 py-0.5 rounded-full bg-slate-100 text-[#646A82] text-[11px] font-semibold tabular">5 việc</span>
+                </div>
+                <div class="flex items-center gap-1 text-[11.5px]">
+                  <button onclick="filterMyTasks('ALL', this)" class="my-task-tab px-2.5 py-1 rounded-[7px] bg-[#EEF0FF] text-[#5B5CE6] font-semibold">Tất cả</button>
+                  <button onclick="filterMyTasks('TODAY', this)" class="my-task-tab px-2.5 py-1 rounded-[7px] text-[#646A82] hover:bg-slate-100 font-medium">Hôm nay</button>
+                  <button onclick="filterMyTasks('REVIEW', this)" class="my-task-tab px-2.5 py-1 rounded-[7px] text-[#646A82] hover:bg-slate-100 font-medium">Cần duyệt</button>
+                </div>
+              </div>
+
+              <div id="myTasksList" class="divide-y divide-slate-100">
+                <!-- Render bằng JS -->
+              </div>
+            </div>
+
+            <!-- Cột phải (5/12): Nhịp độ & Tải việc đội ngũ (20 thành viên) -->
+            <div class="lg:col-span-5 surface-card overflow-hidden flex flex-col justify-between">
+              <div>
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h2 class="font-display text-[14.5px] font-bold text-[#1E1B3A]">Tải việc đội ngũ (20 thành viên)</h2>
+                    <p class="text-[11.5px] text-[#646A82]">Phân bổ công suất tuần hiện tại</p>
+                  </div>
+                  <span class="px-2 py-0.5 rounded-full bg-[#EEF0FF] text-[#5B5CE6] text-[11px] font-semibold tabular">TB 78%</span>
+                </div>
+
+                <!-- Thanh phân bổ Rảnh / Vừa đủ / Quá tải -->
+                <div class="px-4 pt-3.5 pb-2">
+                  <div class="h-2.5 rounded-full bg-slate-100 overflow-hidden flex gap-0.5">
+                    <div class="bg-emerald-500 h-full" style="width: 25%" title="Sẵn sàng nhận thêm: 5 người"></div>
+                    <div class="bg-[#5B5CE6] h-full" style="width: 60%" title="Cân bằng: 12 người"></div>
+                    <div class="bg-amber-500 h-full" style="width: 15%" title="Chạm ngưỡng cao: 3 người"></div>
+                  </div>
+                  <div class="mt-2 flex items-center justify-between text-[11px] font-medium text-[#646A82]">
+                    <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Rảnh (5)</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#5B5CE6]"></span>Vừa đủ (12)</span>
+                    <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span>Cao tải (3)</span>
+                  </div>
+                </div>
+
+                <!-- Danh sách thành viên tiêu biểu -->
+                <div class="divide-y divide-slate-100 mt-1">
+                  <div class="px-4 py-2.5 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <span class="w-7 h-7 rounded-full bg-[#EEF0FF] text-[#5B5CE6] font-bold text-[10.5px] flex items-center justify-center shrink-0">DT</span>
+                      <div class="min-w-0">
+                        <p class="text-[12.5px] font-semibold text-[#1E1B3A] truncate">Dương Trần</p>
+                        <p class="text-[11px] text-[#646A82] truncate">Triển khai &amp; Onboarding · 9 việc</p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <div class="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-[#5B5CE6] rounded-full" style="width: 82%"></div></div>
+                      <span class="text-[11.5px] font-semibold text-[#1E1B3A] w-8 text-right tabular">82%</span>
+                    </div>
+                  </div>
+
+                  <div class="px-4 py-2.5 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <span class="w-7 h-7 rounded-full bg-amber-50 text-amber-700 font-bold text-[10.5px] flex items-center justify-center shrink-0">LN</span>
+                      <div class="min-w-0">
+                        <p class="text-[12.5px] font-semibold text-[#1E1B3A] truncate">Linh Nguyễn</p>
+                        <p class="text-[11px] text-[#646A82] truncate">Vận hành &amp; Báo cáo · 12 việc</p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <div class="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-amber-500 rounded-full" style="width: 95%"></div></div>
+                      <span class="text-[11.5px] font-semibold text-amber-700 w-8 text-right tabular">95%</span>
+                    </div>
+                  </div>
+
+                  <div class="px-4 py-2.5 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <span class="w-7 h-7 rounded-full bg-blue-50 text-blue-700 font-bold text-[10.5px] flex items-center justify-center shrink-0">MH</span>
+                      <div class="min-w-0">
+                        <p class="text-[12.5px] font-semibold text-[#1E1B3A] truncate">Minh Hoàng</p>
+                        <p class="text-[11px] text-[#646A82] truncate">Tư vấn Giải pháp Deal · 8 việc</p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <div class="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-[#5B5CE6] rounded-full" style="width: 76%"></div></div>
+                      <span class="text-[11.5px] font-semibold text-[#1E1B3A] w-8 text-right tabular">76%</span>
+                    </div>
+                  </div>
+
+                  <div class="px-4 py-2.5 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <span class="w-7 h-7 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10.5px] flex items-center justify-center shrink-0">PA</span>
+                      <div class="min-w-0">
+                        <p class="text-[12.5px] font-semibold text-[#1E1B3A] truncate">Phương Anh</p>
+                        <p class="text-[11px] text-[#646A82] truncate">Hỗ trợ Service SLA · 5 việc</p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <div class="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-emerald-500 rounded-full" style="width: 54%"></div></div>
+                      <span class="text-[11.5px] font-semibold text-emerald-700 w-8 text-right tabular">54%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cụm Avatar 20 nhân sự -->
+              <div class="px-4 py-2.5 bg-[#FAF9FC] border-t border-slate-100 flex items-center justify-between">
+                <div class="flex -space-x-1.5">
+                  <span class="w-6 h-6 rounded-full bg-[#5B5CE6] text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">KV</span>
+                  <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">DT</span>
+                  <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">PA</span>
+                  <span class="w-6 h-6 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">LN</span>
+                  <span class="w-6 h-6 rounded-full bg-slate-200 text-[#1E1B3A] text-[9px] font-bold flex items-center justify-center ring-2 ring-white tabular">+16</span>
+                </div>
+                <span class="text-[11.5px] font-medium text-[#646A82]">Toàn bộ 20 nhân sự nội bộ</span>
+              </div>
+            </div>
+
+          </section>
+
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- MODAL GHIM THÊM / QUẢN LÝ DASHBOARD ƯU TIÊN -->
+  <div id="pinDashboardModal" class="fixed inset-0 bg-slate-900/25 backdrop-blur-[2px] z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-[16px] border border-slate-200 shadow-2xl w-full max-w-[520px] overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h3 class="font-display text-[15px] font-bold text-[#1E1B3A]">Quản lý Dashboard ghim trên Tổng quan</h3>
+          <p class="text-[11.5px] text-[#646A82] mt-0.5">Bật hoặc tắt các dashboard từ các phân hệ để hiển thị ngay đầu trang</p>
+        </div>
+        <button onclick="closePinModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-[#1E1B3A] hover:bg-slate-100">✕</button>
+      </div>
+
+      <div id="availableDashboardsList" class="p-4 space-y-2 max-h-[360px] overflow-y-auto">
+        <!-- Render bằng JS -->
+      </div>
+
+      <div class="px-5 py-3 bg-[#FAF9FC] border-t border-slate-100 flex items-center justify-between">
+        <span class="text-[11.5px] text-[#646A82]">Mẹo: Có thể kéo thả trực tiếp các thẻ sau khi ghim</span>
+        <button onclick="closePinModal()" class="px-4 py-1.5 rounded-[8px] bg-[#5B5CE6] hover:bg-[#4849C9] text-white text-[12.5px] font-semibold">Hoàn tất</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST THÔNG BÁO NHẸ -->
+  <div id="feedbackToast" class="fixed bottom-5 right-5 z-50 px-3.5 py-2.5 rounded-[10px] bg-[#1E1B3A] text-white text-[12.5px] font-medium shadow-lg opacity-0 pointer-events-none translate-y-2 transition-all duration-200">
+    Đã cập nhật thứ tự ưu tiên
+  </div>
+
+  <script>
+    // Kho dữ liệu các Dashboard trong hệ thống SoE Hub
+    const ALL_DASHBOARDS = [
+      {
+        id: 'onboarding-qa',
+        title: 'Tiến độ Onboarding Q&A',
+        module: 'Datahub',
+        badgeClass: 'bg-[#EEF0FF] text-[#5B5CE6] border-[#D8DCFF]',
+        dotClass: 'bg-[#5B5CE6]',
+        mainMetric: '109 dòng',
+        delta: '+17 tuần này',
+        deltaClass: 'bg-emerald-50 text-emerald-700',
+        subLabel: '4 nhóm ứng dụng: Request, Wework, Service, Bài toán',
+        visualType: 'bars',
+        bars: [
+          { label: 'Request', pct: 86, color: 'bg-[#5B5CE6]' },
+          { label: 'Wework', pct: 74, color: 'bg-blue-600' },
+          { label: 'Service', pct: 68, color: 'bg-emerald-600' },
+          { label: 'Bài toán', pct: 55, color: 'bg-amber-500' }
+        ]
+      },
+      {
+        id: 'deal-q4',
+        title: 'Pipeline Deal Q4',
+        module: 'Quản lý Deal',
+        badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+        dotClass: 'bg-blue-600',
+        mainMetric: '3.42 tỷ',
+        delta: '78% mục tiêu',
+        deltaClass: 'bg-blue-50 text-blue-700',
+        subLabel: '24 cơ hội đang thương thảo · 9 deal sắp chốt',
+        visualType: 'columns',
+        columns: [42, 58, 51, 74, 68, 89, 94]
+      },
+      {
+        id: 'service-sla',
+        title: 'Hiệu suất SLA Hỗ trợ',
+        module: 'Service',
+        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        dotClass: 'bg-emerald-600',
+        mainMetric: '96.2%',
+        delta: 'Đạt chuẩn SLA',
+        deltaClass: 'bg-emerald-50 text-emerald-700',
+        subLabel: 'Thời gian phản hồi trung bình: 14 phút',
+        visualType: 'progress',
+        segments: [
+          { label: 'Đúng hạn', value: '96.2%', pct: 96, color: 'bg-emerald-500' },
+          { label: 'Cảnh báo', value: '3.8%', pct: 4, color: 'bg-amber-400' }
+        ]
+      },
+      {
+        id: 'ai-hub-usage',
+        title: 'Trợ lý AI Hub Nội bộ',
+        module: 'AI Hub',
+        badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+        dotClass: 'bg-purple-600',
+        mainMetric: '640 lượt',
+        delta: '+34% tuần này',
+        deltaClass: 'bg-purple-50 text-purple-700',
+        subLabel: 'Tra cứu tài liệu Knowledge & giải đáp Q&A tự động',
+        visualType: 'columns',
+        columns: [35, 48, 62, 59, 77, 84, 92]
+      },
+      {
+        id: 'form-survey',
+        title: 'Tổng hợp Biểu mẫu & Đánh giá',
+        module: 'Form',
+        badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+        dotClass: 'bg-amber-500',
+        mainMetric: '4.8 / 5.0',
+        delta: '92 phản hồi',
+        deltaClass: 'bg-amber-50 text-amber-800',
+        subLabel: 'Khảo sát hài lòng quy trình Onboarding nội bộ',
+        visualType: 'bars',
+        bars: [
+          { label: 'Tài liệu', pct: 94, color: 'bg-emerald-600' },
+          { label: 'Mentor', pct: 90, color: 'bg-[#5B5CE6]' },
+          { label: 'Hệ thống', pct: 85, color: 'bg-blue-600' }
+        ]
+      }
+    ];
+
+    // Thứ tự các Dashboard đang ghim ưu tiên (mặc định 3 dashboard đầu)
+    let pinnedOrder = ['onboarding-qa', 'deal-q4', 'service-sla'];
+    let draggedDashId = null;
+
+    // Dữ liệu Công việc của tôi (Khuê Võ)
+    const MY_TASKS = [
+      { id: 1, title: 'Rà soát & chấm điểm 17 câu hỏi Q&A Onboarding của Dương Trần', group: 'Datahub', groupStyle: 'bg-[#EEF0FF] text-[#5B5CE6]', due: 'Hôm nay · 16:00', tag: 'TODAY', done: false },
+      { id: 2, title: 'Phê duyệt đề xuất công tác phí vượt định mức phòng Giải pháp', group: 'Request', groupStyle: 'bg-amber-50 text-amber-800', due: 'Hôm nay · 17:30', tag: 'REVIEW', done: false },
+      { id: 3, title: 'Chốt cấu trúc luồng SLA 3 khối cho khách hàng Enterprise', group: 'Service', groupStyle: 'bg-emerald-50 text-emerald-700', due: 'Ngày mai · 10:00', tag: 'TODAY', done: false },
+      { id: 4, title: 'Duyệt Phiếu chấm mockup đợt 2 cho nhóm nhân sự mới', group: 'Onboarding', groupStyle: 'bg-blue-50 text-blue-700', due: '26/11/2026', tag: 'REVIEW', done: false },
+      { id: 5, title: 'Cập nhật tài liệu hướng dẫn Webhook trên Knowledge', group: 'Knowledge', groupStyle: 'bg-slate-100 text-slate-700', due: 'Đã xong', tag: 'ALL', done: true }
+    ];
+    let myTaskFilter = 'ALL';
+
+    // Render phần biểu đồ mini trong từng thẻ Dashboard
+    function renderDashVisual(dash) {
+      if (dash.visualType === 'bars') {
+        return `
+          <div class="space-y-2 pt-1">
+            ${dash.bars.map(b => `
+              <div>
+                <div class="flex justify-between text-[11px] mb-1">
+                  <span class="font-medium text-[#4B5068]">${b.label}</span>
+                  <span class="font-semibold text-[#1E1B3A] tabular">${b.pct}%</span>
+                </div>
+                <div class="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div class="h-full ${b.color} rounded-full" style="width: ${b.pct}%"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+      if (dash.visualType === 'columns') {
+        const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+        return `
+          <div class="pt-2">
+            <div class="h-20 flex items-end justify-between gap-2 px-1">
+              ${dash.columns.map((val, idx) => `
+                <div class="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                  <div class="w-full rounded-t-[5px] ${idx === dash.columns.length - 1 ? 'bg-[#5B5CE6]' : 'bg-indigo-100'}" style="height: ${val}%"></div>
+                  <span class="text-[10px] font-medium text-[#646A82]">${days[idx]}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div class="pt-2 space-y-2.5">
+          <div class="h-2.5 rounded-full bg-slate-100 overflow-hidden flex gap-0.5">
+            ${dash.segments.map(s => `<div class="h-full ${s.color}" style="width: ${s.pct}%"></div>`).join('')}
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            ${dash.segments.map(s => `
+              <div class="p-2 rounded-[9px] bg-[#FAF9FC] border border-slate-100 flex items-center justify-between">
+                <span class="text-[11px] text-[#646A82] font-medium">${s.label}</span>
+                <span class="text-[12px] font-bold text-[#1E1B3A] tabular">${s.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // Render lưới Dashboard ghim ưu tiên (hỗ trợ kéo thả)
+    function renderPinnedDashboards() {
+      const grid = document.getElementById('pinnedDashboardGrid');
+      const countPill = document.getElementById('pinnedCountPill');
+      countPill.textContent = `${pinnedOrder.length} đang ghim`;
+
+      if (pinnedOrder.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full p-8 rounded-[14px] bg-white border border-dashed border-slate-300 text-center">
+            <p class="text-[13.5px] font-semibold text-[#1E1B3A]">Chưa có Dashboard nào được ghim trên Tổng quan</p>
+            <p class="text-[12px] text-[#646A82] mt-1">Bấm nút "+ Ghim Dashboard" để đưa các biểu đồ quan trọng nhất lên đầu trang.</p>
+            <button onclick="openPinModal()" class="mt-3 px-3.5 py-1.5 rounded-[8px] bg-[#5B5CE6] text-white text-[12px] font-semibold">+ Ghim Dashboard ngay</button>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = pinnedOrder.map((dashId, index) => {
+        const dash = ALL_DASHBOARDS.find(d => d.id === dashId);
+        if (!dash) return '';
+        const isFirst = index === 0;
+
+        return `
+          <article
+            draggable="true"
+            data-dash-id="${dash.id}"
+            ondragstart="handleDragStart(event, '${dash.id}')"
+            ondragover="handleDragOver(event)"
+            ondragleave="handleDragLeave(event)"
+            ondrop="handleDrop(event, '${dash.id}')"
+            ondragend="handleDragEnd(event)"
+            class="dash-card ${isFirst ? 'priority-one' : ''} p-4 flex flex-col justify-between cursor-grab active:cursor-grabbing select-none"
+          >
+            <div>
+              <!-- Hàng trên: Thứ tự ưu tiên + Nhãn phân hệ + Nút đẩy lên #1 & Bỏ ghim -->
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold tabular ${
+                    isFirst ? 'bg-[#5B5CE6] text-white' : 'bg-slate-100 text-[#4B5068]'
+                  }">
+                    Ưu tiên #${index + 1}
+                  </span>
+                  <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${dash.badgeClass}">
+                    <span class="w-1.5 h-1.5 rounded-full ${dash.dotClass}"></span>
+                    ${dash.module}
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-1 shrink-0">
+                  ${!isFirst ? `
+                    <button onclick="promoteToFirst('${dash.id}')" title="Đưa lên ưu tiên #1" class="w-7 h-7 rounded-[7px] text-[#646A82] hover:text-[#5B5CE6] hover:bg-[#EEF0FF] flex items-center justify-center transition-colors">
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="17 11 12 6 7 11"/><line x1="12" y1="18" x2="12" y2="6"/></svg>
+                    </button>
+                  ` : ''}
+                  <button onclick="unpinDashboard('${dash.id}')" title="Bỏ ghim khỏi Tổng quan" class="w-7 h-7 rounded-[7px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tiêu đề & Chỉ số chính -->
+              <div class="mt-3 flex items-baseline justify-between gap-2">
+                <h3 class="font-display text-[14.5px] font-bold text-[#1E1B3A] truncate">${dash.title}</h3>
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${dash.deltaClass}">${dash.delta}</span>
+              </div>
+
+              <div class="mt-1 flex items-baseline gap-2">
+                <span class="font-display text-[22px] font-bold text-[#1E1B3A] tabular">${dash.mainMetric}</span>
+                <span class="text-[11.5px] text-[#646A82] truncate">${dash.subLabel}</span>
+              </div>
+            </div>
+
+            <!-- Biểu đồ trực quan mini -->
+            <div class="mt-3 pt-2.5 border-t border-slate-100">
+              ${renderDashVisual(dash)}
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // Kéo thả sắp xếp Dashboard
+    function handleDragStart(e, dashId) {
+      draggedDashId = dashId;
+      e.currentTarget.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+
+    function handleDrop(e, targetDashId) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      if (!draggedDashId || draggedDashId === targetDashId) return;
+
+      const fromIdx = pinnedOrder.indexOf(draggedDashId);
+      const toIdx = pinnedOrder.indexOf(targetDashId);
+      if (fromIdx > -1 && toIdx > -1) {
+        pinnedOrder.splice(fromIdx, 1);
+        pinnedOrder.splice(toIdx, 0, draggedDashId);
+        renderPinnedDashboards();
+        showFeedback('Đã cập nhật thứ tự ưu tiên Dashboard');
+      }
+    }
+
+    function handleDragEnd(e) {
+      e.currentTarget.classList.remove('dragging');
+      document.querySelectorAll('.dash-card').forEach(el => el.classList.remove('drag-over'));
+      draggedDashId = null;
+    }
+
+    function promoteToFirst(dashId) {
+      const idx = pinnedOrder.indexOf(dashId);
+      if (idx > 0) {
+        pinnedOrder.splice(idx, 1);
+        pinnedOrder.unshift(dashId);
+        renderPinnedDashboards();
+        showFeedback('Đã đưa Dashboard lên vị trí Ưu tiên #1');
+      }
+    }
+
+    function unpinDashboard(dashId) {
+      pinnedOrder = pinnedOrder.filter(id => id !== dashId);
+      renderPinnedDashboards();
+      renderAvailableDashboardsModal();
+      showFeedback('Đã gỡ Dashboard khỏi trang Tổng quan');
+    }
+
+    function togglePinDashboard(dashId) {
+      if (pinnedOrder.includes(dashId)) {
+        pinnedOrder = pinnedOrder.filter(id => id !== dashId);
+      } else {
+        pinnedOrder.push(dashId);
+      }
+      renderPinnedDashboards();
+      renderAvailableDashboardsModal();
+    }
+
+    // Modal Ghim thêm Dashboard
+    function openPinModal() {
+      renderAvailableDashboardsModal();
+      const modal = document.getElementById('pinDashboardModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closePinModal() {
+      const modal = document.getElementById('pinDashboardModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function renderAvailableDashboardsModal() {
+      const list = document.getElementById('availableDashboardsList');
+      list.innerHTML = ALL_DASHBOARDS.map(dash => {
+        const isPinned = pinnedOrder.includes(dash.id);
+        const rank = pinnedOrder.indexOf(dash.id) + 1;
+
+        return `
+          <div class="p-3 rounded-[12px] border ${isPinned ? 'border-[#C7CEFA] bg-[#EEF0FF]/35' : 'border-slate-200 bg-white'} flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10.5px] font-semibold ${dash.badgeClass}">
+                  <span class="w-1.5 h-1.5 rounded-full ${dash.dotClass}"></span>
+                  ${dash.module}
+                </span>
+                ${isPinned ? `<span class="text-[11px] font-bold text-[#5B5CE6] tabular">Đang ghim (#${rank})</span>` : ''}
+              </div>
+              <p class="text-[13px] font-bold text-[#1E1B3A] mt-1 truncate">${dash.title}</p>
+              <p class="text-[11.5px] text-[#646A82] truncate">${dash.subLabel}</p>
+            </div>
+
+            <button onclick="togglePinDashboard('${dash.id}')" class="px-3 py-1.5 rounded-[8px] text-[12px] font-semibold shrink-0 transition-colors ${
+              isPinned
+                ? 'bg-white border border-slate-200 text-[#1E1B3A] hover:border-rose-300 hover:text-rose-600'
+                : 'bg-[#5B5CE6] hover:bg-[#4849C9] text-white'
+            }">
+              ${isPinned ? 'Bỏ ghim' : '+ Ghim lên'}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render Công việc của tôi
+    function renderMyTasks() {
+      const container = document.getElementById('myTasksList');
+      const filtered = MY_TASKS.filter(t => myTaskFilter === 'ALL' || t.tag === myTaskFilter);
+      const activeCount = MY_TASKS.filter(t => !t.done).length;
+      document.getElementById('myTaskRemainPill').textContent = `${activeCount} việc mở`;
+
+      container.innerHTML = filtered.map(task => `
+        <div onclick="toggleMyTask(${task.id})" class="px-4 py-3 hover:bg-[#F8F9FE] flex items-center justify-between gap-3 cursor-pointer transition-colors">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="w-4 h-4 rounded-[5px] border flex items-center justify-center shrink-0 transition-colors ${
+              task.done ? 'bg-[#5B5CE6] border-[#5B5CE6] text-white' : 'border-slate-300 bg-white'
+            }">
+              ${task.done ? '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+            </span>
+            <span class="text-[13px] truncate ${task.done ? 'line-through text-slate-400' : 'font-medium text-[#1E1B3A]'}">
+              ${task.title}
+            </span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${task.groupStyle}">${task.group}</span>
+            <span class="text-[11.5px] font-medium text-[#646A82] hidden sm:inline tabular">${task.due}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleMyTask(taskId) {
+      const task = MY_TASKS.find(t => t.id === taskId);
+      if (task) {
+        task.done = !task.done;
+        renderMyTasks();
+      }
+    }
+
+    function filterMyTasks(filterKey, btn) {
+      myTaskFilter = filterKey;
+      document.querySelectorAll('.my-task-tab').forEach(el => {
+        el.classList.remove('bg-[#EEF0FF]', 'text-[#5B5CE6]', 'font-semibold');
+        el.classList.add('text-[#646A82]', 'font-medium');
+      });
+      btn.classList.add('bg-[#EEF0FF]', 'text-[#5B5CE6]', 'font-semibold');
+      btn.classList.remove('text-[#646A82]', 'font-medium');
+      renderMyTasks();
+    }
+
+    // Sidebar & Popover
+    function toggleSidebar() {
+      const sidebar = document.getElementById('leftSidebar');
+      const expandWrap = document.getElementById('expandBtnWrap');
+      const isCollapsed = sidebar.classList.toggle('sidebar-collapsed');
+      expandWrap.classList.toggle('hidden', !isCollapsed);
+      expandWrap.classList.toggle('flex', isCollapsed);
+    }
+
+    function setSidebarNav(el, e) {
+      e.preventDefault();
+      document.querySelectorAll('.sb-item').forEach(item => item.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function togglePopover(id, e) {
+      if (e) e.stopPropagation();
+      const target = document.getElementById(id);
+      const isHidden = target.classList.contains('hidden');
+      closeAllPopovers();
+      if (isHidden) target.classList.remove('hidden');
+    }
+
+    function closeAllPopovers() {
+      document.querySelectorAll('.app-popover').forEach(el => el.classList.add('hidden'));
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.app-popover')) closeAllPopovers();
+    });
+
+    let toastTimer = null;
+    function showFeedback(msg) {
+      const el = document.getElementById('feedbackToast');
+      el.textContent = msg;
+      el.classList.remove('opacity-0', 'translate-y-2');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.classList.add('opacity-0', 'translate-y-2');
+      }, 2200);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderPinnedDashboards();
+      renderMyTasks();
+    });
+  </script>
+</body>
+</html>

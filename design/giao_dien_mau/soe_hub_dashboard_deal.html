@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoE Hub — Quản lý Deal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#5B5CE6',
+              dark: '#4849C9',
+              soft: '#EEF0FF',
+            },
+            ink: {
+              DEFAULT: '#1E1B3A',
+              muted: '#646A82',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Nền Mesh Light pastel tím/xanh ngọc dịu nhẹ */
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #1E1B3A;
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      background-color: #F2F4FB;
+      background-image:
+        radial-gradient(at 8% 6%, rgba(235, 238, 255, 0.98) 0px, transparent 52%),
+        radial-gradient(at 92% 8%, rgba(232, 249, 244, 0.94) 0px, transparent 48%),
+        radial-gradient(at 82% 92%, rgba(238, 240, 255, 0.92) 0px, transparent 50%),
+        radial-gradient(at 14% 94%, rgba(238, 248, 255, 0.88) 0px, transparent 48%);
+    }
+
+    h1, h2, h3, .font-display {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .tabular {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Khung ứng dụng nổi (Floating App Shell) bo góc 18px */
+    .floating-shell {
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 18px;
+      border: 1px solid #E5E7F0;
+      box-shadow:
+        0 24px 60px -14px rgba(30, 27, 58, 0.09),
+        0 4px 16px -4px rgba(30, 27, 58, 0.04);
+    }
+
+    /* Left Sidebar phẳng đồng cấp (216px) */
+    .left-sidebar {
+      background: #FAF9FE;
+      transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sidebar-collapsed {
+      width: 64px !important;
+    }
+    .sidebar-collapsed .sb-hide {
+      display: none !important;
+    }
+    .sidebar-collapsed .sb-center {
+      justify-content: center !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+    .sidebar-collapsed .sb-item {
+      justify-content: center;
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .sb-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 35px;
+      padding: 0 11px;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #4B5068;
+      transition: all 0.14s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .sb-item:hover {
+      background: rgba(255, 255, 255, 0.95);
+      color: #1E1B3A;
+    }
+    .sb-item.active {
+      background: #EEF0FF;
+      color: #5B5CE6;
+      font-weight: 600;
+    }
+    .sb-item.active::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 7px;
+      bottom: 7px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: #5B5CE6;
+    }
+    .sb-item.active svg {
+      color: #5B5CE6;
+    }
+
+    /* Thẻ Dashboard tiêu chuẩn */
+    .dash-card {
+      background: #FFFFFF;
+      border-radius: 12px;
+      border: 1px solid #E6E8F0;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .dash-card:hover {
+      border-color: #D5D9EC;
+    }
+
+    /* Điểm tương tác biểu đồ SVG */
+    .chart-point {
+      cursor: pointer;
+      transition: r 0.14s ease, stroke-width 0.14s ease;
+    }
+    .chart-point:hover {
+      r: 6.5;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 155, 180, 0.35); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100, 106, 130, 0.55); }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden p-2 sm:p-3.5 flex items-center justify-center">
+
+  <!-- KHUNG ỨNG DỤNG NỔI (FLOATING APP SHELL) -->
+  <div class="floating-shell w-full h-full flex overflow-hidden relative">
+
+    <!-- ================================================================ -->
+    <!-- 1. LEFT SIDEBAR PHẲNG ĐỒNG CẤP (216PX / 64PX THU GỌN)            -->
+    <!-- ================================================================ -->
+    <aside id="leftSidebar" class="left-sidebar w-[216px] shrink-0 border-r border-slate-200/80 flex flex-col justify-between select-none z-20">
+      
+      <!-- Logo SoE Hub & Nút thu gọn -->
+      <div class="shrink-0">
+        <div class="sb-center h-[48px] px-3.5 border-b border-slate-200/75 flex items-center justify-between gap-2">
+          <a href="#" onclick="event.preventDefault()" class="flex items-center gap-2.5 min-w-0">
+            <div class="w-7 h-7 rounded-[8px] bg-[#5B5CE6] flex items-center justify-center text-white font-display font-bold text-[12px] tracking-tight shrink-0">
+              SH
+            </div>
+            <div class="sb-hide leading-none truncate">
+              <span class="font-display font-bold text-[14px] text-[#1E1B3A] tracking-tight block">SoE Hub</span>
+              <span class="text-[10px] font-medium text-[#646A82] block mt-0.5">Internal Workspace</span>
+            </div>
+          </a>
+
+          <button onclick="toggleSidebar()" title="Thu gọn thanh bên" class="sb-hide w-7 h-7 rounded-[7px] text-slate-400 hover:text-[#1E1B3A] hover:bg-white border border-transparent hover:border-slate-200/80 flex items-center justify-center transition-all shrink-0">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+          </button>
+        </div>
+
+        <div id="expandBtnWrap" class="hidden pt-2 px-2 justify-center">
+          <button onclick="toggleSidebar()" title="Mở rộng thanh bên" class="w-9 h-8 rounded-[8px] text-slate-500 hover:text-[#5B5CE6] hover:bg-white border border-transparent hover:border-slate-200/80 flex items-center justify-center transition-all">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Danh sách 11 phân hệ điều hướng phẳng đồng cấp (Quản lý Deal active) -->
+      <nav class="flex-1 overflow-y-auto px-2.5 py-2.5 space-y-0.5 no-scrollbar" aria-label="Điều hướng SoE Hub">
+        <a href="#" onclick="setSidebarNav(this, event)" title="Tổng quan" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span class="sb-hide truncate">Tổng quan</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Datahub" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span class="sb-hide truncate">Datahub</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Quản lý Deal" class="sb-item active">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <span class="sb-hide truncate">Quản lý Deal</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Form" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span class="sb-hide truncate">Form</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Onboarding" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+          <span class="sb-hide truncate">Onboarding</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Knowledge" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          <span class="sb-hide truncate">Knowledge</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="AI Hub" class="sb-item justify-between">
+          <span class="flex items-center gap-2.5 min-w-0">
+            <svg class="w-[16px] h-[16px] text-indigo-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg>
+            <span class="sb-hide truncate">AI Hub</span>
+          </span>
+          <span class="sb-hide px-1.5 py-0.2 rounded bg-indigo-50 text-[#5B5CE6] border border-indigo-200/80 text-[9.5px] font-bold">AI</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Dashboard chia sẻ" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span class="sb-hide truncate">Dashboard chia sẻ</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Nhắc hẹn" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="sb-hide truncate">Nhắc hẹn</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Thông báo chung" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><path d="M3 11l18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          <span class="sb-hide truncate">Thông báo chung</span>
+        </a>
+
+        <a href="#" onclick="setSidebarNav(this, event)" title="Org chart" class="sb-item">
+          <svg class="w-[16px] h-[16px] text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85"><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/></svg>
+          <span class="sb-hide truncate">Org chart</span>
+        </a>
+      </nav>
+
+      <!-- Đáy sidebar: chỉ nút Đăng xuất gọn gàng dưới đường kẻ mảnh -->
+      <div class="shrink-0 border-t border-slate-200/75 p-2">
+        <button onclick="showToast('Đang đăng xuất khỏi phiên làm việc...')" title="Đăng xuất" class="sb-item w-full text-slate-500 hover:!text-rose-600 hover:!bg-rose-50/70">
+          <svg class="w-[16px] h-[16px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="sb-hide truncate text-[12.5px]">Đăng xuất</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ================================================================ -->
+    <!-- 2. VÙNG LÀM VIỆC CHÍNH BÊN PHẢI                                  -->
+    <!-- ================================================================ -->
+    <div class="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
+
+      <!-- ============================================================== -->
+      <!-- TOP NAVIGATOR BAR DUY NHẤT (48PX)                              -->
+      <!-- ============================================================== -->
+      <header class="shrink-0 h-[48px] px-4 lg:px-5 bg-white border-b border-slate-200/80 flex items-center justify-between gap-3 relative z-30">
+        
+        <!-- Trái: Breadcrumb cỡ chữ đồng đều 14.5px "Quản lý Deal" kèm pill "9 bảng" -->
+        <div class="flex items-center gap-2.5 min-w-0 shrink-0">
+          <span class="text-[14.5px] font-semibold text-[#1E1B3A] tracking-tight truncate">Quản lý Deal</span>
+          <span class="px-2 py-0.5 rounded-full bg-[#EEF0FF] text-[#5B5CE6] border border-[#D9DDFF] text-[11px] font-semibold tabular shrink-0">
+            9 bảng
+          </span>
+        </div>
+
+        <!-- Giữa/Phải: Bộ chọn kỳ báo cáo + Hành động + Thông báo + Hồ sơ -->
+        <div class="flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar">
+
+          <!-- Cụm chọn kỳ báo cáo gọn gàng -->
+          <div class="hidden md:flex items-center h-8 px-2 rounded-[9px] bg-[#F7F8FC] border border-slate-200/90 gap-1.5 text-[12px] shrink-0">
+            <span class="text-[#646A82] font-medium pl-1">Kỳ:</span>
+            <select id="periodGranularity" onchange="changeGranularity(this.value)" class="bg-transparent font-semibold text-[#1E1B3A] focus:outline-none cursor-pointer pr-1">
+              <option value="quarter" selected>Quý</option>
+              <option value="month">Tháng</option>
+              <option value="year">Năm</option>
+            </select>
+
+            <div class="h-3.5 w-[1px] bg-slate-200"></div>
+
+            <button onclick="stepQuarter(-1)" title="Kỳ trước" class="w-6 h-6 rounded-[6px] hover:bg-white text-slate-500 hover:text-[#1E1B3A] flex items-center justify-center transition-colors">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span id="quarterLabel" class="font-semibold text-[#5B5CE6] px-1 tabular">Quý 3/2024</span>
+            <button onclick="stepQuarter(1)" title="Kỳ sau" class="w-6 h-6 rounded-[6px] hover:bg-white text-slate-500 hover:text-[#1E1B3A] flex items-center justify-center transition-colors">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+
+            <div class="h-3.5 w-[1px] bg-slate-200"></div>
+
+            <span id="quarterBadge" class="px-1.5 py-0.5 rounded bg-indigo-50 text-[#5B5CE6] font-semibold text-[11px]">Quý này</span>
+            <span id="quarterRangeText" class="text-[11px] text-[#646A82] tabular hidden xl:inline pr-1">01/07/2024 – 30/09/2024</span>
+          </div>
+
+          <!-- Nút Thanh toán và com & Template -->
+          <button onclick="openCommissionModal()" class="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-[8px] bg-white hover:bg-[#FAF9FF] border border-slate-200/90 hover:border-[#C7CEFA] text-[12px] font-semibold text-[#1E1B3A] hover:text-[#5B5CE6] transition-colors shrink-0">
+            <svg class="w-3.5 h-3.5 text-[#5B5CE6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            <span class="hidden sm:inline">Thanh toán và com</span>
+          </button>
+
+          <button onclick="showToast('Đang mở thư viện Template chính sách hoa hồng...')" class="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-[8px] bg-white hover:bg-slate-50 border border-slate-200/90 text-[12px] font-medium text-[#4B5068] hover:text-[#1E1B3A] transition-colors shrink-0">
+            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <span class="hidden lg:inline">Template</span>
+          </button>
+
+          <div class="h-4 w-[1px] bg-slate-200 shrink-0"></div>
+
+          <!-- Chuông thông báo (badge 11) -->
+          <div class="relative shrink-0">
+            <button onclick="togglePopover('notifPopover', event)" title="11 thông báo chưa đọc" class="relative w-8 h-8 rounded-[8px] text-[#4B5068] hover:text-[#1E1B3A] hover:bg-slate-100 flex items-center justify-center transition-colors">
+              <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span class="absolute -top-0.5 -right-0.5 min-w-[17px] h-[16px] px-1 rounded-full bg-rose-600 text-white text-[9.5px] font-bold flex items-center justify-center ring-2 ring-white tabular">11</span>
+            </button>
+
+            <div id="notifPopover" class="app-popover hidden fixed right-6 top-14 w-[330px] rounded-[14px] bg-white border border-slate-200 shadow-xl z-50 overflow-hidden">
+              <div class="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+                <span class="text-[12.5px] font-bold text-[#1E1B3A]">Thông báo chưa đọc (11)</span>
+                <button onclick="closeAllPopovers()" class="text-[11px] font-semibold text-[#5B5CE6] hover:underline">Đánh dấu đã đọc</button>
+              </div>
+              <div class="divide-y divide-slate-100 text-[12px]">
+                <div class="p-3 bg-emerald-50/40 flex items-start gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span>
+                  <div>
+                    <p class="text-[#1E1B3A] leading-snug"><span class="font-semibold">Hà Tùng</span> vừa cập nhật trạng thái deal <span class="font-medium">"POD bán mới · Công ty Minh Anh"</span></p>
+                    <span class="text-[10.5px] text-emerald-700 font-medium mt-0.5 block">Vừa xong</span>
+                  </div>
+                </div>
+                <div class="p-3 flex items-start gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-[#5B5CE6] mt-1.5 shrink-0"></span>
+                  <div>
+                    <p class="text-slate-700 leading-snug">Kỳ chốt hoa hồng <span class="font-semibold text-[#1E1B3A]">Quý 3/2024</span> đã sẵn sàng đối soát</p>
+                    <span class="text-[10.5px] text-[#646A82] mt-0.5 block">12 phút trước</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hồ sơ Khuê Võ -->
+          <button class="inline-flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-[8px] hover:bg-slate-100 transition-colors shrink-0">
+            <span class="w-6 h-6 rounded-full bg-[#5B5CE6] text-white font-display font-bold text-[10px] flex items-center justify-center shrink-0">KV</span>
+            <span class="text-[12.5px] font-semibold text-[#1E1B3A] hidden sm:inline">Khuê Võ</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- ============================================================== -->
+      <!-- DẢI TAB BẢNG GHIM CỐ ĐỊNH BÊN TRÁI (40PX)                      -->
+      <!-- ============================================================== -->
+      <div class="shrink-0 h-[40px] px-4 lg:px-5 bg-white border-b border-slate-200/80 flex items-center gap-2 z-20">
+        
+        <!-- Khu vực ghim cố định bên trái (Không bao giờ trôi khi cuộn ngang) -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="tabDashboardBtn" onclick="selectWorkspaceTab('Dashboard', this)" class="ws-tab inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[8px] bg-[#EEF0FF] text-[#5B5CE6] border border-[#D8DCFF] text-[12.5px] font-semibold transition-all">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            <span>Dashboard</span>
+          </button>
+
+          <button onclick="showToast('Mở trình tạo bảng nghiệp vụ mới trong Quản lý Deal')" class="inline-flex items-center gap-1 h-7 px-2 rounded-[8px] bg-white hover:bg-[#FAF9FF] border border-dashed border-slate-300 hover:border-[#5B5CE6] text-[#646A82] hover:text-[#5B5CE6] text-[12px] font-medium transition-colors">
+            <span class="text-[14px] leading-none">+</span>
+            <span class="hidden sm:inline">Thêm bảng</span>
+          </button>
+        </div>
+
+        <div class="h-4 w-[1px] bg-slate-200 shrink-0 mx-0.5"></div>
+
+        <!-- Phần cuộn ngang chứa 9 bảng nghiệp vụ -->
+        <div class="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar">
+          <button onclick="selectWorkspaceTab('Tham số com', this)" class="ws-tab h-7 px-2.5 rounded-[7px] text-[12.5px] font-medium text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-100/80 whitespace-nowrap transition-colors">Tham số com</button>
+          <button onclick="selectWorkspaceTab('Chính sách com', this)" class="ws-tab h-7 px-2.5 rounded-[7px] text-[12.5px] font-medium text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-100/80 whitespace-nowrap transition-colors">Chính sách com</button>
+          <button onclick="selectWorkspaceTab('Tiền về', this)" class="ws-tab h-7 px-2.5 rounded-[7px] text-[12.5px] font-medium text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-100/80 whitespace-nowrap transition-colors">Tiền về</button>
+          <button onclick="selectWorkspaceTab('Đợt thanh toán', this)" class="ws-tab h-7 px-2.5 rounded-[7px] text-[12.5px] font-medium text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-100/80 whitespace-nowrap transition-colors">Đợt thanh toán</button>
+          <button onclick="selectWorkspaceTab('Deals', this)" class="ws-tab h-7 px-2.5 rounded-[7px] text-[12.5px] font-medium text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-100/80 whitespace-nowrap transition-colors">Deals</button>
+          <button onclick="selectWorkspaceTab('Doanh thu theo người', this)" class="ws-tab h-7 px-2.5 rounded-[7px] text-[12.5px] font-medium text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-100/80 whitespace-nowrap transition-colors">Doanh thu theo người</button>
+          <button onclick="selectWorkspaceTab('Index', this)" class="ws-tab h-7 px-2.5 rounded-[7px] text-[12.5px] font-medium text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-100/80 whitespace-nowrap transition-colors">Index</button>
+          <button onclick="selectWorkspaceTab('Probation KPI', this)" class="ws-tab h-7 px-2.5 rounded-[7px] text-[12.5px] font-medium text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-100/80 whitespace-nowrap transition-colors">Probation KPI</button>
+          <button onclick="selectWorkspaceTab('Số com', this)" class="ws-tab h-7 px-2.5 rounded-[7px] text-[12.5px] font-medium text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-100/80 whitespace-nowrap transition-colors">Số com</button>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- 5. VÙNG NỘI DUNG CHÍNH DASHBOARD (NỀN #F6F7FB, CUỘN DỌC MƯỢT)   -->
+      <!-- ============================================================== -->
+      <main id="dashboardScrollArea" class="flex-1 overflow-y-auto bg-[#F6F7FB] p-4 lg:p-5 space-y-4">
+
+        <!-- Banner thông báo bảng khi bấm sang tab bảng nghiệp vụ -->
+        <div id="tablePreviewBanner" class="hidden dash-card p-3.5 bg-[#EEF0FF]/70 border-[#C7CEFA] flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <span class="w-2 h-2 rounded-full bg-[#5B5CE6]"></span>
+            <span class="text-[13px] font-semibold text-[#1E1B3A]">Đang xem nhanh bảng: <strong id="activeTableName" class="text-[#5B5CE6]">Deals</strong> (Đồng bộ trực tiếp với số liệu Dashboard bên dưới)</span>
+          </div>
+          <button onclick="selectWorkspaceTab('Dashboard', document.getElementById('tabDashboardBtn'))" class="px-3 py-1 rounded-[8px] bg-[#5B5CE6] text-white text-[12px] font-semibold hover:bg-[#4849C9] transition-colors">
+            Quay về Dashboard
+          </button>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- KHỐI 1: FORECAST CỦA TEAM TRONG KỲ                           -->
+        <!-- ============================================================ -->
+        <section class="dash-card p-4 lg:p-5 space-y-4" aria-labelledby="forecastHeading">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#5B5CE6]"></span>
+              <h2 id="forecastHeading" class="font-display text-[14.5px] font-bold text-[#1E1B3A]">Forecast của team trong kỳ</h2>
+              <span id="forecastPeriodChip" class="px-2 py-0.5 rounded-full bg-slate-100 text-[#646A82] text-[11px] font-semibold tabular">Quý 3/2024</span>
+            </div>
+            <span class="text-[11.5px] text-[#646A82]">Cập nhật tự động từ bảng Deals &amp; Đợt thanh toán</span>
+          </div>
+
+          <!-- 3 Thẻ chỉ số tổng hợp -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="p-3.5 rounded-[10px] bg-[#FAF9FC] border border-slate-200/80">
+              <div class="flex items-center justify-between">
+                <span class="text-[12px] font-medium text-[#646A82]">Đã ký, chờ tiền về</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              </div>
+              <div id="fcSignedVal" class="font-display text-[20px] font-bold text-[#1E1B3A] mt-1 tabular">0 đ</div>
+            </div>
+
+            <div class="p-3.5 rounded-[10px] bg-amber-50/55 border border-amber-200/80">
+              <div class="flex items-center justify-between">
+                <span class="text-[12px] font-semibold text-amber-800">Chưa ký</span>
+                <span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">Pipeline</span>
+              </div>
+              <div id="fcUnsignedVal" class="font-display text-[20px] font-bold text-amber-700 mt-1 tabular">340.000.000 đ</div>
+            </div>
+
+            <div class="p-3.5 rounded-[10px] bg-[#EEF0FF]/55 border border-[#D8DCFF]">
+              <div class="flex items-center justify-between">
+                <span class="text-[12px] font-semibold text-[#5B5CE6]">Tổng</span>
+                <span class="text-[11px] font-semibold text-[#5B5CE6] tabular">100%</span>
+              </div>
+              <div id="fcTotalVal" class="font-display text-[20px] font-bold text-[#5B5CE6] mt-1 tabular">340.000.000 đ</div>
+            </div>
+          </div>
+
+          <!-- Bảng phân rã gọn bên dưới theo Loại deal -->
+          <div class="rounded-[10px] border border-slate-200/80 overflow-hidden">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-[#FAF9FC] border-b border-slate-200/80 text-[11.5px] font-semibold text-[#646A82]">
+                  <th class="py-2 px-3.5">Loại deal</th>
+                  <th class="py-2 px-3.5">Tỷ trọng dự báo</th>
+                  <th class="py-2 px-3.5 text-right">Đã ký</th>
+                  <th class="py-2 px-3.5 text-right">Chưa ký</th>
+                </tr>
+              </thead>
+              <tbody id="forecastBreakdownBody" class="divide-y divide-slate-100 text-[12.5px]">
+                <tr class="hover:bg-[#FAF9FF] transition-colors">
+                  <td class="py-2.5 px-3.5 font-semibold text-[#1E1B3A] flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                    <span>PS không kèm POD</span>
+                  </td>
+                  <td class="py-2.5 px-3.5 w-[220px]">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div class="h-full bg-indigo-500 rounded-full" style="width: 70.6%"></div>
+                      </div>
+                      <span class="text-[11px] font-semibold text-[#646A82] tabular w-10 text-right">70.6%</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3.5 text-right font-medium text-[#646A82] tabular">0 đ</td>
+                  <td class="py-2.5 px-3.5 text-right font-bold text-[#1E1B3A] tabular">240.000.000 đ</td>
+                </tr>
+                <tr class="hover:bg-[#FAF9FF] transition-colors">
+                  <td class="py-2.5 px-3.5 font-semibold text-[#1E1B3A] flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>POD bán mới</span>
+                  </td>
+                  <td class="py-2.5 px-3.5 w-[220px]">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div class="h-full bg-emerald-500 rounded-full" style="width: 29.4%"></div>
+                      </div>
+                      <span class="text-[11px] font-semibold text-[#646A82] tabular w-10 text-right">29.4%</span>
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3.5 text-right font-medium text-[#646A82] tabular">0 đ</td>
+                  <td class="py-2.5 px-3.5 text-right font-bold text-[#1E1B3A] tabular">100.000.000 đ</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- KHỐI 2: THANH ĐIỀU KHIỂN COHORT & BỘ LỌC (1 DÒNG GỌN MẮT)    -->
+        <!-- ============================================================ -->
+        <section class="dash-card px-4 py-3 flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-[12.5px] font-semibold text-[#1E1B3A]">Mốc cohort chín:</span>
+            <select id="cohortBenchmarkSelect" onchange="updateCohortNote()" class="h-7 px-2.5 rounded-[8px] bg-[#FAF9FC] border border-slate-200 focus:border-[#5B5CE6] focus:outline-none text-[12px] font-semibold text-[#5B5CE6] cursor-pointer">
+              <option value="median" selected>Trung vị</option>
+              <option value="p75">Phân vị 75 (P75)</option>
+              <option value="fixed90">Cố định 90 ngày</option>
+            </select>
+          </div>
+
+          <label class="inline-flex items-center gap-2 cursor-pointer select-none shrink-0 px-2.5 py-1 rounded-[8px] hover:bg-[#FAF9FF] border border-transparent hover:border-slate-200/80 transition-colors">
+            <input id="onlyMatureCohortCheckbox" type="checkbox" onchange="toggleMatureCohort(this.checked)" class="w-3.5 h-3.5 rounded border-slate-300 text-[#5B5CE6] focus:ring-[#5B5CE6]" />
+            <span class="text-[12.5px] font-medium text-[#1E1B3A]">Chỉ tính cohort đã chín</span>
+          </label>
+
+          <div class="h-4 w-[1px] bg-slate-200 hidden xl:block"></div>
+
+          <p id="cohortExplanationText" class="text-[11.5px] text-[#646A82] leading-snug flex-1 min-w-[260px]">
+            Đang dùng mốc <strong class="text-[#1E1B3A]">Trung vị</strong>: chờ 90 ngày sau cuối tháng nhận (mặc định, vì dưới 10 deal Won trong 12 tháng; hiện có 0). Cohort tới tháng <span class="font-semibold text-[#5B5CE6]">2026-07</span> đã chín, các tháng sau là tạm tính.
+          </p>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- KHỐI 3: SECTION "DEALS · 11 BIỂU ĐỒ · CỦA HÀ TÙNG"           -->
+        <!-- ============================================================ -->
+        <section class="space-y-3.5" aria-labelledby="dealsSectionHeading">
+          
+          <!-- Đầu Section & Dải bộ lọc gọn -->
+          <div class="dash-card p-3.5 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 id="dealsSectionHeading" class="font-display text-[15px] font-bold text-[#1E1B3A]">Deals</h2>
+                <span class="px-2 py-0.5 rounded-full bg-[#EEF0FF] text-[#5B5CE6] text-[11px] font-semibold tabular">11 biểu đồ</span>
+                <span class="text-slate-300">·</span>
+                <span class="text-[12.5px] font-semibold text-[#4B5068]">Của Hà Tùng</span>
+                <span class="text-slate-300">·</span>
+                <span class="text-[12px] text-[#646A82]">Quản lý Deal · Số liệu tính theo quyền của họ</span>
+              </div>
+
+              <!-- Huy hiệu hiển thị bộ lọc chéo đang áp dụng -->
+              <div id="activeCrossFilterPill" class="hidden inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#5B5CE6] text-white text-[11.5px] font-semibold shadow-2xs">
+                <span>Đang lọc chéo: <strong id="crossFilterValueLabel">POD bán mới</strong></span>
+                <button onclick="resetAllFilters()" class="ml-1 w-4 h-4 rounded-full bg-white/20 hover:bg-white/35 flex items-center justify-center text-[10px]">✕</button>
+              </div>
+            </div>
+
+            <!-- Dải bộ lọc 1 hàng gọn mắt -->
+            <div class="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+              <div class="flex flex-wrap items-center gap-2">
+                <!-- Khoảng thời gian -->
+                <div class="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-[8px] bg-[#FAF9FC] border border-slate-200/90 text-[12px]">
+                  <svg class="w-3.5 h-3.5 text-[#5B5CE6]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <span class="text-[#646A82] font-medium">Khoảng thời gian:</span>
+                  <span class="font-semibold text-[#1E1B3A]">Theo kỳ chung ở đầu trang</span>
+                </div>
+
+                <!-- Lọc theo cột -->
+                <div class="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-[8px] bg-white border border-slate-200/90 text-[12px]">
+                  <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  <span class="text-[#646A82] font-medium">Lọc theo cột:</span>
+                  <select id="columnFilterSelect" onchange="applyColumnFilter(this.value)" class="bg-transparent font-semibold text-[#1E1B3A] focus:outline-none cursor-pointer">
+                    <option value="">Chọn cột...</option>
+                    <option value="POD bán mới">Loại deal: POD bán mới</option>
+                    <option value="PS không kèm POD">Loại deal: PS không kèm POD</option>
+                    <option value="2024-07">Tháng nhận: 2024-07</option>
+                    <option value="2024-08">Tháng nhận: 2024-08</option>
+                    <option value="2024-09">Tháng nhận: 2024-09</option>
+                  </select>
+                </div>
+
+                <span class="text-[11.5px] text-[#646A82] hidden lg:inline">
+                  💡 Bấm vào cột hoặc điểm biểu đồ để lọc chéo
+                </span>
+              </div>
+
+              <button onclick="resetAllFilters()" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-[8px] bg-white hover:bg-slate-50 border border-slate-200/90 text-[12px] font-semibold text-[#4B5068] hover:text-[#5B5CE6] transition-colors shrink-0">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                <span>Về mặc định</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- LƯỚI 8 THẺ KPI (4 CỘT X 2 HÀNG, NHẤN MÀU THEO TRẠNG THÁI)  -->
+          <!-- ========================================================== -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            
+            <!-- 1. Doanh thu tính cho tôi -->
+            <div class="dash-card p-4 relative overflow-hidden">
+              <div class="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-[#5B5CE6]"></div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[12px] font-medium text-[#646A82]">Doanh thu tính cho tôi</span>
+                <span class="px-1.5 py-0.2 rounded bg-[#EEF0FF] text-[#5B5CE6] text-[10px] font-bold">Doanh số</span>
+              </div>
+              <div id="kpiRevenue" class="font-display text-[20px] font-bold text-[#1E1B3A] mt-2 tabular">8.230.873.600 đ</div>
+              <span class="text-[11px] text-emerald-600 font-semibold mt-1 inline-block">+12.4% so với kỳ trước</span>
+            </div>
+
+            <!-- 2. Số deal của tôi -->
+            <div class="dash-card p-4 relative overflow-hidden">
+              <div class="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-blue-500"></div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[12px] font-medium text-[#646A82]">Số deal của tôi</span>
+                <span class="px-1.5 py-0.2 rounded bg-blue-50 text-blue-600 text-[10px] font-bold">Khối lượng</span>
+              </div>
+              <div id="kpiDealCount" class="font-display text-[20px] font-bold text-[#1E1B3A] mt-2 tabular">167</div>
+              <span class="text-[11px] text-[#646A82] mt-1 inline-block">Deal phát sinh trong kỳ</span>
+            </div>
+
+            <!-- 3. Com đã nhận của tôi -->
+            <div class="dash-card p-4 relative overflow-hidden">
+              <div class="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-emerald-500"></div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[12px] font-medium text-[#646A82]">Com đã nhận của tôi</span>
+                <span class="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold">Đã giải ngân</span>
+              </div>
+              <div id="kpiComPaid" class="font-display text-[20px] font-bold text-emerald-700 mt-2 tabular">0 đ</div>
+              <span class="text-[11px] text-[#646A82] mt-1 inline-block">Chờ đối soát đợt thanh toán</span>
+            </div>
+
+            <!-- 4. Com tạm tính của tôi -->
+            <div class="dash-card p-4 relative overflow-hidden">
+              <div class="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-indigo-500"></div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[12px] font-medium text-[#646A82]">Com tạm tính của tôi</span>
+                <span class="px-1.5 py-0.2 rounded bg-indigo-50 text-[#5B5CE6] text-[10px] font-bold">Tạm tính</span>
+              </div>
+              <div id="kpiComProvisional" class="font-display text-[20px] font-bold text-[#5B5CE6] mt-2 tabular">356.303.499 đ</div>
+              <span class="text-[11px] text-[#646A82] mt-1 inline-block">Tính trên doanh thu ghi nhận</span>
+            </div>
+
+            <!-- 5. Com chờ nhận của tôi -->
+            <div class="dash-card p-4 relative overflow-hidden">
+              <div class="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-slate-300"></div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[12px] font-medium text-[#646A82]">Com chờ nhận của tôi</span>
+                <span class="px-1.5 py-0.2 rounded bg-slate-100 text-[#646A82] text-[10px] font-semibold">Chờ duyệt</span>
+              </div>
+              <div id="kpiComPending" class="font-display text-[20px] font-bold text-[#1E1B3A] mt-2 tabular">0 đ</div>
+              <span class="text-[11px] text-[#646A82] mt-1 inline-block">Chưa có phiếu chi mở</span>
+            </div>
+
+            <!-- 6. Com dự kiến của tôi -->
+            <div class="dash-card p-4 relative overflow-hidden">
+              <div class="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-amber-500"></div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[12px] font-medium text-[#646A82]">Com dự kiến của tôi</span>
+                <span class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 text-[10px] font-bold">Dự kiến</span>
+              </div>
+              <div id="kpiComExpected" class="font-display text-[20px] font-bold text-amber-700 mt-2 tabular">389.985.999 đ</div>
+              <span class="text-[11px] text-[#646A82] mt-1 inline-block">Bao gồm pipeline sắp chốt</span>
+            </div>
+
+            <!-- 7. Forecast đã ký (quý này) -->
+            <div class="dash-card p-4 relative overflow-hidden">
+              <div class="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-teal-500"></div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[12px] font-medium text-[#646A82]">Forecast đã ký (quý này)</span>
+                <span class="px-1.5 py-0.2 rounded bg-teal-50 text-teal-700 text-[10px] font-semibold">Đã ký</span>
+              </div>
+              <div id="kpiPersonalFcSigned" class="font-display text-[20px] font-bold text-[#1E1B3A] mt-2 tabular">0 đ</div>
+              <span class="text-[11px] text-[#646A82] mt-1 inline-block">Hợp đồng đã ký chờ tiền về</span>
+            </div>
+
+            <!-- 8. Forecast chưa ký (quý này) -->
+            <div class="dash-card p-4 relative overflow-hidden">
+              <div class="absolute left-0 top-3 bottom-3 w-[3px] rounded-r bg-violet-500"></div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[12px] font-medium text-[#646A82]">Forecast chưa ký (quý này)</span>
+                <span class="px-1.5 py-0.2 rounded bg-violet-50 text-violet-700 text-[10px] font-semibold">Cá nhân</span>
+              </div>
+              <div id="kpiPersonalFcUnsigned" class="font-display text-[20px] font-bold text-violet-700 mt-2 tabular">100.000.000 đ</div>
+              <span class="text-[11px] text-[#646A82] mt-1 inline-block">Cơ hội đang đàm phán cuối</span>
+            </div>
+
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- HÀNG BIỂU ĐỒ 2 CỘT: CR1 & CR2 (WINRATE) THEO COHORT        -->
+          <!-- ========================================================== -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+
+            <!-- Biểu đồ trái: CR1 theo cohort (tháng nhận) -->
+            <div class="dash-card p-4 flex flex-col justify-between">
+              <div class="flex items-center justify-between gap-2 mb-3">
+                <div>
+                  <h3 class="font-display text-[13.5px] font-bold text-[#1E1B3A]">CR1 theo cohort (tháng nhận)</h3>
+                  <span class="text-[11.5px] text-[#646A82]">Tỷ lệ chuyển đổi giai đoạn 1 · Bấm vào điểm để lọc theo tháng</span>
+                </div>
+                <span class="px-2 py-0.5 rounded-full bg-indigo-50 text-[#5B5CE6] text-[11px] font-bold tabular">TB 98.3%</span>
+              </div>
+
+              <div class="relative w-full h-[210px]">
+                <svg id="cr1ChartSvg" viewBox="0 0 460 200" class="w-full h-full overflow-visible">
+                  <!-- Lưới ngang 0% - 100% -->
+                  <g stroke="#EEF0F6" stroke-width="1">
+                    <line x1="46" y1="20" x2="435" y2="20" />
+                    <line x1="46" y1="50" x2="435" y2="50" />
+                    <line x1="46" y1="80" x2="435" y2="80" />
+                    <line x1="46" y1="110" x2="435" y2="110" />
+                    <line x1="46" y1="140" x2="435" y2="140" />
+                    <line x1="46" y1="170" x2="435" y2="170" stroke="#DCE0EC" />
+                  </g>
+
+                  <!-- Nhãn trục Y -->
+                  <g fill="#646A82" font-size="10.5" font-weight="500" text-anchor="end">
+                    <text x="38" y="24">100%</text>
+                    <text x="38" y="54">80%</text>
+                    <text x="38" y="84">60%</text>
+                    <text x="38" y="114">40%</text>
+                    <text x="38" y="144">20%</text>
+                    <text x="38" y="174">0%</text>
+                  </g>
+
+                  <!-- Vùng tô gradient nhẹ dưới đường CR1 -->
+                  <defs>
+                    <linearGradient id="cr1AreaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#5B5CE6" stop-opacity="0.16" />
+                      <stop offset="100%" stop-color="#5B5CE6" stop-opacity="0.0" />
+                    </linearGradient>
+                  </defs>
+                  <polygon id="cr1AreaPoly" points="95,20 240,27.5 385,20 385,170 95,170" fill="url(#cr1AreaGrad)" />
+
+                  <!-- Đường nối dữ liệu -->
+                  <polyline id="cr1LinePoly" fill="none" stroke="#5B5CE6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="95,20 240,27.5 385,20" />
+
+                  <!-- Các điểm tương tác -->
+                  <g id="cr1PointsGroup">
+                    <!-- 2024-07: 100% -->
+                    <circle cx="95" cy="20" r="5" fill="#FFFFFF" stroke="#5B5CE6" stroke-width="2.5" class="chart-point"
+                      onclick="applyColumnFilter('2024-07')"
+                      onmouseenter="showChartTooltip(event, '2024-07 · CR1: 100%')"
+                      onmouseleave="hideChartTooltip()" />
+                    <text x="95" y="12" fill="#5B5CE6" font-size="10.5" font-weight="700" text-anchor="middle">100%</text>
+
+                    <!-- 2024-08: 95% -->
+                    <circle cx="240" cy="27.5" r="5" fill="#FFFFFF" stroke="#5B5CE6" stroke-width="2.5" class="chart-point"
+                      onclick="applyColumnFilter('2024-08')"
+                      onmouseenter="showChartTooltip(event, '2024-08 · CR1: 95%')"
+                      onmouseleave="hideChartTooltip()" />
+                    <text x="240" y="16" fill="#5B5CE6" font-size="10.5" font-weight="700" text-anchor="middle">95%</text>
+
+                    <!-- 2024-09: 100% -->
+                    <circle cx="385" cy="20" r="5" fill="#FFFFFF" stroke="#5B5CE6" stroke-width="2.5" class="chart-point"
+                      onclick="applyColumnFilter('2024-09')"
+                      onmouseenter="showChartTooltip(event, '2024-09 · CR1: 100%')"
+                      onmouseleave="hideChartTooltip()" />
+                    <text x="385" y="12" fill="#5B5CE6" font-size="10.5" font-weight="700" text-anchor="middle">100%</text>
+                  </g>
+
+                  <!-- Nhãn trục X -->
+                  <g fill="#4B5068" font-size="11" font-weight="600" text-anchor="middle">
+                    <text x="95" y="190" class="cursor-pointer hover:fill-[#5B5CE6]" onclick="applyColumnFilter('2024-07')">2024-07</text>
+                    <text x="240" y="190" class="cursor-pointer hover:fill-[#5B5CE6]" onclick="applyColumnFilter('2024-08')">2024-08</text>
+                    <text x="385" y="190" class="cursor-pointer hover:fill-[#5B5CE6]" onclick="applyColumnFilter('2024-09')">2024-09</text>
+                  </g>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Biểu đồ phải: CR2 (Winrate) theo cohort (tháng nhận) -->
+            <div class="dash-card p-4 flex flex-col justify-between">
+              <div class="flex items-center justify-between gap-2 mb-3">
+                <div>
+                  <h3 class="font-display text-[13.5px] font-bold text-[#1E1B3A]">CR2 (Winrate) theo cohort (tháng nhận)</h3>
+                  <span class="text-[11.5px] text-[#646A82]">Tỷ lệ chốt thành công (Won) · Bấm vào điểm để lọc theo tháng</span>
+                </div>
+                <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold tabular">TB 25.0%</span>
+              </div>
+
+              <div class="relative w-full h-[210px]">
+                <svg id="cr2ChartSvg" viewBox="0 0 460 200" class="w-full h-full overflow-visible">
+                  <!-- Lưới ngang 0% - 50% -->
+                  <g stroke="#EEF0F6" stroke-width="1">
+                    <line x1="46" y1="20" x2="435" y2="20" />
+                    <line x1="46" y1="50" x2="435" y2="50" />
+                    <line x1="46" y1="80" x2="435" y2="80" />
+                    <line x1="46" y1="110" x2="435" y2="110" />
+                    <line x1="46" y1="140" x2="435" y2="140" />
+                    <line x1="46" y1="170" x2="435" y2="170" stroke="#DCE0EC" />
+                  </g>
+
+                  <!-- Nhãn trục Y (0% - 50%) -->
+                  <g fill="#646A82" font-size="10.5" font-weight="500" text-anchor="end">
+                    <text x="38" y="24">50%</text>
+                    <text x="38" y="54">40%</text>
+                    <text x="38" y="84">30%</text>
+                    <text x="38" y="114">20%</text>
+                    <text x="38" y="144">10%</text>
+                    <text x="38" y="174">0%</text>
+                  </g>
+
+                  <defs>
+                    <linearGradient id="cr2AreaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#10B981" stop-opacity="0.16" />
+                      <stop offset="100%" stop-color="#10B981" stop-opacity="0.0" />
+                    </linearGradient>
+                  </defs>
+                  <!-- 45% -> y=35; 20% -> y=110; 10% -> y=140 -->
+                  <polygon points="95,35 240,110 385,140 385,170 95,170" fill="url(#cr2AreaGrad)" />
+                  <polyline fill="none" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="95,35 240,110 385,140" />
+
+                  <g>
+                    <!-- 2024-07: 45% -->
+                    <circle cx="95" cy="35" r="5" fill="#FFFFFF" stroke="#10B981" stroke-width="2.5" class="chart-point"
+                      onclick="applyColumnFilter('2024-07')"
+                      onmouseenter="showChartTooltip(event, '2024-07 · CR2 Winrate: 45%')"
+                      onmouseleave="hideChartTooltip()" />
+                    <text x="95" y="25" fill="#059669" font-size="10.5" font-weight="700" text-anchor="middle">45%</text>
+
+                    <!-- 2024-08: 20% -->
+                    <circle cx="240" cy="110" r="5" fill="#FFFFFF" stroke="#10B981" stroke-width="2.5" class="chart-point"
+                      onclick="applyColumnFilter('2024-08')"
+                      onmouseenter="showChartTooltip(event, '2024-08 · CR2 Winrate: 20%')"
+                      onmouseleave="hideChartTooltip()" />
+                    <text x="240" y="99" fill="#059669" font-size="10.5" font-weight="700" text-anchor="middle">20%</text>
+
+                    <!-- 2024-09: 10% -->
+                    <circle cx="385" cy="140" r="5" fill="#FFFFFF" stroke="#10B981" stroke-width="2.5" class="chart-point"
+                      onclick="applyColumnFilter('2024-09')"
+                      onmouseenter="showChartTooltip(event, '2024-09 · CR2 Winrate: 10%')"
+                      onmouseleave="hideChartTooltip()" />
+                    <text x="385" y="129" fill="#059669" font-size="10.5" font-weight="700" text-anchor="middle">10%</text>
+                  </g>
+
+                  <!-- Nhãn trục X -->
+                  <g fill="#4B5068" font-size="11" font-weight="600" text-anchor="middle">
+                    <text x="95" y="190" class="cursor-pointer hover:fill-emerald-600" onclick="applyColumnFilter('2024-07')">2024-07</text>
+                    <text x="240" y="190" class="cursor-pointer hover:fill-emerald-600" onclick="applyColumnFilter('2024-08')">2024-08</text>
+                    <text x="385" y="190" class="cursor-pointer hover:fill-emerald-600" onclick="applyColumnFilter('2024-09')">2024-09</text>
+                  </g>
+                </svg>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ========================================================== -->
+          <!-- HÀNG BIỂU ĐỒ NGANG: DOANH THU THEO LOẠI DEAL (0 ĐẾN 7 TỶ)   -->
+          <!-- ========================================================== -->
+          <div class="dash-card p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <h3 class="font-display text-[13.5px] font-bold text-[#1E1B3A]">Doanh thu theo loại deal</h3>
+                <span class="text-[11.5px] text-[#646A82]">Nhấp vào từng thanh ngang để lọc chéo toàn bộ 8 thẻ KPI phía trên</span>
+              </div>
+              <span class="text-[12px] font-semibold text-[#5B5CE6] tabular">Tổng: 8,23 tỷ đ</span>
+            </div>
+
+            <div class="w-full overflow-x-auto">
+              <svg viewBox="0 0 880 156" class="w-full min-w-[540px] h-[156px]">
+                <!-- Lưới dọc 0 -> 7 tỷ (x từ 150 đến 850, mỗi 1 tỷ = 100px) -->
+                <g stroke="#EEF0F6" stroke-width="1">
+                  <line x1="150" y1="12" x2="150" y2="124" stroke="#DCE0EC" />
+                  <line x1="250" y1="12" x2="250" y2="124" />
+                  <line x1="350" y1="12" x2="350" y2="124" />
+                  <line x1="450" y1="12" x2="450" y2="124" />
+                  <line x1="550" y1="12" x2="550" y2="124" />
+                  <line x1="650" y1="12" x2="650" y2="124" />
+                  <line x1="750" y1="12" x2="750" y2="124" />
+                  <line x1="850" y1="12" x2="850" y2="124" />
+                </g>
+
+                <!-- Thanh 1: POD bán mới (~6,05 tỷ -> 605px) -->
+                <g class="cursor-pointer group" onclick="applyColumnFilter('POD bán mới')"
+                   onmouseenter="showChartTooltip(event, 'POD bán mới · 6.050.873.600 đ (73.5%)')"
+                   onmouseleave="hideChartTooltip()">
+                  <text x="138" y="45" fill="#1E1B3A" font-size="12.5" font-weight="600" text-anchor="end">POD bán mới</text>
+                  <rect x="150" y="25" width="700" height="30" rx="6" fill="#F8F9FD" />
+                  <rect id="barPodNew" x="150" y="25" width="605" height="30" rx="6" fill="#5B5CE6" class="transition-opacity group-hover:opacity-85" />
+                  <text x="765" y="44" fill="#5B5CE6" font-size="11.5" font-weight="700">6,05 tỷ</text>
+                </g>
+
+                <!-- Thanh 2: PS không kèm POD (~2,18 tỷ -> 218px) -->
+                <g class="cursor-pointer group" onclick="applyColumnFilter('PS không kèm POD')"
+                   onmouseenter="showChartTooltip(event, 'PS không kèm POD · 2.180.000.000 đ (26.5%)')"
+                   onmouseleave="hideChartTooltip()">
+                  <text x="138" y="97" fill="#1E1B3A" font-size="12.5" font-weight="600" text-anchor="end">PS không kèm POD</text>
+                  <rect x="150" y="77" width="700" height="30" rx="6" fill="#F8F9FD" />
+                  <rect id="barPsNoPod" x="150" y="77" width="218" height="30" rx="6" fill="#3B82F6" class="transition-opacity group-hover:opacity-85" />
+                  <text x="378" y="96" fill="#2563EB" font-size="11.5" font-weight="700">2,18 tỷ</text>
+                </g>
+
+                <!-- Trục X 0 -> 7 tỷ -->
+                <line x1="150" y1="124" x2="850" y2="124" stroke="#DCE0EC" stroke-width="1" />
+                <g fill="#646A82" font-size="11" font-weight="500" text-anchor="middle">
+                  <text x="150" y="143">0</text>
+                  <text x="250" y="143">1 tỷ</text>
+                  <text x="350" y="143">2 tỷ</text>
+                  <text x="450" y="143">3 tỷ</text>
+                  <text x="550" y="143">4 tỷ</text>
+                  <text x="650" y="143">5 tỷ</text>
+                  <text x="750" y="143">6 tỷ</text>
+                  <text x="850" y="143">7 tỷ</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- TOOLTIP BIỂU ĐỒ NỔI -->
+  <div id="chartTooltip" class="hidden fixed z-50 px-2.5 py-1.5 rounded-[8px] bg-[#1E1B3A] text-white text-[11.5px] font-semibold shadow-lg pointer-events-none tabular"></div>
+
+  <!-- MODAL THANH TOÁN VÀ COM -->
+  <div id="commissionModal" class="hidden fixed inset-0 z-50 bg-[#1E1B3A]/45 backdrop-blur-[2px] flex items-center justify-center p-4" onclick="closeCommissionModal()">
+    <div class="w-full max-w-[540px] rounded-[18px] bg-white border border-slate-200 shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+      <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+        <span class="font-display text-[15px] font-bold text-[#1E1B3A]">Thanh toán và hoa hồng (Quý 3/2024)</span>
+        <button onclick="closeCommissionModal()" class="w-7 h-7 rounded-md text-slate-400 hover:text-[#1E1B3A] hover:bg-slate-100 flex items-center justify-center">✕</button>
+      </div>
+      <div class="p-5 space-y-3 text-[13px]">
+        <div class="p-3.5 rounded-[12px] bg-[#FAF9FC] border border-slate-200/80 flex items-center justify-between">
+          <span class="text-[#646A82]">Com tạm tính (Hà Tùng)</span>
+          <span class="font-display font-bold text-[#5B5CE6] text-[16px] tabular">356.303.499 đ</span>
+        </div>
+        <div class="p-3.5 rounded-[12px] bg-amber-50/60 border border-amber-200/80 flex items-center justify-between">
+          <span class="text-amber-900 font-medium">Com dự kiến (bao gồm pipeline)</span>
+          <span class="font-display font-bold text-amber-700 text-[16px] tabular">389.985.999 đ</span>
+        </div>
+        <p class="text-[12px] text-[#646A82] leading-relaxed">
+          Kỳ đối soát hoa hồng Quý 3/2024 sẽ tự động khóa sổ khi các đợt thanh toán từ khách hàng được xác nhận trên bảng <strong>Tiền về</strong>.
+        </p>
+      </div>
+      <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+        <button onclick="closeCommissionModal()" class="px-3.5 py-1.5 rounded-[8px] border border-slate-200 bg-white text-[12.5px] font-medium text-[#1E1B3A]">Đóng</button>
+        <button onclick="closeCommissionModal(); showToast('Đã xuất bảng kê đối soát hoa hồng Quý 3/2024')" class="px-3.5 py-1.5 rounded-[8px] bg-[#5B5CE6] text-white text-[12.5px] font-semibold">Xuất phiếu đối soát</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST THÔNG BÁO -->
+  <div id="feedbackToast" class="fixed bottom-5 right-5 z-50 px-3.5 py-2.5 rounded-[10px] bg-[#1E1B3A] text-white text-[12.5px] font-medium shadow-lg opacity-0 pointer-events-none translate-y-2 transition-all duration-200">
+    Đã cập nhật
+  </div>
+
+  <script>
+    // Dữ liệu theo từng Quý để người dùng chuyển đổi thực tế
+    const QUARTERS = [
+      {
+        label: 'Quý 2/2024',
+        badge: 'Kỳ trước',
+        range: '01/04/2024 – 30/06/2024',
+        fcSigned: '180.000.000 đ',
+        fcUnsigned: '120.000.000 đ',
+        fcTotal: '300.000.000 đ',
+        kpis: {
+          revenue: '7.140.500.000 đ',
+          deals: '148',
+          comPaid: '295.400.000 đ',
+          comProv: '312.150.000 đ',
+          comPend: '16.750.000 đ',
+          comExp: '325.000.000 đ',
+          fcSig: '180.000.000 đ',
+          fcUnsig: '60.000.000 đ'
+        }
+      },
+      {
+        label: 'Quý 3/2024',
+        badge: 'Quý này',
+        range: '01/07/2024 – 30/09/2024',
+        fcSigned: '0 đ',
+        fcUnsigned: '340.000.000 đ',
+        fcTotal: '340.000.000 đ',
+        kpis: {
+          revenue: '8.230.873.600 đ',
+          deals: '167',
+          comPaid: '0 đ',
+          comProv: '356.303.499 đ',
+          comPend: '0 đ',
+          comExp: '389.985.999 đ',
+          fcSig: '0 đ',
+          fcUnsig: '100.000.000 đ'
+        }
+      },
+      {
+        label: 'Quý 4/2024',
+        badge: 'Kế hoạch',
+        range: '01/10/2024 – 31/12/2024',
+        fcSigned: '210.000.000 đ',
+        fcUnsigned: '520.000.000 đ',
+        fcTotal: '730.000.000 đ',
+        kpis: {
+          revenue: '4.620.000.000 đ',
+          deals: '94',
+          comPaid: '0 đ',
+          comProv: '198.450.000 đ',
+          comPend: '45.000.000 đ',
+          comExp: '440.000.000 đ',
+          fcSig: '210.000.000 đ',
+          fcUnsig: '250.000.000 đ'
+        }
+      }
+    ];
+
+    let currentQuarterIdx = 1; // Mặc định Quý 3/2024
+    let activeCrossFilter = '';
+
+    // Dữ liệu lọc chéo (Cross-filter)
+    const CROSS_FILTER_MAP = {
+      'POD bán mới': {
+        revenue: '6.050.873.600 đ',
+        deals: '114',
+        comPaid: '0 đ',
+        comProv: '268.420.000 đ',
+        comPend: '0 đ',
+        comExp: '289.985.999 đ',
+        fcSig: '0 đ',
+        fcUnsig: '100.000.000 đ'
+      },
+      'PS không kèm POD': {
+        revenue: '2.180.000.000 đ',
+        deals: '53',
+        comPaid: '0 đ',
+        comProv: '87.883.499 đ',
+        comPend: '0 đ',
+        comExp: '100.000.000 đ',
+        fcSig: '0 đ',
+        fcUnsig: '0 đ'
+      },
+      '2024-07': {
+        revenue: '3.410.200.000 đ',
+        deals: '68',
+        comPaid: '0 đ',
+        comProv: '151.200.000 đ',
+        comPend: '0 đ',
+        comExp: '151.200.000 đ',
+        fcSig: '0 đ',
+        fcUnsig: '0 đ'
+      },
+      '2024-08': {
+        revenue: '2.690.450.000 đ',
+        deals: '54',
+        comPaid: '0 đ',
+        comProv: '115.603.499 đ',
+        comPend: '0 đ',
+        comExp: '124.500.000 đ',
+        fcSig: '0 đ',
+        fcUnsig: '30.000.000 đ'
+      },
+      '2024-09': {
+        revenue: '2.130.223.600 đ',
+        deals: '45',
+        comPaid: '0 đ',
+        comProv: '89.500.000 đ',
+        comPend: '0 đ',
+        comExp: '114.285.999 đ',
+        fcSig: '0 đ',
+        fcUnsig: '70.000.000 đ'
+      }
+    };
+
+    function renderDashboardNumbers() {
+      const qData = QUARTERS[currentQuarterIdx];
+      document.getElementById('quarterLabel').textContent = qData.label;
+      document.getElementById('quarterBadge').textContent = qData.badge;
+      document.getElementById('quarterRangeText').textContent = qData.range;
+      document.getElementById('forecastPeriodChip').textContent = qData.label;
+
+      document.getElementById('fcSignedVal').textContent = qData.fcSigned;
+      document.getElementById('fcUnsignedVal').textContent = qData.fcUnsigned;
+      document.getElementById('fcTotalVal').textContent = qData.fcTotal;
+
+      const k = activeCrossFilter && CROSS_FILTER_MAP[activeCrossFilter]
+        ? CROSS_FILTER_MAP[activeCrossFilter]
+        : qData.kpis;
+
+      document.getElementById('kpiRevenue').textContent = k.revenue;
+      document.getElementById('kpiDealCount').textContent = k.deals;
+      document.getElementById('kpiComPaid').textContent = k.comPaid;
+      document.getElementById('kpiComProvisional').textContent = k.comProv;
+      document.getElementById('kpiComPending').textContent = k.comPend;
+      document.getElementById('kpiComExpected').textContent = k.comExp;
+      document.getElementById('kpiPersonalFcSigned').textContent = k.fcSig;
+      document.getElementById('kpiPersonalFcUnsigned').textContent = k.fcUnsig;
+
+      // Highlight thanh ngang nếu đang lọc theo Loại deal
+      const barPod = document.getElementById('barPodNew');
+      const barPs = document.getElementById('barPsNoPod');
+      if (activeCrossFilter === 'POD bán mới') {
+        barPod.style.opacity = '1';
+        barPs.style.opacity = '0.3';
+      } else if (activeCrossFilter === 'PS không kèm POD') {
+        barPod.style.opacity = '0.3';
+        barPs.style.opacity = '1';
+      } else {
+        barPod.style.opacity = '1';
+        barPs.style.opacity = '1';
+      }
+    }
+
+    function stepQuarter(dir) {
+      const next = currentQuarterIdx + dir;
+      if (next < 0 || next >= QUARTERS.length) {
+        showToast('Đã tới giới hạn kỳ dữ liệu khả dụng');
+        return;
+      }
+      currentQuarterIdx = next;
+      activeCrossFilter = '';
+      document.getElementById('activeCrossFilterPill').classList.add('hidden');
+      document.getElementById('columnFilterSelect').value = '';
+      renderDashboardNumbers();
+      showToast(`Đã chuyển sang kỳ ${QUARTERS[currentQuarterIdx].label}`);
+    }
+
+    function changeGranularity(val) {
+      const map = { quarter: 'Quý', month: 'Tháng', year: 'Năm' };
+      showToast(`Đã đổi đơn vị kỳ báo cáo sang: ${map[val]}`);
+    }
+
+    function applyColumnFilter(val) {
+      if (!val) {
+        resetAllFilters();
+        return;
+      }
+      activeCrossFilter = val;
+      document.getElementById('columnFilterSelect').value = val;
+      document.getElementById('crossFilterValueLabel').textContent = val;
+      document.getElementById('activeCrossFilterPill').classList.remove('hidden');
+      renderDashboardNumbers();
+      showToast(`Đang lọc chéo toàn bộ KPI theo: ${val}`);
+    }
+
+    function resetAllFilters() {
+      activeCrossFilter = '';
+      document.getElementById('activeCrossFilterPill').classList.add('hidden');
+      document.getElementById('columnFilterSelect').value = '';
+      document.getElementById('onlyMatureCohortCheckbox').checked = false;
+      renderDashboardNumbers();
+      showToast('Đã đặt lại toàn bộ bộ lọc về mặc định');
+    }
+
+    function updateCohortNote() {
+      const mode = document.getElementById('cohortBenchmarkSelect').value;
+      const noteEl = document.getElementById('cohortExplanationText');
+      if (mode === 'median') {
+        noteEl.innerHTML = 'Đang dùng mốc <strong class="text-[#1E1B3A]">Trung vị</strong>: chờ 90 ngày sau cuối tháng nhận (mặc định, vì dưới 10 deal Won trong 12 tháng; hiện có 0). Cohort tới tháng <span class="font-semibold text-[#5B5CE6]">2026-07</span> đã chín, các tháng sau là tạm tính.';
+      } else if (mode === 'p75') {
+        noteEl.innerHTML = 'Đang dùng mốc <strong class="text-[#1E1B3A]">Phân vị 75 (P75)</strong>: chờ 112 ngày sau cuối tháng nhận để phản ánh chu kỳ chốt deal lớn.';
+      } else {
+        noteEl.innerHTML = 'Đang dùng mốc <strong class="text-[#1E1B3A]">Cố định 90 ngày</strong>: tính chuẩn hóa đúng 3 tháng kể từ ngày tạo deal.';
+      }
+    }
+
+    function toggleMatureCohort(checked) {
+      if (checked) {
+        showToast('Chỉ hiển thị số liệu từ các cohort đã chín (tới 2026-07)');
+      } else {
+        showToast('Hiển thị cả cohort tạm tính gần nhất');
+      }
+    }
+
+    // Chuyển tab trong dải tab bảng
+    function selectWorkspaceTab(tabName, btnEl) {
+      document.querySelectorAll('.ws-tab').forEach(btn => {
+        btn.className = 'ws-tab h-7 px-2.5 rounded-[7px] text-[12.5px] font-medium text-[#646A82] hover:text-[#1E1B3A] hover:bg-slate-100/80 whitespace-nowrap transition-colors';
+      });
+
+      if (tabName === 'Dashboard') {
+        btnEl.className = 'ws-tab inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[8px] bg-[#EEF0FF] text-[#5B5CE6] border border-[#D8DCFF] text-[12.5px] font-semibold transition-all';
+        document.getElementById('tablePreviewBanner').classList.add('hidden');
+      } else {
+        btnEl.className = 'ws-tab h-7 px-2.5 rounded-[7px] bg-[#EEF0FF] text-[#5B5CE6] text-[12.5px] font-semibold whitespace-nowrap transition-colors';
+        document.getElementById('activeTableName').textContent = tabName;
+        document.getElementById('tablePreviewBanner').classList.remove('hidden');
+      }
+    }
+
+    // Tooltip biểu đồ SVG
+    function showChartTooltip(e, text) {
+      const tip = document.getElementById('chartTooltip');
+      tip.textContent = text;
+      tip.classList.remove('hidden');
+      tip.style.left = `${e.clientX + 12}px`;
+      tip.style.top = `${e.clientY - 28}px`;
+    }
+    function hideChartTooltip() {
+      document.getElementById('chartTooltip').classList.add('hidden');
+    }
+
+    // Modal Thanh toán và com
+    function openCommissionModal() {
+      document.getElementById('commissionModal').classList.remove('hidden');
+    }
+    function closeCommissionModal() {
+      document.getElementById('commissionModal').classList.add('hidden');
+    }
+
+    // Sidebar thu gọn
+    function toggleSidebar() {
+      const sidebar = document.getElementById('leftSidebar');
+      const expandWrap = document.getElementById('expandBtnWrap');
+      const isCollapsed = sidebar.classList.toggle('sidebar-collapsed');
+      expandWrap.classList.toggle('hidden', !isCollapsed);
+      expandWrap.classList.toggle('flex', isCollapsed);
+    }
+
+    function setSidebarNav(el, e) {
+      e.preventDefault();
+      document.querySelectorAll('.sb-item').forEach(item => item.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function togglePopover(id, e) {
+      if (e) e.stopPropagation();
+      const target = document.getElementById(id);
+      const isHidden = target.classList.contains('hidden');
+      closeAllPopovers();
+      if (isHidden) target.classList.remove('hidden');
+    }
+
+    function closeAllPopovers() {
+      document.querySelectorAll('.app-popover').forEach(el => el.classList.add('hidden'));
+    }
+
+    document.addEventListener('click', () => closeAllPopovers());
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('feedbackToast');
+      el.textContent = msg;
+      el.classList.remove('opacity-0', 'translate-y-2');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.classList.add('opacity-0', 'translate-y-2');
+      }, 2200);
+    }
+
+    window.addEventListener('DOMContentLoaded', renderDashboardNumbers);
+  </script>
+</body>
+</html>

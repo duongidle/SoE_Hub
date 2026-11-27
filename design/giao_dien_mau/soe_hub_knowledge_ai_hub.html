@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SoE Hub — Knowledge & AI Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-soft: #EEF0FF;
+      --ink-main: #1E1B3A;
+      --ink-muted: #646A82;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--ink-main);
+      background:
+        radial-gradient(circle at 8% 10%, rgba(165, 180, 252, 0.34), transparent 38%),
+        radial-gradient(circle at 92% 14%, rgba(167, 243, 208, 0.32), transparent 40%),
+        radial-gradient(circle at 50% 95%, rgba(221, 214, 254, 0.35), transparent 45%),
+        #EEF1F8;
+      margin: 0;
+      min-height: 100vh;
+    }
+    .font-display { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; }
+    .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+    .tabular { font-variant-numeric: tabular-nums; }
+
+    .app-shell {
+      background: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow:
+        0 20px 50px -15px rgba(30, 27, 58, 0.10),
+        0 4px 16px -2px rgba(79, 70, 229, 0.05),
+        inset 0 0 0 1px rgba(226, 232, 240, 0.75);
+    }
+
+    /* Custom subtle scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.45); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.65); }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Sidebar transitions */
+    #leftSidebar { transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+    #leftSidebar.collapsed { width: 64px !important; }
+    #leftSidebar.collapsed .nav-label,
+    #leftSidebar.collapsed .brand-text { display: none; }
+    #leftSidebar.collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+
+    /* Drawer slide animation */
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0.4; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .drawer-enter { animation: slideInRight 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  </style>
+</head>
+<body class="p-2 sm:p-3.5 lg:p-4 flex items-stretch justify-center">
+
+  <!-- FLOATING APP SHELL -->
+  <div class="app-shell w-full max-w-[1600px] h-[calc(100vh-1rem)] sm:h-[calc(100vh-1.75rem)] lg:h-[calc(100vh-2rem)] rounded-[20px] flex overflow-hidden relative">
+
+    <!-- =================================================================== -->
+    <!-- LEFT SIDEBAR (PHẲNG, ĐỒNG CẤP, THU GỌN 216px -> 64px)               -->
+    <!-- =================================================================== -->
+    <aside id="leftSidebar" class="w-[216px] shrink-0 bg-[#FAF9FC] border-r border-slate-200/80 flex flex-col justify-between select-none z-20">
+      <!-- Brand Header -->
+      <div>
+        <div class="h-[48px] px-3.5 border-b border-slate-200/70 flex items-center justify-between">
+          <div class="flex items-center gap-2.5 overflow-hidden">
+            <div class="w-7 h-7 rounded-[8px] bg-[#4F46E5] text-white flex items-center justify-center font-display font-bold text-[13px] shrink-0 shadow-xs">
+              S
+            </div>
+            <div class="brand-text leading-tight truncate">
+              <div class="font-display font-bold text-[13.5px] text-[#1E1B3A] tracking-tight">SoE Hub</div>
+              <div class="text-[10.5px] text-[#646A82]">Workspace · 20 nhân sự</div>
+            </div>
+          </div>
+          <button onclick="toggleSidebar()" title="Thu gọn / Mở rộng menu" class="w-6 h-6 rounded-md hover:bg-slate-200/70 text-[#646A82] flex items-center justify-center transition-colors shrink-0">
+            <svg id="sidebarCollapseIcon" class="w-3.5 h-3.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+        </div>
+
+        <!-- 11 Phân hệ đồng cấp -->
+        <nav class="p-2 space-y-0.5 overflow-y-auto max-h-[calc(100vh-155px)]">
+          <button onclick="notifyModule('Tổng quan')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            <span class="nav-label truncate">Tổng quan</span>
+          </button>
+
+          <button onclick="notifyModule('Datahub')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <span class="nav-label truncate">Datahub</span>
+          </button>
+
+          <button onclick="notifyModule('Quản lý Deal')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span class="nav-label truncate">Quản lý Deal</span>
+          </button>
+
+          <button onclick="notifyModule('Form')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+            <span class="nav-label truncate">Form</span>
+          </button>
+
+          <button onclick="notifyModule('Onboarding')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            <span class="nav-label truncate">Onboarding</span>
+          </button>
+
+          <!-- ACTIVE BY DEFAULT: KNOWLEDGE -->
+          <button id="nav-knowledge" onclick="switchHub('knowledge')" class="nav-item relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-semibold bg-[#EEF0FF] text-[#4F46E5] transition-colors">
+            <span class="nav-accent absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-[#4F46E5]"></span>
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <span class="nav-label truncate">Knowledge</span>
+          </button>
+
+          <!-- SWITCHABLE: AI HUB -->
+          <button id="nav-aihub" onclick="switchHub('aihub')" class="nav-item relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+            <span class="nav-accent hidden absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-[#4F46E5]"></span>
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4L22 12l-7.6 2.6L12 22l-2.4-7.4L2 12l7.6-2.6z"/></svg>
+            <span class="nav-label truncate">AI Hub</span>
+          </button>
+
+          <button onclick="notifyModule('Dashboard chia sẻ')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span class="nav-label truncate">Dashboard chia sẻ</span>
+          </button>
+
+          <button onclick="notifyModule('Nhắc hẹn')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="nav-label truncate">Nhắc hẹn</span>
+          </button>
+
+          <button onclick="notifyModule('Thông báo chung')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="nav-label truncate">Thông báo chung</span>
+          </button>
+
+          <button onclick="notifyModule('Org chart')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span class="nav-label truncate">Org chart</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Bottom: Cài đặt & Đăng xuất -->
+      <div class="p-2 border-t border-slate-200/75 space-y-0.5">
+        <button onclick="notifyModule('Cài đặt')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="nav-label truncate">Cài đặt</span>
+        </button>
+        <button onclick="showToast('Đã khóa phiên làm việc của Khuê Võ')" class="nav-item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-rose-600/85 hover:bg-rose-50 transition-colors">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="nav-label truncate">Đăng xuất</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- =================================================================== -->
+    <!-- MAIN WORKSPACE COLUMN                                               -->
+    <!-- =================================================================== -->
+    <div class="flex-1 flex flex-col min-w-0 bg-white">
+
+      <!-- TOP NAVIGATOR BAR (48px - KHÔNG Ô SEARCH THỪA) -->
+      <header class="h-[48px] px-4 lg:px-6 border-b border-slate-200/80 flex items-center justify-between gap-3 shrink-0 bg-white z-10">
+        <!-- Breadcrumb cỡ chữ đồng đều -->
+        <div class="flex items-center gap-2 text-[14px] min-w-0">
+          <span id="breadcrumbRoot" class="font-semibold text-[#1E1B3A] truncate">Knowledge</span>
+          <span class="text-slate-300">/</span>
+          <span id="breadcrumbSub" class="font-medium text-[#646A82] truncate">Kho tri thức</span>
+        </div>
+
+        <!-- Right Actions -->
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- Nút Bài của tôi / Skill của tôi -->
+          <button id="myItemsToggleBtn" onclick="toggleMyItems()" class="h-8 px-3 rounded-[9px] border border-slate-200 bg-white hover:bg-slate-50 text-[12.5px] font-medium text-[#1E1B3A] flex items-center gap-1.5 transition-colors">
+            <svg class="w-3.5 h-3.5 text-[#646A82]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            <span id="myItemsBtnLabel">Bài của tôi</span>
+          </button>
+
+          <!-- Nút Hành động chính (+ Viết bài / + Tải lên skill) -->
+          <button id="primaryCreateBtn" onclick="openCreateModal()" class="h-8 px-3.5 rounded-[9px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12.5px] font-semibold flex items-center gap-1.5 shadow-2xs transition-colors">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span id="primaryCreateBtnLabel">Viết bài</span>
+          </button>
+
+          <div class="h-4 w-[1px] bg-slate-200 mx-0.5"></div>
+
+          <!-- Chuông thông báo (11) -->
+          <div class="relative">
+            <button onclick="toggleNotifPopover()" class="w-8 h-8 rounded-[9px] hover:bg-slate-100 text-[#646A82] hover:text-[#1E1B3A] flex items-center justify-center relative transition-colors" title="Thông báo">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span class="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center tabular">11</span>
+            </button>
+            <!-- Popover thông báo nhanh -->
+            <div id="notifPopover" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-[14px] border border-slate-200 shadow-xl p-3 z-40">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                <span class="text-[12.5px] font-bold text-[#1E1B3A]">Thông báo mới (11)</span>
+                <button onclick="toggleNotifPopover()" class="text-[11px] text-[#4F46E5] font-semibold hover:underline">Đóng</button>
+              </div>
+              <div class="space-y-2 text-[12px]">
+                <div class="p-2 rounded-lg bg-[#EEF0FF]/60">
+                  <p class="font-medium text-[#1E1B3A]">Hà Tùng vừa đăng bài mới trong <span class="text-[#4F46E5] font-semibold">Knowledge</span></p>
+                  <p class="text-[11px] text-[#646A82] mt-0.5">"Kinh nghiệm chốt Deal POD khách hàng 300+ nhân sự" · 12 phút trước</p>
+                </div>
+                <div class="p-2 rounded-lg hover:bg-slate-50">
+                  <p class="font-medium text-[#1E1B3A]">Dương Trần chia sẻ Skill <span class="text-amber-600 font-semibold">Claude</span></p>
+                  <p class="text-[11px] text-[#646A82] mt-0.5">"Tóm tắt yêu cầu nghiệp vụ Base Request" · 1 giờ trước</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hồ sơ Khuê Võ -->
+          <div class="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-[9px] hover:bg-slate-100/80 cursor-pointer transition-colors">
+            <div class="w-6 h-6 rounded-full bg-indigo-100 text-[#4F46E5] font-bold text-[11px] flex items-center justify-center">KV</div>
+            <span class="text-[12.5px] font-semibold text-[#1E1B3A] hidden sm:inline">Khuê Võ</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- ================================================================= -->
+      <!-- SCROLLABLE CONTENT AREA                                           -->
+      <!-- ================================================================= -->
+      <main class="flex-1 overflow-y-auto bg-[#F8F9FC] p-4 lg:p-6">
+
+        <!-- =============================================================== -->
+        <!-- VIEW 1: KNOWLEDGE (KHO TRI THỨC & KINH NGHIỆM NỘI BỘ)           -->
+        <!-- =============================================================== -->
+        <div id="view-knowledge" class="max-w-[1260px] mx-auto space-y-5">
+
+          <!-- KHỐI TÌM KIẾM & LỌC SIÊU GỌN (CHỈ 1 Ô SEARCH DUY NHẤT) -->
+          <section class="bg-white rounded-[16px] border border-slate-200/85 p-4 lg:p-5 shadow-2xs space-y-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h1 class="font-display text-[18px] font-bold text-[#1E1B3A]">Kho tri thức &amp; Kinh nghiệm triển khai</h1>
+                <p class="text-[12.5px] text-[#646A82] mt-0.5">Tra cứu tài liệu sản phẩm Base, quy trình nội bộ và bài học thực chiến của team SoE Hub.</p>
+              </div>
+              <span id="knResultCount" class="px-2.5 py-1 rounded-full bg-[#EEF0FF] text-[#4F46E5] text-[11.5px] font-semibold tabular">8 bài viết</span>
+            </div>
+
+            <!-- 1 Ô SEARCH THÔNG MINH DUY NHẤT (TIÊU ĐỀ, NỘI DUNG KHÔNG DẤU & #THẺ) -->
+            <div class="relative">
+              <svg class="w-4 h-4 text-[#4F46E5] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input id="knSearchInput" type="text" oninput="renderKnowledge()" placeholder="Tìm tiêu đề, nội dung (không dấu cũng được) hoặc gõ #thẻ (vd: #Wework, cong tac phi, sizing 300)..." class="w-full h-10 pl-10 pr-20 rounded-[11px] bg-[#FAF9FE] border border-slate-200 focus:border-[#4F46E5] focus:bg-white focus:outline-none text-[13px] text-[#1E1B3A] placeholder-[#646A82] transition-all" />
+              <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                <button id="knClearInputBtn" onclick="clearKnSearchInput()" title="Xóa từ khóa" class="hidden w-5 h-5 rounded-full bg-slate-200/80 hover:bg-slate-300 text-[#1E1B3A] text-[11px] font-bold flex items-center justify-center">×</button>
+                <span class="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[10.5px] font-mono-code text-[#646A82]">⌘K</span>
+              </div>
+            </div>
+
+            <!-- Pill thẻ phổ biến bấm 1 chạm -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[11.5px] font-semibold text-[#646A82] mr-1">Thẻ phổ biến:</span>
+              <button onclick="quickKnTag('Wework')" class="px-2.5 py-0.5 rounded-full bg-indigo-50/80 hover:bg-[#EEF0FF] text-[#4F46E5] border border-indigo-200/70 text-[11.5px] font-semibold transition-colors">#Wework</button>
+              <button onclick="quickKnTag('Request')" class="px-2.5 py-0.5 rounded-full bg-emerald-50/80 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/70 text-[11.5px] font-semibold transition-colors">#Request</button>
+              <button onclick="quickKnTag('Service')" class="px-2.5 py-0.5 rounded-full bg-sky-50/80 hover:bg-sky-100/80 text-sky-700 border border-sky-200/70 text-[11.5px] font-semibold transition-colors">#Service</button>
+              <button onclick="quickKnTag('Onboarding')" class="px-2.5 py-0.5 rounded-full bg-amber-50/80 hover:bg-amber-100/80 text-amber-800 border border-amber-200/70 text-[11.5px] font-semibold transition-colors">#Onboarding</button>
+              <button onclick="quickKnTag('Deal')" class="px-2.5 py-0.5 rounded-full bg-purple-50/80 hover:bg-purple-100/80 text-purple-700 border border-purple-200/70 text-[11.5px] font-semibold transition-colors">#Deal</button>
+            </div>
+
+            <!-- 1 HÀNG LỌC DUY NHẤT: Tab danh mục bên trái + 2 Dropdown & Xóa lọc bên phải -->
+            <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+              <div id="knCategoryTabs" class="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                <button onclick="setKnCategory('ALL', this)" class="kn-tab px-2.5 py-1 rounded-[8px] bg-[#EEF0FF] text-[#4F46E5] text-[12px] font-semibold shrink-0">Tất cả</button>
+                <button onclick="setKnCategory('Sản phẩm', this)" class="kn-tab px-2.5 py-1 rounded-[8px] text-[#646A82] hover:bg-slate-100 text-[12px] font-medium shrink-0">Sản phẩm</button>
+                <button onclick="setKnCategory('Quy trình', this)" class="kn-tab px-2.5 py-1 rounded-[8px] text-[#646A82] hover:bg-slate-100 text-[12px] font-medium shrink-0">Quy trình</button>
+                <button onclick="setKnCategory('Kinh nghiệm', this)" class="kn-tab px-2.5 py-1 rounded-[8px] text-[#646A82] hover:bg-slate-100 text-[12px] font-medium shrink-0">Kinh nghiệm</button>
+                <button onclick="setKnCategory('Onboarding', this)" class="kn-tab px-2.5 py-1 rounded-[8px] text-[#646A82] hover:bg-slate-100 text-[12px] font-medium shrink-0">Onboarding</button>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <select id="knTypeFilter" onchange="renderKnowledge()" class="h-8 px-2.5 rounded-[8px] bg-white border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[12px] font-medium text-[#1E1B3A] cursor-pointer">
+                  <option value="ALL">Loại: Tất cả</option>
+                  <option value="Hướng dẫn">Hướng dẫn</option>
+                  <option value="Case Study">Case Study</option>
+                  <option value="Checklist">Checklist</option>
+                </select>
+
+                <select id="knSortSelect" onchange="renderKnowledge()" class="h-8 px-2.5 rounded-[8px] bg-white border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[12px] font-medium text-[#1E1B3A] cursor-pointer">
+                  <option value="relevance">Sắp xếp: Độ khớp</option>
+                  <option value="newest">Sắp xếp: Mới nhất</option>
+                  <option value="views">Sắp xếp: Xem nhiều</option>
+                </select>
+
+                <button id="knResetAllBtn" onclick="resetKnowledgeFilters()" class="hidden h-8 px-2.5 rounded-[8px] bg-rose-50 hover:bg-rose-100 text-rose-600 text-[12px] font-semibold transition-colors">
+                  × Xóa lọc
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- BỐ CỤC 2 CỘT KNOWLEDGE: LƯỚI BÀI VIẾT + CỘT PHỤ BẢNG XẾP HẠNG (260px) -->
+          <div class="flex flex-col lg:flex-row gap-5 items-start">
+            <!-- Cột chính: Lưới 2 cột thẻ bài viết -->
+            <div id="knArticlesGrid" class="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Rendered by JS -->
+            </div>
+
+            <!-- Cột phụ bên phải (260px) -->
+            <aside class="w-full lg:w-[260px] shrink-0 space-y-4">
+              <!-- Xem nhiều tuần này -->
+              <div class="bg-white rounded-[16px] border border-slate-200/85 p-4 shadow-2xs">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="w-2 h-2 rounded-full bg-[#4F46E5]"></span>
+                  <h2 class="font-display text-[13.5px] font-bold text-[#1E1B3A]">Xem nhiều tuần này</h2>
+                </div>
+                <div id="knTopViewsList" class="space-y-2.5">
+                  <!-- Rendered by JS -->
+                </div>
+              </div>
+
+              <!-- Đóng góp tích cực (Team 20 người) -->
+              <div class="bg-white rounded-[16px] border border-slate-200/85 p-4 shadow-2xs">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <h2 class="font-display text-[13.5px] font-bold text-[#1E1B3A]">Đóng góp tích cực</h2>
+                  </div>
+                  <span class="text-[11px] text-[#646A82]">Tháng 11</span>
+                </div>
+                <div class="space-y-2.5 text-[12.5px]">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-indigo-100 text-[#4F46E5] font-bold text-[10.5px] flex items-center justify-center">DT</span>
+                      <span class="font-medium text-[#1E1B3A]">Dương Trần</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full bg-indigo-50 text-[#4F46E5] text-[11px] font-semibold tabular">14 bài</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[10.5px] flex items-center justify-center">HT</span>
+                      <span class="font-medium text-[#1E1B3A]">Hà Tùng</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold tabular">11 bài</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-800 font-bold text-[10.5px] flex items-center justify-center">KV</span>
+                      <span class="font-medium text-[#1E1B3A]">Khuê Võ</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[11px] font-semibold tabular">9 bài</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-sky-100 text-sky-700 font-bold text-[10.5px] flex items-center justify-center">LN</span>
+                      <span class="font-medium text-[#1E1B3A]">Linh Nguyễn</span>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 text-[11px] font-semibold tabular">7 bài</span>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- VIEW 2: AI HUB (THƯ VIỆN SKILL AI & PROMPT NỘI BỘ)              -->
+        <!-- =============================================================== -->
+        <div id="view-aihub" class="hidden max-w-[1260px] mx-auto space-y-5">
+
+          <!-- KHỐI TÌM KIẾM & LỌC SIÊU GỌN (CHỈ 1 Ô SEARCH DUY NHẤT) -->
+          <section class="bg-white rounded-[16px] border border-slate-200/85 p-4 lg:p-5 shadow-2xs space-y-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h1 class="font-display text-[18px] font-bold text-[#1E1B3A]">Thư viện Skill AI &amp; Prompt chuẩn hóa</h1>
+                <p class="text-[12.5px] text-[#646A82] mt-0.5">Kho lệnh mẫu, System Prompt và quy trình tự động hóa dùng chung cho 20 thành viên SoE Hub.</p>
+              </div>
+              <span id="aiResultCount" class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11.5px] font-semibold tabular">6 skill</span>
+            </div>
+
+            <!-- 1 Ô SEARCH THÔNG MINH DUY NHẤT -->
+            <div class="relative">
+              <svg class="w-4 h-4 text-[#4F46E5] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input id="aiSearchInput" type="text" oninput="renderAiHub()" placeholder="Tìm tên skill, mô tả, prompt (không dấu cũng được) hoặc gõ #thẻ (vd: #Sales, #SQL, #BaoCao)..." class="w-full h-10 pl-10 pr-20 rounded-[11px] bg-[#FAF9FE] border border-slate-200 focus:border-[#4F46E5] focus:bg-white focus:outline-none text-[13px] text-[#1E1B3A] placeholder-[#646A82] transition-all" />
+              <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                <button id="aiClearInputBtn" onclick="clearAiSearchInput()" title="Xóa từ khóa" class="hidden w-5 h-5 rounded-full bg-slate-200/80 hover:bg-slate-300 text-[#1E1B3A] text-[11px] font-bold flex items-center justify-center">×</button>
+                <span class="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[10.5px] font-mono-code text-[#646A82]">⌘K</span>
+              </div>
+            </div>
+
+            <!-- Pill thẻ phổ biến AI Hub -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[11.5px] font-semibold text-[#646A82] mr-1">Thẻ phổ biến:</span>
+              <button onclick="quickAiTag('Sales')" class="px-2.5 py-0.5 rounded-full bg-amber-50/80 hover:bg-amber-100/80 text-amber-800 border border-amber-200/70 text-[11.5px] font-semibold transition-colors">#Sales</button>
+              <button onclick="quickAiTag('SQL')" class="px-2.5 py-0.5 rounded-full bg-indigo-50/80 hover:bg-[#EEF0FF] text-[#4F46E5] border border-indigo-200/70 text-[11.5px] font-semibold transition-colors">#SQL</button>
+              <button onclick="quickAiTag('BaoCao')" class="px-2.5 py-0.5 rounded-full bg-emerald-50/80 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/70 text-[11.5px] font-semibold transition-colors">#BaoCao</button>
+              <button onclick="quickAiTag('Prompt')" class="px-2.5 py-0.5 rounded-full bg-purple-50/80 hover:bg-purple-100/80 text-purple-700 border border-purple-200/70 text-[11.5px] font-semibold transition-colors">#Prompt</button>
+              <button onclick="quickAiTag('CSKH')" class="px-2.5 py-0.5 rounded-full bg-sky-50/80 hover:bg-sky-100/80 text-sky-700 border border-sky-200/70 text-[11.5px] font-semibold transition-colors">#CSKH</button>
+            </div>
+
+            <!-- 1 HÀNG LỌC DUY NHẤT: Tab Client AI bên trái + 2 Dropdown & Xóa lọc bên phải -->
+            <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+              <div id="aiClientTabs" class="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                <button onclick="setAiClient('ALL', this)" class="ai-tab px-2.5 py-1 rounded-[8px] bg-[#EEF0FF] text-[#4F46E5] text-[12px] font-semibold shrink-0">Tất cả</button>
+                <button onclick="setAiClient('Claude', this)" class="ai-tab px-2.5 py-1 rounded-[8px] text-[#646A82] hover:bg-slate-100 text-[12px] font-medium shrink-0">Claude</button>
+                <button onclick="setAiClient('Gemini', this)" class="ai-tab px-2.5 py-1 rounded-[8px] text-[#646A82] hover:bg-slate-100 text-[12px] font-medium shrink-0">Gemini</button>
+                <button onclick="setAiClient('ChatGPT', this)" class="ai-tab px-2.5 py-1 rounded-[8px] text-[#646A82] hover:bg-slate-100 text-[12px] font-medium shrink-0">ChatGPT</button>
+                <button onclick="setAiClient('Cursor / n8n', this)" class="ai-tab px-2.5 py-1 rounded-[8px] text-[#646A82] hover:bg-slate-100 text-[12px] font-medium shrink-0">Cursor / n8n</button>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <select id="aiGroupFilter" onchange="renderAiHub()" class="h-8 px-2.5 rounded-[8px] bg-white border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[12px] font-medium text-[#1E1B3A] cursor-pointer">
+                  <option value="ALL">Nhóm: Tất cả</option>
+                  <option value="Sales & Deal">Sales &amp; Deal</option>
+                  <option value="CSKH & Triển khai">CSKH &amp; Triển khai</option>
+                  <option value="Dữ liệu & Báo cáo">Dữ liệu &amp; Báo cáo</option>
+                </select>
+
+                <select id="aiSortSelect" onchange="renderAiHub()" class="h-8 px-2.5 rounded-[8px] bg-white border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[12px] font-medium text-[#1E1B3A] cursor-pointer">
+                  <option value="newest">Sắp xếp: Mới nhất</option>
+                  <option value="uses">Sắp xếp: Dùng nhiều</option>
+                </select>
+
+                <button id="aiResetAllBtn" onclick="resetAiFilters()" class="hidden h-8 px-2.5 rounded-[8px] bg-rose-50 hover:bg-rose-100 text-rose-600 text-[12px] font-semibold transition-colors">
+                  × Xóa lọc
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- LƯỚI THẺ SKILL AI CÔNG THÁI HỌC -->
+          <div id="aiSkillsGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- SLIDE-OVER DRAWER: ĐỌC BÀI VIẾT KNOWLEDGE / DÙNG THỬ SKILL AI       -->
+    <!-- =================================================================== -->
+    <div id="drawerBackdrop" onclick="closeDetailDrawer()" class="hidden fixed inset-0 bg-slate-900/25 backdrop-blur-[1px] z-40"></div>
+    <aside id="detailDrawer" class="hidden fixed top-2 right-2 bottom-2 w-full max-w-[560px] bg-white rounded-[18px] border border-slate-200 shadow-2xl z-50 flex flex-col overflow-hidden drawer-enter">
+      <!-- Drawer Header -->
+      <div class="px-5 py-3.5 border-b border-slate-200/80 flex items-center justify-between gap-3 bg-[#FAF9FC]">
+        <div id="drawerBadgeArea" class="flex items-center gap-2"></div>
+        <button onclick="closeDetailDrawer()" class="w-7 h-7 rounded-lg hover:bg-slate-200/70 text-[#646A82] flex items-center justify-center font-bold">✕</button>
+      </div>
+      <!-- Drawer Body -->
+      <div id="drawerBody" class="flex-1 overflow-y-auto p-5 space-y-4">
+        <!-- Populated dynamically -->
+      </div>
+      <!-- Drawer Footer -->
+      <div id="drawerFooter" class="px-5 py-3 border-t border-slate-200/80 bg-white flex items-center justify-between gap-2">
+        <!-- Populated dynamically -->
+      </div>
+    </aside>
+
+    <!-- =================================================================== -->
+    <!-- MODAL: VIẾT BÀI KNOWLEDGE MỚI                                       -->
+    <!-- =================================================================== -->
+    <div id="createArticleModal" class="hidden fixed inset-0 bg-slate-900/30 backdrop-blur-[1px] z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-[18px] border border-slate-200 shadow-2xl w-full max-w-[540px] overflow-hidden">
+        <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-[#FAF9FC]">
+          <h3 class="font-display font-bold text-[15px] text-[#1E1B3A]">Viết bài chia sẻ kiến thức mới</h3>
+          <button onclick="closeModals()" class="w-7 h-7 rounded-lg hover:bg-slate-200/70 text-[#646A82] font-bold">✕</button>
+        </div>
+        <div class="p-5 space-y-3.5 text-[13px]">
+          <div>
+            <label class="block font-semibold text-[#1E1B3A] mb-1">Tiêu đề bài viết <span class="text-rose-500">*</span></label>
+            <input id="newArtTitle" type="text" placeholder="Ví dụ: Hướng dẫn cấu hình luồng duyệt công tác phí trên Base Request" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-[#1E1B3A] mb-1">Danh mục</label>
+              <select id="newArtCategory" class="w-full h-9 px-2.5 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none bg-white">
+                <option value="Sản phẩm">Sản phẩm</option>
+                <option value="Quy trình">Quy trình</option>
+                <option value="Kinh nghiệm">Kinh nghiệm</option>
+                <option value="Onboarding">Onboarding</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-[#1E1B3A] mb-1">Loại bài</label>
+              <select id="newArtType" class="w-full h-9 px-2.5 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none bg-white">
+                <option value="Hướng dẫn">Hướng dẫn</option>
+                <option value="Case Study">Case Study</option>
+                <option value="Checklist">Checklist</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block font-semibold text-[#1E1B3A] mb-1">Thẻ (cách nhau bởi dấu phẩy)</label>
+            <input id="newArtTags" type="text" placeholder="Wework, Request, Onboarding" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none" />
+          </div>
+          <div>
+            <label class="block font-semibold text-[#1E1B3A] mb-1">Nội dung chi tiết <span class="text-rose-500">*</span></label>
+            <textarea id="newArtContent" rows="4" placeholder="Ghi lại các bước thực hiện, lưu ý quan trọng hoặc bài học rút ra..." class="w-full p-3 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none"></textarea>
+          </div>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-100 bg-[#FAF9FC] flex justify-end gap-2">
+          <button onclick="closeModals()" class="h-8 px-3.5 rounded-[9px] border border-slate-200 bg-white text-[12.5px] font-medium text-[#646A82] hover:bg-slate-50">Hủy</button>
+          <button onclick="submitNewArticle()" class="h-8 px-4 rounded-[9px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12.5px] font-semibold">Đăng bài ngay</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL: TẢI LÊN SKILL AI MỚI                                         -->
+    <!-- =================================================================== -->
+    <div id="createSkillModal" class="hidden fixed inset-0 bg-slate-900/30 backdrop-blur-[1px] z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-[18px] border border-slate-200 shadow-2xl w-full max-w-[540px] overflow-hidden">
+        <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-[#FAF9FC]">
+          <h3 class="font-display font-bold text-[15px] text-[#1E1B3A]">Tải lên Skill AI / Prompt mới</h3>
+          <button onclick="closeModals()" class="w-7 h-7 rounded-lg hover:bg-slate-200/70 text-[#646A82] font-bold">✕</button>
+        </div>
+        <div class="p-5 space-y-3.5 text-[13px]">
+          <div onclick="simulateFileDrop()" class="border-2 border-dashed border-indigo-200 hover:border-[#4F46E5] bg-[#FAF9FE] rounded-[12px] p-3.5 text-center cursor-pointer transition-colors">
+            <p class="font-semibold text-[#4F46E5] text-[12.5px]">+ Chọn hoặc kéo thả tệp cấu hình (.md, .json)</p>
+            <p id="uploadedFileHint" class="text-[11px] text-[#646A82] mt-0.5">Tự động trích xuất System Prompt và tham số đầu vào</p>
+          </div>
+          <div>
+            <label class="block font-semibold text-[#1E1B3A] mb-1">Tên Skill AI <span class="text-rose-500">*</span></label>
+            <input id="newSkillTitle" type="text" placeholder="Ví dụ: Phân tích rò rỉ Pipeline Deal theo tuần" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-[#1E1B3A] mb-1">Client AI</label>
+              <select id="newSkillClient" class="w-full h-9 px-2.5 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none bg-white">
+                <option value="Claude">Claude</option>
+                <option value="Gemini">Gemini</option>
+                <option value="ChatGPT">ChatGPT</option>
+                <option value="Cursor / n8n">Cursor / n8n</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-[#1E1B3A] mb-1">Nhóm nghiệp vụ</label>
+              <select id="newSkillGroup" class="w-full h-9 px-2.5 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none bg-white">
+                <option value="Sales & Deal">Sales &amp; Deal</option>
+                <option value="CSKH & Triển khai">CSKH &amp; Triển khai</option>
+                <option value="Dữ liệu & Báo cáo">Dữ liệu &amp; Báo cáo</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block font-semibold text-[#1E1B3A] mb-1">Thẻ (cách nhau bởi dấu phẩy)</label>
+            <input id="newSkillTags" type="text" placeholder="Sales, BaoCao, Prompt" class="w-full h-9 px-3 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none" />
+          </div>
+          <div>
+            <label class="block font-semibold text-[#1E1B3A] mb-1">System Prompt / Lệnh mẫu <span class="text-rose-500">*</span></label>
+            <textarea id="newSkillPrompt" rows="4" placeholder="Nhập nội dung System Prompt chuẩn hóa để đồng nghiệp sao chép..." class="w-full p-3 rounded-[9px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none font-mono-code text-[12px]"></textarea>
+          </div>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-100 bg-[#FAF9FC] flex justify-end gap-2">
+          <button onclick="closeModals()" class="h-8 px-3.5 rounded-[9px] border border-slate-200 bg-white text-[12.5px] font-medium text-[#646A82] hover:bg-slate-50">Hủy</button>
+          <button onclick="submitNewSkill()" class="h-8 px-4 rounded-[9px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12.5px] font-semibold">Lưu Skill lên AI Hub</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST MESSAGE -->
+    <div id="toastBox" class="hidden fixed bottom-5 right-5 z-50 bg-[#1E1B3A] text-white px-4 py-2.5 rounded-[12px] shadow-xl text-[12.5px] font-medium flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+      <span id="toastText">Đã sao chép</span>
+    </div>
+
+  </div>
+
+  <script>
+    // =========================================================================
+    // DỮ LIỆU MẪU THỰC TẾ CHO TEAM 20 NHÂN SỰ SOE HUB
+    // =========================================================================
+    let ARTICLES = [
+      {
+        id: 1,
+        title: "Cấu hình luồng duyệt công tác phí nhiều cấp trên Base Request",
+        excerpt: "Hướng dẫn chi tiết cách thiết lập điều kiện rẽ nhánh theo hạn mức ngân sách và tự động đẩy dữ liệu sang bảng thanh toán.",
+        category: "Sản phẩm",
+        type: "Hướng dẫn",
+        tags: ["Request", "Onboarding"],
+        author: "Dương Trần",
+        initials: "DT",
+        avatarBg: "bg-indigo-100 text-[#4F46E5]",
+        accentColor: "#4F46E5",
+        date: "14/11/2026",
+        views: 248,
+        likes: 34,
+        liked: false,
+        saved: true,
+        toc: ["1. Tổng quan bài toán duyệt chi", "2. Thiết lập điều kiện rẽ nhánh", "3. Kiểm thử & bàn giao"],
+        content: [
+          "Khi khách hàng có quy mô từ 150 nhân sự trở lên, quy trình đề xuất tạm ứng và hoàn ứng công tác phí thường tách làm 2 luồng: dưới 5 triệu duyệt qua Trưởng bộ phận, trên 5 triệu cần thêm Giám đốc tài chính.",
+          "Trên Base Request, bạn tạo trường dữ liệu Số tiền dự kiến (kiểu Tiền), sau đó tại tab Luồng duyệt bật chế độ Điều kiện theo khối (Block) để định tuyến tự động mà không cần tạo nhiều mẫu đề xuất rời rạc.",
+          "Lưu ý: Bật tùy chọn Khóa chỉnh sửa sau khi bước 1 đã phê duyệt để đảm bảo tính toàn vẹn số liệu kế toán."
+        ]
+      },
+      {
+        id: 2,
+        title: "Kinh nghiệm tư vấn gói POD bán mới cho doanh nghiệp 300+ nhân sự",
+        excerpt: "Tổng hợp 5 câu hỏi chốt hạ giúp tăng tỷ lệ Winrate (CR2) khi khách hàng phân vân giữa triển khai chuẩn và tùy chỉnh sâu.",
+        category: "Kinh nghiệm",
+        type: "Case Study",
+        tags: ["Deal", "Wework"],
+        author: "Hà Tùng",
+        initials: "HT",
+        avatarBg: "bg-emerald-100 text-emerald-700",
+        accentColor: "#10B981",
+        date: "12/11/2026",
+        views: 312,
+        likes: 49,
+        liked: true,
+        saved: false,
+        toc: ["1. Chân dung khách hàng sizing 300", "2. Cách bóc tách phạm vi POD", "3. Xử lý từ chối về thời gian go-live"],
+        content: [
+          "Với nhóm khách hàng sizing 300 nhân sự, điểm nghẽn lớn nhất không nằm ở tính năng đơn lẻ mà ở sự liên thông dữ liệu giữa Wework, Request và báo cáo điều hành.",
+          "Thay vì demo dàn trải toàn bộ phân hệ, hãy tập trung 20 phút đầu vào đúng 1 luồng nghiệp vụ đau nhất của ban giám đốc, sau đó chốt phạm vi gói POD ngay trong buổi họp thứ hai.",
+          "Theo số liệu Quý 3, các deal có kèm bản đồ luồng dữ liệu mẫu ngay từ bước báo giá đạt tỷ lệ ký cao hơn 28%."
+        ]
+      },
+      {
+        id: 3,
+        title: "Checklist 12 bước bàn giao dự án Base Service đạt SLA 99%",
+        excerpt: "Bộ tiêu chuẩn nghiệm thu cấu hình Ticket, phân quyền nhóm xử lý và thiết lập cảnh báo quá hạn trước khi go-live.",
+        category: "Quy trình",
+        type: "Checklist",
+        tags: ["Service", "Onboarding"],
+        author: "Khuê Võ",
+        initials: "KV",
+        avatarBg: "bg-amber-100 text-amber-800",
+        accentColor: "#F59E0B",
+        date: "10/11/2026",
+        views: 195,
+        likes: 27,
+        liked: false,
+        saved: true,
+        toc: ["1. Chuẩn hóa danh mục Ticket", "2. Cấu hình SLA theo mức độ ưu tiên", "3. Đào tạo đội ngũ vận hành"],
+        content: [
+          "Trước ngày go-live chính thức 48 giờ, chuyên viên triển khai cần rà soát toàn bộ bộ đếm SLA theo giờ làm việc thực tế của khách hàng (loại trừ thứ 7, Chủ nhật và ngày lễ).",
+          "Đảm bảo mỗi nhóm dịch vụ đều có người điều phối dự phòng để tránh tình trạng ticket rơi vào hàng đợi chung mà không có người nhận.",
+          "Gửi kèm tài liệu hướng dẫn nhanh 1 trang A4 cho nhân sự đầu mối của khách hàng."
+        ]
+      },
+      {
+        id: 4,
+        title: "Phân biệt Sub-task và To-do checklist trong quản trị dự án Wework",
+        excerpt: "Giải đáp câu hỏi thường gặp trong bài kiểm tra Onboarding về cách tổ chức đầu việc nhiều người phối hợp.",
+        category: "Onboarding",
+        type: "Hướng dẫn",
+        tags: ["Wework", "Onboarding"],
+        author: "Linh Nguyễn",
+        initials: "LN",
+        avatarBg: "bg-sky-100 text-sky-700",
+        accentColor: "#0EA5E9",
+        date: "08/11/2026",
+        views: 276,
+        likes: 41,
+        liked: false,
+        saved: false,
+        toc: ["1. Khi nào dùng To-do checklist", "2. Khi nào tách thành Sub-task", "3. Ảnh hưởng tới báo cáo tiến độ"],
+        content: [
+          "To-do checklist phù hợp cho các bước kiểm tra nhỏ do chính người thực hiện công việc chính tự quản lý, không cần tách hạn chót hay người phụ trách riêng.",
+          "Ngược lại, Sub-task là một công việc độc lập có người nhận riêng, deadline riêng và được tính vào biểu đồ khối lượng công việc của từng thành viên.",
+          "Nắm vững nguyên tắc này giúp bảng tiến độ dự án luôn gọn gàng mà vẫn đo lường chính xác năng suất từng nhân sự."
+        ]
+      },
+      {
+        id: 5,
+        title: "Quy chuẩn đặt tên bảng và trường dữ liệu trên Datahub SoE Hub",
+        excerpt: "Thống nhất quy tắc đặt mã trường để dễ dàng đồng bộ với Dynamic Form và báo cáo Dashboard chia sẻ.",
+        category: "Quy trình",
+        type: "Hướng dẫn",
+        tags: ["Onboarding", "Deal"],
+        author: "Khuê Võ",
+        initials: "KV",
+        avatarBg: "bg-amber-100 text-amber-800",
+        accentColor: "#8B5CF6",
+        date: "05/11/2026",
+        views: 164,
+        likes: 22,
+        liked: false,
+        saved: false,
+        toc: ["1. Quy tắc đặt tên bảng", "2. Mã tham số liên kết Form", "3. Kiểm tra trùng lặp dữ liệu"],
+        content: [
+          "Mọi bảng dữ liệu mới tạo trên Datahub cần có tên ngắn gọn, phản ánh đúng đối tượng lưu trữ và tránh dùng ký tự đặc biệt.",
+          "Khi kết nối với Dynamic Form có trường ẩn lấy từ URL, sử dụng mã tham số viết liền không dấu ngăn cách bằng dấu gạch dưới (ví dụ: ma_chien_dich, nguon_lead).",
+          "Định kỳ cuối tuần sử dụng công cụ Tìm dòng trùng trên thanh công cụ bảng để làm sạch dữ liệu."
+        ]
+      },
+      {
+        id: 6,
+        title: "Thiết lập tự động nhắc báo cáo cuối ngày lúc 18:00 qua Nhắc hẹn",
+        excerpt: "Cách cấu hình lịch nhắc tự động cho các thành viên chưa nộp báo cáo công việc cuối ngày.",
+        category: "Sản phẩm",
+        type: "Hướng dẫn",
+        tags: ["Wework", "Service"],
+        author: "Dương Trần",
+        initials: "DT",
+        avatarBg: "bg-indigo-100 text-[#4F46E5]",
+        accentColor: "#4F46E5",
+        date: "02/11/2026",
+        views: 142,
+        likes: 19,
+        liked: false,
+        saved: false,
+        toc: ["1. Tạo điều kiện kiểm tra trạng thái", "2. Cấu hình khung giờ gửi thông báo", "3. Theo dõi tỷ lệ tuân thủ"],
+        content: [
+          "Hệ thống Nhắc hẹn cho phép quét trạng thái bản ghi trong bảng Báo cáo ngày vào lúc 17:45 và 18:00 hàng ngày.",
+          "Những thành viên chưa có bản ghi hợp lệ trong ngày sẽ nhận thông báo trực tiếp trên thanh Navigator Top của SoE Hub kèm nút Mở nhanh biểu mẫu điền báo cáo."
+        ]
+      }
+    ];
+
+    let SKILLS = [
+      {
+        id: 101,
+        title: "Phân tích rò rỉ Pipeline & Dự báo Forecast Deal",
+        client: "Claude",
+        group: "Sales & Deal",
+        desc: "Đọc dữ liệu bảng Deals & Đợt thanh toán để chỉ ra các deal có nguy cơ trễ hạn ký và đề xuất hành động chốt tuần này.",
+        tags: ["Sales", "BaoCao", "Prompt"],
+        author: "Hà Tùng",
+        uses: 184,
+        mine: false,
+        prompt: "Bạn là Chuyên gia Phân tích Doanh thu B2B của SoE Hub. Dựa trên danh sách Deal đính kèm (gồm Giá trị, Giai đoạn, Ngày tương tác cuối, Loại POD):\n1. Liệt kê top 5 deal chưa ký có giá trị cao nhất nhưng quá 7 ngày chưa cập nhật.\n2. Tính tỷ lệ chuyển đổi CR1 -> CR2 theo từng nguồn.\n3. Đề xuất kịch bản follow-up ngắn gọn cho từng deal."
+      },
+      {
+        id: 102,
+        title: "Sinh truy vấn SQL & Công thức lọc Datahub",
+        client: "Gemini",
+        group: "Dữ liệu & Báo cáo",
+        desc: "Chuyển đổi yêu cầu báo cáo bằng tiếng Việt tự nhiên thành câu lệnh SQL chuẩn xác và biểu thức tính hoa hồng.",
+        tags: ["SQL", "BaoCao"],
+        author: "Khuê Võ",
+        uses: 239,
+        mine: true,
+        prompt: "Hãy đóng vai Kỹ sư Dữ liệu SoE Hub. Chuyển yêu cầu nghiệp vụ sau thành câu lệnh SQL tối ưu (PostgreSQL) và giải thích ngắn gọn điều kiện lọc Cohort chín 90 ngày:\n[DÁN YÊU CẦU BÁO CÁO TẠI ĐÂY]"
+      },
+      {
+        id: 103,
+        title: "Soạn Email phản hồi & Xử lý khiếu nại SLA khách hàng",
+        client: "ChatGPT",
+        group: "CSKH & Triển khai",
+        desc: "Chuẩn hóa giọng văn chuyên nghiệp, thấu cảm khi phản hồi các ticket khẩn cấp hoặc thông báo gia hạn thời gian xử lý.",
+        tags: ["CSKH", "Prompt"],
+        author: "Linh Nguyễn",
+        uses: 156,
+        mine: false,
+        prompt: "Viết email phản hồi khách hàng doanh nghiệp bằng tiếng Việt chuyên nghiệp, lịch sự và rõ trách nhiệm:\n- Vấn đề gặp phải: [MÔ TẢ SỰ CỐ]\n- Nguyên nhân gốc rễ: [NGUYÊN NHÂN]\n- Phương án khắc phục & thời gian hoàn tất cam kết: [THỜI GIAN]"
+      },
+      {
+        id: 104,
+        title: "Tự động tổng hợp Q&A Onboarding thành tài liệu chuẩn",
+        client: "Claude",
+        group: "CSKH & Triển khai",
+        desc: "Biến các dòng hỏi đáp thô trong bảng Datahub Onboarding thành bài viết Knowledge có cấu trúc mục lục rõ ràng.",
+        tags: ["Prompt", "CSKH"],
+        author: "Dương Trần",
+        uses: 128,
+        mine: false,
+        prompt: "Từ danh sách các câu hỏi và trả lời Q&A dưới đây, hãy biên tập lại thành một bài hướng dẫn chuẩn trên SoE Hub Knowledge gồm: Tóm tắt bài toán, Các bước cấu hình chi tiết và 3 lưu ý tránh lỗi thường gặp."
+      },
+      {
+        id: 105,
+        title: "Workflow n8n đồng bộ Form phản hồi sang Slack & Datahub",
+        client: "Cursor / n8n",
+        group: "Dữ liệu & Báo cáo",
+        desc: "Cấu trúc JSON node mẫu giúp tự động bắt webhook từ Dynamic Form, kiểm tra trùng lặp và bắn cảnh báo cho người phụ trách.",
+        tags: ["SQL", "Sales", "BaoCao"],
+        author: "Khuê Võ",
+        uses: 97,
+        mine: true,
+        prompt: "// Cấu hình Webhook Trigger -> Datahub Upsert -> Notify\n{\n  \"trigger\": \"soe_form_submitted\",\n  \"deduplicate_by\": [\"email\", \"so_dien_thoai\"],\n  \"notify_channel\": \"#sales-deals-alert\"\n}"
+      },
+      {
+        id: 106,
+        title: "Tóm tắt biên bản họp triển khai & Tách đầu việc Wework",
+        client: "Gemini",
+        group: "CSKH & Triển khai",
+        desc: "Trích xuất nhanh quyết định chính, người phụ trách và hạn chót từ ghi chú cuộc họp kickoff với khách hàng.",
+        tags: ["CSKH", "Sales"],
+        author: "Hà Tùng",
+        uses: 211,
+        mine: false,
+        prompt: "Đọc biên bản họp dưới đây và xuất ra bảng gồm 4 cột: [Hạng mục công việc | Người phụ trách | Hạn hoàn thành | Mức độ ưu tiên]. Đánh dấu (*) các đầu việc phụ thuộc vào phía khách hàng."
+      }
+    ];
+
+    // =========================================================================
+    // STATE MANAGEMENT
+    // =========================================================================
+    let currentHub = 'knowledge';
+    let activeKnCategory = 'ALL';
+    let activeAiClient = 'ALL';
+    let onlyMyItems = false;
+
+    function normalizeText(str) {
+      return (str || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd');
+    }
+
+    // =========================================================================
+    // NAVIGATION & TOP BAR SWITCHING
+    // =========================================================================
+    function toggleSidebar() {
+      const sb = document.getElementById('leftSidebar');
+      const icon = document.getElementById('sidebarCollapseIcon');
+      sb.classList.toggle('collapsed');
+      icon.style.transform = sb.classList.contains('collapsed') ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+
+    function switchHub(hub) {
+      currentHub = hub;
+      onlyMyItems = false;
+      updateMyItemsBtn();
+
+      const viewKn = document.getElementById('view-knowledge');
+      const viewAi = document.getElementById('view-aihub');
+      const navKn = document.getElementById('nav-knowledge');
+      const navAi = document.getElementById('nav-aihub');
+
+      if (hub === 'knowledge') {
+        viewKn.classList.remove('hidden');
+        viewAi.classList.add('hidden');
+        setNavActive(navKn, true);
+        setNavActive(navAi, false);
+        document.getElementById('breadcrumbRoot').textContent = 'Knowledge';
+        document.getElementById('breadcrumbSub').textContent = 'Kho tri thức';
+        document.getElementById('myItemsBtnLabel').textContent = 'Bài của tôi';
+        document.getElementById('primaryCreateBtnLabel').textContent = 'Viết bài';
+        renderKnowledge();
+      } else {
+        viewKn.classList.add('hidden');
+        viewAi.classList.remove('hidden');
+        setNavActive(navKn, false);
+        setNavActive(navAi, true);
+        document.getElementById('breadcrumbRoot').textContent = 'AI Hub';
+        document.getElementById('breadcrumbSub').textContent = 'Thư viện Skill AI';
+        document.getElementById('myItemsBtnLabel').textContent = 'Skill của tôi';
+        document.getElementById('primaryCreateBtnLabel').textContent = 'Tải lên skill';
+        renderAiHub();
+      }
+    }
+
+    function setNavActive(el, active) {
+      const accent = el.querySelector('.nav-accent');
+      if (active) {
+        el.className = 'nav-item relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-semibold bg-[#EEF0FF] text-[#4F46E5] transition-colors';
+        if (accent) accent.classList.remove('hidden');
+      } else {
+        el.className = 'nav-item relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[13px] font-medium text-[#646A82] hover:bg-slate-200/50 hover:text-[#1E1B3A] transition-colors';
+        if (accent) accent.classList.add('hidden');
+      }
+    }
+
+    function notifyModule(name) {
+      showToast(`Đang ở chế độ xem thử Knowledge & AI Hub (Phân hệ: ${name})`);
+    }
+
+    function toggleMyItems() {
+      onlyMyItems = !onlyMyItems;
+      updateMyItemsBtn();
+      if (currentHub === 'knowledge') renderKnowledge();
+      else renderAiHub();
+    }
+
+    function updateMyItemsBtn() {
+      const btn = document.getElementById('myItemsToggleBtn');
+      if (onlyMyItems) {
+        btn.className = 'h-8 px-3 rounded-[9px] border border-[#4F46E5] bg-[#EEF0FF] text-[12.5px] font-semibold text-[#4F46E5] flex items-center gap-1.5 transition-colors';
+      } else {
+        btn.className = 'h-8 px-3 rounded-[9px] border border-slate-200 bg-white hover:bg-slate-50 text-[12.5px] font-medium text-[#1E1B3A] flex items-center gap-1.5 transition-colors';
+      }
+    }
+
+    function toggleNotifPopover() {
+      document.getElementById('notifPopover').classList.toggle('hidden');
+    }
+
+    // =========================================================================
+    // KNOWLEDGE RENDER & FILTERS
+    // =========================================================================
+    function setKnCategory(cat, btnEl) {
+      activeKnCategory = cat;
+      document.querySelectorAll('.kn-tab').forEach(b => {
+        b.className = 'kn-tab px-2.5 py-1 rounded-[8px] text-[#646A82] hover:bg-slate-100 text-[12px] font-medium shrink-0';
+      });
+      if (btnEl) {
+        btnEl.className = 'kn-tab px-2.5 py-1 rounded-[8px] bg-[#EEF0FF] text-[#4F46E5] text-[12px] font-semibold shrink-0';
+      }
+      renderKnowledge();
+    }
+
+    function quickKnTag(tag) {
+      const input = document.getElementById('knSearchInput');
+      input.value = `#${tag}`;
+      renderKnowledge();
+    }
+
+    function clearKnSearchInput() {
+      document.getElementById('knSearchInput').value = '';
+      renderKnowledge();
+    }
+
+    function resetKnowledgeFilters() {
+      document.getElementById('knSearchInput').value = '';
+      document.getElementById('knTypeFilter').value = 'ALL';
+      document.getElementById('knSortSelect').value = 'relevance';
+      onlyMyItems = false;
+      updateMyItemsBtn();
+      const firstTab = document.querySelector('.kn-tab');
+      setKnCategory('ALL', firstTab);
+    }
+
+    function renderKnowledge() {
+      const rawQuery = document.getElementById('knSearchInput').value.trim();
+      const normQuery = normalizeText(rawQuery.replace(/^#/, ''));
+      const typeVal = document.getElementById('knTypeFilter').value;
+      const sortVal = document.getElementById('knSortSelect').value;
+
+      document.getElementById('knClearInputBtn').classList.toggle('hidden', !rawQuery);
+      const isFiltered = rawQuery || activeKnCategory !== 'ALL' || typeVal !== 'ALL' || onlyMyItems;
+      document.getElementById('knResetAllBtn').classList.toggle('hidden', !isFiltered);
+
+      let list = ARTICLES.filter(a => {
+        if (onlyMyItems && a.author !== 'Khuê Võ') return false;
+        if (activeKnCategory !== 'ALL' && a.category !== activeKnCategory) return false;
+        if (typeVal !== 'ALL' && a.type !== typeVal) return false;
+        if (normQuery) {
+          const hay = normalizeText(`${a.title} ${a.excerpt} ${a.category} ${a.tags.join(' ')} ${a.author}`);
+          if (!hay.includes(normQuery)) return false;
+        }
+        return true;
+      });
+
+      if (sortVal === 'views') {
+        list.sort((a, b) => b.views - a.views);
+      } else if (sortVal === 'newest') {
+        list.sort((a, b) => b.id - a.id);
+      }
+
+      document.getElementById('knResultCount').textContent = `${list.length} bài viết`;
+
+      const grid = document.getElementById('knArticlesGrid');
+      if (list.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full bg-white rounded-[16px] border border-slate-200/80 p-10 text-center">
+            <p class="font-display font-bold text-[15px] text-[#1E1B3A]">Không tìm thấy bài viết phù hợp</p>
+            <p class="text-[12.5px] text-[#646A82] mt-1">Thử đổi từ khóa không dấu hoặc xóa bớt điều kiện lọc.</p>
+            <button onclick="resetKnowledgeFilters()" class="mt-3 h-8 px-3.5 rounded-[9px] bg-[#EEF0FF] text-[#4F46E5] text-[12px] font-semibold">Xóa bộ lọc</button>
+          </div>
+        `;
+      } else {
+        grid.innerHTML = list.map(a => `
+          <article onclick="openArticleDrawer(${a.id})" class="group bg-white rounded-[16px] border border-slate-200/85 hover:border-indigo-300 p-4 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden">
+            <span class="absolute left-0 top-0 bottom-0 w-[3.5px]" style="background:${a.accentColor}"></span>
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[#1E1B3A] text-[11px] font-semibold">${a.category}</span>
+                  <span class="px-2 py-0.5 rounded-md bg-[#EEF0FF]/70 text-[#4F46E5] text-[11px] font-medium">${a.type}</span>
+                </div>
+                <button onclick="event.stopPropagation(); toggleSaveArticle(${a.id})" title="Lưu bài viết" class="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center ${a.saved ? 'text-[#4F46E5]' : 'text-slate-400'}">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="${a.saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                </button>
+              </div>
+              <h3 class="font-display font-bold text-[14.5px] text-[#1E1B3A] group-hover:text-[#4F46E5] transition-colors leading-snug line-clamp-2">${a.title}</h3>
+              <p class="text-[12.5px] text-[#646A82] mt-1.5 line-clamp-2 leading-relaxed">${a.excerpt}</p>
+            </div>
+
+            <div class="mt-3.5 pt-3 border-t border-slate-100 space-y-2.5">
+              <div class="flex flex-wrap gap-1">
+                ${a.tags.map(t => `<span class="px-2 py-0.5 rounded-full bg-slate-100/90 text-[#646A82] text-[11px] font-medium">#${t}</span>`).join('')}
+              </div>
+              <div class="flex items-center justify-between text-[11.5px] text-[#646A82]">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-5 h-5 rounded-full ${a.avatarBg} font-bold text-[9.5px] flex items-center justify-center">${a.initials}</span>
+                  <span class="font-medium text-[#1E1B3A]">${a.author}</span>
+                  <span>· ${a.date}</span>
+                </div>
+                <div class="flex items-center gap-2.5 tabular">
+                  <span class="flex items-center gap-1" title="Lượt xem">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    ${a.views}
+                  </span>
+                  <button onclick="event.stopPropagation(); toggleLikeArticle(${a.id})" class="flex items-center gap-1 hover:text-rose-600 ${a.liked ? 'text-rose-600 font-semibold' : ''}">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="${a.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                    ${a.likes}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+        `).join('');
+      }
+
+      // Render Top Views sidebar
+      const topViews = [...ARTICLES].sort((a, b) => b.views - a.views).slice(0, 4);
+      document.getElementById('knTopViewsList').innerHTML = topViews.map((item, idx) => `
+        <div onclick="openArticleDrawer(${item.id})" class="flex items-start gap-2.5 p-1.5 rounded-lg hover:bg-slate-50 cursor-pointer group">
+          <span class="w-5 h-5 rounded-md ${idx === 0 ? 'bg-[#EEF0FF] text-[#4F46E5]' : 'bg-slate-100 text-[#646A82]'} font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5 tabular">${idx + 1}</span>
+          <div class="min-w-0">
+            <p class="text-[12px] font-semibold text-[#1E1B3A] group-hover:text-[#4F46E5] line-clamp-2 leading-snug">${item.title}</p>
+            <span class="text-[11px] text-[#646A82] tabular">${item.views} lượt xem · ${item.author}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleLikeArticle(id) {
+      const art = ARTICLES.find(x => x.id === id);
+      if (!art) return;
+      art.liked = !art.liked;
+      art.likes += art.liked ? 1 : -1;
+      renderKnowledge();
+    }
+
+    function toggleSaveArticle(id) {
+      const art = ARTICLES.find(x => x.id === id);
+      if (!art) return;
+      art.saved = !art.saved;
+      showToast(art.saved ? 'Đã lưu bài viết vào danh sách đọc' : 'Đã bỏ lưu bài viết');
+      renderKnowledge();
+    }
+
+    // =========================================================================
+    // AI HUB RENDER & FILTERS
+    // =========================================================================
+    function getClientBadgeStyle(client) {
+      switch (client) {
+        case 'Claude':
+          return 'bg-amber-50 text-amber-800 border-amber-200/80';
+        case 'Gemini':
+          return 'bg-[#EEF0FF] text-[#4F46E5] border-indigo-200/80';
+        case 'ChatGPT':
+          return 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
+        default:
+          return 'bg-sky-50 text-sky-700 border-sky-200/80';
+      }
+    }
+
+    function setAiClient(client, btnEl) {
+      activeAiClient = client;
+      document.querySelectorAll('.ai-tab').forEach(b => {
+        b.className = 'ai-tab px-2.5 py-1 rounded-[8px] text-[#646A82] hover:bg-slate-100 text-[12px] font-medium shrink-0';
+      });
+      if (btnEl) {
+        btnEl.className = 'ai-tab px-2.5 py-1 rounded-[8px] bg-[#EEF0FF] text-[#4F46E5] text-[12px] font-semibold shrink-0';
+      }
+      renderAiHub();
+    }
+
+    function quickAiTag(tag) {
+      document.getElementById('aiSearchInput').value = `#${tag}`;
+      renderAiHub();
+    }
+
+    function clearAiSearchInput() {
+      document.getElementById('aiSearchInput').value = '';
+      renderAiHub();
+    }
+
+    function resetAiFilters() {
+      document.getElementById('aiSearchInput').value = '';
+      document.getElementById('aiGroupFilter').value = 'ALL';
+      document.getElementById('aiSortSelect').value = 'newest';
+      onlyMyItems = false;
+      updateMyItemsBtn();
+      const firstTab = document.querySelector('.ai-tab');
+      setAiClient('ALL', firstTab);
+    }
+
+    function renderAiHub() {
+      const rawQuery = document.getElementById('aiSearchInput').value.trim();
+      const normQuery = normalizeText(rawQuery.replace(/^#/, ''));
+      const groupVal = document.getElementById('aiGroupFilter').value;
+      const sortVal = document.getElementById('aiSortSelect').value;
+
+      document.getElementById('aiClearInputBtn').classList.toggle('hidden', !rawQuery);
+      const isFiltered = rawQuery || activeAiClient !== 'ALL' || groupVal !== 'ALL' || onlyMyItems;
+      document.getElementById('aiResetAllBtn').classList.toggle('hidden', !isFiltered);
+
+      let list = SKILLS.filter(s => {
+        if (onlyMyItems && !s.mine) return false;
+        if (activeAiClient !== 'ALL' && s.client !== activeAiClient) return false;
+        if (groupVal !== 'ALL' && s.group !== groupVal) return false;
+        if (normQuery) {
+          const hay = normalizeText(`${s.title} ${s.desc} ${s.client} ${s.group} ${s.tags.join(' ')} ${s.author}`);
+          if (!hay.includes(normQuery)) return false;
+        }
+        return true;
+      });
+
+      if (sortVal === 'uses') {
+        list.sort((a, b) => b.uses - a.uses);
+      } else {
+        list.sort((a, b) => b.id - a.id);
+      }
+
+      document.getElementById('aiResultCount').textContent = `${list.length} skill`;
+
+      const grid = document.getElementById('aiSkillsGrid');
+      if (list.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full bg-white rounded-[16px] border border-slate-200/80 p-10 text-center">
+            <p class="font-display font-bold text-[15px] text-[#1E1B3A]">Không tìm thấy Skill AI phù hợp</p>
+            <p class="text-[12.5px] text-[#646A82] mt-1">Thử chọn Client AI khác hoặc xóa điều kiện lọc hiện tại.</p>
+            <button onclick="resetAiFilters()" class="mt-3 h-8 px-3.5 rounded-[9px] bg-[#EEF0FF] text-[#4F46E5] text-[12px] font-semibold">Xóa bộ lọc</button>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = list.map(s => `
+        <div class="bg-white rounded-[16px] border border-slate-200/85 hover:border-indigo-300 p-4 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-2.5">
+              <span class="px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${getClientBadgeStyle(s.client)}">${s.client}</span>
+              <span class="text-[11px] font-medium text-[#646A82]">${s.group}</span>
+            </div>
+
+            <h3 class="font-display font-bold text-[14.5px] text-[#1E1B3A] leading-snug">${s.title}</h3>
+            <p class="text-[12.5px] text-[#646A82] mt-1 line-clamp-2 leading-relaxed">${s.desc}</p>
+
+            <!-- System Prompt Preview Box -->
+            <div class="mt-3 p-2.5 rounded-[10px] bg-[#FAF9FE] border border-slate-200/75">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-[#646A82] mb-1">System Prompt mẫu</div>
+              <pre class="font-mono-code text-[11px] text-[#1E1B3A]/85 whitespace-pre-wrap line-clamp-3 leading-relaxed">${escapeHtml(s.prompt)}</pre>
+            </div>
+          </div>
+
+          <div class="mt-3.5 pt-3 border-t border-slate-100 space-y-2.5">
+            <div class="flex items-center justify-between text-[11.5px] text-[#646A82]">
+              <div class="flex flex-wrap gap-1">
+                ${s.tags.map(t => `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-[#646A82] text-[11px] font-medium">#${t}</span>`).join('')}
+              </div>
+              <span class="tabular shrink-0">${s.uses} lượt dùng</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="copySkillPrompt(${s.id})" class="flex-1 h-8 px-3 rounded-[9px] bg-[#EEF0FF] hover:bg-[#4F46E5] text-[#4F46E5] hover:text-white text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Chép Skill
+              </button>
+              <button onclick="openSkillDrawer(${s.id})" class="h-8 px-3 rounded-[9px] border border-slate-200 bg-white hover:bg-slate-50 text-[#1E1B3A] text-[12px] font-semibold transition-colors">
+                Dùng thử
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function copySkillPrompt(id) {
+      const sk = SKILLS.find(x => x.id === id);
+      if (!sk) return;
+      copyToClipboard(sk.prompt);
+      sk.uses += 1;
+      renderAiHub();
+      showToast(`Đã chép prompt "${sk.title}" vào bộ nhớ tạm!`);
+    }
+
+    // =========================================================================
+    // SLIDE-OVER DRAWER (ĐỌC BÀI VIẾT / DÙNG THỬ SKILL AI)
+    // =========================================================================
+    function openArticleDrawer(id) {
+      const a = ARTICLES.find(x => x.id === id);
+      if (!a) return;
+      a.views += 1;
+      renderKnowledge();
+
+      document.getElementById('drawerBadgeArea').innerHTML = `
+        <span class="px-2.5 py-0.5 rounded-md bg-[#EEF0FF] text-[#4F46E5] text-[11.5px] font-semibold">${a.category}</span>
+        <span class="text-[12px] text-[#646A82]">${a.type} · ${a.date}</span>
+      `;
+
+      document.getElementById('drawerBody').innerHTML = `
+        <h2 class="font-display font-bold text-[19px] text-[#1E1B3A] leading-snug">${a.title}</h2>
+        <div class="flex items-center gap-2 text-[12.5px] text-[#646A82]">
+          <span class="w-6 h-6 rounded-full ${a.avatarBg} font-bold text-[10.5px] flex items-center justify-center">${a.initials}</span>
+          <span class="font-semibold text-[#1E1B3A]">${a.author}</span>
+          <span>· ${a.views} lượt xem</span>
+        </div>
+
+        <div class="p-3.5 rounded-[12px] bg-[#FAF9FE] border border-slate-200/80">
+          <div class="text-[11.5px] font-bold text-[#1E1B3A] uppercase tracking-wider mb-1.5">Mục lục nhanh</div>
+          <ul class="space-y-1 text-[12.5px] text-[#4F46E5] font-medium">
+            ${a.toc.map(item => `<li>• ${item}</li>`).join('')}
+          </ul>
+        </div>
+
+        <div class="space-y-3 text-[13.5px] text-[#1E1B3A]/90 leading-relaxed">
+          ${a.content.map(p => `<p>${p}</p>`).join('')}
+        </div>
+
+        <div class="pt-2 flex flex-wrap gap-1.5">
+          ${a.tags.map(t => `<span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-[#646A82] text-[11.5px] font-medium">#${t}</span>`).join('')}
+        </div>
+      `;
+
+      document.getElementById('drawerFooter').innerHTML = `
+        <button onclick="toggleLikeArticle(${a.id}); openArticleDrawer(${a.id})" class="h-8 px-3.5 rounded-[9px] border border-slate-200 hover:bg-rose-50 text-[12.5px] font-semibold ${a.liked ? 'text-rose-600 border-rose-200 bg-rose-50' : 'text-[#1E1B3A]'}">
+          ♥ Hữu ích (${a.likes})
+        </button>
+        <button onclick="toggleSaveArticle(${a.id}); openArticleDrawer(${a.id})" class="h-8 px-3.5 rounded-[9px] bg-[#4F46E5] text-white text-[12.5px] font-semibold">
+          ${a.saved ? '✓ Đã lưu bài viết' : '+ Lưu bài viết'}
+        </button>
+      `;
+
+      document.getElementById('drawerBackdrop').classList.remove('hidden');
+      document.getElementById('detailDrawer').classList.remove('hidden');
+    }
+
+    function openSkillDrawer(id) {
+      const s = SKILLS.find(x => x.id === id);
+      if (!s) return;
+
+      document.getElementById('drawerBadgeArea').innerHTML = `
+        <span class="px-2.5 py-0.5 rounded-full border text-[11.5px] font-bold ${getClientBadgeStyle(s.client)}">${s.client}</span>
+        <span class="text-[12px] text-[#646A82]">${s.group} · Tác giả: ${s.author}</span>
+      `;
+
+      document.getElementById('drawerBody').innerHTML = `
+        <h2 class="font-display font-bold text-[18px] text-[#1E1B3A] leading-snug">${s.title}</h2>
+        <p class="text-[13px] text-[#646A82] leading-relaxed">${s.desc}</p>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-[12px] font-bold text-[#1E1B3A]">System Prompt chuẩn hóa</label>
+            <button onclick="copySkillPrompt(${s.id})" class="text-[11.5px] font-semibold text-[#4F46E5] hover:underline">Sao chép lệnh</button>
+          </div>
+          <pre class="p-3.5 rounded-[12px] bg-[#FAF9FE] border border-slate-200 font-mono-code text-[12px] text-[#1E1B3A] whitespace-pre-wrap leading-relaxed">${escapeHtml(s.prompt)}</pre>
+        </div>
+
+        <div class="pt-2 border-t border-slate-100 space-y-2">
+          <label class="block text-[12px] font-bold text-[#1E1B3A]">Chạy thử nhanh với dữ liệu mẫu</label>
+          <textarea id="sandboxInput" rows="3" placeholder="Nhập dữ liệu thực tế của bạn (vd: danh sách deal, nội dung ticket...) để chạy thử..." class="w-full p-3 rounded-[10px] border border-slate-200 focus:border-[#4F46E5] focus:outline-none text-[12.5px]"></textarea>
+          <button onclick="runSkillSandbox(${s.id})" class="h-8 px-3.5 rounded-[9px] bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-semibold">▶ Chạy mô phỏng kết quả</button>
+          <div id="sandboxOutput" class="hidden p-3.5 rounded-[12px] bg-emerald-50/70 border border-emerald-200 text-[12.5px] text-[#1E1B3A] leading-relaxed"></div>
+        </div>
+      `;
+
+      document.getElementById('drawerFooter').innerHTML = `
+        <span class="text-[12px] text-[#646A82] tabular">${s.uses} lượt sử dụng trong team</span>
+        <button onclick="copySkillPrompt(${s.id})" class="h-8 px-4 rounded-[9px] bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[12.5px] font-semibold">
+          Chép Skill &amp; Dùng ngay
+        </button>
+      `;
+
+      document.getElementById('drawerBackdrop').classList.remove('hidden');
+      document.getElementById('detailDrawer').classList.remove('hidden');
+    }
+
+    function runSkillSandbox(id) {
+      const s = SKILLS.find(x => x.id === id);
+      const userText = document.getElementById('sandboxInput').value.trim();
+      const out = document.getElementById('sandboxOutput');
+      out.classList.remove('hidden');
+      out.innerHTML = `
+        <div class="font-bold text-emerald-800 mb-1">✓ Kết quả phân tích từ ${s.client}:</div>
+        <p>Đã áp dụng cấu trúc <strong>${s.title}</strong>${userText ? ` cho dữ liệu đầu vào (${userText.length} ký tự)` : ' trên bộ dữ liệu mẫu SoE Hub'}. Đề xuất ưu tiên xử lý 3 hạng mục trọng tâm và đồng bộ trực tiếp sang Datahub.</p>
+      `;
+    }
+
+    function closeDetailDrawer() {
+      document.getElementById('drawerBackdrop').classList.add('hidden');
+      document.getElementById('detailDrawer').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // MODALS: VIẾT BÀI / TẢI LÊN SKILL
+    // =========================================================================
+    function openCreateModal() {
+      if (currentHub === 'knowledge') {
+        document.getElementById('createArticleModal').classList.remove('hidden');
+      } else {
+        document.getElementById('createSkillModal').classList.remove('hidden');
+      }
+    }
+
+    function closeModals() {
+      document.getElementById('createArticleModal').classList.add('hidden');
+      document.getElementById('createSkillModal').classList.add('hidden');
+    }
+
+    function submitNewArticle() {
+      const title = document.getElementById('newArtTitle').value.trim();
+      const content = document.getElementById('newArtContent').value.trim();
+      if (!title || !content) {
+        showToast('Vui lòng nhập đầy đủ tiêu đề và nội dung bài viết');
+        return;
+      }
+      const category = document.getElementById('newArtCategory').value;
+      const type = document.getElementById('newArtType').value;
+      const rawTags = document.getElementById('newArtTags').value;
+      const tags = rawTags
+        ? rawTags.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean)
+        : [category];
+
+      ARTICLES.unshift({
+        id: Date.now(),
+        title,
+        excerpt: content.slice(0, 120) + (content.length > 120 ? '...' : ''),
+        category,
+        type,
+        tags,
+        author: 'Khuê Võ',
+        initials: 'KV',
+        avatarBg: 'bg-indigo-100 text-[#4F46E5]',
+        accentColor: '#4F46E5',
+        date: 'Hôm nay',
+        views: 1,
+        likes: 1,
+        liked: true,
+        saved: false,
+        toc: ['1. Nội dung chia sẻ chính', '2. Lưu ý áp dụng thực tế'],
+        content: content.split('\n').filter(Boolean)
+      });
+
+      document.getElementById('newArtTitle').value = '';
+      document.getElementById('newArtTags').value = '';
+      document.getElementById('newArtContent').value = '';
+      closeModals();
+      renderKnowledge();
+      showToast('Đã đăng bài viết mới lên Knowledge!');
+    }
+
+    function simulateFileDrop() {
+      document.getElementById('uploadedFileHint').textContent = '✓ Đã nạp tệp: soe_sales_playbook_v2.md (2.4 KB)';
+      if (!document.getElementById('newSkillTitle').value) {
+        document.getElementById('newSkillTitle').value = 'Trợ lý rà soát điều khoản hợp đồng POD';
+      }
+      if (!document.getElementById('newSkillPrompt').value) {
+        document.getElementById('newSkillPrompt').value = 'Kiểm tra bảng phạm vi triển khai POD, đối chiếu điều khoản thanh toán 3 đợt và cảnh báo các hạng mục ngoài chuẩn.';
+      }
+    }
+
+    function submitNewSkill() {
+      const title = document.getElementById('newSkillTitle').value.trim();
+      const prompt = document.getElementById('newSkillPrompt').value.trim();
+      if (!title || !prompt) {
+        showToast('Vui lòng nhập tên Skill và nội dung Prompt');
+        return;
+      }
+      const client = document.getElementById('newSkillClient').value;
+      const group = document.getElementById('newSkillGroup').value;
+      const rawTags = document.getElementById('newSkillTags').value;
+      const tags = rawTags
+        ? rawTags.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean)
+        : ['Prompt'];
+
+      SKILLS.unshift({
+        id: Date.now(),
+        title,
+        client,
+        group,
+        desc: 'Skill AI mới được Khuê Võ chuẩn hóa và chia sẻ cho toàn bộ thành viên SoE Hub.',
+        tags,
+        author: 'Khuê Võ',
+        uses: 1,
+        mine: true,
+        prompt
+      });
+
+      document.getElementById('newSkillTitle').value = '';
+      document.getElementById('newSkillTags').value = '';
+      document.getElementById('newSkillPrompt').value = '';
+      closeModals();
+      renderAiHub();
+      showToast('Đã tải Skill mới lên AI Hub!');
+    }
+
+    // =========================================================================
+    // HELPERS: CLIPBOARD, TOAST, KEYBOARD SHORTCUT ⌘K
+    // =========================================================================
+    function copyToClipboard(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+
+    function escapeHtml(str) {
+      return (str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const box = document.getElementById('toastBox');
+      document.getElementById('toastText').textContent = msg;
+      box.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => box.classList.add('hidden'), 2600);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        const input = document.getElementById(currentHub === 'knowledge' ? 'knSearchInput' : 'aiSearchInput');
+        if (input) input.focus();
+      } else if (e.key === 'Escape') {
+        closeDetailDrawer();
+        closeModals();
+      }
+    });
+
+    window.onload = function () {
+      renderKnowledge();
+      renderAiHub();
+    };
+  </script>
+</body>
+</html>
