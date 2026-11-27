@@ -531,6 +531,9 @@ function UnmatchedReceipts({ receiptsTable, onPick }: { receiptsTable?: DealTabl
 
 // ---- commission ledger ------------------------------------------------------------------------------------------------------
 
+/** The Sổ com is read page by page (500 lines each) up to this many pages; past that the tab says so instead of silently dropping lines. */
+const LEDGER_MAX_PAGES = 20;
+
 function LedgerTab({ manager, myId, dealId = "" }: { manager: boolean; myId: string; dealId?: string }) {
   const qc = useQueryClient();
   const { ledger } = usePaymentTables();
@@ -539,14 +542,33 @@ function LedgerTab({ manager, myId, dealId = "" }: { manager: boolean; myId: str
   const [mine, setMine] = useState(!dealId);
   const [period, setPeriod] = useState("");
   const [adj, setAdj] = useState<Row | null>(null);
-  const q = useQuery({ queryKey: ["pay-rows", ledger?.id, "ledger"], enabled: !!ledger && !!s.table, queryFn: async () => (await fetchRows(ledger!.id, { limit: 500 })).data });
   const personKey = s.key("nguoi");
+  const dealKeyAll = s.key("deal");
+  // The deal and "Com của tôi" cuts are made by the server (a filter on the relation / person column), so a line is never missing because it sits past the first page.
+  const ledgerFilter = (() => {
+    const conds = [...(mine ? [{ field: personKey, op: "eq", value: myId }] : []), ...(dealId ? [{ field: dealKeyAll, op: "eq", value: dealId }] : [])];
+    return conds.length === 0 ? undefined : conds.length === 1 ? conds[0] : { and: conds };
+  })();
+  const q = useQuery({
+    queryKey: ["pay-rows", ledger?.id, "ledger", mine ? myId : "", dealId],
+    enabled: !!ledger && !!s.table,
+    queryFn: async () => {
+      const out: Row[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < LEDGER_MAX_PAGES; page++) {
+        const res = await fetchRows(ledger!.id, { filter: ledgerFilter, limit: 500, cursor });
+        out.push(...res.data);
+        cursor = res.next_cursor;
+        if (!cursor) return { rows: out, more: false };
+      }
+      return { rows: out, more: true };
+    },
+  });
   const kyKey = s.key("ky");
   const personOf = (r: Row) => idsOf(r.data[personKey])[0] ?? "";
-  const all = q.data ?? [];
+  const all = q.data?.rows ?? [];
   const periods = [...new Set(all.map((r) => str(r.data[kyKey]).slice(0, 7)).filter(Boolean))].sort().reverse();
-  const dealKeyAll = s.key("deal");
-  const rows = all.filter((r) => (!mine || personOf(r) === myId) && (!period || str(r.data[kyKey]).slice(0, 7) === period) && (!dealId || idsOf(r.data[dealKeyAll]).includes(dealId)));
+  const rows = all.filter((r) => !period || str(r.data[kyKey]).slice(0, 7) === period);
   const names = usePeopleNames(rows.map(personOf).filter(Boolean));
   const dotKey = s.key("dot");
   const dealKey = s.key("deal");
@@ -565,6 +587,7 @@ function LedgerTab({ manager, myId, dealId = "" }: { manager: boolean; myId: str
           {periods.map((p) => <option key={p} value={p}>Tháng {p.slice(5)}/{p.slice(0, 4)}</option>)}
         </Select>
       </div>
+      {q.data?.more && <Notice>Đang hiện {LEDGER_MAX_PAGES * 500} dòng đầu. Chọn một kỳ hoặc "Com của tôi" để thu hẹp.</Notice>}
       {q.isLoading || s.q.isLoading ? <Skeleton className="h-40 w-full" /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được Sổ com" /> : rows.length === 0 ? <EmptyState title="Chưa có dòng com" hint="Com tạm tính xuất hiện khi Manager xác nhận tiền về của một đợt." /> : (
         <Table>
           <thead><tr><th>Kỳ</th><th>Người</th><th>Deal</th><th className={TH_NUM}>% com</th><th className={TH_NUM}>Com</th><th>Trạng thái</th><th>Lý do</th>{manager && <th />}</tr></thead>
@@ -626,9 +649,9 @@ export function DealPaymentsPanel({ dealRow, dealsTableId }: { dealRow: Row; dea
   const ids = idsOf(dealRow.data[ds.key("dot_thanh_toan")]);
   const q = useQuery({ queryKey: ["deal-payments", dealRow.id, ids.join(",")], enabled: !!dots && !!ps.table && ids.length > 0, queryFn: () => fetchRowsByIds(dots!.id, ids) });
   const mine = useQuery({
-    queryKey: ["deal-payments", "ledger", dealRow.id, ids.join(",")],
+    queryKey: ["deal-payments", "ledger", dealRow.id, me?.user.id, ids.join(",")],
     enabled: !!ledger && !!ls.table && ids.length > 0,
-    queryFn: async () => (await fetchRows(ledger!.id, { limit: 500 })).data.filter((r) => idsOf(r.data[ls.key("nguoi")])[0] === me?.user.id && ids.includes(idsOf(r.data[ls.key("dot")])[0] ?? "")),
+    queryFn: async () => (await fetchRows(ledger!.id, { filter: { and: [{ field: ls.key("nguoi"), op: "eq", value: me?.user.id }, { field: ls.key("deal"), op: "eq", value: dealRow.id }] }, limit: 500 })).data.filter((r) => ids.includes(idsOf(r.data[ls.key("dot")])[0] ?? "")),
   });
   const statusCol = ps.table?.columns.find((c) => c.name === "Trạng thái" && c.type === "formula");
   const comOf = (payId: string) => (mine.data ?? []).filter((r) => idsOf(r.data[ls.key("dot")])[0] === payId).map((r) => num(r.data[ls.key("com")])).filter((v): v is number => v !== null);
