@@ -158,6 +158,9 @@ export class Session {
   }
 
   private async menuNav() {
+    // An open phone menu is a modal: it hides the rest of the page from the role tree, so the burger button is not "visible" while the menu stays open (hasMenu only looks).
+    const phone = this.page.getByRole("navigation", { name: "Menu điện thoại" });
+    if (await phone.isVisible()) return phone;
     if (await this.burger.isVisible()) {
       if ((await this.burger.getAttribute("aria-expanded")) !== "true") await this.burger.click();
       return this.page.getByRole("navigation", { name: "Menu điện thoại" });
@@ -247,9 +250,19 @@ export class Session {
   }
 
   /** Org chart form: adds one person. */
+  /** A button the page puts in the top bar: under 640px it sits behind the "•••" button ("Thao tác của trang"). */
+  async pageAction(name: string) {
+    const btn = this.page.getByRole("button", { name, exact: true });
+    const more = this.page.getByRole("button", { name: "Thao tác của trang" });
+    await expect(btn.or(more)).toBeVisible();
+    if (!(await btn.isVisible())) await more.click();
+    return btn;
+  }
+
   async addMember(m: { email: string; name: string; role: "Manager" | "Leader" | "User"; manager?: string; leader?: string }): Promise<void> {
     await this.page.goto("/to-chuc");
-    await this.page.getByRole("button", { name: "Thêm người" }).click();
+    // Under 640px the page actions fold into the "•••" button of the top bar.
+    await (await this.pageAction("Thêm người")).click();
     const d = this.page.getByRole("dialog", { name: "Thêm người vào org chart" });
     await d.getByLabel("Email").fill(m.email);
     await d.getByLabel("Họ tên").fill(m.name);

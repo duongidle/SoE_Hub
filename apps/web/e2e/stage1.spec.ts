@@ -206,7 +206,7 @@ test("token cá nhân: tạo -> chờ duyệt -> Admin duyệt -> dùng được
 
 test("tài khoản hệ thống: tạo, cấp token (hiện một lần), dùng, thu hồi", async ({ request }) => {
   await admin.clickMenu("Tài khoản hệ thống");
-  await admin.page.getByRole("button", { name: "Tạo tài khoản hệ thống" }).click();
+  await (await admin.pageAction("Tạo tài khoản hệ thống")).click();
   const d = admin.page.getByRole("dialog", { name: "Tạo tài khoản hệ thống" });
   await d.getByLabel("Tên", { exact: true }).fill(`Hệ thống ngoài ${p}`);
   await d.getByRole("checkbox", { name: /deal:deal:read/ }).check();
@@ -234,7 +234,7 @@ test("Manager: trang cấp dữ liệu Guest có loại Dashboard (Stage 3C-2 đ
   await manager.clickMenu("Cấp dữ liệu Guest");
   // Stage 1 had no data type yet (an empty frame); since 3C-2 a Manager can grant "Dashboard".
   await expect(manager.page.getByTestId("grants-empty")).toHaveCount(0);
-  await expect(manager.page.getByRole("button", { name: "Cấp dữ liệu" })).toBeEnabled();
+  await expect(await manager.pageAction("Cấp dữ liệu")).toBeEnabled();
   await expect(manager.page.getByText("Chưa cấp dữ liệu cho Guest nào.")).toBeVisible();
   await manager.shot("12-guest-grants-empty");
   expect(await manager.hasMenu("Nhật ký")).toBe(false);
@@ -385,7 +385,7 @@ test("nhật ký: lọc theo hành động, người, kết quả; chi tiết c�
   await expect(admin.page.getByText(/^Trang 1/)).toBeVisible();
 
   // CSV export.
-  const [download] = await Promise.all([admin.page.waitForEvent("download"), admin.page.getByRole("button", { name: "Xuất CSV" }).click()]);
+  const [download] = await Promise.all([admin.page.waitForEvent("download"), admin.pageAction("Xuất CSV").then((b) => b.click())]);
   const csv = await readFile((await download.path()) ?? "", "utf8");
   expect(csv).toContain("# Xuất bởi");
   expect(csv).toContain("auth.token.approve");

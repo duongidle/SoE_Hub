@@ -114,20 +114,20 @@ const linkBase = "relative flex min-h-10 items-center gap-3 rounded-control px-3
 const linkActive = "[&.active]:bg-primary-soft [&.active]:font-semibold [&.active]:text-primary [&.active]:before:absolute [&.active]:before:-left-3 [&.active]:before:top-2 [&.active]:before:bottom-2 [&.active]:before:w-[3px] [&.active]:before:rounded-full [&.active]:before:bg-primary [&.active]:before:content-['']";
 
 /** The menu list; the sidebar on a wide screen and the drawer on a narrow one use the same markup. */
-function SideNav({ items, collapsed, label, onLogout, settingsActive }: { items: NavItem[]; collapsed: boolean; label: string; onLogout?: () => void; settingsActive?: boolean }) {
+function SideNav({ items, collapsed, label, onLogout, settingsActive, onNavigate }: { items: NavItem[]; collapsed: boolean; label: string; onLogout?: () => void; settingsActive?: boolean; onNavigate?: () => void }) {
   const text = collapsed ? "sr-only" : "truncate";
   return (
     <nav aria-label={label} className="flex min-h-0 flex-1 flex-col px-3 pb-3">
       <div className="contain-scroll-y flex flex-1 flex-col gap-0.5 overflow-y-auto">
         {items.map((n) => (
-          <Link key={n.to} to={n.to} activeOptions={{ exact: n.to === "/" }} title={collapsed ? n.label : undefined} className={cn(linkBase, linkActive, collapsed && "justify-center px-0")}>
+          <Link key={n.to} to={n.to} onClick={onNavigate} activeOptions={{ exact: n.to === "/" }} title={collapsed ? n.label : undefined} className={cn(linkBase, linkActive, collapsed && "justify-center px-0")}>
             <n.icon size={18} aria-hidden className="shrink-0" />
             <span className={text}>{n.label}</span>
           </Link>
         ))}
       </div>
       <div className="mt-2 flex flex-col gap-0.5 border-t border-border-soft pt-2">
-        <Link to="/cai-dat" title={collapsed ? "Cài đặt" : undefined} className={cn(linkBase, linkActive, settingsActive && "active", collapsed && "justify-center px-0")}>
+        <Link to="/cai-dat" onClick={onNavigate} title={collapsed ? "Cài đặt" : undefined} className={cn(linkBase, linkActive, settingsActive && "active", collapsed && "justify-center px-0")}>
           <Settings size={18} aria-hidden className="shrink-0" />
           <span className={text}>Cài đặt</span>
         </Link>
@@ -170,6 +170,13 @@ export function Shell() {
   const [actionCount, setActionCount] = useState(0);
   const [actionsOpenPath, setActionsOpenPath] = useState<string | null>(null);
   const actionsOpen = actionsOpenPath === path;
+  // The actions are portalled in by the page, so React does not bubble their clicks to the panel: listen on the DOM node.
+  useEffect(() => {
+    if (!actionsEl) return;
+    const close = (e: MouseEvent) => { if ((e.target as HTMLElement).closest("button, a")) setActionsOpenPath(null); };
+    actionsEl.addEventListener("click", close);
+    return () => actionsEl.removeEventListener("click", close);
+  }, [actionsEl]);
   const chrome = useMemo(() => ({ setLeaf, addActions: (d: number) => setActionCount((c) => c + d), actionsEl }), [actionsEl]);
   const toggleCollapsed = () => {
     setCollapsed((c) => {
@@ -271,7 +278,8 @@ export function Shell() {
                   <Brand />
                 </Link>
               </div>
-              <SideNav items={items} collapsed={false} label="Menu điện thoại" settingsActive={isSettingsPath(shown)} />
+              {/* A tap on the link of the page already open changes no path, so the menu is closed by the tap itself. */}
+              <SideNav items={items} collapsed={false} label="Menu điện thoại" settingsActive={isSettingsPath(shown)} onNavigate={() => setOpenPath(null)} />
             </Dialog.Content>
           </Dialog.Portal>
 
@@ -301,7 +309,6 @@ export function Shell() {
                   <div
                     id="topbar-actions"
                     ref={setActionsEl}
-                    onClick={(e) => { if ((e.target as HTMLElement).closest("button, a")) setActionsOpenPath(null); }}
                     className={cn(
                       "items-center gap-2 sm:mr-1 sm:flex",
                       actionsOpen ? "fixed inset-x-2 top-14 z-30 flex flex-col items-stretch rounded-card border border-border bg-card p-2 shadow-lg sm:static sm:flex-row sm:items-center sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none" : "hidden",
