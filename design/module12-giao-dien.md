@@ -7,7 +7,7 @@ Thống nhất concept giao diện cho Stage 12. File này ngắn, chỉ nói c�
 ## 1. Nguồn
 
 - Mockup và mô tả phong cách: `design/giao_dien_mau/` (8 màn HTML + `Luminous Bento Workspace.md`). Dữ liệu trong mockup là giả (Dương xác nhận 27/11/2026), commit cùng repo.
-- **Mockup chỉ để hình dung cách trình bày, không phải đặc tả chức năng.** Chức năng theo thiết kế module đã chốt. Mockup có mà thiết kế không có thì không làm (ví dụ: việc của tôi, tải việc đội ngũ, người trực tuyến, tim/lưu bài, ghế, webhook, nút "Lưu thay đổi" chung). Ngoại lệ: tiện ích thuần giao diện, làm nhanh, không đổi dữ liệu hay quyền (ví dụ thu gọn sidebar, phím tắt chọn đáp án, bản đồ câu hỏi ở form) thì được làm, ghi vào quyết định khi code.
+- **Mockup chỉ để hình dung cách trình bày, không phải đặc tả chức năng.** Chức năng theo thiết kế module đã chốt. Mockup có mà thiết kế không có thì không làm (ví dụ: việc của tôi, tải việc đội ngũ, người trực tuyến, tim/lưu bài, ghế, webhook, nút "Lưu thay đổi" chung). Ngoại lệ: tiện ích thuần giao diện, làm nhanh, không đổi dữ liệu hay quyền (ví dụ thu gọn sidebar, bản đồ câu hỏi ở form) thì được làm, ghi vào quyết định khi code.
 - Màn chưa có mockup (Onboarding, AI Hub, Duyệt bài, đăng nhập, chuông, ngăn kéo chi tiết, điện thoại của app) dựng theo concept ở mục 2, ghép từ màn cùng loại.
 - Những gì đã chốt và đã code (menu sau khi gom vào chuông và Tổng quan, tên "Dynamic Form", dropdown riêng thay `<select>`, thẻ người…) giữ nguyên; mockup lệch thì theo cái đã chốt.
 
@@ -19,7 +19,7 @@ Thống nhất concept giao diện cho Stage 12. File này ngắn, chỉ nói c�
 - **Trang dữ liệu:** dải tab với Dashboard và "+" ghim trái → thanh công cụ một dòng (thao tác hay dùng trái; một ô tìm, mật độ dòng, menu "•••" cho việc ít dùng bên phải) → bảng → xem chi tiết bằng ngăn kéo trượt phải 420–560px.
 - **Trang báo cáo:** thanh chọn kỳ một hàng → hàng thẻ KPI → lưới biểu đồ 2 cột.
 - **Trang thư viện** (Knowledge, AI Hub): một ô tìm → tab phân loại một chạm + dải thẻ phổ biến → lưới thẻ 2–3 cột.
-- **Form:** trình soạn 4 bước (Thiết kế · Thiết lập · Chia sẻ · Phản hồi), giữa là tờ form thật, phải là thuộc tính. Form công khai: thanh tiến độ ghim đỉnh, dải bìa, bản đồ câu bên phải (điện thoại: ẩn bản đồ).
+- **Form:** trình soạn 4 bước (Thiết kế · Thiết lập · Chia sẻ · Phản hồi), giữa là tờ form thật, phải là thuộc tính. **Không kéo thả** (thay việc "kéo khối vào vị trí" trong `stage12.md`, Dương chốt 27/11/2026): giữa hai câu có vạch chèn với nút "+", bấm mở bảng chọn loại câu (lưới 2 cột, nhóm theo màu) và chèn đúng chỗ đó; cuối form có nút "Thêm câu hỏi"; đổi thứ tự bằng nút lên/xuống trên câu đang chọn. Vạch "+" hiện khi di chuột trên desktop; trên cảm ứng và khi focus bằng bàn phím luôn bấm được. Form công khai: thanh tiến độ ghim đỉnh, dải bìa, bản đồ câu bên phải (điện thoại: ẩn bản đồ); không làm phím tắt A–D.
 - **Màu theo nghĩa** dùng thống nhất từ bảng tới biểu đồ tới thẻ: xanh lá = xong/đạt, xanh dương = đang xử lý, hổ phách = chờ/sắp hạn, đỏ hồng = quá hạn/lỗi, tím = nhóm đặc thù/AI. Mỗi màu gồm nền, chữ, viền, chấm (mã ở mockup md mục 2.2), tương phản AA.
 - **Điện thoại:** khung app tràn sát mép (bỏ lề và bo góc ngoài), sidebar thành ngăn kéo.
 
