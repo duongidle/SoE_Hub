@@ -49,6 +49,8 @@ const namesOf = async (api: ApiClient) => (await rowsOf(api)).map((r) => r.data[
 async function openTable(s: Session): Promise<GridDriver> {
   await s.page.goto(`/datahub/${dhId}/${tableId}`);
   await expect(s.page.getByTestId("grid")).toBeVisible();
+  // The tools row arrives after the grid and moves it down: wait for it before the test clicks a cell by position.
+  await expect(s.page.getByRole("toolbar", { name: "Công cụ view" })).toBeVisible();
   return new GridDriver(s.page);
 }
 

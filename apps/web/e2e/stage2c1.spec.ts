@@ -2,7 +2,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { seedLead, seedMany, type LeadFixture } from "./dh-fixtures";
 import { GridDriver } from "./grid";
-import { API, Session, type ProjectName, chooseOption } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, expectMore, moreAction } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -357,18 +357,18 @@ test("hoàn tác và làm lại (Ctrl+Z, nút), điền xuống (Ctrl+D)", async
   await expect.poll(async () => g.read(COL.qty, 2)).toBe("4");
   await expect(toast(pg, /Đã điền 2 ô/)).toBeVisible();
   // Undo the fill, then redo it.
-  await pg.getByRole("button", { name: "Hoàn tác" }).first().click();
+  await moreAction(pg, "Hoàn tác");
   await expect.poll(async () => g.read(COL.qty, 2)).not.toBe("4");
-  await pg.getByRole("button", { name: "Làm lại" }).click();
+  await moreAction(pg, "Làm lại");
   await expect.poll(async () => g.read(COL.qty, 2)).toBe("4");
   // A row added with the button: undo sends it to the trash, redo brings it back; Ctrl+Z does the same.
   const count = async () => Number(((await pg.getByText(/^[\d.]+ dòng$/).textContent()) ?? "0").replace(/\D/g, ""));
   const total = await count();
   await pg.getByRole("button", { name: "Thêm dòng" }).first().click();
   await expect.poll(count).toBe(total + 1);
-  await pg.getByRole("button", { name: "Hoàn tác" }).first().click();
+  await moreAction(pg, "Hoàn tác");
   await expect.poll(count, { timeout: 15_000 }).toBe(total);
-  await pg.getByRole("button", { name: "Làm lại" }).click();
+  await moreAction(pg, "Làm lại");
   await expect.poll(count, { timeout: 15_000 }).toBe(total + 1);
   await g.click(COL.name, 0);
   await pg.keyboard.press("ControlOrMeta+z");
@@ -394,7 +394,7 @@ test("xoá dòng đã chọn có Hoàn tác; sửa hàng loạt", async () => {
   expect(await g.read(COL.name, 3)).toBe("Khách B");
 
   await g.clickMarker(0);
-  await g.clickMarker(1);
+  await g.clickMarker(1, { append: true });
   await pg.getByRole("button", { name: "Sửa 2 dòng" }).click();
   const d = pg.getByRole("dialog", { name: "Sửa 2 dòng" });
   await chooseOption(d.getByLabel("Cột"), { label: "Giai đoạn" });
@@ -456,7 +456,7 @@ test("người chỉ có quyền Xem: không sửa được; server vẫn chặn
   const pg = viewer.page;
   await expect(pg.getByText("Chỉ xem", { exact: true })).toBeVisible();
   await expect(pg.getByRole("button", { name: "Thêm dòng" })).toHaveCount(0);
-  await expect(pg.getByRole("button", { name: "Hoàn tác" })).toHaveCount(0);
+  await expectMore(pg, "Hoàn tác", false);
   if (!phone()) {
     const before = await g.read(COL.name, 0);
     await g.type(COL.name, 0, "Không được");
@@ -527,8 +527,7 @@ test("dữ liệu xấu nhất: tên dài đúng giới hạn, ký tự đặc b
   }
   await viewer.shot("61-worst-table");
   // The row panel shows the whole long values and wraps them.
-  await g.clickMarker(0);
-  await pg.getByRole("button", { name: "Chi tiết dòng" }).click();
+  await g.openMarker(0); // a left click on the row number opens the row panel
   const d = pg.getByRole("dialog", { name: /^Dòng #1$/ });
   await expect(d.getByLabel("Ghi chú")).toBeVisible();
   await expect(d.getByLabel("Tổng giá trị hợp đồng")).toContainText("12.345.678.900 ₫");

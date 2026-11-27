@@ -53,7 +53,17 @@ export class GridDriver {
     return { x: box.x + marker / 2, y: box.y + rowH + r * rowH + rowH / 2 };
   }
 
-  async clickMarker(r: number): Promise<void> {
+  /** Selects the row: a right click on its number (the left click opens the row panel). `append` keeps the rows already selected (Ctrl/Cmd). */
+  async clickMarker(r: number, opts: { append?: boolean } = {}): Promise<void> {
+    const p = await this.markerPoint(r);
+    await this.page.mouse.move(p.x, p.y);
+    if (opts.append) await this.page.keyboard.down("Control");
+    await this.page.mouse.click(p.x, p.y, { button: "right" });
+    if (opts.append) await this.page.keyboard.up("Control");
+  }
+
+  /** Opens the row panel: a left click on the row number. */
+  async openMarker(r: number): Promise<void> {
     const p = await this.markerPoint(r);
     await this.page.mouse.move(p.x, p.y);
     await this.page.mouse.click(p.x, p.y);

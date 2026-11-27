@@ -50,14 +50,15 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
     <div data-slot="view-tools" className="@container flex flex-col gap-2">
       <div role="toolbar" aria-label="Công cụ view" className="flex flex-wrap items-center gap-1.5">
         {lead}
+        <Divider />
         <span ref={rowSlotRef} className="contents" />
-        <span aria-hidden className="mx-0.5 h-5 w-px shrink-0 bg-border @max-[58rem]:hidden" />
-        {dateCols.length > 0 && <TimeButton columns={columns} dateCols={dateCols} config={config} change={change} />}
+        <Divider />
         <FilterButton columns={columns} config={config} change={change} />
         <SortButton columns={columns} config={config} change={change} />
         <GroupButton columns={columns} config={config} change={change} />
         <ColumnsButton columns={columns} config={config} change={change} hiddenCount={hiddenCount} />
         <ColorsButton columns={columns} config={config} change={change} />
+        {dateCols.length > 0 && <TimeButton columns={columns} dateCols={dateCols} config={config} change={change} />}
         <div className="ml-auto flex min-w-0 shrink items-center gap-1.5 @max-[58rem]:w-full">
           {extra}
           <SearchBox value={search} onChange={onSearch} />
@@ -84,18 +85,20 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
 function ToolButton({ icon, label, count, active, iconOnly, ...props }: React.ComponentProps<"button"> & { icon: React.ReactNode; label: string; count?: number; active?: boolean; iconOnly?: boolean }) {
   return (
     <Button
-      variant="secondary"
+      variant="ghost"
       title={label}
-      className={cn("max-w-full shrink-0 !px-2.5 @[64rem]:!px-3", active && "!border-primary-border !bg-primary-soft !text-primary", iconOnly && "@[64rem]:!px-2.5")}
+      className={cn("max-w-full sm:!min-h-8 shrink-0 !px-2.5 sm:!py-0 @[64rem]:!px-3", active && "!bg-primary-soft !text-primary", iconOnly && "@[64rem]:!px-2.5")}
       aria-label={count ? `${label} ${formatNumber(count)}` : label}
       {...props}
     >
       {icon}
       <span className={iconOnly ? "sr-only" : "hidden @[64rem]:inline"}>{label}</span>
-      {count ? <span className="rounded-full bg-primary px-1.5 text-xs leading-5 text-primary-foreground">{formatNumber(count)}</span> : null}
+      {count ? <span className="text-xs font-semibold">{formatNumber(count)}</span> : null}
     </Button>
   );
 }
+
+const Divider = () => <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />;
 
 const Label = ({ children }: { children: React.ReactNode }) => <p className="mb-1 text-xs font-medium text-muted-foreground">{children}</p>;
 
@@ -103,7 +106,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (s: string) =
   return (
     <div className="relative min-w-0 flex-1 basis-36 @[58rem]:w-44 @[58rem]:flex-none @[64rem]:w-60">
       <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-      <Input type="search" {...searchHotkeyProps} aria-label="Tìm trong bảng" placeholder="Tìm trong bảng (/)" value={value} onChange={(e) => onChange(e.target.value)} className="!pl-8" autoComplete="off" maxLength={200} />
+      <Input type="search" {...searchHotkeyProps} aria-label="Tìm trong bảng" placeholder="Tìm trong bảng (/)" value={value} onChange={(e) => onChange(e.target.value)} className="sm:!min-h-8 !border-transparent !bg-muted !pl-8" autoComplete="off" maxLength={200} />
     </div>
   );
 }

@@ -144,6 +144,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   const [reloadKey, setReloadKey] = useState(0);
   const [trashOpen, setTrashOpen] = useState(false);
   const [rowSlot, setRowSlot] = useState<HTMLElement | null>(null);
+  // Undo and redo live in the "..." menu; the open grid publishes its state here (Ctrl+Z still works in the grid).
+  const [undoApi, setUndoApi] = useState<UndoApi | null>(null);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [colUI, setColUI] = useState<{ kind: "manage" } | { kind: "add" } | { kind: "edit"; col: Column } | null>(null);
   const deleteCol = useColumnDelete(table);
@@ -269,7 +271,14 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
           </>
         }
         more={
-          <Menu trigger={<Button variant="secondary" aria-label="Thêm thao tác" title="Thêm thao tác" className="shrink-0 !px-2.5"><MoreHorizontal size={16} aria-hidden /></Button>}>
+          <Menu trigger={<Button variant="ghost" aria-label="Thêm thao tác" title="Thêm thao tác" className="shrink-0 !px-2.5 sm:!min-h-8 sm:!py-0"><MoreHorizontal size={16} aria-hidden /></Button>}>
+            {undoApi && (
+              <>
+                <MenuItem disabled={!undoApi.canUndo} onSelect={() => undoApi.run(false)}><Undo2 size={16} aria-hidden /> Hoàn tác <span aria-hidden className="ml-auto pl-4 text-xs text-muted-foreground">Ctrl+Z</span></MenuItem>
+                <MenuItem disabled={!undoApi.canRedo} onSelect={() => undoApi.run(true)}><Redo2 size={16} aria-hidden /> Làm lại <span aria-hidden className="ml-auto pl-4 text-xs text-muted-foreground">Ctrl+Shift+Z</span></MenuItem>
+                <MenuSeparator />
+              </>
+            )}
             {dataActions.map((a) => <MenuItem key={a.key} onSelect={a.run}>{a.icon} {a.label}</MenuItem>)}
             {dataActions.length > 0 && structureActions.length > 0 && <MenuSeparator />}
             {structureActions.map((a) => <MenuItem key={a.key} disabled={a.disabled} onSelect={a.run}>{a.icon} {a.label}</MenuItem>)}
@@ -287,7 +296,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
       {colUI?.kind === "manage" && <ColumnManager table={table} level={table.access} onClose={() => setColUI(null)} onAdd={() => setColUI({ kind: "add" })} onEdit={(c) => setColUI({ kind: "edit", col: c })} onDelete={(c) => { setColUI(null); void deleteCol(c); }} />}
       {colUI?.kind === "add" && <ColumnEditor table={table} onClose={() => setColUI(null)} />}
       {colUI?.kind === "edit" && <ColumnEditor key={colUI.col.id} table={table} column={colUI.col} onClose={() => setColUI(null)} />}
-      <LoadedTable key={sig} table={table} query={query} gridView={gridView} rowSlot={rowSlot} statusText={saveText ? `${saveText}${saveText && view.shared && table.access !== "owner" ? " (chỉ cho bạn)" : ""}` : ""} searching={search.trim() !== ""} onClearFilters={() => { setSearch(""); auto.change({ filter: undefined, time_filter: undefined }); }} />
+      <LoadedTable key={sig} table={table} query={query} gridView={gridView} rowSlot={rowSlot} onUndoApi={setUndoApi} statusText={saveText ? `${saveText}${saveText && view.shared && table.access !== "owner" ? " (chỉ cho bạn)" : ""}` : ""} searching={search.trim() !== ""} onClearFilters={() => { setSearch(""); auto.change({ filter: undefined, time_filter: undefined }); }} />
     </div>
   );
 }
@@ -296,7 +305,14 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
  * `rowSlot`: the node of the page toolbar the row actions (add row, undo, selection) are portaled into. `undefined` (a page with no
  * toolbar of its own) draws them in a line above the grid; `null` is the toolbar not mounted yet. `statusText`: the view-saving text of the footer line.
  */
-export function LoadedTable({ table, query, gridView, searching, onClearFilters, rowSlot, statusText }: { table: TableDetail; query: SessionQuery; gridView: GridView; searching: boolean; onClearFilters: () => void; rowSlot?: HTMLElement | null; statusText?: string }) {
+/** What the "..." menu needs of the open grid for undo and redo. */
+export interface UndoApi {
+  canUndo: boolean;
+  canRedo: boolean;
+  run: (redo: boolean) => void;
+}
+
+export function LoadedTable({ table, query, gridView, searching, onClearFilters, rowSlot, statusText, onUndoApi }: { table: TableDetail; query: SessionQuery; gridView: GridView; searching: boolean; onClearFilters: () => void; rowSlot?: HTMLElement | null; statusText?: string; onUndoApi?: (a: UndoApi | null) => void }) {
   // One session per table layout and query (`key` in ViewBody). Started and stopped by an effect: StrictMode runs it twice in development.
   const [session] = useState(() => {
     const s = new TableSession(table, query);
@@ -311,10 +327,10 @@ export function LoadedTable({ table, query, gridView, searching, onClearFilters,
     session.start();
     return () => session.stop();
   }, [session]);
-  return <OpenTable table={table} session={session} gridView={gridView} filtered={searching || !!query.filter || !!query.timeFilter} onClearFilters={onClearFilters} rowSlot={rowSlot} statusText={statusText} />;
+  return <OpenTable table={table} session={session} gridView={gridView} filtered={searching || !!query.filter || !!query.timeFilter} onClearFilters={onClearFilters} rowSlot={rowSlot} statusText={statusText} onUndoApi={onUndoApi} />;
 }
 
-function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot, statusText }: { table: TableDetail; session: TableSession; gridView: GridView; filtered: boolean; onClearFilters: () => void; rowSlot?: HTMLElement | null; statusText?: string }) {
+function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot, statusText, onUndoApi }: { table: TableDetail; session: TableSession; gridView: GridView; filtered: boolean; onClearFilters: () => void; rowSlot?: HTMLElement | null; statusText?: string; onUndoApi?: (a: UndoApi | null) => void }) {
   const qc = useQueryClient();
   // A merged table is read-only for everyone, its owner included.
   const level: Level = table.kind === "merged" ? "view" : table.access;
@@ -407,6 +423,18 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
     }
   };
 
+  const canUndoNow = undo.canUndo;
+  const canRedoNow = undo.canRedo;
+  const undoRef = useRef(doUndo);
+  useEffect(() => {
+    undoRef.current = doUndo;
+  });
+  useEffect(() => {
+    if (!onUndoApi || level === "view") return;
+    onUndoApi({ canUndo: canUndoNow, canRedo: canRedoNow, run: (redo) => void undoRef.current(redo) });
+  }, [onUndoApi, level, canUndoNow, canRedoNow]);
+  useEffect(() => () => onUndoApi?.(null), [onUndoApi]);
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable='true']")) return;
     if (!(e.metaKey || e.ctrlKey)) return;
@@ -453,23 +481,19 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
     <>
       {canWrite && (
         <>
-          <Button onClick={() => void addRow()} disabled={columnsEmpty} className="shrink-0"><Plus size={16} aria-hidden /> Thêm dòng</Button>
-          <Tip label="Hoàn tác (Ctrl+Z)">
-            <Button variant="ghost" aria-label="Hoàn tác" disabled={!undo.canUndo} onClick={() => void doUndo(false)} className="shrink-0 !px-2"><Undo2 size={16} aria-hidden /></Button>
-          </Tip>
-          <Tip label="Làm lại (Ctrl+Shift+Z)">
-            <Button variant="ghost" aria-label="Làm lại" disabled={!undo.canRedo} onClick={() => void doUndo(true)} className="shrink-0 !px-2"><Redo2 size={16} aria-hidden /></Button>
-          </Tip>
+          <Button onClick={() => void addRow()} disabled={columnsEmpty} className="shrink-0 sm:!min-h-8 sm:!py-0"><Plus size={16} aria-hidden /> Thêm dòng</Button>
         </>
       )}
       {sel.ids.length > 0 && canWrite && (
         <>
-          <Button variant="secondary" className="shrink-0" onClick={() => setBulk(true)}><Pencil size={16} aria-hidden /> Sửa {formatCount(sel.ids.length, "dòng")}</Button>
-          <Button variant="secondary" className="shrink-0 !text-bad" onClick={() => void deleteSelected()}><Trash2 size={16} aria-hidden /> Xoá {formatCount(sel.ids.length, "dòng")}</Button>
+          <Button variant="ghost" aria-label={`Sửa ${formatCount(sel.ids.length, "dòng")}`} title={`Sửa ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !bg-primary-soft !text-primary sm:!min-h-8 sm:!py-0" onClick={() => setBulk(true)}><Pencil size={16} aria-hidden /><span aria-hidden className="text-xs font-semibold @[64rem]:hidden">{sel.ids.length}</span><span aria-hidden className="hidden @[64rem]:inline">Sửa {formatCount(sel.ids.length, "dòng")}</span></Button>
+          <Button variant="ghost" aria-label={`Xoá ${formatCount(sel.ids.length, "dòng")}`} title={`Xoá ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !text-bad sm:!min-h-8 sm:!py-0" onClick={() => void deleteSelected()}><Trash2 size={16} aria-hidden /><span aria-hidden className="text-xs font-semibold @[64rem]:hidden">{sel.ids.length}</span><span aria-hidden className="hidden @[64rem]:inline">Xoá {formatCount(sel.ids.length, "dòng")}</span></Button>
         </>
       )}
       {(sel.active || sel.ids.length === 1) && (
-        <Button variant="secondary" className="shrink-0" onClick={() => setOpenRow(sel.ids.length === 1 ? sel.ids[0]! : sel.active)}><Maximize2 size={16} aria-hidden /> Chi tiết dòng</Button>
+        <Tip label="Chi tiết dòng (bấm số thứ tự, hoặc Shift + Space)">
+          <Button variant="ghost" aria-label="Chi tiết dòng" className="shrink-0 !px-2 sm:!min-h-8 sm:!py-0" onClick={() => setOpenRow(sel.ids.length === 1 ? sel.ids[0]! : sel.active)}><Maximize2 size={16} aria-hidden /></Button>
+        </Tip>
       )}
       {session.grouped && (
         <>

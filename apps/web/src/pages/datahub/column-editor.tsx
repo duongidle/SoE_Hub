@@ -1,7 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Drawer } from "@/components/ui/drawer";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, Select, Textarea } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/toast";
 import { Tip } from "@/components/ui/tooltip";
@@ -194,38 +196,55 @@ export function ColumnEditor({ table, column, onClose, adapter, confirmText, not
 
   return (
     <>
-      <Modal title={editing ? `Sửa cột "${column!.name}"` : "Thêm cột"} open onClose={onClose} dirty={dirty && !busy} wide>
-        <form ref={form} className="flex flex-col gap-4" noValidate onSubmit={(e) => { e.preventDefault(); void save(); }}>
-          {notice}
-          <div data-field="name">
-            <Field label="Tên cột" required error={shown("name")} hint="Không trùng tên cột khác trong bảng, không chứa [ hoặc ]. Công thức gọi cột bằng tên này.">
-              <Input value={draft.name} onChange={(e) => { set({ name: e.target.value }); setErrors((x) => ({ ...x, name: undefined })); }} maxLength={100} autoComplete="off" autoFocus {...fieldProps("name")} />
-            </Field>
+      <Drawer
+        title={editing ? `Sửa cột "${column!.name}"` : "Thêm cột"}
+        open
+        onClose={onClose}
+        dirty={dirty && !busy}
+        width="sm:w-[480px]"
+        footer={
+          <div className="flex items-center justify-between gap-2">
+            <Button variant="secondary" onClick={onClose}>Huỷ</Button>
+            <Button type="submit" form="column-form" loading={busy}>{editing ? "Lưu cột" : "Thêm cột"}</Button>
           </div>
+        }
+      >
+        <form id="column-form" ref={form} className="flex flex-col gap-6" noValidate onSubmit={(e) => { e.preventDefault(); void save(); }}>
+          {notice}
+          <Section title="Cơ bản">
+            <div data-field="name">
+              <Field label="Tên cột" required error={shown("name")} hint="Không trùng tên cột khác trong bảng, không chứa [ hoặc ]. Công thức gọi cột bằng tên này.">
+                <Input value={draft.name} onChange={(e) => { set({ name: e.target.value }); setErrors((x) => ({ ...x, name: undefined })); }} maxLength={100} autoComplete="off" autoFocus {...fieldProps("name")} />
+              </Field>
+            </div>
 
-          <Field label="Kiểu cột" hint={typeLocked ? "Không đổi được kiểu của cột này." : editing ? "Đổi kiểu sẽ chuyển giá trị đang có. Bạn xem kết quả trước khi áp dụng." : undefined}>
-            {typesQ.isLoading ? (
-              <Skeleton className="h-9" />
-            ) : (
-              <Select value={draft.type} disabled={typeLocked} onChange={(e) => setDraft((d) => ({ ...emptyDraft(e.target.value), name: d.name, description: d.description, required: d.required, allowEdit: d.allowEdit }))}>
-                {typeLocked
-                  ? <option value={draft.type}>{typeLabel(draft.type)}</option>
-                  : editing
-                    ? typeList.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)
-                    : groupedTypes(types).map((g) => (
-                        <optgroup key={g.id} label={g.label}>
-                          {g.types.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)}
-                        </optgroup>
-                      ))}
-              </Select>
-            )}
-          </Field>
+            <Field label="Kiểu cột" hint={typeLocked ? "Không đổi được kiểu của cột này." : editing ? "Đổi kiểu sẽ chuyển giá trị đang có. Bạn xem kết quả trước khi áp dụng." : undefined}>
+              {typesQ.isLoading ? (
+                <Skeleton className="h-9" />
+              ) : (
+                <Select value={draft.type} disabled={typeLocked} onChange={(e) => setDraft((d) => ({ ...emptyDraft(e.target.value), name: d.name, description: d.description, required: d.required, allowEdit: d.allowEdit }))}>
+                  {typeLocked
+                    ? <option value={draft.type}>{typeLabel(draft.type)}</option>
+                    : editing
+                      ? typeList.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)
+                      : groupedTypes(types).map((g) => (
+                          <optgroup key={g.id} label={g.label}>
+                            {g.types.map((t) => <option key={t.type} value={t.type}>{t.label}</option>)}
+                          </optgroup>
+                        ))}
+                </Select>
+              )}
+            </Field>
 
-          <TypeFields draft={draft} set={set} shown={shown} fieldProps={fieldProps} table={table} column={column} others={others} />
+            <TypeFields draft={draft} set={set} shown={shown} fieldProps={fieldProps} table={table} column={column} others={others} />
+
+            <Field label="Mô tả" hint="Hiện cho người nhập dữ liệu khi sửa dòng.">
+              <Textarea rows={2} value={draft.description} maxLength={1000} onChange={(e) => set({ description: e.target.value })} />
+            </Field>
+          </Section>
 
           {numberFormat && (
-            <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3">
-              <legend className="px-1 text-sm font-medium">Định dạng hiển thị</legend>
+            <Section title="Định dạng">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div data-field="decimals"><Field label="Số chữ số thập phân" error={shown("decimals")} hint="Để trống thì hiện đúng số đã lưu."><Input inputMode="numeric" value={draft.decimals} onChange={(e) => set({ decimals: e.target.value })} {...fieldProps("decimals")} /></Field></div>
                 {draft.type !== "percent" && draft.type !== "currency" && (
@@ -233,39 +252,23 @@ export function ColumnEditor({ table, column, onClose, adapter, confirmText, not
                 )}
               </div>
               {draft.type !== "percent" && draft.type !== "currency" && (
-                <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-9">
-                  <input type="checkbox" className="h-5 w-5" checked={draft.thousands} onChange={(e) => set({ thousands: e.target.checked })} />
-                  Dùng dấu chấm ngăn cách hàng nghìn
-                </label>
+                <Switch checked={draft.thousands} onChange={(v) => set({ thousands: v })} label="Dùng dấu chấm ngăn cách hàng nghìn" />
               )}
-            </fieldset>
+            </Section>
           )}
 
-          <Field label="Mô tả" hint="Hiện cho người nhập dữ liệu khi sửa dòng.">
-            <Textarea rows={2} value={draft.description} maxLength={1000} onChange={(e) => set({ description: e.target.value })} />
-          </Field>
-
-          {(hasProperty(draft.type, "allow_edit") || hasProperty(draft.type, "required") || hasProperty(draft.type, "unique", info) || hasProperty(draft.type, "default")) && (
-            <fieldset className="flex flex-col gap-2 rounded-md border border-border p-3">
-              <legend className="px-1 text-sm font-medium">Thuộc tính</legend>
-              {hasProperty(draft.type, "required") && (
-                <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-9">
-                  <input type="checkbox" className="h-5 w-5" checked={draft.required} onChange={(e) => set({ required: e.target.checked })} />
-                  Bắt buộc có giá trị
-                </label>
-              )}
+          {(hasProperty(draft.type, "allow_edit") || hasProperty(draft.type, "required")) && (
+            <Section title="Thuộc tính">
+              {hasProperty(draft.type, "required") && <Switch checked={draft.required} onChange={(v) => set({ required: v })} label="Bắt buộc có giá trị" />}
               {hasProperty(draft.type, "allow_edit") && (
-                <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-9">
-                  <input type="checkbox" className="h-5 w-5" checked={draft.allowEdit} onChange={(e) => set({ allowEdit: e.target.checked })} />
-                  <span>Cho phép sửa <span className="text-muted-foreground">(người được chia sẻ có quyền Sửa được gõ vào cột này; chủ bảng luôn sửa được)</span></span>
-                </label>
+                <Switch checked={draft.allowEdit} onChange={(v) => set({ allowEdit: v })} label="Cho phép sửa" hint="Người được chia sẻ có quyền Sửa được gõ vào cột này; chủ bảng luôn sửa được." />
               )}
-              {hasProperty(draft.type, "unique", info) && (
-                <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-9">
-                  <input type="checkbox" className="h-5 w-5" checked={draft.unique} onChange={(e) => set({ unique: e.target.checked })} />
-                  Không cho trùng giá trị
-                </label>
-              )}
+            </Section>
+          )}
+
+          {(hasProperty(draft.type, "unique", info) || hasProperty(draft.type, "default")) && (
+            <Section title="Nâng cao">
+              {hasProperty(draft.type, "unique", info) && <Switch checked={draft.unique} onChange={(v) => set({ unique: v })} label="Không cho trùng giá trị" />}
               {hasProperty(draft.type, "default") && (
                 <div data-field="default">
                   {draft.type === "checkbox" ? (
@@ -291,17 +294,12 @@ export function ColumnEditor({ table, column, onClose, adapter, confirmText, not
                   {editing && <p className="mt-1 text-xs text-muted-foreground">Giá trị mặc định cũ được giữ khi bạn không đổi ô này.</p>}
                 </div>
               )}
-            </fieldset>
+            </Section>
           )}
 
           {formError ? <ErrorText error={formError} /> : null}
-          {/* The buttons stay in view at the bottom of a long form, so an error line above never moves them from under the pointer. */}
-          <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-wrap justify-between gap-2 border-t border-border bg-card px-5 py-3">
-            <Button variant="secondary" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" loading={busy}>{editing ? "Lưu cột" : "Thêm cột"}</Button>
-          </div>
         </form>
-      </Modal>
+      </Drawer>
       {asking && confirmText && (
         <ConfirmDialog title="Áp dụng thay đổi template?" message={<span data-testid="template-confirm">{confirmText}</span>} confirmLabel="Xác nhận" onClose={() => setAsking(false)} onConfirm={() => { confirmed.current = true; setAsking(false); void save(); }} />
       )}
@@ -575,3 +573,13 @@ function LookupFields({ draft, set, shown, table, others }: { draft: ColumnDraft
   );
 }
 
+
+/** A titled group of fields of the column drawer. */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-4">
+      <h3 className="border-b border-border-soft pb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      {children}
+    </section>
+  );
+}

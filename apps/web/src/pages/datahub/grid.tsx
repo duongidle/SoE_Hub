@@ -141,6 +141,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   const [menu, setMenu] = useState<{ x: number; y: number; col: Column } | null>(null);
 
   const ref = useRef<DataEditorRef>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const visible = useRef<Rectangle>({ x: 0, y: 0, width: 0, height: 0 });
   const [selection, setSelection] = useState<GridSelection>({ columns: CompactSelection.empty(), rows: CompactSelection.empty() });
   const [tip, setTip] = useState<Tip | null>(null);
@@ -605,9 +606,86 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   );
 
   const rowsCount = session.lineCount;
+
+  // ---- the row number column (module 12): left click opens the row panel, right click selects the row ---------------------------
+  // Not for a grouped table: its marker is a checkbox and keeps working as before.
+  const markerRowAt = (clientX: number, clientY: number): number | null => {
+    const root = rootRef.current;
+    const ed = ref.current;
+    if (grouped || !root || !ed) return null;
+    const rect = root.getBoundingClientRect();
+    if (clientX < rect.left || clientX - rect.left > MARKER_WIDTH + 1) return null;
+    const v = visible.current;
+    for (let r = v.y; r <= Math.min(v.y + v.height + 1, rowsCount - 1); r++) {
+      const b = ed.getBounds(0, r);
+      if (b && clientY >= b.y && clientY < b.y + b.height) return lineAt(r)?.type === "header" ? null : r;
+    }
+    return null;
+  };
+  const selectRow = (r: number, mode: "replace" | "toggle" | "range") => {
+    const cur = selection.rows;
+    let rows: CompactSelection;
+    if (mode === "toggle") rows = cur.hasIndex(r) ? cur.remove(r) : cur.add(r);
+    else if (mode === "range" && cur.length > 0) {
+      const anchor = cur.toArray()[cur.length - 1]!;
+      rows = cur.add([Math.min(anchor, r), Math.max(anchor, r) + 1]);
+    } else rows = CompactSelection.fromSingleSelection(r);
+    onGridSelectionChange({ columns: CompactSelection.empty(), rows });
+  };
+  const pressed = useRef<{ row: number; mode: "open" | "replace" | "toggle" | "range" } | null>(null);
+  const touch = useRef<{ row: number; timer: ReturnType<typeof setTimeout> | null } | null>(null);
+  const markerHandlers = {
+    // The grid reads its selection on mouse up as well, so the action runs just after that (a timer of 0) and has the last word.
+    onMouseDownCapture: (e: React.MouseEvent) => {
+      const r = markerRowAt(e.clientX, e.clientY);
+      if (r === null) return;
+      if (e.button === 2) {
+        e.stopPropagation();
+        e.preventDefault();
+        pressed.current = { row: r, mode: e.metaKey || e.ctrlKey ? "toggle" : e.shiftKey ? "range" : "replace" };
+      } else if (e.button === 0 && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+        e.stopPropagation();
+        e.preventDefault();
+        pressed.current = { row: r, mode: "open" };
+      }
+    },
+    onMouseUpCapture: () => {
+      const p = pressed.current;
+      pressed.current = null;
+      if (!p) return;
+      setTimeout(() => {
+        if (p.mode === "open") {
+          const id = rowAtLine(p.row)?.id;
+          if (id) onOpenRow(id);
+        } else selectRow(p.row, p.mode);
+      }, 0);
+    },
+    onContextMenu: (e: React.MouseEvent) => {
+      if (markerRowAt(e.clientX, e.clientY) !== null) e.preventDefault();
+    },
+    // Touch: a tap opens the row, a long press selects it.
+    onTouchStartCapture: (e: React.TouchEvent) => {
+      const t = e.touches[0];
+      const r = t ? markerRowAt(t.clientX, t.clientY) : null;
+      if (r === null) return;
+      touch.current = { row: r, timer: setTimeout(() => { if (touch.current) { touch.current.timer = null; selectRow(r, "toggle"); } }, 500) };
+    },
+    onTouchEndCapture: () => {
+      const t = touch.current;
+      touch.current = null;
+      if (!t?.timer) return;
+      clearTimeout(t.timer);
+      const id = rowAtLine(t.row)?.id;
+      if (id) onOpenRow(id);
+    },
+    onTouchMoveCapture: () => {
+      if (touch.current?.timer) clearTimeout(touch.current.timer);
+      touch.current = null;
+    },
+  };
   return (
     // data-* : the layout the browser tests use to find a cell on the canvas.
-    <div className="relative min-h-[60dvh] flex-1 overflow-hidden rounded-card border border-border-soft bg-card sm:min-h-0" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
+    <div ref={rootRef} {...markerHandlers} className="relative min-h-[60dvh] flex-1 overflow-hidden rounded-card border border-border-soft bg-card sm:min-h-0" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
       {theme && (
         <DataEditor
           ref={ref}
@@ -621,7 +699,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
           getCellContent={getCellContent}
           customRenderers={[soeRenderer]}
           isOutsideClick={(e) => !isInsidePopup(e)}
-          rowMarkers={grouped ? { kind: "checkbox", width: MARKER_WIDTH } : { kind: "both", width: MARKER_WIDTH }}
+          rowMarkers={grouped ? { kind: "checkbox", width: MARKER_WIDTH } : { kind: "number", width: MARKER_WIDTH }}
           freezeColumns={view.frozen}
           onCellClicked={onHeaderClick}
           onHeaderMenuClick={(c, bounds) => {
