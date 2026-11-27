@@ -163,7 +163,7 @@ export function Modal({ title, open, onClose, children, dirty, wide }: { title: 
 export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onClose, busy }: { title: string; message: React.ReactNode; confirmLabel: string; onConfirm: () => void; onClose: () => void; busy?: boolean }) {
   return (
     <Modal title={title} open onClose={onClose}>
-      <p className="text-sm [overflow-wrap:anywhere]">{message}</p>
+      <div className="text-sm [overflow-wrap:anywhere]">{message}</div>
       <div className="mt-5 flex flex-wrap justify-between gap-2">
         <Button variant="secondary" onClick={onClose}>Giữ lại</Button>
         <Button variant="danger" loading={busy} onClick={onConfirm}>{confirmLabel}</Button>

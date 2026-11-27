@@ -67,7 +67,7 @@ export const router = createRouter({
     lazyPage("/ai-hub/cua-toi", () => import("@/pages/aihub/mine-page"), "MySkillsPage"),
     lazyPage("/ai-hub/tai-len", () => import("@/pages/aihub/upload"), "SkillUploadPage"),
     lazyPage("/ai-hub/tai-len/$id", () => import("@/pages/aihub/upload"), "SkillUploadPage"),
-    lazyPage("/ai-hub/$id", () => import("@/pages/aihub/detail"), "SkillPage"),
+    lazyPage("/ai-hub/$id", () => import("@/pages/aihub/list"), "SkillRoute"),
     lazyPage("/duyet", () => import("@/pages/review/queue"), "ReviewQueuePage"),
     r("/dashboard", SharedDashboardsPage),
     r("/dashboard/$dashboardId", SharedDashboardPage),

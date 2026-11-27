@@ -130,18 +130,28 @@ export function MyQuizPage() {
   const code = param("code");
   const q = useQuery({ queryKey: ["quiz-mine", code], queryFn: () => api<{ attempts_used: number; max_attempts: number | null; attempts: Attempt[] }>("GET", `/fill/${code}/mine`), enabled: !!code });
   return (
-    <div>
+    <div className="mx-auto max-w-[760px]">
       <PageTitle>Bài làm của tôi</PageTitle>
       {!code ? <EmptyState title="Chưa chọn bài" hint="Mở từ thông báo hoặc từ link của bài kiểm tra." /> : q.error ? <ErrorState error={q.error} /> : !q.data ? <p className="text-muted-foreground">Đang tải…</p> : (
-        <div className="flex flex-col gap-2" data-testid="my-quiz">
-          <p className="text-sm">Đã làm {q.data.attempts_used}{q.data.max_attempts ? ` / ${q.data.max_attempts}` : ""} lần.</p>
+        <div className="flex flex-col gap-3" data-testid="my-quiz">
+          <div className="rounded-card border border-border bg-card p-4 shadow-sm">
+            <p className="text-sm">Đã làm <b>{q.data.attempts_used}</b>{q.data.max_attempts ? ` / ${q.data.max_attempts}` : ""} lần.</p>
+            {q.data.max_attempts ? <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, (q.data.attempts_used / q.data.max_attempts) * 100)}%` }} /></div> : null}
+          </div>
           {q.data.attempts.length === 0 && <p className="text-sm text-muted-foreground">Người ra đề chưa cho xem điểm.</p>}
           {q.data.attempts.map((a) => (
-            <div key={a.attempt} className="rounded-md border border-border bg-card p-3" data-testid="my-quiz-attempt">
-              <p className="font-medium">Lần {a.attempt}: {a.score}/{a.max} <Badge>{a.result ?? "Chờ chấm"}</Badge></p>
+            <div key={a.attempt} className="rounded-card border border-border bg-card p-4 shadow-sm" data-testid="my-quiz-attempt">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-medium">Lần {a.attempt}: <span className="text-lg font-semibold">{a.score}/{a.max}</span></p>
+                <ResultChip result={a.result} />
+              </div>
               <p className="text-xs text-muted-foreground">{fmtTime(a.submitted_at)}</p>
-              {a.comment && <p className="mt-1 text-sm">{a.comment}</p>}
-              {a.items?.map((i) => <p key={i.question_id} className="text-sm">{i.question_id}: {i.points}/{i.max}{i.comment ? ` — ${i.comment}` : ""}</p>)}
+              {a.comment && <p className="mt-2 rounded-md bg-muted p-2 text-sm">{a.comment}</p>}
+              {a.items && a.items.length > 0 && (
+                <ul className="mt-2 flex flex-col gap-1 border-t border-border-soft pt-2">
+                  {a.items.map((i, n) => <li key={i.question_id} className="flex flex-wrap items-baseline justify-between gap-2 text-sm"><span><span className="font-medium">Câu {n + 1}</span>{i.comment ? <span className="text-muted-foreground"> — {i.comment}</span> : null}</span><span className="tabular-nums">{i.points}/{i.max}</span></li>)}
+                </ul>
+              )}
             </div>
           ))}
         </div>

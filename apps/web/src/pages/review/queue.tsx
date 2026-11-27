@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { CircleCheck, TriangleAlert } from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
+import { Drawer } from "@/components/ui/drawer";
 import { Badge } from "@/components/ui/badge";
-import { Button, ConfirmDialog, ErrorText, PageTitle, Select, Textarea } from "@/components/ui/form";
+import { Button, ConfirmDialog, ErrorText, PageTitle, Textarea } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { api, ApiError, fmtTime } from "@/lib/api";
 import { can, useMe } from "@/lib/session";
-import { CATEGORY_LABEL, GROUP_LABEL, RichView, TagChips, TYPE_LABEL, type Issue } from "../library/common";
+import { CATEGORY_LABEL, ChipTabs, GROUP_LABEL, RichView, TagChips, TYPE_LABEL, type Issue } from "../library/common";
 
 interface QueueItem {
   post_id: string;
@@ -76,34 +78,44 @@ function Review({ id, version, onDone }: { id: string; version: number; onDone: 
     ? "Đã có skill xuất bản trùng tên. Hãy Trả lại để tác giả đổi tên, hoặc đánh dấu đây là phiên bản mới của skill đó."
     : decide.error;
   return (
-    <div className="rounded-lg border border-border bg-card p-4" data-testid="review-detail">
+    <div className="rounded-card border border-border bg-card shadow-sm" data-testid="review-detail">
       <ErrorText error={q.error} />
       {d && (
         <>
-          <div className="mb-3 text-xs text-muted-foreground">{KIND_LABEL[d.kind]} · {d.author.name} · bản {d.version}{d.is_revision ? " (bản sửa của bài đã xuất bản)" : ""}</div>
-          {(d.errors.length > 0 || d.warnings.length > 0) && (
-            <section className="mb-4 flex flex-col gap-1" data-testid="review-warnings" aria-label="Cảnh báo">
-              <h3 className="text-sm font-semibold">Cảnh báo của kiểm tra tự động ({d.warnings.length})</h3>
-              {d.errors.map((i, n) => <p key={`e${n}`} className="rounded-md bg-bad/10 px-2 py-1 text-xs text-bad"><b>Lỗi:</b> {i.message}{i.path ? ` (${i.path})` : ""}</p>)}
-              {d.warnings.map((i, n) => (
-                <p key={`w${n}`} className="rounded-md bg-warn/20 px-2 py-1 text-xs">
-                  <b>{i.path ? `${i.path}: ` : ""}</b>{i.message} {i.hint}
-                  {i.similar?.map((s) => <span key={s.id}> Giống: <b>{s.title}</b>.</span>)}
-                </p>
-              ))}
-            </section>
-          )}
-          <Body kind={d.kind} c={d.content} />
-          {d.live && (
-            <div className="mt-4">
-              <Button variant="ghost" onClick={() => setShowLive((x) => !x)} data-testid="toggle-live">{showLive ? "Ẩn" : "Xem"} bản đang xuất bản (bản {d.live.version})</Button>
-              {showLive && <div className="mt-2 rounded-md border border-border p-3" data-testid="live-version"><Body kind={d.kind} c={d.live.content} /></div>}
+          <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-t-card border-b border-border-soft bg-card/95 px-4 py-3 backdrop-blur">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <Badge tone={d.kind === "article" ? "primary" : "ai"}>{KIND_LABEL[d.kind]}</Badge>
+              <span>{d.author.name} · bản {d.version}</span>
+              {d.is_revision && <Badge tone="info">Bản sửa của bài đã xuất bản</Badge>}
             </div>
-          )}
-          <ErrorText error={err} />
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={() => setDlg("approve")} data-testid="approve" disabled={d.errors.length > 0}>Duyệt</Button>
-            <Button variant="danger" onClick={() => setDlg("return")} data-testid="return">Trả lại</Button>
+            <div className="flex gap-2">
+              <Button variant="danger" onClick={() => setDlg("return")} data-testid="return">Trả lại</Button>
+              <Button onClick={() => setDlg("approve")} data-testid="approve" disabled={d.errors.length > 0}>Duyệt</Button>
+            </div>
+          </div>
+          <div className="p-4">
+            {(d.errors.length > 0 || d.warnings.length > 0) ? (
+              <section className="mb-4 flex flex-col gap-1.5 rounded-lg border border-warn-border bg-warn-bg p-3" data-testid="review-warnings" aria-label="Cảnh báo">
+                <h3 className="flex items-center gap-1.5 text-sm font-semibold text-warn"><TriangleAlert size={15} aria-hidden />Kiểm tra tự động: {d.errors.length} lỗi, {d.warnings.length} cảnh báo</h3>
+                {d.errors.map((i, n) => <p key={`e${n}`} className="rounded-md bg-bad/10 px-2 py-1 text-xs text-bad"><b>Lỗi:</b> {i.message}{i.path ? ` (${i.path})` : ""}</p>)}
+                {d.warnings.map((i, n) => (
+                  <p key={`w${n}`} className="text-xs">
+                    <b>{i.path ? `${i.path}: ` : ""}</b>{i.message} {i.hint}
+                    {i.similar?.map((s) => <span key={s.id}> Giống: <b>{s.title}</b>.</span>)}
+                  </p>
+                ))}
+              </section>
+            ) : (
+              <p className="mb-4 flex items-center gap-1.5 text-xs text-ok"><CircleCheck size={14} aria-hidden />Kiểm tra tự động không có cảnh báo.</p>
+            )}
+            <Body kind={d.kind} c={d.content} />
+            {d.live && (
+              <div className="mt-4">
+                <Button variant="ghost" onClick={() => setShowLive((x) => !x)} data-testid="toggle-live">{showLive ? "Ẩn" : "Xem"} bản đang xuất bản (bản {d.live.version})</Button>
+                {showLive && <div className="mt-2 rounded-md border border-border p-3" data-testid="live-version"><Body kind={d.kind} c={d.live.content} /></div>}
+              </div>
+            )}
+            <ErrorText error={err} />
           </div>
         </>
       )}
@@ -127,42 +139,48 @@ function Review({ id, version, onDone }: { id: string; version: number; onDone: 
   );
 }
 
+const wideQuery = "(min-width: 1024px)";
+const useWide = () => useSyncExternalStore((cb) => { const m = window.matchMedia(wideQuery); m.addEventListener("change", cb); return () => m.removeEventListener("change", cb); }, () => window.matchMedia(wideQuery).matches, () => true);
+
 export function ReviewQueuePage() {
   const me = useMe().data;
+  const wide = useWide();
   const [kind, setKind] = useState("");
   const [sel, setSel] = useState<{ id: string; version: number } | null>(null);
   const initial = new URLSearchParams(window.location.search).get("post");
   const q = useQuery({ queryKey: ["review", "queue", kind], queryFn: () => api<QueueItem[]>("GET", `/review/queue?limit=100${kind ? `&kind=${kind}` : ""}`) });
   const items = q.data ?? [];
   const current = sel ?? (initial ? items.find((i) => i.post_id === initial) ? { id: initial, version: items.find((i) => i.post_id === initial)!.version } : null : null);
+  const kinds = [{ value: "", label: "Tất cả" }, ...(can(me, "knowledge:article:review") ? [{ value: "article", label: "Bài Knowledge" }] : []), ...(can(me, "aihub:skill:review") ? [{ value: "skill", label: "Skill AI Hub" }] : [])];
+  const detail = current && <Review key={`${current.id}-${current.version}`} id={current.id} version={current.version} onDone={() => setSel(null)} />;
   return (
-    <div>
+    <div className="mx-auto flex max-w-[1280px] flex-col gap-3">
       <PageTitle>Hàng chờ duyệt</PageTitle>
-      <div className="mb-3 max-w-xs">
-        <Select aria-label="Loại" value={kind} onChange={(e) => { setKind(e.target.value); setSel(null); }}>
-          <option value="">Mọi loại</option>
-          {can(me, "knowledge:article:review") && <option value="article">Bài Knowledge</option>}
-          {can(me, "aihub:skill:review") && <option value="skill">Skill AI Hub</option>}
-        </Select>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ChipTabs label="Loại" value={kind} onChange={(v) => { setKind(v); setSel(null); }} items={kinds} />
+        {q.data && <span className="text-sm text-muted-foreground">{items.length} bài chờ duyệt</span>}
       </div>
       <ErrorText error={q.error} />
-      {q.data && items.length === 0 && <EmptyState title="Không có gì chờ duyệt" />}
-      <div className="grid gap-4 lg:grid-cols-[20rem_1fr]">
-        <ul className="flex flex-col gap-2" data-testid="queue">
+      {q.data && items.length === 0 && <EmptyState title="Không có gì chờ duyệt" hint="Bài và skill tác giả gửi lên sẽ hiện ở đây." />}
+      <div className="grid items-start gap-4 lg:grid-cols-[22rem_1fr]">
+        <ul className="flex flex-col gap-1.5" data-testid="queue">
           {items.map((i) => (
             <li key={i.post_id}>
-              <button type="button" onClick={() => setSel({ id: i.post_id, version: i.version })} className={`w-full rounded-lg border p-3 text-left text-sm ${current?.id === i.post_id ? "border-primary bg-primary/5" : "border-border bg-card"}`} data-testid="queue-item">
-                <div className="font-medium [overflow-wrap:anywhere]">{i.title}</div>
-                <div className="text-xs text-muted-foreground">{KIND_LABEL[i.kind]} · {i.author.name} · {fmtTime(i.submitted_at)}</div>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {i.is_revision && <Badge>Bản sửa</Badge>}
+              <button type="button" onClick={() => setSel({ id: i.post_id, version: i.version })} className={`w-full rounded-xl border p-3 text-left text-sm transition-colors ${current?.id === i.post_id ? "border-primary-border bg-primary-soft" : "border-border bg-card hover:border-primary-border"}`} data-testid="queue-item">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge tone={i.kind === "article" ? "primary" : "ai"}>{KIND_LABEL[i.kind]}</Badge>
+                  {i.is_revision && <Badge tone="info">Bản sửa</Badge>}
                   {i.warning_count > 0 && <Badge tone="warn">{i.warning_count} cảnh báo</Badge>}
                 </div>
+                <div className={`mt-1.5 font-medium [overflow-wrap:anywhere] ${i.kind === "skill" ? "font-mono" : ""}`}>{i.title}</div>
+                <div className="text-xs text-muted-foreground">{i.author.name} · {fmtTime(i.submitted_at)}</div>
               </button>
             </li>
           ))}
         </ul>
-        {current && <Review key={`${current.id}-${current.version}`} id={current.id} version={current.version} onDone={() => setSel(null)} />}
+        {wide ? (detail ?? (items.length > 0 ? <p className="rounded-card border border-dashed border-border p-6 text-sm text-muted-foreground">Chọn một mục bên trái để xem nội dung, cảnh báo và quyết định.</p> : null)) : (
+          <Drawer title="Duyệt bài" open={!!current} onClose={() => setSel(null)} wide width="sm:w-[640px]">{detail}</Drawer>
+        )}
       </div>
     </div>
   );

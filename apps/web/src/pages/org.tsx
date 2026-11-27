@@ -4,7 +4,11 @@ import { GUEST_PRESET_LABELS, ROLES, ROLE_LABELS, USER_STATUS_LABELS, type Role 
 import { Badge } from "@/components/ui/badge";
 import { PersonChip } from "@/components/ui/person";
 import { disambiguate } from "@/lib/people";
-import { Button, ErrorText, Field, Input, Modal, PageTitle, Select, Table, Tabs } from "@/components/ui/form";
+import { UserPlus } from "lucide-react";
+import { Drawer } from "@/components/ui/drawer";
+import { Button, ErrorText, Field, Input, Modal, PageTitle, Select, Table } from "@/components/ui/form";
+import { Segmented } from "./onboarding/common";
+import { Avatar } from "@/components/ui/person";
 import { api, apiList, fmtTime, qs } from "@/lib/api";
 import { can, useMe, type UserView } from "@/lib/session";
 
@@ -40,15 +44,17 @@ export function OrgPage() {
   const memberNames = disambiguate(members.data ?? []);
   const writable = can(me, "org:member:write");
   return (
-    <div>
-      <PageTitle actions={writable && <Button onClick={() => setEditing("new")}>Thêm người</Button>}>Org chart</PageTitle>
-      <p className="mb-4 text-sm text-muted-foreground">Thêm người vào org chart là cách duy nhất để có tài khoản. Người mới ở trạng thái Chưa kích hoạt, tự vào Đăng ký để nhận mã.</p>
-      <Tabs value={tab} onChange={setTab} items={[{ value: "table", label: "Bảng" }, { value: "tree", label: "Dạng cây" }]} />
+    <div className="mx-auto max-w-[1280px]">
+      <PageTitle actions={writable && <Button onClick={() => setEditing("new")}><UserPlus size={14} aria-hidden />Thêm người</Button>}>Org chart</PageTitle>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <Segmented value={tab} onChange={setTab} label="Cách xem" items={[{ value: "table", label: "Bảng" }, { value: "tree", label: "Dạng cây" }]} />
+        <p className="max-w-xl text-xs text-muted-foreground">Thêm người vào org chart là cách duy nhất để có tài khoản. Người mới ở trạng thái Chưa kích hoạt, tự vào Đăng ký để nhận mã.</p>
+      </div>
       {tab === "table" ? (
         <>
           <div className="mb-3 flex flex-col gap-2 sm:flex-row">
-            <Input placeholder="Tìm theo tên hoặc email" value={search} onChange={(e) => setSearch(e.target.value)} />
-            <Select value={status} onChange={(e) => setStatus(e.target.value)} className="sm:w-48">
+            <Input placeholder="Tìm theo tên hoặc email" aria-label="Tìm theo tên hoặc email" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Select value={status} onChange={(e) => setStatus(e.target.value)} className="sm:w-48" aria-label="Trạng thái">
               <option value="">Mọi trạng thái</option>
               {Object.entries(USER_STATUS_LABELS).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -136,16 +142,16 @@ function OrgTree() {
     <div className="flex flex-col gap-4">
       <ErrorText error={q.error} />
       {q.data?.trees.map((tr) => (
-        <div key={tr.manager.id} className="rounded-lg border border-border bg-card p-4 text-sm">
-          <div className="font-semibold">
-            Cây của <Person p={tr.manager} />
+        <div key={tr.manager.id} className="rounded-card border border-border bg-card p-4 text-sm shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 font-semibold">
+            <Badge tone="primary">Manager</Badge>Cây của <Person p={tr.manager} />
           </div>
-          <ul className="ml-4 mt-2 list-disc space-y-1">
+          <ul className="ml-3 mt-3 space-y-2 border-l-2 border-primary-border pl-4">
             {tr.leaders.map((l) => (
               <li key={l.id}>
                 <Person p={l} />
                 {l.members && l.members.length > 0 && (
-                  <ul className="ml-5 list-[circle] space-y-1">
+                  <ul className="mt-1.5 ml-3 space-y-1 border-l border-border pl-4">
                     {l.members.map((m) => (
                       <li key={m.id}>
                         <Person p={m} />
@@ -164,9 +170,9 @@ function OrgTree() {
         </div>
       ))}
       {q.data && q.data.outside.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4 text-sm">
+        <div className="rounded-card border border-border bg-card p-4 text-sm shadow-sm">
           <div className="font-semibold">Ngoài cây (Admin, Guest tự đăng ký)</div>
-          <ul className="ml-4 mt-2 list-disc space-y-1">
+          <ul className="ml-3 mt-3 space-y-1 border-l-2 border-border pl-4">
             {q.data.outside.map((p) => (
               <li key={p.id}>
                 <Person p={p} />
@@ -315,16 +321,19 @@ function MemberDetail({ row, onClose }: { row: Row; onClose: () => void }) {
   const label = (p: string) => catalog.data?.find((c) => c.permission === p)?.label ?? p;
   const grantable = (catalog.data ?? []).filter((c) => c.grantable_by.some((r) => me?.user.roles.includes(r)) && c.eligible_roles.some((r) => row.roles.includes(r)));
   return (
-    <Modal title={row.full_name} open onClose={onClose}>
+    <Drawer title={row.full_name} open onClose={onClose} width="sm:w-[480px]">
       <div className="flex flex-col gap-4 text-sm">
-        <div>
-          <div>{row.email}</div>
+        <div className="flex items-start gap-3 rounded-xl border border-border-soft bg-muted p-3">
+          <Avatar name={row.full_name} size="md" />
+          <div className="min-w-0">
+          <div className="[overflow-wrap:anywhere]">{row.email}</div>
           <div className="text-muted-foreground">
             {roleText(row)} · <StatusBadge s={row.status} /> · Đăng nhập gần nhất: {fmtTime(row.last_login_at)}
           </div>
+          </div>
         </div>
-        <section>
-          <h3 className="mb-1 font-medium">Quyền bổ sung</h3>
+        <section className="rounded-xl border border-border-soft p-3">
+          <h3 className="mb-1 font-semibold">Quyền bổ sung</h3>
           {perms.data?.length === 0 && <p className="text-muted-foreground">Chưa có.</p>}
           <ul className="space-y-1">
             {perms.data?.map((p) => (
@@ -357,8 +366,8 @@ function MemberDetail({ row, onClose }: { row: Row; onClose: () => void }) {
           )}
           <ErrorText error={grant.error ?? revoke.error} />
         </section>
-        <section>
-          <h3 className="mb-1 font-medium">Lịch sử vị trí trong cây</h3>
+        <section className="rounded-xl border border-border-soft p-3">
+          <h3 className="mb-1 font-semibold">Lịch sử vị trí trong cây</h3>
           <ul className="space-y-1">
             {history.data?.map((h, i) => (
               <li key={i}>
@@ -383,6 +392,6 @@ function MemberDetail({ row, onClose }: { row: Row; onClose: () => void }) {
         </div>
         <ErrorText error={lock.error ?? revokeSessions.error} />
       </div>
-    </Modal>
+    </Drawer>
   );
 }

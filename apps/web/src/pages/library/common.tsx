@@ -1,4 +1,6 @@
 import { Link } from "@tanstack/react-router";
+import { Check, Copy, Search } from "lucide-react";
+import { useState } from "react";
 import Image from "@tiptap/extension-image";
 import Link2 from "@tiptap/extension-link";
 import { Table } from "@tiptap/extension-table";
@@ -8,7 +10,10 @@ import TableRow from "@tiptap/extension-table-row";
 import { EditorContent, useEditor, type JSONContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/form";
+import { notify } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 /** One finding of the automatic check (design module8 3.4, 4.2). `path` points at the field (article) or the file (skill). */
 export interface Issue {
@@ -65,6 +70,7 @@ const STATE_LABEL: Record<string, { label: string; tone: "ok" | "warn" | "bad" |
   returned: { label: "Bị trả lại", tone: "bad" },
   published: { label: "Đã xuất bản", tone: "ok" },
   archived: { label: "Đã lưu trữ", tone: "muted" },
+  superseded: { label: "Đã thay thế", tone: "muted" },
 };
 export function StateBadge({ state }: { state: string }) {
   const s = STATE_LABEL[state] ?? { label: state, tone: "muted" as const };
@@ -128,3 +134,76 @@ export function TagChips({ tags }: { tags: string[] }) {
 export const BackLink = ({ to, children }: { to: string; children: React.ReactNode }) => (
   <Link to={to} className="inline-flex min-h-9 items-center text-sm text-primary underline">{children}</Link>
 );
+
+/** The white card that opens a library page: one search box, popular tags, then the tabs and filters passed as children. */
+export function LibraryHead({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-sm">{children}</div>;
+}
+
+/** One search box: type and press Enter (or "Tìm"). The parent decides what "#tag" means. */
+export function SearchBox({ value, onChange, onSubmit, placeholder, label, testid, goTestid }: { value: string; onChange: (v: string) => void; onSubmit: () => void; placeholder: string; label: string; testid: string; goTestid?: string }) {
+  return (
+    <form role="search" className="flex h-11 items-center gap-2 rounded-xl border border-border bg-card pr-1.5 pl-3 focus-within:border-primary" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+      <Search size={18} aria-hidden className="shrink-0 text-muted-foreground" />
+      <input className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" aria-label={label} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} data-testid={testid} />
+      <Button type="submit" variant="secondary" className="!min-h-8 shrink-0" data-testid={goTestid}>Tìm</Button>
+    </form>
+  );
+}
+
+/** "Thẻ phổ biến": a click filters by that tag, a second click clears it. */
+export function TagStrip({ tags, active, onPick }: { tags: string[]; active: string; onPick: (t: string) => void }) {
+  if (!tags.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-sm" data-testid="popular-tags">
+      <span className="text-muted-foreground">Thẻ phổ biến:</span>
+      {tags.map((t) => (
+        <button key={t} type="button" aria-pressed={active === t} onClick={() => onPick(active === t ? "" : t)}
+          className={cn("min-h-8 rounded-full border px-2.5 text-xs font-medium transition-colors", active === t ? "border-primary-border bg-primary-soft text-primary" : "border-border-soft bg-muted text-muted-foreground hover:text-foreground")}>#{t}</button>
+      ))}
+    </div>
+  );
+}
+
+/** Category tabs: one tap, the active one is a soft indigo chip. Scrolls sideways on a phone. */
+export function ChipTabs<T extends string>({ value, onChange, items, label }: { value: T; onChange: (v: T) => void; items: { value: T; label: string }[]; label: string }) {
+  return (
+    <div role="tablist" aria-label={label} className="flex max-w-full gap-1 overflow-x-auto">
+      {items.map((i) => (
+        <button key={i.value} type="button" role="tab" aria-selected={value === i.value} onClick={() => onChange(i.value)}
+          className={cn("min-h-9 shrink-0 whitespace-nowrap rounded-[10px] px-3 text-sm transition-colors", value === i.value ? "bg-primary-soft font-semibold text-primary" : "text-muted-foreground hover:text-foreground")}>{i.label}</button>
+      ))}
+    </div>
+  );
+}
+
+/** Copies a text; the label turns to "Đã chép" for a moment. `getText` may fetch it first. */
+export function CopyButton({ getText, children, className, variant = "secondary", testid }: { getText: () => string | Promise<string>; children: React.ReactNode; className?: string; variant?: "primary" | "secondary" | "ghost"; testid?: string }) {
+  const [done, setDone] = useState(false);
+  const run = async () => {
+    try {
+      await navigator.clipboard.writeText(await getText());
+      notify.ok("Đã sao chép lệnh");
+      setDone(true);
+      setTimeout(() => setDone(false), 1500);
+    } catch {
+      notify.error("Không sao chép được, hãy chọn và chép tay");
+    }
+  };
+  return (
+    <Button type="button" variant={variant} className={className} onClick={() => void run()} data-testid={testid}>
+      {done ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
+      {done ? "Đã chép" : children}
+    </Button>
+  );
+}
+
+/** A frame that shows a few lines of text in the code font (the start of SKILL.md, a command). */
+export function CodeFrame({ children, label, className }: { children: React.ReactNode; label?: string; className?: string }) {
+  return (
+    <div className={cn("rounded-lg border border-border-soft bg-muted px-3 py-2", className)}>
+      {label && <div className="mb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</div>}
+      <div className="font-mono text-xs leading-relaxed text-foreground/80 [overflow-wrap:anywhere]">{children}</div>
+    </div>
+  );
+}

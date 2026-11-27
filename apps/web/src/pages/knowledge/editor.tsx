@@ -102,62 +102,70 @@ function ArticleEditor({ id: initialId, initial }: { id?: string; initial: Artic
   const known = (suggest: Array<string | { tag: string }> | undefined) => (suggest ?? []).map((t) => (typeof t === "string" ? t : t.tag));
   const busy = save.isPending || send.isPending || dry.isPending;
   return (
-    <div className="max-w-4xl">
+    <div className="mx-auto max-w-[1100px]">
       <BackLink to="/knowledge/cua-toi">Bài của tôi</BackLink>
       <PageTitle>{params.id ? "Sửa bài" : "Viết bài"}</PageTitle>
-      <div className="flex flex-col gap-4">
-        <Field label="Tiêu đề" required hint="Tối đa 150 ký tự" name="title">
-          <Input value={form.title} maxLength={1000} onChange={(e) => set({ title: e.target.value })} data-testid="f-title" />
-        </Field>
-        <IssueList check={check} path="title" />
-        <Field label="Tóm tắt" required hint="Tối đa 300 ký tự, hiện ở thẻ bài và kết quả tìm" name="summary">
-          <Textarea rows={2} value={form.summary} onChange={(e) => set({ summary: e.target.value })} data-testid="f-summary" />
-        </Field>
-        <IssueList check={check} path="summary" />
-        <div className="flex flex-wrap gap-4">
-          <Field label="Danh mục" required name="category">
-            <Select value={form.category} onChange={(e) => set({ category: e.target.value })} data-testid="f-category">
-              <option value="">Chọn...</option>
-              {Object.entries(CATEGORY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </Select>
+      <div className="mt-2 grid items-start gap-4 lg:grid-cols-[1fr_20rem]">
+        <div className="flex min-w-0 flex-col gap-3 rounded-card border border-border bg-card p-5 shadow-sm">
+          <Field label="Tiêu đề" required hint="Tối đa 150 ký tự" name="title">
+            <Input value={form.title} maxLength={1000} onChange={(e) => set({ title: e.target.value })} data-testid="f-title" className="!text-lg !font-semibold" />
           </Field>
-          <Field label="Loại bài" required name="type">
-            <Select value={form.type} onChange={(e) => set({ type: e.target.value })} data-testid="f-type">
-              <option value="">Chọn...</option>
-              {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </Select>
+          <IssueList check={check} path="title" />
+          <Field label="Tóm tắt" required hint="Tối đa 300 ký tự, hiện ở thẻ bài và kết quả tìm" name="summary">
+            <Textarea rows={2} value={form.summary} onChange={(e) => set({ summary: e.target.value })} data-testid="f-summary" />
           </Field>
-        </div>
-        <IssueList check={check} path="category" />
-        <IssueList check={check} path="type" />
-        <Field label="Thẻ" hint="Cách nhau dấu phẩy, tối đa 10" name="tags">
-          <Input list="kn-tags" value={form.tags} onChange={(e) => set({ tags: e.target.value })} data-testid="f-tags" />
-        </Field>
-        <datalist id="kn-tags">{known(tagSuggest.data?.items).map((t) => <option key={t} value={t} />)}</datalist>
-        <div>
-          <span className="text-sm font-medium">Nội dung <span className="text-bad" aria-hidden>*</span></span>
-          <div className="tiptap-edit mt-1 rounded-md border border-border bg-card">
-            {editor && <Toolbar editor={editor} />}
-            <EditorContent editor={editor} />
+          <IssueList check={check} path="summary" />
+          <div>
+            <span className="text-sm font-medium">Nội dung <span className="text-bad" aria-hidden>*</span></span>
+            <div className="tiptap-edit mt-1 rounded-md border border-border bg-card">
+              {editor && <Toolbar editor={editor} />}
+              <EditorContent editor={editor} />
+            </div>
           </div>
+          <IssueList check={check} path="body" />
         </div>
-        <IssueList check={check} path="body" />
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.for_sale} onChange={(e) => set({ for_sale: e.target.checked })} data-testid="f-for-sale" /> Cho sale (Guest mẫu Sale đọc được)</label>
-        <IssueList check={check} path="for_sale" />
-        <div className="text-sm">
-          <span className="font-medium">File đính kèm</span>
-          <ul className="my-1">{files.map((f) => <li key={f.id} className="flex items-center gap-2">{f.filename}<Button variant="ghost" type="button" onClick={() => setFiles((x) => x.filter((y) => y.id !== f.id))}>Bỏ</Button></li>)}</ul>
-          <input type="file" aria-label="Chọn file đính kèm" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); e.target.value = ""; }} />
-          <IssueList check={check} path="file_ids" />
-        </div>
-        <IssueList check={otherIssues(check, FIELDS)} all />
-        <ErrorText error={save.error ?? dry.error ?? upload.error ?? (issuesOf(send.error) ? null : send.error)} />
-        {check && !check.errors.length && !check.warnings.length && <Notice>Đạt kiểm tra tự động.</Notice>}
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" loading={save.isPending} disabled={busy || !loaded} onClick={() => save.mutate()} data-testid="save-draft">Lưu nháp</Button>
-          <Button variant="secondary" loading={dry.isPending} disabled={busy || !loaded} onClick={() => dry.mutate()} data-testid="check">Kiểm tra</Button>
-          <Button loading={send.isPending} disabled={busy || !loaded} onClick={() => send.mutate()} data-testid="submit">Gửi duyệt</Button>
-        </div>
+        <aside className="flex flex-col gap-3 lg:sticky lg:top-2">
+          <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-sm">
+            <h2 className="text-sm font-semibold">Thuộc tính</h2>
+            <Field label="Danh mục" required name="category">
+              <Select value={form.category} onChange={(e) => set({ category: e.target.value })} data-testid="f-category">
+                <option value="">Chọn...</option>
+                {Object.entries(CATEGORY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </Select>
+            </Field>
+            <IssueList check={check} path="category" />
+            <Field label="Loại bài" required name="type">
+              <Select value={form.type} onChange={(e) => set({ type: e.target.value })} data-testid="f-type">
+                <option value="">Chọn...</option>
+                {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </Select>
+            </Field>
+            <IssueList check={check} path="type" />
+            <Field label="Thẻ" hint="Cách nhau dấu phẩy, tối đa 10" name="tags">
+              <Input list="kn-tags" value={form.tags} onChange={(e) => set({ tags: e.target.value })} data-testid="f-tags" />
+            </Field>
+            <datalist id="kn-tags">{known(tagSuggest.data?.items).map((t) => <option key={t} value={t} />)}</datalist>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.for_sale} onChange={(e) => set({ for_sale: e.target.checked })} data-testid="f-for-sale" /> Cho sale (Guest mẫu Sale đọc được)</label>
+            <IssueList check={check} path="for_sale" />
+            <div className="text-sm">
+              <span className="font-medium">File đính kèm</span>
+              <ul className="my-1">{files.map((f) => <li key={f.id} className="flex items-center gap-2 [overflow-wrap:anywhere]">{f.filename}<Button variant="ghost" type="button" onClick={() => setFiles((x) => x.filter((y) => y.id !== f.id))}>Bỏ</Button></li>)}</ul>
+              <input type="file" className="max-w-full text-xs" aria-label="Chọn file đính kèm" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); e.target.value = ""; }} />
+              <IssueList check={check} path="file_ids" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 rounded-card border border-border bg-card p-4 shadow-sm" aria-label="Kết quả kiểm tra">
+            <IssueList check={otherIssues(check, FIELDS)} all />
+            <ErrorText error={save.error ?? dry.error ?? upload.error ?? (issuesOf(send.error) ? null : send.error)} />
+            {check && !check.errors.length && !check.warnings.length && <Notice>Đạt kiểm tra tự động.</Notice>}
+            {!check && <p className="text-xs text-muted-foreground">Bấm "Kiểm tra" để xem lỗi và cảnh báo trước khi gửi duyệt.</p>}
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" loading={save.isPending} disabled={busy || !loaded} onClick={() => save.mutate()} data-testid="save-draft">Lưu nháp</Button>
+              <Button variant="secondary" loading={dry.isPending} disabled={busy || !loaded} onClick={() => dry.mutate()} data-testid="check">Kiểm tra</Button>
+              <Button loading={send.isPending} disabled={busy || !loaded} onClick={() => send.mutate()} data-testid="submit">Gửi duyệt</Button>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );

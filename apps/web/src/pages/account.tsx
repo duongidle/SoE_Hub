@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { Bell, Clock, Monitor, Sparkles } from "lucide-react";
+import { Avatar } from "@/components/ui/person";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,19 +11,25 @@ import { useMe } from "@/lib/session";
 
 export function AccountPage() {
   const me = useMe().data;
+  const links = [{ to: "/tai-khoan/thong-bao", label: "Cài đặt thông báo", icon: Bell }, { to: "/nhac-hen", label: "Nhắc hẹn", icon: Clock }, { to: "/tai-khoan/token", label: "Kết nối AI", icon: Sparkles }] as const;
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex max-w-[1000px] flex-col gap-4">
       <PageTitle>Tài khoản của tôi</PageTitle>
       {me && (
-        <Card>
-          <CardContent className="pt-5 text-sm">
-            <div className="font-medium">{me.user.full_name}</div>
-            <div className="text-muted-foreground">{me.user.email}</div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-wrap items-center gap-4 rounded-card border border-border bg-card p-5 shadow-sm" data-testid="account-profile">
+          <Avatar name={me.user.full_name} size="md" className="!size-14 !text-lg" />
+          <div className="min-w-0 flex-1 basis-60">
+            <div className="text-lg font-semibold [overflow-wrap:anywhere]">{me.user.full_name}</div>
+            <div className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{me.user.email}</div>
+          </div>
+          <div className="flex w-full flex-wrap gap-2 border-t border-border-soft pt-3">
+            {links.map((l) => (
+              <Link key={l.to} to={l.to} className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium hover:border-primary-border hover:bg-primary-soft"><l.icon size={14} aria-hidden />{l.label}</Link>
+            ))}
+          </div>
+        </div>
       )}
-      <p className="text-sm"><Link to="/tai-khoan/thong-bao" className="text-primary underline">Cài đặt thông báo</Link> · <Link to="/nhac-hen" className="text-primary underline">Nhắc hẹn</Link></p>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <ChangePassword />
         <Devices />
       </div>
@@ -91,8 +99,9 @@ function Devices() {
       <CardContent className="flex flex-col gap-2 text-sm">
         <ErrorText error={q.error ?? revoke.error} />
         {q.data?.map((s) => (
-          <div key={s.id} className="flex items-start justify-between gap-2 border-t border-border pt-2">
-            <div className="min-w-0">
+          <div key={s.id} className="flex items-start justify-between gap-2 border-t border-border-soft pt-2">
+            <Monitor size={18} aria-hidden className="mt-0.5 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
               <div className="truncate">{s.user_agent ?? "Không rõ thiết bị"}</div>
               <div className="text-xs text-muted-foreground">
                 IP {s.ip ?? "—"} · đăng nhập {fmtTime(s.created_at)} · dùng gần nhất {fmtTime(s.last_seen_at)}
