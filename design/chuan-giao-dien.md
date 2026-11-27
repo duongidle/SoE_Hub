@@ -1,6 +1,6 @@
 # Chuẩn giao diện — SoE Hub
 
-Trạng thái: Đã chốt (tách từ `CLAUDE.md` ngày 19/11/2026). Đọc file này khi làm hoặc rà soát giao diện; việc chỉ đụng server thì không cần đọc.
+Trạng thái: Đã chốt (tách từ `CLAUDE.md` ngày 19/11/2026). Concept và token màu của Stage 12: `module12-giao-dien.md` (27/11/2026), file đó ghi rõ điểm nào đổi so với file này. Đọc file này khi làm hoặc rà soát giao diện; việc chỉ đụng server thì không cần đọc.
 
 Theo `promt.md` mục 17: trực quan, dễ thao tác là ưu tiên; font thống nhất, tương phản, sizing chuẩn production; wording gọn, không giọng AI. Áp dụng cho mọi stage có giao diện, không đợi Stage 12.
 

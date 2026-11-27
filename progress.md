@@ -1,10 +1,11 @@
 # Tiến độ
 
-Cập nhật: 23/11/2026
+Cập nhật: 27/11/2026
 
 ## Trạng thái
 
-- **Thiết kế:** Module 0–9 đã chốt. Module 10 (Workspace, giao việc) và 11 chưa có thiết kế.
+- **Thiết kế:** Module 0–9 và 12 (giao diện, concept Luminous Bento, 27/11) đã chốt. Module 10 (Workspace, giao việc) và 11 chưa có thiết kế.
+- **Stage 12:** mọi việc trong `design/stage12.md` chưa code (các commit "Stage 12" 23/11 chỉ ghi việc). Chờ Dương chốt thứ tự giai đoạn và ước token trước khi giao.
 - **Code:** Stage 0–9 xong (Stage 5–7 bản rút gọn; Stage 8–9 test tối giản).
 - **Mốc test:** vitest cả bộ 1362 pass, 10 skip, 0 fail (`DH_EQUIV_EDITS=2500`, sau Com PS, mã 5137100 + thay đổi). Typecheck 0 lỗi. Không chạy hai lệnh vitest song song (chung DB).
 - **Git:** `main` và `dev` đã push tới abe3d39 (23/11).

@@ -73,7 +73,7 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 | 9 | M9 `module9-onboarding.md` | 1, 2, 3, 5, 6, 7 | Lộ trình, checkpoint bằng engine chỉ số, bài test và form, theo dõi chung | Đã chốt | Đã xong |
 | 10 | M10 `module10-workspace.md` | 4, 6 | Giao việc | Chưa | |
 | 11 | M11 `module11-cai-dat-feedback.md` | trên | Cài đặt còn lại, feedback | Chưa | |
-| 12 | — | tất cả | Làm lại giao diện, rà toàn bộ chuẩn giao diện | — | |
+| 12 | M12 `module12-giao-dien.md` | tất cả | Làm lại giao diện theo concept Luminous Bento, rà toàn bộ chuẩn giao diện | Đã chốt | |
 | — | Automation | 0, 2, 6 | Module lõi, hoãn; kiến trúc để sẵn chỗ (Module 0 mục 19) | Hoãn | |
 
 **Bước con:** stage lớn chia bước con để giao việc. **Chia bước con to** (Dương chốt 20/11/2026): mỗi bước con là một khối chức năng trọn vẹn, làm bằng hai agent Sonnet (mục "Phân vai khi code"), không chia nhỏ theo từng màn hay từng lệnh; mỗi lần giao là một lần Sonnet đọc lại từ đầu. danh sách và trạng thái ở `progress.md` mục "Đang làm", cột "Code" ở bảng trên ghi bước đang làm. Xong một bước con thì cập nhật cả hai chỗ. **Mọi stage có giao diện kết thúc bằng một bước con kiểm thử riêng** (như 2E), không gộp với bước có code.
