@@ -2,11 +2,14 @@
 // (design module7 3, 4, 5). The page asks the internal door first when someone is logged in and falls back to the public one.
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
+import { Check, CheckCircle2, User } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/form";
+import { PersonChip } from "@/components/ui/person";
 import { ApiError, api } from "@/lib/api";
 import { useMe } from "@/lib/session";
-import { FormRenderer } from "./renderer";
+import { accentOf, FormRenderer, formProgress } from "./renderer";
 import { flat, type FormConfig, isSelect, type Question } from "./model";
 
 interface FillView {
@@ -127,18 +130,43 @@ function FileBox({ code, token, attemptId, q, value, set }: { code: string; toke
   );
 }
 
-function Page({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto w-full max-w-3xl px-1 py-2 sm:py-6" data-testid="fill-page">{children}</div>;
-}
-function Notice({ title, text, children }: { title: string; text?: string | null; children?: React.ReactNode }) {
+/** The page outside the app shell: a soft two-glow background, a frosted bar pinned to the top, the content below (module 12: public form). */
+function Shell({ bar, children }: { bar: React.ReactNode; children: React.ReactNode }) {
   return (
-    <Page>
-      <div className="mx-auto flex max-w-md flex-col items-center gap-2 rounded-lg border border-border bg-card p-6 text-center" data-testid="fill-notice">
-        <h1 className="text-lg font-semibold">{title}</h1>
+    <div className="min-h-dvh bg-background" style={{ backgroundImage: "radial-gradient(48rem 26rem at 8% -8%, rgb(79 70 229 / 0.12), transparent 65%), radial-gradient(44rem 26rem at 100% 4%, rgb(16 185 129 / 0.10), transparent 65%)" }} data-testid="fill-page">
+      {bar}
+      <div className="mx-auto w-full px-3 py-4 sm:px-6 sm:py-6">{children}</div>
+    </div>
+  );
+}
+
+function TopBar({ name, chip, progress, draft, accent }: { name: string; chip?: string; progress?: { done: number; total: number } | null; draft?: string | null; accent?: string }) {
+  const pct = progress && progress.total > 0 ? (progress.done / progress.total) * 100 : 0;
+  return (
+    <header className="sticky top-0 z-30 border-b border-border-soft bg-card/80 backdrop-blur-md" data-testid="fill-bar">
+      <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-3 sm:px-6">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary text-sm font-bold text-primary-foreground" aria-hidden>S</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold sm:flex-none sm:text-base" title={name}>{name}</span>
+        {chip && <Badge tone="primary" className="hidden shrink-0 sm:inline-flex">{chip}</Badge>}
+        <span className="hidden flex-1 sm:block" />
+        {draft && <span className="hidden shrink-0 items-center gap-1 text-xs text-ok sm:inline-flex lg:hidden"><Check size={14} aria-hidden />Đã lưu nháp</span>}
+        {progress && progress.total > 0 && <Badge tone="primary" className="shrink-0 tabular-nums" data-testid="fill-progress">{progress.done}/{progress.total} câu</Badge>}
+      </div>
+      {progress && <div className="h-[3px] bg-border-soft"><div className="h-full transition-[width] duration-300" style={{ width: pct + "%", background: "linear-gradient(90deg, " + (accent ?? "var(--primary)") + ", color-mix(in srgb, " + (accent ?? "var(--primary)") + " 55%, #38bdf8))" }} /></div>}
+    </header>
+  );
+}
+
+function Notice({ title, text, children, icon }: { title: string; text?: string | null; children?: React.ReactNode; icon?: React.ReactNode }) {
+  return (
+    <Shell bar={<TopBar name="SoE HUB" />}>
+      <div className="mx-auto flex max-w-md flex-col items-center gap-3 rounded-card border border-border bg-card p-6 text-center shadow-card sm:p-8" data-testid="fill-notice">
+        {icon}
+        <h1 className="text-lg font-semibold [overflow-wrap:anywhere]">{title}</h1>
         {text && <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{text}</p>}
         {children}
       </div>
-    </Page>
+    </Shell>
   );
 }
 
@@ -177,24 +205,28 @@ function Filler({ view, reload }: { view: FillView; reload: () => void }) {
   const [closed, setClosed] = useState<string | null>(null);
   const trap = useRef<HTMLInputElement>(null);
   const touched = useRef(false);
+  const meQ = useMe();
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [restored] = useState(() => Object.keys(initial).length > 0 && (internal ? !!view.draft : readLocal(key) !== null));
 
   // The draft: the browser keeps a public one, the server an internal one (after each change, a moment later).
   useEffect(() => {
     if (!touched.current || done) return;
-    if (!internal) {
-      writeLocal(key, answers);
-      return;
-    }
-    const t = window.setTimeout(() => { void api("PUT", `/fill/${view.code}/draft`, { answers }).catch(() => undefined); }, 600);
+    if (!internal) return;
+    const t = window.setTimeout(() => { void api("PUT", `/fill/${view.code}/draft`, { answers }).then(() => setSavedAt(new Date())).catch(() => undefined); }, 600);
     return () => window.clearTimeout(t);
   }, [answers, done, internal, key, view.code]);
 
   const change = useCallback((next: Record<string, unknown>) => {
     touched.current = true;
+    if (!internal) {
+      writeLocal(key, next);
+      setSavedAt(new Date());
+    }
     setAnswers(next);
     setErrors({});
     setBanner(null);
-  }, []);
+  }, [internal, key]);
 
   if (view.state !== "open" || !cfg) return <Notice title={view.state === "closed" ? "Form đã đóng" : view.state === "paused" ? "Form đang tạm dừng" : "Form chưa mở"} text={closed ?? view.message ?? "Form này hiện không nhận phản hồi."} />;
   if (closed) return <Notice title="Form đã đóng" text={closed} />;
@@ -244,10 +276,10 @@ function Filler({ view, reload }: { view: FillView; reload: () => void }) {
     const ty = done.thank_you ?? {};
     const qz = done.quiz;
     return (
-      <Notice title={ty.text || "Cảm ơn bạn đã gửi phản hồi."}>
+      <Notice title={ty.text || "Cảm ơn bạn đã gửi phản hồi."} icon={<span className="flex size-14 items-center justify-center rounded-full bg-ok-bg text-ok ring-8 ring-ok-bg/60"><CheckCircle2 size={30} aria-hidden /></span>}>
         {qz && (
-          <p className="text-sm" data-testid="quiz-result">
-            {qz.pending ? "Bài của bạn đang chờ chấm." : `Điểm: ${qz.score}/${qz.max}${qz.result ? ` · ${qz.result}` : ""}`}
+          <p className="flex flex-wrap items-center justify-center gap-2 text-sm" data-testid="quiz-result">
+            {qz.pending ? <><Badge tone="warn">Chờ chấm</Badge>Bài của bạn đang chờ chấm.</> : <><span className="text-2xl font-semibold tabular-nums">{qz.score}/{qz.max}</span>{qz.result && <Badge tone={/^đạt$/i.test(qz.result) ? "ok" : "bad"}>{qz.result}</Badge>}<span className="sr-only">Điểm: {qz.score}/{qz.max}{qz.result ? " · " + qz.result : ""}</span></>}
           </p>
         )}
         {internal && view.quiz && <a className="text-sm text-primary underline" href={`/form/bai-lam?code=${view.code}`} data-testid="my-quiz-link">Bài làm của tôi</a>}
@@ -261,9 +293,29 @@ function Filler({ view, reload }: { view: FillView; reload: () => void }) {
     : (_q: Question) => <p className="text-sm text-muted-foreground">Tải file chỉ có ở form công khai.</p>;
   const info = view.form_updated ? <p role="status" className="rounded-md bg-muted px-3 py-2 text-sm" data-testid="form-updated">Form vừa được cập nhật. Câu trả lời của các câu còn lại đã được giữ.</p> : null;
   const submitErr = banner ? <p role="alert" className="rounded-md border border-bad/40 px-3 py-2 text-sm text-bad" data-testid="fill-error">{banner}</p> : null;
+  const me = meQ.data?.user;
+  const today = new Date().toLocaleDateString("vi-VN");
+  const progress = formProgress(cfg, answers);
+  const quizOn = !!cfg.quiz?.enabled;
+  const kind = quizOn ? "Bài kiểm tra" : internal ? "Form nội bộ" : "Form công khai";
+  const draftNote = savedAt ? "Đã lưu nháp lúc " + savedAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : restored ? "Đã khôi phục bản nháp" : null;
+  const filler = (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border-soft bg-muted/60 px-4 py-3" data-testid="fill-who">
+      <div className="flex min-w-0 items-center gap-3">
+        {internal && me ? <PersonChip person={{ id: me.id, full_name: me.full_name }} /> : <span className="flex items-center gap-2 text-sm"><span className="flex size-8 items-center justify-center rounded-full bg-primary-soft text-primary"><User size={16} aria-hidden /></span>Khách, không cần đăng nhập</span>}
+        <span className="text-xs text-muted-foreground">Ngày {today}</span>
+      </div>
+      <Badge tone="ok">Đang điền</Badge>
+    </div>
+  );
   return (
-    <Page>
+    <Shell bar={<TopBar name={cfg.title || view.name} chip={kind} progress={progress} draft={draftNote} accent={accentOf(cfg)} />}>
       <FormRenderer
+        mode="fill"
+        chip={kind}
+        filler={filler}
+        draftNote={draftNote}
+        submitLabel={quizOn ? "Nộp bài" : "Gửi"}
         config={cfg}
         answers={answers}
         onChange={change}
@@ -279,6 +331,6 @@ function Filler({ view, reload }: { view: FillView; reload: () => void }) {
           <label>Website<input ref={trap} name="website" tabIndex={-1} autoComplete="off" defaultValue="" /></label>
         </div>
       )}
-    </Page>
+    </Shell>
   );
 }

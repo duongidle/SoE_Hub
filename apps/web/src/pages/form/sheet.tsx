@@ -95,36 +95,43 @@ export function BlockCard({ b, num, selected, issue, nested, canUp, canDown, onS
   );
 }
 
-/** The type picker: groups by color, two columns, an icon per type. `inGroup` hides the blocks that cannot live inside a group. */
+/** Three columns of groups (Văn bản + Ngày, Số + Lựa chọn, Dữ liệu + Bố cục), one low row per type: about 380px high, so it fits a 800px screen without scrolling. */
+const PICKER_COLUMNS = [["Văn bản", "Ngày"], ["Số", "Lựa chọn"], ["Dữ liệu", "Bố cục"]];
+/** The type picker: groups by color, an icon per type. `inGroup` hides the blocks that cannot live inside a group. */
 export function TypePicker({ trigger, onPick, inGroup }: { trigger: React.ReactNode; onPick: (type: string) => void; inGroup?: boolean }) {
   const [open, setOpen] = useState(false);
   const pick = (t: string) => { setOpen(false); onPick(t); };
   return (
-    <Popover open={open} onOpenChange={setOpen} trigger={trigger} label="Chọn loại câu hỏi" width="w-[min(34rem,calc(100vw-1rem))]" className="p-3">
-      <div className="flex flex-col gap-3" data-testid="type-picker">
-        {PICKER_GROUPS.map((g) => {
-          const items = g.items.filter((i) => !(inGroup && (i === "block:group" || i === "block:page_break")));
-          if (items.length === 0) return null;
-          return (
-            <section key={g.title} aria-label={g.title}>
-              <h3 className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><span aria-hidden className={cn("size-2 rounded-full", DOT_CLS[g.tone])} />{g.title}</h3>
-              <div className="grid grid-cols-2 gap-1">
-                {items.map((i) => {
-                  const block = i.startsWith("block:");
-                  const key = block ? i.slice(6) : i;
-                  const meta = metaOf(block ? key : "question", block ? undefined : key);
-                  const Icon = meta.icon;
-                  return (
-                    <button key={i} type="button" onClick={() => pick(block ? key : `q:${key}`)} data-testid={block ? `add-block-${key}` : `add-${key}`} className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg border border-border-soft px-2 py-1 text-left text-sm hover:border-primary-border hover:bg-primary-soft sm:min-h-9">
-                      <span className={cn(TILE_CLS, "size-6", TONE_CLS[meta.tone])}><Icon size={15} aria-hidden /></span>
-                      <span className="min-w-0 truncate">{block ? BLOCK_NAME[key] : kindLabel(key)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
+    <Popover open={open} onOpenChange={setOpen} trigger={trigger} label="Chọn loại câu hỏi" width="w-[min(38rem,calc(100vw-1rem))]" className="p-3">
+      <div className="grid gap-x-4 gap-y-3 sm:grid-cols-3" data-testid="type-picker">
+        {PICKER_COLUMNS.map((col, ci) => (
+          <div key={ci} className="flex flex-col gap-2.5">
+            {col.map((title) => {
+              const g = PICKER_GROUPS.find((x) => x.title === title)!;
+              const items = g.items.filter((i) => !(inGroup && (i === "block:group" || i === "block:page_break")));
+              if (items.length === 0) return null;
+              return (
+                <section key={g.title} aria-label={g.title}>
+                  <h3 className="mb-0.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><span aria-hidden className={cn("size-2 rounded-full", DOT_CLS[g.tone])} />{g.title}</h3>
+                  <div className="flex flex-col">
+                    {items.map((i) => {
+                      const block = i.startsWith("block:");
+                      const key = block ? i.slice(6) : i;
+                      const meta = metaOf(block ? key : "question", block ? undefined : key);
+                      const Icon = meta.icon;
+                      return (
+                        <button key={i} type="button" onClick={() => pick(block ? key : "q:" + key)} data-testid={block ? "add-block-" + key : "add-" + key} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-1.5 py-0.5 text-left text-sm hover:bg-primary-soft sm:min-h-8">
+                          <span className={cn(TILE_CLS, "size-6", TONE_CLS[meta.tone])}><Icon size={15} aria-hidden /></span>
+                          <span className="min-w-0 truncate">{block ? BLOCK_NAME[key] : kindLabel(key)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </Popover>
   );

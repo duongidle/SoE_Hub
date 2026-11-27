@@ -197,7 +197,7 @@ export function Shell() {
   }, [me, meQ.isLoading, path, location.searchStr, nav]);
 
   // The page of a person filling a form stands alone, with or without a login.
-  if (path.startsWith("/f/") && shown.startsWith("/f/")) return <div className="min-h-dvh px-3 py-3"><Outlet /></div>;
+  if (path.startsWith("/f/") && shown.startsWith("/f/")) return <div className="min-h-dvh"><Outlet /></div>;
   if (meQ.isLoading) return <p className="p-6 text-sm text-muted-foreground">Đang tải...</p>;
   if (meQ.error) return <p className="p-6 text-sm text-bad" role="alert">Không kết nối được máy chủ. Hãy tải lại trang sau ít phút.</p>;
 
