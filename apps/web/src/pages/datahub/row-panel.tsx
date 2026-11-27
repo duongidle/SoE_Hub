@@ -1,15 +1,15 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { formatDateTime, formatRelative } from "@soe/shared";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { Drawer } from "@/components/ui/drawer";
 import { Button, Input, Select, Textarea } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/toast";
 import { ErrorState } from "@/components/ui/states";
 import { Tip } from "@/components/ui/tooltip";
 import { fetchRowsByIds, getHistory } from "@/lib/datahub/api";
-import { NO_ACCESS, cellError, cellValue, displayText, editText, ERROR_HELP, attrsOf, entriesOf, nameKey, optionsOf, parseCellText, PICKER_TYPES, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
+import { COMPUTED_TYPES, SYSTEM_TYPES, NO_ACCESS, cellError, cellValue, displayText, editText, ERROR_HELP, attrsOf, entriesOf, nameKey, optionsOf, parseCellText, PICKER_TYPES, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
 import type { TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
@@ -35,7 +35,7 @@ function useLabels(session: TableSession) {
  * All columns of one row, editable by the same rules as the grid, and the history of changes. Opened from the grid
  * (Shift + Space, the "Chi tiết dòng" button). Each field saves when the person leaves it.
  */
-export function RowPanel({ session, rowId, level, onClose }: { session: TableSession; rowId: string; level: Level; onClose: () => void }) {
+export function RowPanel({ session, rowId, level, onClose, onNavigate }: { session: TableSession; rowId: string; level: Level; onClose: () => void; onNavigate?: (rowId: string) => void }) {
   const store = session.store;
   useSyncExternalStore(store.subscribe, store.getVersion);
   const labels = useLabels(session);
@@ -51,47 +51,69 @@ export function RowPanel({ session, rowId, level, onClose }: { session: TableSes
   }, [rowId, session, store]);
 
   const ctx: CellCtx = { people: labels.people, linked: labels.linked, noAccess: labels.noAccess };
+  // Previous / next row in the order the grid shows (only rows already loaded).
+  const pos = store.indexOf(rowId);
+  const prev = pos > 0 ? store.rowAt(pos - 1) : undefined;
+  const next = pos >= 0 ? store.rowAt(pos + 1) : undefined;
+  const nav = (
+    <span className="flex shrink-0 items-center">
+      <Button variant="ghost" className="!px-2" aria-label="Dòng trước" disabled={!prev} onClick={() => prev && onNavigate?.(prev.id)}><ChevronUp size={18} aria-hidden /></Button>
+      <Button variant="ghost" className="!px-2" aria-label="Dòng sau" disabled={!next} onClick={() => next && onNavigate?.(next.id)}><ChevronDown size={18} aria-hidden /></Button>
+    </span>
+  );
+  const headerExtra = (
+    <>
+      {onNavigate && nav}
+      {row && <RemindMeButton object={{ type: session.table.role_set === "deals" ? "deal" : "row", id: rowId }} />}
+    </>
+  );
+  const tabs = (
+    <>
+      {session.table.kind === "merged" && session.table.access === "owner" && <OriginLink tableId={session.table.id} rowId={rowId} />}
+      <div role="tablist" aria-label="Chi tiết dòng" className="flex gap-1 border-b border-border-soft px-5">
+        {(["data", "history"] as const).map((t) => (
+          <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("-mb-px border-b-2 px-3 py-3 text-sm sm:py-2", tab === t ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground")}>
+            {t === "data" ? "Dữ liệu" : "Lịch sử thay đổi"}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+  // Fields in two groups: the ones a person types, and the ones the system fills or calculates.
+  const cols = session.table.columns;
+  const own = cols.filter((c) => !isAuto(c));
+  const auto = cols.filter(isAuto);
+  const field = (c: Column) => <Field key={c.id} col={c} row={row!} level={level} session={session} ctx={ctx} />;
   return (
-    <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30" />
-        <Dialog.Content aria-describedby={undefined} className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-card shadow-lg sm:rounded-l-xl">
-          <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-            <Dialog.Title className="text-lg font-semibold">{row?.row_no ? `Dòng #${row.row_no}` : "Chi tiết dòng"}</Dialog.Title>
-            {row && <RemindMeButton object={{ type: session.table.role_set === "deals" ? "deal" : "row", id: rowId }} />}
-            <Button variant="ghost" onClick={onClose} aria-label="Đóng" className="!px-2">
-              <X size={20} aria-hidden />
-            </Button>
-          </div>
-          {session.table.kind === "merged" && session.table.access === "owner" && <OriginLink tableId={session.table.id} rowId={rowId} />}
-          <div role="tablist" aria-label="Chi tiết dòng" className="flex gap-1 border-b border-border px-4">
-            {(["data", "history"] as const).map((t) => (
-              <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn("border-b-2 px-3 py-3 text-sm sm:py-2", tab === t ? "border-primary font-medium" : "border-transparent text-muted-foreground")}>
-                {t === "data" ? "Dữ liệu" : "Lịch sử thay đổi"}
-              </button>
-            ))}
-          </div>
-          <div className="contain-scroll-y min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            {loadError ? (
-              <ErrorState error={loadError} title="Không mở được dòng" />
-            ) : !row ? (
-              <div className="flex flex-col gap-4">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-10" />)}</div>
-            ) : tab === "data" ? (
-              <div className="flex flex-col gap-4">
-                {level === "view" && <p className="rounded-md bg-muted px-3 py-2 text-sm">Bạn chỉ có quyền xem bảng này.</p>}
-                {session.table.role_set === "deals" && <DealPaymentsPanel dealRow={row} dealsTableId={session.table.id} />}
-                {session.table.columns.map((c) => (
-                  <Field key={c.id} col={c} row={row} level={level} session={session} ctx={ctx} />
-                ))}
-                {session.table.columns.length === 0 && <p className="text-muted-foreground">Bảng chưa có cột nào.</p>}
-              </div>
-            ) : (
-              <History session={session} rowId={rowId} ctx={ctx} />
-            )}
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Drawer title={row?.row_no ? `Dòng #${row.row_no}` : "Chi tiết dòng"} open onClose={onClose} wide soft headerExtra={headerExtra} subHeader={tabs}>
+      {loadError ? (
+        <ErrorState error={loadError} title="Không mở được dòng" />
+      ) : !row ? (
+        <div className="flex flex-col gap-4">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-10" />)}</div>
+      ) : tab === "data" ? (
+        <div className="flex flex-col gap-5">
+          {level === "view" && <p className="rounded-md bg-muted px-3 py-2 text-sm">Bạn chỉ có quyền xem bảng này.</p>}
+          {session.table.role_set === "deals" && <DealPaymentsPanel dealRow={row} dealsTableId={session.table.id} />}
+          {own.length > 0 && <FieldGroup title={auto.length > 0 ? "Thông tin" : null}>{own.map(field)}</FieldGroup>}
+          {auto.length > 0 && <FieldGroup title="Tự động tính">{auto.map(field)}</FieldGroup>}
+          {cols.length === 0 && <p className="text-muted-foreground">Bảng chưa có cột nào.</p>}
+        </div>
+      ) : (
+        <History session={session} rowId={rowId} ctx={ctx} />
+      )}
+    </Drawer>
+  );
+}
+
+/** Columns the system fills (formula, lookup, auto number, created/modified...). */
+const isAuto = (c: Column) => !!c.autofill || COMPUTED_TYPES.has(c.type) || c.type === "auto_number" || SYSTEM_TYPES.has(c.type);
+
+function FieldGroup({ title, children }: { title: string | null; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-4">
+      {title && <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>}
+      {children}
+    </section>
   );
 }
 
@@ -137,7 +159,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
 
   const id = `f-${col.id}`;
   const label = (
-    <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-sm font-medium">
+    <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-[13px] font-medium text-muted-foreground">
       <span className="[overflow-wrap:anywhere]">{col.name}{col.required && <span className="text-bad" aria-label="bắt buộc"> *</span>}</span>
       {busy && <span className="text-xs font-normal text-muted-foreground">Đang lưu...</span>}
     </label>

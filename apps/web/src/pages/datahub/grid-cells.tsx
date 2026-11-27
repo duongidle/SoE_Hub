@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { GridCellKind, type CustomCell, type CustomRenderer, type ProvideEditorComponent } from "@glideapps/glide-data-grid";
 import type { SelectOption } from "@/lib/datahub/types";
-import { optionColor, token } from "@/lib/theme";
+import { optionChip, optionColor, token } from "@/lib/theme";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/form";
 import { AttachmentField } from "./attachment-field";
@@ -189,7 +189,7 @@ export const soeRenderer: CustomRenderer<SoeCell> = {
         if (x + w > max + 1 && i > 0) return;
         ctx.fillStyle = optionColor("gray");
         ctx.beginPath();
-        ctx.roundRect(x, midY - 10, w, 20, 4);
+        ctx.roundRect(x, midY - 10, w, 20, 6);
         ctx.fill();
         ctx.fillStyle = theme.textDark;
         ctx.fillText(label, x + 6, midY + 1);
@@ -221,11 +221,12 @@ export const soeRenderer: CustomRenderer<SoeCell> = {
         const label = fitText(ctx, o.name, Math.max(24, max - x - 16));
         const w = ctx.measureText(label).width + 12;
         if (x + w > max + 1 && i > 0) return;
-        ctx.fillStyle = optionColor(o.color);
+        const chip = optionChip(o.color);
+        ctx.fillStyle = chip.bg;
         ctx.beginPath();
-        ctx.roundRect(x, midY - 10, w, 20, 4);
+        ctx.roundRect(x, midY - 10, w, 20, 10);
         ctx.fill();
-        ctx.fillStyle = theme.textDark;
+        ctx.fillStyle = chip.fg;
         ctx.fillText(label, x + 6, midY + 1);
         x += w + 4;
       });

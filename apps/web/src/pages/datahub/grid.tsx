@@ -46,35 +46,35 @@ function gridTheme(): Partial<Theme> {
   return {
     accentColor: token("--primary"),
     accentFg: token("--primary-foreground"),
-    accentLight: token("--selected"),
+    accentLight: token("--primary-soft"),
     textDark: token("--foreground"),
-    textMedium: token("--primary"),
+    textMedium: token("--muted-foreground"),
     textLight: token("--muted-foreground"),
-    textHeader: token("--foreground"),
+    textHeader: token("--muted-foreground"),
     textHeaderSelected: token("--primary-foreground"),
     bgCell: token("--card"),
-    bgCellMedium: token("--muted"),
-    bgHeader: token("--muted"),
-    bgHeaderHasFocus: token("--selected"),
-    bgHeaderHovered: token("--selected"),
+    bgCellMedium: token("--workspace"),
+    bgHeader: token("--workspace"),
+    bgHeaderHasFocus: token("--primary-soft"),
+    bgHeaderHovered: token("--muted"),
     bgIconHeader: token("--muted-foreground"),
     fgIconHeader: token("--card"),
     bgBubble: token("--muted"),
     bgBubbleSelected: token("--selected"),
     textBubble: token("--foreground"),
-    borderColor: token("--border"),
-    horizontalBorderColor: token("--border"),
+    borderColor: token("--border-soft"),
+    horizontalBorderColor: token("--border-soft"),
     drilldownBorder: token("--border"),
     linkColor: token("--primary"),
     cellHorizontalPadding: 8,
     cellVerticalPadding: 4,
-    headerFontStyle: "600 14px",
+    headerFontStyle: "600 13px",
     baseFontStyle: "14px",
     markerFontStyle: "12px",
     fontFamily: FONT_STACK,
     editorFontSize: "14px",
     lineHeight: 1.5,
-    roundingRadius: 4,
+    roundingRadius: 6,
   };
 }
 
@@ -556,7 +556,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
       const w = c.measureText(tag).width + 10;
       const x = rect.x + th.cellHorizontalPadding + nameW + 8;
       if (x + w < rect.x + rect.width - 30) {
-        c.fillStyle = token(col.layer === "custom" ? "--muted" : "--selected");
+        c.fillStyle = token(col.layer === "custom" ? "--muted" : "--primary-soft");
         c.beginPath();
         c.roundRect(x, rect.y + rect.height / 2 - 9, w, 18, 4);
         c.fill();
@@ -607,7 +607,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   const rowsCount = session.lineCount;
   return (
     // data-* : the layout the browser tests use to find a cell on the canvas.
-    <div className="relative min-h-[60dvh] flex-1 sm:min-h-0" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
+    <div className="relative min-h-[60dvh] flex-1 overflow-hidden rounded-card border border-border-soft bg-card sm:min-h-0" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
       {theme && (
         <DataEditor
           ref={ref}
@@ -727,9 +727,9 @@ function HeaderMenu({ col, canEdit, inTemplate, frozen, index, sole, onAction }:
 /** A group line: a chevron (open or closed), the name of the group and its row count, and the totals the view asks for. */
 function drawHeaderLine(c: CanvasRenderingContext2D, rect: Rectangle, line: Extract<Line, { type: "header" }>, label: string | null, agg: { label: string; text: string } | null, numeric: boolean) {
   c.save();
-  c.fillStyle = token(line.group.depth === 0 ? "--selected" : "--muted");
+  c.fillStyle = token(line.group.depth === 0 ? "--primary-soft" : "--workspace");
   c.fillRect(rect.x, rect.y, rect.width, rect.height);
-  c.fillStyle = token("--border");
+  c.fillStyle = token("--border-soft");
   c.fillRect(rect.x, rect.y + rect.height - 1, rect.width, 1);
   c.textBaseline = "middle";
   const cy = rect.y + rect.height / 2;

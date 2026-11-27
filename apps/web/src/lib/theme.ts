@@ -42,6 +42,21 @@ export const OPTION_COLORS = ["gray", "blue", "green", "orange", "red", "purple"
 export function optionColor(name: string | undefined): string {
   return token(`--opt-${(OPTION_COLORS as readonly string[]).includes(name ?? "") ? name : "gray"}`);
 }
+/**
+ * Semantic pairs for option chips (module 12): green = done, blue = in progress, orange = waiting, red = overdue/error, purple = special/AI.
+ * Other colors keep their soft background with the normal text color.
+ */
+const SEMANTIC: Record<string, string> = { green: "ok", blue: "info", orange: "warn", red: "bad", purple: "ai" };
+/** Background and text of an option chip drawn on the canvas. */
+export function optionChip(name: string | undefined): { bg: string; fg: string } {
+  const s = SEMANTIC[name ?? ""];
+  return s ? { bg: token(`--${s}-bg`), fg: token(`--${s}`) } : { bg: optionColor(name), fg: token("--foreground") };
+}
+/** CSS variables of an option chip, for the parts drawn in HTML. */
+export function optionChipVar(name: string | undefined): { background: string; color: string } {
+  const s = SEMANTIC[name ?? ""];
+  return s ? { background: `var(--${s}-bg)`, color: `var(--${s})` } : { background: optionVar(name), color: "var(--foreground)" };
+}
 /** CSS variable of an option color, for the parts drawn in HTML. */
 export function optionVar(name: string | undefined): string {
   return `var(--opt-${(OPTION_COLORS as readonly string[]).includes(name ?? "") ? name : "gray"})`;

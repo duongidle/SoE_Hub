@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/form";
 import { lookupPeople } from "@/lib/datahub/api";
 import type { Person, SelectOption } from "@/lib/datahub/types";
-import { optionVar } from "@/lib/theme";
+import { optionChipVar } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 /**
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 export function OptionChip({ option }: { option: SelectOption }) {
   return (
-    <span className="inline-flex max-w-full items-center rounded px-2 py-0.5 text-sm [overflow-wrap:anywhere]" style={{ background: optionVar(option.color) }}>
+    <span className="inline-flex max-w-full items-center rounded px-2 py-0.5 text-sm [overflow-wrap:anywhere]" style={optionChipVar(option.color)}>
       {option.name}
     </span>
   );

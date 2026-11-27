@@ -492,7 +492,7 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
         {saving > 0 ? <span>Đang lưu...</span> : null}
         {statusText ? <span>{statusText}</span> : null}
       </div>
-      {openRow && <RowPanel session={session} rowId={openRow} level={level} onClose={() => setOpenRow(null)} />}
+      {openRow && <RowPanel session={session} rowId={openRow} level={level} onClose={() => setOpenRow(null)} onNavigate={setOpenRow} />}
       {bulk && <BulkEdit session={session} level={level} ids={sel.ids} onClose={() => setBulk(false)} />}
     </div>
   );
