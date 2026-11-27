@@ -1,0 +1,20 @@
+meta {
+  name: home.prefs.get
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me/prefs/{{prefKey}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Đọc một tuỳ chọn của chính mình (`prefKey` = `home.dashboard_tabs`: id các dashboard đã ghim, đúng thứ tự).
+  Quyền: `system:whoami`. Không mở cho AI.
+}

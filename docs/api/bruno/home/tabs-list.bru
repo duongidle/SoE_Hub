@@ -1,0 +1,20 @@
+meta {
+  name: home.tabs.list
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me/home/tabs
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Dashboard mình đã ghim ở trang Tổng quan, đúng thứ tự, kèm tên (mục không còn xem được bị lọc).
+  Quyền: `system:whoami`. Không mở cho AI.
+}

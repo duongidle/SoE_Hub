@@ -260,6 +260,13 @@
       "when": 1796574975332,
       "tag": "0036_onboarding_datahub_name",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1796661375332,
+      "tag": "0037_user_prefs",
+      "breakpoints": true
     }
   ]
 }

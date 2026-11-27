@@ -1,0 +1,20 @@
+meta {
+  name: home.dashboards.mine
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboards/mine
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Mọi dashboard của mình, để chọn ghim ở trang Tổng quan.
+  Quyền: `system:whoami`. Không mở cho AI.
+}

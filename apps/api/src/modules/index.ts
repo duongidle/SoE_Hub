@@ -22,6 +22,7 @@ import { publishOperations } from "./publish/ops";
 import { guestEvents, guestOperations } from "./guest";
 import { announcementOperations, notificationEvents, notificationOperations, reminderOperations } from "./notification";
 import { orgOperations } from "./org/operations";
+import { homeOperations } from "./home";
 import { registerDatahubTrash } from "./datahub/trash";
 import { systemEvents } from "./system/events";
 import { fileOperations } from "./system/files";
@@ -65,6 +66,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...cycleOperations,
     ...dealDashboardOperations,
     ...policyDiffOperations,
+    ...homeOperations,
   );
   return { registry, events };
 }

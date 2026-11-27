@@ -15,3 +15,4 @@ export * from "./datahub";
 export * from "./metrics";
 export * from "./forms";
 export * from "./posts";
+export * from "./prefs";

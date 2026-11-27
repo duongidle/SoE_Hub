@@ -1,0 +1,20 @@
+meta {
+  name: home.recent.list
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me/recent
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  "Mở gần đây" của mình, mới nhất trước, kèm tên. Mục không còn quyền mở bị lọc.
+  Quyền: `system:whoami`. Không mở cho AI.
+}
