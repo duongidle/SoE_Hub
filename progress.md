@@ -34,6 +34,8 @@ Mockup đã chốt: `de_xuat/onboarding_hanh_trinh.html` (Opus được tinh ch�
 
 ## Danh sách sửa để 12G (Opus ghi khi rà, 28/11)
 
+- Onboarding Theo dõi: các cột số (tiến độ, checkpoint, việc trễ, kết quả) không có tiêu đề cột; nhãn checkpoint trên con đường bị cắt ("Báo cáo tu…") — cho nhãn xuống dòng hoặc tooltip.
+
 - Quản lý Deal 1280px: thanh công cụ xuống hai dòng khi có nút "Thời gian" (ô tìm rơi xuống dòng 2).
 - Template Deal: hai nút đặc màu cùng màn ("Tạo bảng template" trên top bar và "Thêm cột") — còn một nút chính.
 - Lối tắt "Xem com" lọc trong 500 dòng Sổ com đầu (12D-2, không thêm API): deal có com ngoài 500 dòng sẽ thiếu mà không báo. Sửa tận gốc: lọc theo deal ở server (tham số lọc của lệnh đọc dòng sẵn có, hoặc thêm), hoặc ít nhất báo "đang xem 500 dòng đầu".
@@ -110,6 +112,8 @@ Thiết kế: `design/module12-giao-dien.md`; ảnh mockup: `design/giao_dien_ma
 `stage1.spec.ts` phone "cài đặt hệ thống" từng hết giờ 1 lần (`pnpm test:e2e stage1 --project=phone`), theo dõi.
 
 ## Câu hỏi còn mở (chờ Dương)
+
+- Bảng lệnh ⌘K (gõ để nhảy tới trang, datahub, form, dashboard): cần tìm kiếm xuyên module, có thể thêm một API tìm chung. Ước 6–10M token. Làm trong Stage 12 không? (Opus hứa hỏi ở 12F; Dương đang ngủ nên ghi ở đây.)
 
 - Guest xem dashboard: cờ `guest_visible` theo dashboard có đúng ý Module 1 mục 5.2 không, hay cấp theo từng dashboard ở khung cấp dữ liệu? Nhật ký xem dashboard chỉ ghi lần mở.
 - Grid và trình đọc màn hình: có bắt buộc bảng DOM song song không. Cột Mã dòng `#<số>` hay uuid ở export/API.
