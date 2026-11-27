@@ -4,4 +4,4 @@
 
 | Việc | Màn / chỗ code | Ghi chú |
 |---|---|---|
-| **Lỗi giao diện nhỏ còn sót từ Stage 2–9** (chuyển từ `progress.md` 23/11) | nhiều màn | Grid chưa `impeccable audit`, chưa thử điện thoại thật; e2e 375px cho Knowledge/AI Hub |
+| **Lỗi giao diện nhỏ còn sót từ Stage 2–9** (chuyển từ `progress.md` 23/11) | nhiều màn | Grid chưa `impeccable audit`, chưa thử điện thoại thật |
