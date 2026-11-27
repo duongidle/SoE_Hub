@@ -186,9 +186,12 @@ a {
   user-select: none;
 }
 
-:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+/* In the base layer so a utility class (outline-none on inputs, which draw their own ring) wins over it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
 /* Drawer (components/ui/drawer.tsx): slides in from the right. */

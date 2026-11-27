@@ -27,7 +27,7 @@ export function Button({ className, variant = "primary", loading, disabled, chil
 }
 
 export function Input({ className, ...props }: React.ComponentProps<"input">) {
-  return <input className={cn("min-h-11 w-full rounded-md border border-border bg-card px-3 py-1.5 text-base outline-none transition-colors placeholder:text-faint hover:border-primary-border focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:min-h-9 sm:text-sm", className)} {...props} />;
+  return <input className={cn("min-h-11 w-full rounded-md border border-border bg-card px-3 py-1.5 text-base outline-none transition-colors placeholder:text-faint hover:border-primary-border focus:border-primary focus:ring-[3px] focus:ring-primary/15 disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:min-h-9 sm:text-sm", className)} {...props} />;
 }
 
 /** Text input for a date and time in the Vietnamese format `dd/mm/yyyy` or `dd/mm/yyyy hh:mm` (24h). */
@@ -45,7 +45,7 @@ export { Select } from "./select";
 export type { SelectChange } from "./select";
 
 export function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
-  return <textarea className={cn("w-full rounded-md border border-border bg-card px-3 py-1.5 text-base outline-none transition-colors placeholder:text-faint hover:border-primary-border focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:text-sm", className)} {...props} />;
+  return <textarea className={cn("w-full rounded-md border border-border bg-card px-3 py-1.5 text-base outline-none transition-colors placeholder:text-faint hover:border-primary-border focus:border-primary focus:ring-[3px] focus:ring-primary/15 disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:text-sm", className)} {...props} />;
 }
 
 export function Field({ label, hint, error, required, name, children }: { label: string; hint?: string; error?: string | null; required?: boolean; name?: string; children: React.ReactNode }) {

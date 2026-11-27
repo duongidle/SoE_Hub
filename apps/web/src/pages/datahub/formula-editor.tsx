@@ -157,7 +157,7 @@ export function FormulaEditor({ table, column, value, onChange, resultType, onRe
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 150)}
           onKeyDown={onKeyDown}
-          className={cn(BOX, "relative block min-h-20 resize-none overflow-hidden bg-transparent outline-none focus:ring-2 focus:ring-primary/30", error || issues.length ? "border-bad" : "border-border")}
+          className={cn(BOX, "relative block min-h-20 resize-none overflow-hidden bg-transparent outline-none focus:ring-[3px] focus:ring-primary/15", error || issues.length ? "border-bad" : "border-border")}
         />
       </div>
 

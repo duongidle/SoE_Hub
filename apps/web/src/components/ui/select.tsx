@@ -126,7 +126,7 @@ export function Select({ className, children, value, defaultValue, onChange, dis
         if (open || disabled) return;
         if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); onOpenChange(true); }
       }}
-      className={cn("flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-left text-base outline-none transition-colors hover:border-primary-border focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:min-h-9 sm:text-sm", className)}
+      className={cn("flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-left text-base outline-none transition-colors hover:border-primary-border focus:border-primary focus:ring-[3px] focus:ring-primary/15 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:min-h-9 sm:text-sm", className)}
       {...(rest as Record<string, unknown>)}
     >
       <span className={cn("min-w-0 flex-1 truncate", !selected && "text-faint")}>{selected?.label ?? ""}</span>
@@ -193,7 +193,7 @@ export function Select({ className, children, value, defaultValue, onChange, dis
               }}
               onKeyDown={onListKey}
               placeholder="Tìm…"
-              className="min-h-11 w-full rounded-md border border-border bg-card py-1.5 pl-8 pr-2 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 sm:min-h-9 sm:text-sm"
+              className="min-h-11 w-full rounded-md border border-border bg-card py-1.5 pl-8 pr-2 text-base outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/15 sm:min-h-9 sm:text-sm"
             />
           </div>
         )}
