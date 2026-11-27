@@ -144,6 +144,8 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   const rootRef = useRef<HTMLDivElement>(null);
   const visible = useRef<Rectangle>({ x: 0, y: 0, width: 0, height: 0 });
   const [selection, setSelection] = useState<GridSelection>({ columns: CompactSelection.empty(), rows: CompactSelection.empty() });
+  // The row-number handlers run from timers: they read the newest selection here, not the one of the render that made them.
+  const selectionRef = useRef(selection);
   const [tip, setTip] = useState<Tip | null>(null);
 
   const ctx: CellCtx = useMemo(() => ({ people: labels.people, linked: labels.linked, noAccess: labels.noAccess }), [labels]);
@@ -453,6 +455,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   // ---- selection, scroll, keyboard ------------------------------------------------------------------------------
   const onGridSelectionChange = useCallback(
     (s: GridSelection) => {
+      selectionRef.current = s;
       setSelection(s);
       const ids = s.rows.toArray().map((i) => rowAtLine(i)?.id).filter((x): x is string => !!x);
       const active = s.current ? (rowAtLine(s.current.cell[1])?.id ?? null) : null;
@@ -623,7 +626,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
     return null;
   };
   const selectRow = (r: number, mode: "replace" | "toggle" | "range") => {
-    const cur = selection.rows;
+    const cur = selectionRef.current.rows;
     let rows: CompactSelection;
     if (mode === "toggle") rows = cur.hasIndex(r) ? cur.remove(r) : cur.add(r);
     else if (mode === "range" && cur.length > 0) {
@@ -635,7 +638,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   const pressed = useRef<{ row: number; mode: "open" | "replace" | "toggle" | "range" } | null>(null);
   const touch = useRef<{ row: number; timer: ReturnType<typeof setTimeout> | null } | null>(null);
   const markerHandlers = {
-    // The grid reads its selection on mouse up as well, so the action runs just after that (a timer of 0) and has the last word.
+    // The grid reads its selection on mouse up as well, so the action runs a moment after that (a short timer) and has the last word.
     onMouseDownCapture: (e: React.MouseEvent) => {
       const r = markerRowAt(e.clientX, e.clientY);
       if (r === null) return;
@@ -658,7 +661,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
           const id = rowAtLine(p.row)?.id;
           if (id) onOpenRow(id);
         } else selectRow(p.row, p.mode);
-      }, 0);
+      }, 60);
     },
     onContextMenu: (e: React.MouseEvent) => {
       if (markerRowAt(e.clientX, e.clientY) !== null) e.preventDefault();

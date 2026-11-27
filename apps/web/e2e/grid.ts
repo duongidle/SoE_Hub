@@ -60,6 +60,7 @@ export class GridDriver {
     if (opts.append) await this.page.keyboard.down("Control");
     await this.page.mouse.click(p.x, p.y, { button: "right" });
     if (opts.append) await this.page.keyboard.up("Control");
+    await this.page.waitForTimeout(150); // the grid applies the selection a moment after the mouse is released
   }
 
   /** Opens the row panel: a left click on the row number. */
@@ -67,6 +68,7 @@ export class GridDriver {
     const p = await this.markerPoint(r);
     await this.page.mouse.move(p.x, p.y);
     await this.page.mouse.click(p.x, p.y);
+    await this.page.waitForTimeout(150);
   }
 
   /** Types into the cell: the first key opens the editor (Glide needs a moment), the rest goes into it. Enter saves. */
