@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { Brand } from "@/components/brand";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, ErrorText, Field, Input, Notice } from "@/components/ui/form";
 import { api, fmtTime } from "@/lib/api";
@@ -15,7 +16,10 @@ const PUBLIC_AFTER = ["/dang-nhap", "/dang-ky", "/quen-mat-khau", "/dat-mat-khau
 function AuthCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mx-auto mt-6 w-full max-w-md">
-      <Card>
+      <div className="mb-5 flex justify-center">
+        <Brand center />
+      </div>
+      <Card className="shadow-frame">
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>

@@ -95,7 +95,16 @@ export class Session {
     return this.page.getByRole("navigation", { name: "Menu chính" });
   }
 
+  /** Admin pages left the sidebar (12A-1): they are links on the "Cài đặt" page, reached from the sidebar's "Cài đặt". */
+  private static SETTINGS_ONLY = ["Cấp dữ liệu Guest", "Kết nối AI", "Tài khoản hệ thống", "Nhật ký", "Chuyển giao", "Giới hạn Datahub", "Cài đặt hệ thống", "Template Quản lý Deal"];
+
   async menuLink(label: string) {
+    if (Session.SETTINGS_ONLY.includes(label)) {
+      await (await this.menuNav()).getByRole("link", { name: "Cài đặt", exact: true }).click();
+      await expect(this.page).toHaveURL(/\/cai-dat$/);
+      await expect(this.page.getByRole("heading", { name: "Cài đặt", exact: true })).toBeVisible();
+      return this.page.getByRole("main").getByRole("link", { name: label, exact: true });
+    }
     return (await this.menuNav()).getByRole("link", { name: label, exact: true });
   }
 

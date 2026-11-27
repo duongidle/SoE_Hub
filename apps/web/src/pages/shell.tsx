@@ -1,37 +1,48 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, Menu, UserRound } from "lucide-react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { BookOpen, Briefcase, ChartColumn, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Clock, Database, FileText, FolderInput, LayoutDashboard, LogOut, Megaphone, Menu, Network, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Brand, BRAND_NAME } from "@/components/brand";
 import { Button } from "@/components/ui/form";
+import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { can, useLiveUpdates, useMe } from "@/lib/session";
 import { BellButton } from "./notify/inbox";
 
 const PUBLIC_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
 
+type NavItem = { to: string; label: string; icon: LucideIcon; permission: string | null; dealOnly?: boolean; guestOnly?: boolean; onboarding?: boolean };
+
 /** Menu items. A user sees an item only when the permission list returned by the API contains its permission. */
-const NAV: { to: string; label: string; permission: string | null; dealOnly?: boolean; guestOnly?: boolean; onboarding?: boolean }[] = [
-  { to: "/", label: "Tổng quan", permission: null },
-  { to: "/datahub", label: "Datahub", permission: "datahub:datahub:use" },
-  { to: "/du-lieu-duoc-cap", label: "Dữ liệu được cấp", permission: "datahub:datahub:use", guestOnly: true },
-  { to: "/quan-ly-deal", label: "Quản lý Deal", permission: "datahub:datahub:use", dealOnly: true },
-  { to: "/form", label: "Form", permission: "form:form:create" },
-  { to: "/onboarding", label: "Onboarding", permission: "onboarding:path:read", onboarding: true },
-  { to: "/knowledge", label: "Knowledge", permission: "knowledge:article:read" },
-  { to: "/ai-hub", label: "AI Hub", permission: "aihub:skill:read" },
-  { to: "/duyet", label: "Duyệt bài", permission: "knowledge:article:review|aihub:skill:review" },
-  { to: "/dashboard", label: "Dashboard chia sẻ", permission: null },
-  { to: "/nhac-hen", label: "Nhắc hẹn", permission: "notification:manage" },
-  { to: "/thong-bao-chung", label: "Thông báo chung", permission: "notification:announce" },
-  { to: "/to-chuc", label: "Org chart", permission: "org:member:read" },
-  { to: "/cap-du-lieu", label: "Cấp dữ liệu Guest", permission: "guest:grant:manage" },
-  { to: "/quan-tri/token", label: "Kết nối AI", permission: "auth:token:approve" },
-  { to: "/quan-tri/tai-khoan-he-thong", label: "Tài khoản hệ thống", permission: "auth:service_account:manage" },
-  { to: "/quan-tri/nhat-ky", label: "Nhật ký", permission: "system:audit:read" },
-  { to: "/quan-tri/chuyen-giao", label: "Chuyển giao", permission: "data:transfer" },
-  { to: "/quan-tri/datahub-gioi-han", label: "Giới hạn Datahub", permission: "system:setting:write" },
-  { to: "/quan-tri/cai-dat", label: "Cài đặt hệ thống", permission: "system:setting:write" },
-  { to: "/quan-tri/template-deal", label: "Template Quản lý Deal", permission: "system:setting:write" },
+const NAV: NavItem[] = [
+  { to: "/", label: "Tổng quan", icon: LayoutDashboard, permission: null },
+  { to: "/datahub", label: "Datahub", icon: Database, permission: "datahub:datahub:use" },
+  { to: "/du-lieu-duoc-cap", label: "Dữ liệu được cấp", icon: FolderInput, permission: "datahub:datahub:use", guestOnly: true },
+  { to: "/quan-ly-deal", label: "Quản lý Deal", icon: Briefcase, permission: "datahub:datahub:use", dealOnly: true },
+  { to: "/form", label: "Dynamic Form", icon: FileText, permission: "form:form:create" },
+  { to: "/onboarding", label: "Onboarding", icon: UserCheck, permission: "onboarding:path:read", onboarding: true },
+  { to: "/knowledge", label: "Knowledge", icon: BookOpen, permission: "knowledge:article:read" },
+  { to: "/ai-hub", label: "AI Hub", icon: Sparkles, permission: "aihub:skill:read" },
+  { to: "/duyet", label: "Duyệt bài", icon: ClipboardCheck, permission: "knowledge:article:review|aihub:skill:review" },
+  { to: "/dashboard", label: "Dashboard chia sẻ", icon: ChartColumn, permission: null },
+  { to: "/nhac-hen", label: "Nhắc hẹn", icon: Clock, permission: "notification:manage" },
+  { to: "/thong-bao-chung", label: "Thông báo chung", icon: Megaphone, permission: "notification:announce" },
+  { to: "/to-chuc", label: "Org chart", icon: Network, permission: "org:member:read" },
+];
+
+/** Admin pages. Not in the sidebar: they are listed on the Cài đặt page (/cai-dat), by permission. */
+export const SETTINGS_LINKS: { to: string; label: string; hint: string; permission: string | null }[] = [
+  { to: "/tai-khoan", label: "Tài khoản của tôi", hint: "Mật khẩu, thiết bị, token cá nhân", permission: null },
+  { to: "/tai-khoan/thong-bao", label: "Cài đặt thông báo", hint: "Kênh nhận và giờ yên tĩnh", permission: null },
+  { to: "/cap-du-lieu", label: "Cấp dữ liệu Guest", hint: "Cho Guest xem dữ liệu được chọn", permission: "guest:grant:manage" },
+  { to: "/quan-tri/token", label: "Kết nối AI", hint: "Duyệt kết nối AI và token", permission: "auth:token:approve" },
+  { to: "/quan-tri/tai-khoan-he-thong", label: "Tài khoản hệ thống", hint: "Tài khoản dịch vụ và key API", permission: "auth:service_account:manage" },
+  { to: "/quan-tri/nhat-ky", label: "Nhật ký", hint: "Nhật ký thao tác của Admin", permission: "system:audit:read" },
+  { to: "/quan-tri/chuyen-giao", label: "Chuyển giao", hint: "Chuyển dữ liệu của một người sang người khác", permission: "data:transfer" },
+  { to: "/quan-tri/datahub-gioi-han", label: "Giới hạn Datahub", hint: "Giới hạn dòng, cột, dung lượng", permission: "system:setting:write" },
+  { to: "/quan-tri/cai-dat", label: "Cài đặt hệ thống", hint: "Thiết lập chung của hệ thống", permission: "system:setting:write" },
+  { to: "/quan-tri/template-deal", label: "Template Quản lý Deal", hint: "Mặc định của bảng Deals", permission: "system:setting:write" },
 ];
 
 /** Pages that need a permission when opened by URL (same permissions the API checks). */
@@ -61,9 +72,61 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
 ];
 
 /** "a|b" means any one of the permissions. */
-const canAny = (me: Parameters<typeof can>[0], permission: string) => permission.split("|").some((p) => can(me, p));
+export const canAny = (me: Parameters<typeof can>[0], permission: string) => permission.split("|").some((p) => can(me, p));
 const isPublic = (path: string) => PUBLIC_PATHS.includes(path);
 const requiredPermission = (path: string) => ROUTE_PERMISSIONS.find((r) => path === r.prefix || path.startsWith(`${r.prefix}/`))?.permission ?? null;
+
+/** Breadcrumb from the path: the menu item it belongs to (longest prefix), under "Cài đặt" for settings pages. */
+function crumbs(path: string): string[] {
+  if (path === "/cai-dat") return ["Cài đặt"];
+  const setting = SETTINGS_LINKS.find((s) => path === s.to || path.startsWith(`${s.to}/`));
+  if (setting) return ["Cài đặt", setting.label];
+  const item = NAV.filter((n) => (n.to === "/" ? path === "/" : path === n.to || path.startsWith(`${n.to}/`))).sort((x, y) => y.to.length - x.to.length)[0];
+  if (item) return [item.label];
+  if (path.startsWith("/thong-bao")) return ["Thông báo"];
+  return [BRAND_NAME];
+}
+
+const SIDEBAR_KEY = "soe.sidebar.collapsed";
+const readCollapsed = () => {
+  try {
+    return window.localStorage.getItem(SIDEBAR_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const linkBase = "relative flex min-h-10 items-center gap-3 rounded-control px-3 text-sm text-muted-foreground transition-colors hover:bg-primary-soft hover:text-foreground";
+const linkActive = "[&.active]:bg-primary-soft [&.active]:font-semibold [&.active]:text-primary [&.active]:before:absolute [&.active]:before:-left-3 [&.active]:before:top-2 [&.active]:before:bottom-2 [&.active]:before:w-[3px] [&.active]:before:rounded-full [&.active]:before:bg-primary [&.active]:before:content-['']";
+
+/** The menu list; the sidebar on a wide screen and the drawer on a narrow one use the same markup. */
+function SideNav({ items, collapsed, label, onLogout }: { items: NavItem[]; collapsed: boolean; label: string; onLogout?: () => void }) {
+  const text = collapsed ? "sr-only" : "truncate";
+  return (
+    <nav aria-label={label} className="flex min-h-0 flex-1 flex-col px-3 pb-3">
+      <div className="contain-scroll flex flex-1 flex-col gap-0.5 overflow-y-auto">
+        {items.map((n) => (
+          <Link key={n.to} to={n.to} activeOptions={{ exact: n.to === "/" }} title={collapsed ? n.label : undefined} className={cn(linkBase, linkActive, collapsed && "justify-center px-0")}>
+            <n.icon size={18} aria-hidden className="shrink-0" />
+            <span className={text}>{n.label}</span>
+          </Link>
+        ))}
+      </div>
+      <div className="mt-2 flex flex-col gap-0.5 border-t border-border-soft pt-2">
+        <Link to="/cai-dat" title={collapsed ? "Cài đặt" : undefined} className={cn(linkBase, linkActive, collapsed && "justify-center px-0")}>
+          <Settings size={18} aria-hidden className="shrink-0" />
+          <span className={text}>Cài đặt</span>
+        </Link>
+        {onLogout && (
+          <button type="button" onClick={onLogout} aria-label="Đăng xuất" title={collapsed ? "Đăng xuất" : undefined} className={cn(linkBase, "cursor-pointer", collapsed && "justify-center px-0")}>
+            <LogOut size={18} aria-hidden className="shrink-0" />
+            <span className={text}>Đăng xuất</span>
+          </button>
+        )}
+      </div>
+    </nav>
+  );
+}
 
 export function Shell() {
   const location = useRouterState({ select: (s) => s.location });
@@ -81,13 +144,24 @@ export function Shell() {
     enabled: !!me && canAny(me, "onboarding:path:read") && !can(me, "onboarding:path:create"),
     queryFn: async () => (await api<unknown[]>("GET", "/onboarding/plans?scope=mine")).length + (await api<unknown[]>("GET", "/onboarding/plans?scope=following")).length,
   });
-  // The phone menu closes by itself when the page changes: it is "open" only for the path it was opened on.
+  // The narrow-screen menu closes by itself when the page changes: it is "open" only for the path it was opened on.
   const [openPath, setOpenPath] = useState<string | null>(null);
   const open = openPath === path;
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      try {
+        window.localStorage.setItem(SIDEBAR_KEY, c ? "0" : "1");
+      } catch {
+        /* storage blocked: the choice just is not remembered */
+      }
+      return !c;
+    });
+  };
   useLiveUpdates(!!me);
 
   useEffect(() => {
-  if (meQ.isLoading || path.startsWith("/f/")) return;
+    if (meQ.isLoading || path.startsWith("/f/")) return;
     if (!me) {
       if (!isPublic(path)) void nav({ href: `/dang-nhap?next=${encodeURIComponent(path + location.searchStr)}`, replace: true });
     } else if (me.must_set_password) {
@@ -98,26 +172,16 @@ export function Shell() {
   }, [me, meQ.isLoading, path, location.searchStr, nav]);
 
   // The page of a person filling a form stands alone, with or without a login.
-  if (path.startsWith("/f/") && shown.startsWith("/f/")) return <div className="min-h-dvh bg-muted/30 px-3 py-3"><Outlet /></div>;
+  if (path.startsWith("/f/") && shown.startsWith("/f/")) return <div className="min-h-dvh px-3 py-3"><Outlet /></div>;
   if (meQ.isLoading) return <p className="p-6 text-sm text-muted-foreground">Đang tải...</p>;
   if (meQ.error) return <p className="p-6 text-sm text-bad" role="alert">Không kết nối được máy chủ. Hãy tải lại trang sau ít phút.</p>;
 
   // Signed out: only the public pages render. Everything else waits for the redirect above.
   if (!me) {
-    return (
-      <div className="min-h-dvh px-4 py-6">
-        <div className="mx-auto mb-2 max-w-md text-center text-lg font-semibold text-primary">SoE Hub</div>
-        {isPublic(path) && isPublic(shown) ? <Outlet /> : null}
-      </div>
-    );
+    return <div className="min-h-dvh px-4 py-6">{isPublic(path) && isPublic(shown) ? <Outlet /> : null}</div>;
   }
   if (me.must_set_password) {
-    return (
-      <div className="min-h-dvh px-4 py-6">
-        <div className="mx-auto mb-2 max-w-md text-center text-lg font-semibold text-primary">SoE Hub</div>
-        {path === "/dat-mat-khau" && shown === "/dat-mat-khau" ? <Outlet /> : null}
-      </div>
-    );
+    return <div className="min-h-dvh px-4 py-6">{path === "/dat-mat-khau" && shown === "/dat-mat-khau" ? <Outlet /> : null}</div>;
   }
 
   // "Quản lý Deal" is for people who have the datahub (Manager, Leader, User); Admin and Guest have none (Module 4 mục 1.1).
@@ -136,49 +200,81 @@ export function Shell() {
     }
   };
 
-  // An open table fills the window (the grid scrolls inside it); other pages are a centered column.
+  // An open table fills the window (the grid scrolls inside it); other pages are a centered column that scrolls.
   const wide = shown.startsWith("/datahub/") || shown.startsWith("/du-lieu-duoc-cap/") || (shown.startsWith("/quan-ly-deal") && shown !== "/quan-ly-deal/template");
+  const trail = crumbs(shown);
+  const initials = me.user.full_name.split(/\s+/).filter(Boolean).slice(-2).map((w) => w[0]).join("").toUpperCase();
   return (
-    <div className={wide ? "flex h-dvh flex-col" : "min-h-dvh"}>
+    <div className="h-dvh md:p-3">
       <a href="#noi-dung" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[80] focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:shadow-md">
         Bỏ qua, tới nội dung
       </a>
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2 sm:px-6">
-          <Link to="/" className="text-lg font-semibold text-primary">SoE Hub</Link>
-          <nav aria-label="Menu chính" className="ml-4 hidden flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground lg:flex">
-            {items.map((n) => (
-              <Link key={n.to} to={n.to} className="hover:text-foreground [&.active]:font-medium [&.active]:text-foreground">
-                {n.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-1">
-            <BellButton me={me} />
-            <Link to="/tai-khoan" className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-sm hover:bg-muted" aria-label="Tài khoản của tôi">
-              <UserRound size={18} />
-              <span className="hidden max-w-32 truncate sm:inline">{me.user.full_name}</span>
+      <div className="flex h-full overflow-hidden bg-card md:rounded-frame md:shadow-frame">
+        <aside className={cn("hidden shrink-0 flex-col border-r border-border-soft bg-sidebar transition-[width] duration-200 lg:flex", collapsed ? "w-16" : "w-[220px]")}>
+          <div className={cn("flex h-14 shrink-0 items-center gap-1.5 px-2.5", collapsed ? "justify-center" : "justify-between")}>
+            <Link to="/" aria-label="SoE HUB, về Tổng quan" className="min-w-0">
+              <Brand compact={collapsed} />
             </Link>
-            <Button variant="ghost" onClick={logout} aria-label="Đăng xuất">
-              <LogOut size={18} />
-              <span className="hidden sm:inline">Đăng xuất</span>
-            </Button>
-            <Button variant="ghost" className="lg:hidden" aria-label="Mở menu" aria-expanded={open} onClick={() => setOpenPath(open ? null : path)}>
-              <Menu size={20} />
-            </Button>
+            {!collapsed && (
+              <button type="button" onClick={toggleCollapsed} aria-label="Thu gọn menu" className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-primary-soft hover:text-foreground">
+                <ChevronsLeft size={18} aria-hidden />
+              </button>
+            )}
           </div>
-        </div>
-        {open && (
-          <nav aria-label="Menu điện thoại" className="flex flex-col border-t border-border px-4 py-2 text-sm lg:hidden">
-            {items.map((n) => (
-              <Link key={n.to} to={n.to} className="py-2 text-muted-foreground [&.active]:font-medium [&.active]:text-foreground">
-                {n.label}
-              </Link>
-            ))}
-          </nav>
-        )}
-      </header>
-      <main id="noi-dung" tabIndex={-1} className={wide ? "mx-auto flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : <Outlet />}</main>
+          {collapsed && (
+            <button type="button" onClick={toggleCollapsed} aria-label="Mở rộng menu" className="mx-auto mb-1 inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-primary-soft hover:text-foreground">
+              <ChevronsRight size={18} aria-hidden />
+            </button>
+          )}
+          <SideNav items={items} collapsed={collapsed} label="Menu chính" onLogout={logout} />
+        </aside>
+
+        <Dialog.Root open={open} onOpenChange={(o) => setOpenPath(o ? path : null)}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="overlay-fade fixed inset-0 z-50 bg-foreground/25 backdrop-blur-[2px] lg:hidden" />
+            <Dialog.Content aria-describedby={undefined} className="drawer-panel fixed inset-y-0 left-0 z-50 flex w-[260px] max-w-[85vw] flex-col bg-sidebar shadow-lg lg:hidden" style={{ animationName: "drawer-in-left" }}>
+              <Dialog.Title className="sr-only">Menu</Dialog.Title>
+              <div className="flex h-14 shrink-0 items-center px-3">
+                <Link to="/" aria-label="SoE HUB, về Tổng quan">
+                  <Brand />
+                </Link>
+              </div>
+              <SideNav items={items} collapsed={false} label="Menu điện thoại" />
+            </Dialog.Content>
+          </Dialog.Portal>
+
+          <div className="flex min-w-0 flex-1 flex-col bg-workspace">
+            <div className={cn("contain-scroll flex min-h-0 flex-1 flex-col", wide ? "overflow-hidden" : "overflow-y-auto")}>
+              <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b border-border-soft bg-card/85 px-3 backdrop-blur-md sm:px-5">
+                <Dialog.Trigger asChild>
+                  <Button variant="ghost" className="shrink-0 !px-2 lg:hidden" aria-label="Mở menu" aria-expanded={open}>
+                    <Menu size={20} aria-hidden />
+                  </Button>
+                </Dialog.Trigger>
+                <nav aria-label="Vị trí" className="flex min-w-0 items-center gap-1.5 text-sm">
+                  {trail.map((t, i) => (
+                    <span key={t} className="flex min-w-0 items-center gap-1.5">
+                      {i > 0 && <ChevronRight size={14} aria-hidden className="shrink-0 text-faint" />}
+                      <span className={cn("truncate", i === trail.length - 1 ? "font-semibold text-foreground" : "text-muted-foreground")} aria-current={i === trail.length - 1 ? "page" : undefined}>{t}</span>
+                    </span>
+                  ))}
+                </nav>
+                <div className="ml-auto flex items-center gap-1">
+                  <BellButton me={me} />
+                  <Link to="/tai-khoan" className="inline-flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-primary-soft" aria-label="Tài khoản của tôi">
+                    <span aria-hidden className="inline-flex size-7 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">{initials || <UserRound size={14} />}</span>
+                    <span className="hidden max-w-32 truncate font-medium sm:inline">{me.user.full_name}</span>
+                  </Link>
+                  <Button variant="ghost" onClick={logout} aria-label="Đăng xuất" className="!px-2 lg:hidden">
+                    <LogOut size={18} aria-hidden />
+                  </Button>
+                </div>
+              </header>
+              <main id="noi-dung" tabIndex={-1} className={wide ? "flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : <Outlet />}</main>
+            </div>
+          </div>
+        </Dialog.Root>
+      </div>
     </div>
   );
 }

@@ -537,3 +537,10 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 **Luật cấm**
 - Tuỳ chọn cột "báo khi cột này được sửa" (9B): xem Module 2 và Module 6 (loại `datahub.cell.changed` ở `catalog.ts`). Không viết SQL tổng hợp riêng cho checkpoint: chỉ qua `runDefinition`. Không cấp quyền bảng cho nhân sự bằng đường khác `applyGrants`. Không để AI tick việc, xác nhận checkpoint, chốt đánh giá cuối.
 - Lộ trình đang chạy chỉ một cho mỗi nhân sự (chỉ mục duy nhất một phần), kiểm ở `plan.assign`.
+
+## Module 12: Giao diện
+
+- Token (màu, bo góc, bóng, nền quầng): `apps/web/src/index.css`. Chỉ dùng token, không mã màu cứng trong component. Màu theo nghĩa: `ok/info/warn/bad/ai` (+ `-bg`, `-border`, `-dot`).
+- Thành phần: `apps/web/src/components/ui/` (`form.tsx` Button/Input/Textarea/Field/Modal/ConfirmDialog/Table/Tabs/PageTitle; `badge.tsx` tone ok/info/warn/bad/ai/primary/muted; `card.tsx`; `states.tsx`; `toast.tsx`; `tooltip.tsx`; `popover.tsx`; `dropdown.tsx`). Ngăn kéo phải: `drawer.tsx` `Drawer({title, open, onClose, dirty?, wide?, footer?})`.
+- Thương hiệu: `apps/web/src/components/brand.tsx` (`Brand`, `BRAND_NAME`, `BRAND_SLOGAN`).
+- Khung: `apps/web/src/pages/shell.tsx` (`NAV` có icon, `SETTINGS_LINKS`, `SideNav`, `crumbs`). Trang Cài đặt tạm: `pages/settings.tsx`. Quyết định chi tiết: `design/module12-quyet-dinh-khi-code.md`.

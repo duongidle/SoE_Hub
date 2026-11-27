@@ -11,6 +11,7 @@ import { GuestGrantsPage } from "@/pages/guest";
 import { GuestDataPage, GuestTablePage } from "@/pages/guest-data";
 import { Home } from "@/pages/home";
 import { OrgPage } from "@/pages/org";
+import { SettingsHubPage } from "@/pages/settings";
 import { Shell } from "@/pages/shell";
 import { SystemPage } from "@/pages/system";
 
@@ -69,6 +70,7 @@ export const router = createRouter({
     r("/dashboard", SharedDashboardsPage),
     r("/dashboard/$dashboardId", SharedDashboardPage),
     r("/to-chuc", OrgPage),
+    r("/cai-dat", SettingsHubPage),
     r("/tai-khoan", AccountPage),
     r("/tai-khoan/token", TokensPage),
     r("/thong-bao", NotificationsPage),

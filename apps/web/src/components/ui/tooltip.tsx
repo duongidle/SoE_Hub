@@ -8,7 +8,7 @@ export function Tip({ label, children, side = "top" }: { label: React.ReactNode;
       <T.Root>
         <T.Trigger asChild>{children}</T.Trigger>
         <T.Portal>
-          <T.Content side={side} sideOffset={6} className="z-[70] max-w-xs rounded-md bg-foreground px-2 py-1 text-xs text-background shadow-md [overflow-wrap:anywhere]">
+          <T.Content side={side} sideOffset={6} className="z-[70] max-w-xs rounded-md bg-foreground px-2.5 py-1 text-xs font-medium text-white shadow-md [overflow-wrap:anywhere]">
             {label}
           </T.Content>
         </T.Portal>
