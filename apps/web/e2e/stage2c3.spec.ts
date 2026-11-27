@@ -2,7 +2,7 @@ import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { seedMany } from "./dh-fixtures";
 import { GridDriver } from "./grid";
-import { API, Session, type ProjectName, chooseOption, expectSelectValue } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, expectSelectValue, moreAction, expectMore } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -97,13 +97,13 @@ async function open(s: Session): Promise<GridDriver> {
 const dialog = (page: Page, name?: string | RegExp): Locator => page.getByRole("dialog", name ? { name } : undefined).last();
 const nameBox = (d: Locator) => d.getByRole("textbox", { name: /^Tên cột/ });
 async function openAdd(page: Page): Promise<Locator> {
-  await page.getByRole("button", { name: "Thêm cột", exact: true }).click();
+  await moreAction(page, "Thêm cột");
   const d = dialog(page, "Thêm cột");
   await expect(d).toBeVisible();
   return d;
 }
 async function openManager(page: Page): Promise<Locator> {
-  await page.getByRole("button", { name: "Cột của bảng" }).click();
+  await moreAction(page, "Cột của bảng");
   const d = dialog(page, "Cột của bảng");
   await expect(d).toBeVisible();
   return d;
@@ -442,7 +442,7 @@ test("người Xem và người Sửa: không đổi được cấu trúc, khôn
   for (const s of [viewer, editor]) {
     const pg = s.page;
     const g = await open(s);
-    await expect(pg.getByRole("button", { name: "Thêm cột", exact: true })).toHaveCount(0);
+    await expectMore(pg, "Thêm cột", false);
     const m = await openManager(pg);
     await expect(m.getByText("Chỉ chủ datahub được thêm, sửa hay xoá cột.")).toBeVisible();
     await expect(m.getByRole("button", { name: /^Sửa cột / })).toHaveCount(0);

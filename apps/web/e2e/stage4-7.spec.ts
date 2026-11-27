@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { API, Session, type ProjectName, chooseOption, expectSelectValue } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, expectSelectValue, moreAction } from "./helpers";
 import { GridDriver } from "./grid";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
@@ -196,7 +196,7 @@ test.describe("4.7B2 Import: cột Người và Liên kết", () => {
   async function openImport(text: string) {
     const page = mgrS.page;
     await page.goto(`/datahub/${dhId}/${projId}`);
-    await page.getByRole("button", { name: "Nhập", exact: true }).click();
+    await moreAction(page, "Nhập");
     const d = page.getByRole("dialog", { name: "Nhập dữ liệu" });
     await d.getByRole("tab", { name: "Dán dữ liệu" }).click();
     await d.getByLabel("Dữ liệu dán").fill(text);

@@ -35,23 +35,35 @@ import { FilterEditor } from "./filter-editor";
 
 export type Change = (patch: Partial<Record<keyof ViewConfig, unknown>>) => void;
 
-/** The buttons of the view toolbar: each one opens a panel and saves what the person changes at once (design module2 section 5). */
-export function ViewTools({ columns, config, dead, change, search, onSearch, onCleanDead, extra }: { extra?: React.ReactNode; columns: Column[]; config: ViewConfig; dead: DeadRefs; change: Change; search: string; onSearch: (s: string) => void; onCleanDead: () => void }) {
+/**
+ * The ONE toolbar line of an open table (design module12 section 2), left to right: view switcher (`lead`), the row actions the open grid
+ * portals into `rowSlotRef` ("Thêm dòng", undo and redo, actions on selected rows), then Thời gian, Lọc, Sắp xếp, Nhóm, Ẩn cột, Tô màu;
+ * at the right: `extra`, one search box, row density and the "..." menu (`more`). Each tool saves what the person changes at once
+ * (design module2 section 5) and shows how many settings it holds ("Lọc 2") with a soft tint while any applies.
+ * Narrow: tool labels shrink to an icon (name in `title`/`aria-label`), and the line wraps instead of scrolling the page sideways.
+ */
+export function ViewTools({ columns, config, dead, change, search, onSearch, onCleanDead, lead, rowSlotRef, extra, more }: { lead?: React.ReactNode; rowSlotRef?: (el: HTMLElement | null) => void; extra?: React.ReactNode; more?: React.ReactNode; columns: Column[]; config: ViewConfig; dead: DeadRefs; change: Change; search: string; onSearch: (s: string) => void; onCleanDead: () => void }) {
   const dateCols = useMemo(() => columns.filter(isDateColumn), [columns]);
   const hiddenCount = (config.hidden ?? []).filter((k) => columns.some((c) => c.key === k)).length;
   const rowHeight = config.row_height ?? DEFAULT_ROW_HEIGHT;
   return (
-    <div data-slot="view-tools" className="flex flex-col gap-2">
-      <div role="toolbar" aria-label="Công cụ view" className="flex flex-wrap items-center gap-2">
+    <div data-slot="view-tools" className="@container flex flex-col gap-2">
+      <div role="toolbar" aria-label="Công cụ view" className="flex flex-wrap items-center gap-1.5">
+        {lead}
+        <span ref={rowSlotRef} className="contents" />
+        <span aria-hidden className="mx-0.5 h-5 w-px shrink-0 bg-border @max-[58rem]:hidden" />
         {dateCols.length > 0 && <TimeButton columns={columns} dateCols={dateCols} config={config} change={change} />}
         <FilterButton columns={columns} config={config} change={change} />
         <SortButton columns={columns} config={config} change={change} />
         <GroupButton columns={columns} config={config} change={change} />
         <ColumnsButton columns={columns} config={config} change={change} hiddenCount={hiddenCount} />
-        <RowHeightButton value={rowHeight} change={change} />
         <ColorsButton columns={columns} config={config} change={change} />
-        <SearchBox value={search} onChange={onSearch} />
-        {extra}
+        <div className="ml-auto flex min-w-0 shrink items-center gap-1.5 @max-[58rem]:w-full">
+          {extra}
+          <SearchBox value={search} onChange={onSearch} />
+          <RowHeightButton value={rowHeight} change={change} />
+          {more}
+        </div>
       </div>
       <ActiveChips columns={columns} config={config} change={change} />
       {dead.total > 0 && (
@@ -68,12 +80,19 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
 
 // ------------------------------------------------------------------------------------------------ pieces
 
-function ToolButton({ icon, label, count, active, ...props }: React.ComponentProps<"button"> & { icon: React.ReactNode; label: string; count?: number; active?: boolean }) {
+/** A tool of the toolbar: icon and label (the label folds away when the toolbar is narrow), the number of settings it holds, a tint while any applies. */
+function ToolButton({ icon, label, count, active, iconOnly, ...props }: React.ComponentProps<"button"> & { icon: React.ReactNode; label: string; count?: number; active?: boolean; iconOnly?: boolean }) {
   return (
-    <Button variant="secondary" className={cn("max-w-full", active && "border-primary bg-selected")} {...props}>
+    <Button
+      variant="secondary"
+      title={label}
+      className={cn("max-w-full shrink-0 !px-2.5 @[72rem]:!px-3", active && "!border-primary-border !bg-primary-soft !text-primary", iconOnly && "@[72rem]:!px-2.5")}
+      aria-label={count ? `${label} ${formatNumber(count)}` : label}
+      {...props}
+    >
       {icon}
-      <span>{label}</span>
-      {count ? <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">{formatNumber(count)}</span> : null}
+      <span className={iconOnly ? "sr-only" : "hidden @[72rem]:inline"}>{label}</span>
+      {count ? <span className="rounded-full bg-primary px-1.5 text-xs leading-5 text-primary-foreground">{formatNumber(count)}</span> : null}
     </Button>
   );
 }
@@ -82,9 +101,9 @@ const Label = ({ children }: { children: React.ReactNode }) => <p className="mb-
 
 function SearchBox({ value, onChange }: { value: string; onChange: (s: string) => void }) {
   return (
-    <div className="relative min-w-0 flex-1 basis-48 sm:max-w-64">
+    <div className="relative min-w-0 flex-1 basis-36 @[58rem]:w-44 @[58rem]:flex-none @[72rem]:w-60">
       <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-      <Input type="search" {...searchHotkeyProps} aria-label="Tìm trong bảng" placeholder="Tìm trong bảng" value={value} onChange={(e) => onChange(e.target.value)} className="!pl-8" autoComplete="off" maxLength={200} />
+      <Input type="search" {...searchHotkeyProps} aria-label="Tìm trong bảng" placeholder="Tìm trong bảng (/)" value={value} onChange={(e) => onChange(e.target.value)} className="!pl-8" autoComplete="off" maxLength={200} />
     </div>
   );
 }
@@ -252,7 +271,7 @@ function ColumnsButton({ columns, config, change, hiddenCount }: { columns: Colu
     change({ order: moveColumn(order, key, at + by) });
   };
   return (
-    <Popover label="Cột của view" width="w-[26rem]" trigger={<ToolButton icon={<EyeOff size={16} aria-hidden />} label="Cột" count={hiddenCount} active={hiddenCount > 0 || frozen > 0} aria-label={hiddenCount ? `Cột, ${hiddenCount} cột đang ẩn` : "Cột"} />}>
+    <Popover label="Cột của view" width="w-[26rem]" trigger={<ToolButton icon={<EyeOff size={16} aria-hidden />} label="Ẩn cột" count={hiddenCount} active={hiddenCount > 0 || frozen > 0} aria-label={hiddenCount ? `Ẩn cột, ${hiddenCount} cột đang ẩn` : "Ẩn cột"} />}>
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Label>Hiện, ẩn, đổi thứ tự và cố định cột</Label>
@@ -294,7 +313,7 @@ function ColumnsButton({ columns, config, change, hiddenCount }: { columns: Colu
 
 function RowHeightButton({ value, change }: { value: RowHeight; change: Change }) {
   return (
-    <Popover label="Chiều cao dòng" width="w-56" trigger={<ToolButton icon={<Rows3 size={16} aria-hidden />} label={`Dòng: ${ROW_HEIGHT_LABELS[value]}`} />}>
+    <Popover label="Chiều cao dòng" width="w-56" trigger={<ToolButton icon={<Rows3 size={16} aria-hidden />} label={`Dòng: ${ROW_HEIGHT_LABELS[value]}`} iconOnly />}>
       <div role="radiogroup" aria-label="Chiều cao dòng" className="flex flex-col gap-1">
         {(Object.keys(ROW_HEIGHT_LABELS) as RowHeight[]).map((h) => (
           <label key={h} className="flex min-h-11 items-center gap-2 rounded px-2 hover:bg-muted sm:min-h-9">

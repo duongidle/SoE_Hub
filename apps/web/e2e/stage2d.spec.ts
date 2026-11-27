@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { API, Session, type ProjectName, chooseOption, expectSelectValue } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, expectSelectValue, moreAction, expectMore } from "./helpers";
 import { GridDriver } from "./grid";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
@@ -105,7 +105,7 @@ test.afterAll(async () => {
 async function openTable(s: Session): Promise<void> {
   await s.page.goto(`/datahub/${dhId}/${tableId}`);
   await expect(s.page.getByRole("heading", { level: 1, name: dhTitle() })).toBeVisible();
-  await expect(s.page.getByRole("button", { name: "Xuất", exact: true })).toBeVisible();
+  await expectMore(s.page, "Xuất", true);
 }
 
 test("nhập xlsx hai sheet vào datahub mới, lấy công thức: dịch được, không dịch được và cảnh báo ngày", async () => {
@@ -197,7 +197,7 @@ test("nhập vào bảng có sẵn từ bảng tính: dòng sai kiểu bị bỏ
   const before = (await rowsOf(ownerApi, tableId)).length;
   await openTable(owner);
   const pg = owner.page;
-  await pg.getByRole("button", { name: "Nhập", exact: true }).click();
+  await moreAction(pg, "Nhập");
   const d = dialog(pg, "Nhập dữ liệu");
   await d.getByRole("tab", { name: "Dán dữ liệu" }).click();
   const text = ["Tên\tDoanh thu\tNgày ký", "Dòng A <i>nghiêng</i>\t100\t2026-01-05", "Dòng B\tabc\t2026-01-06", "Dòng C\t300\t31/02/2026", "Dòng D\t-45\t07/01/2026", "Dòng E\t\t"].join("\n");
@@ -251,7 +251,7 @@ test("xuất CSV, XLSX, JSON: số rất lớn, số âm, ngày, ô trống, tê
   await openTable(owner);
   const pg = owner.page;
   const exportAs = async (format: string, scope?: "view" | "table" | "datahub") => {
-    await pg.getByRole("button", { name: "Xuất", exact: true }).click();
+    await moreAction(pg, "Xuất");
     const d = dialog(pg, "Xuất dữ liệu");
     if (scope) await chooseOption(d.getByLabel("Phạm vi xuất"), scope);
     await chooseOption(d.getByLabel("Định dạng file"), format);
@@ -291,7 +291,7 @@ test("xuất CSV, XLSX, JSON: số rất lớn, số âm, ngày, ô trống, tê
 
   // By view: a search in the toolbar limits the file to the rows the person sees.
   await pg.getByRole("searchbox").first().fill("Thuận Phát").catch(async () => pg.getByPlaceholder(/Tìm/).first().fill("Thuận Phát"));
-  await expect(pg.getByRole("button", { name: "Xuất", exact: true })).toBeVisible();
+  await expectMore(pg, "Xuất", true);
   await pg.waitForTimeout(600);
   const v = await exportAs("csv");
   const lines = fs.readFileSync(v.file, "utf8").slice(1).trimEnd().split("\r\n");
@@ -303,9 +303,9 @@ test("xuất CSV, XLSX, JSON: số rất lớn, số âm, ngày, ô trống, tê
 test("người được chia sẻ Xem: xuất được dữ liệu nhưng file không có nội dung công thức, và không có nút Nhập", async () => {
   await openTable(viewer);
   const pg = viewer.page;
-  await expect(pg.getByRole("button", { name: "Nhập", exact: true })).toHaveCount(0);
+  await expectMore(pg, "Nhập", false);
   await expect(pg.getByRole("button", { name: "Nhập dữ liệu" })).toHaveCount(0);
-  await pg.getByRole("button", { name: "Xuất", exact: true }).click();
+  await moreAction(pg, "Xuất");
   const d = dialog(pg, "Xuất dữ liệu");
   await expect(d).toContainText("Bạn không được xem nội dung công thức");
   await chooseOption(d.getByLabel("Phạm vi xuất"), "table");

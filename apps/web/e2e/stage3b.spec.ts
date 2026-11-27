@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { API, Session, type ProjectName, chooseOption, closeSelect, openSelect } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, closeSelect, openSelect, expectMore } from "./helpers";
 import { seedMany } from "./dh-fixtures";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
@@ -119,6 +119,7 @@ test("tạo bảng gộp trong giao diện: nguồn theo thứ tự ưu tiên, g
   await pg.goto(`/datahub/${hubId}`);
   await expect(pg.getByRole("heading", { level: 1, name: names().hub })).toBeVisible();
   // The only way to start: a datahub with no table shows the button on the tab bar.
+  await pg.getByRole("button", { name: "Thêm bảng" }).click();
   await pg.getByTestId("add-merged-table").click();
   const d = dialog(pg, "Thêm bảng gộp");
   await expect(d).toBeVisible();
@@ -193,8 +194,8 @@ test("chỉ đọc: giao diện không cho nhập, máy chủ từ chối ghi d�
   const bar = pg.getByTestId("merge-bar");
   await expect(bar).toBeVisible();
   // No import, no duplicate finder, no trash for a read-only table.
-  await expect(pg.getByRole("button", { name: "Nhập", exact: true })).toHaveCount(0);
-  await expect(pg.getByRole("button", { name: "Tìm dòng trùng" })).toHaveCount(0);
+  await expectMore(pg, "Nhập", false);
+  await expectMore(pg, "Tìm dòng trùng", false);
   const [row] = await rowsOf(ownerApi, mergedId);
   expect(await statusOf(() => ownerApi.call("POST", `/tables/${mergedId}/rows`, { data: {} }))).toBe(403);
   expect(await statusOf(() => ownerApi.call("PATCH", `/tables/${mergedId}/rows/${row!.id}`, { data: {}, version: 1 }))).toBe(403);
@@ -302,6 +303,7 @@ test("người được chia sẻ: chỉ xem (kể cả khi được cho quyền
   await expect(bar.getByTestId("merge-summary")).toContainText("Gộp 3 bảng");
   await expect(bar.getByTestId("merge-configure")).toHaveCount(0);
   await expect(bar.getByTestId("merge-resync")).toHaveCount(0);
+  await expect(pg.getByRole("button", { name: "Thêm bảng" })).toHaveCount(0);
   await expect(pg.getByTestId("add-merged-table")).toHaveCount(0);
   // The names of the sources are not shown to the person (they may not be shared with them).
   await expect(bar).not.toContainText("DH A");

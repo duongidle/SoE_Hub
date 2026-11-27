@@ -120,37 +120,42 @@ const waitSaved = (page: Page) => expect(page.getByText("Đã lưu view")).toBeV
 test("tab view: thêm, đổi tên, sao chép, xoá; URL giữ view đang chọn", async () => {
   const pg = owner.page;
   await open(owner);
-  const tabs = pg.getByRole("tablist", { name: "Các view" });
-  await expect(tabs.getByRole("tab", { name: "Dạng bảng" })).toHaveAttribute("aria-selected", "true");
-  await pg.getByRole("button", { name: "Thêm view" }).click();
+  // The views are in a switcher at the left of the toolbar: its button names the open view; its menu lists the views and "Thêm view".
+  const switcher = pg.getByRole("button", { name: /^Chọn view/ });
+  await expect(switcher).toHaveAttribute("title", "Dạng bảng");
+  await switcher.click();
+  await pg.getByRole("menuitem", { name: "Thêm view" }).click();
   const longName = "Báo cáo <b>doanh thu</b> & kế hoạch năm 2027 của khối kinh doanh miền Nam &amp; miền Trung xx".slice(0, 100);
   await pg.getByLabel("Tên view *").fill(longName);
   await pg.getByRole("dialog").getByRole("button", { name: "Thêm view" }).click();
   await expect(pg.getByText(/^Đã thêm view/)).toBeVisible();
-  await expect(tabs.getByRole("tab", { selected: true })).toHaveAttribute("title", longName);
+  await expect(switcher).toHaveAttribute("title", longName);
   expect(pg.url()).toMatch(/view=/);
   await owner.shot("view-tab-long");
   // The address holds the view: the page opened again shows the same one.
   const withView = pg.url();
   await pg.goto(withView);
-  await expect(tabs.getByRole("tab", { selected: true })).toHaveAttribute("title", longName);
+  await expect(switcher).toHaveAttribute("title", longName);
   // Rename, copy, delete.
   await pg.getByRole("button", { name: /^Tuỳ chọn view/ }).click();
   await pg.getByRole("menuitem", { name: "Đổi tên view" }).click();
   await pg.getByLabel("Tên view *").fill("Của tôi");
   await pg.getByRole("dialog").getByRole("button", { name: "Lưu" }).click();
-  await expect(tabs.getByRole("tab", { name: /Của tôi/ })).toBeVisible();
+  await expect(switcher).toHaveAttribute("title", "Của tôi");
   await pg.getByRole("button", { name: /^Tuỳ chọn view/ }).click();
   await pg.getByRole("menuitem", { name: "Sao chép view" }).click();
   await pg.getByRole("dialog").getByRole("button", { name: "Sao chép" }).click();
-  await expect(tabs.getByRole("tab", { name: /Của tôi \(bản sao\)/ })).toBeVisible();
+  await expect(switcher).toHaveAttribute("title", "Của tôi (bản sao)");
   await pg.getByRole("button", { name: /^Tuỳ chọn view/ }).click();
   await pg.getByRole("menuitem", { name: "Xoá view" }).click();
   await pg.getByRole("dialog").getByRole("button", { name: "Xoá view" }).click();
-  await expect(tabs.getByRole("tab", { name: /bản sao/ })).toHaveCount(0);
+  await switcher.click();
+  await expect(pg.getByRole("menuitem", { name: /bản sao/ })).toHaveCount(0);
+  await pg.keyboard.press("Escape");
   await expect.poll(async () => (await views(ownerApi)).filter((v) => !v.shared).map((v) => v.name)).toEqual(["Của tôi"]);
   // Back to the shared view for the next tests, and drop the personal one.
-  await pg.getByRole("tab", { name: "Dạng bảng" }).click();
+  await switcher.click();
+  await pg.getByRole("menuitem", { name: "Dạng bảng" }).click();
 });
 
 test("lọc: điều kiện lồng nhau tự lưu, giữ sau khi tải lại; lọc rỗng có nút Xoá bộ lọc", async () => {
@@ -262,7 +267,7 @@ test("cột của view: ẩn, đổi thứ tự, cố định, chiều cao dòng
   const g = await open(owner);
   const widths = async () => (JSON.parse((await g.root.getAttribute("data-widths")) ?? "[]") as number[]).length;
   expect(await widths()).toBe(6);
-  const c = await openTool(pg, "Cột", "Cột của view");
+  const c = await openTool(pg, "Ẩn cột", "Cột của view");
   await c.getByLabel("Hiện cột Ngày nhận").uncheck();
   await expect.poll(widths).toBe(5);
   await c.getByRole("button", { name: "Đưa cột Doanh thu lên" }).click();
@@ -292,7 +297,7 @@ test("cột của view: ẩn, đổi thứ tự, cố định, chiều cao dòng
   expect(cfg.frozen).toBe(1);
   expect(cfg.row_height).toBe("tall");
   // Undo all of it through the same toolbar.
-  const c2 = await openTool(pg, "Cột", "Cột của view");
+  const c2 = await openTool(pg, "Ẩn cột", "Cột của view");
   await c2.getByRole("button", { name: "Hiện tất cả" }).click();
   await c2.getByRole("button", { name: "Đưa cột Doanh thu xuống" }).click();
   await c2.getByRole("button", { name: "Bỏ cố định đến cột Tên" }).click();
@@ -466,7 +471,7 @@ test("dữ liệu xấu nhất của thanh công cụ: tên cột dài, danh sá
   await ownerApi.call("POST", `/tables/${worst.id}/rows`, { data: {} });
   await pg.goto(`/datahub/${dhId}/${worst.id}`);
   await expect(pg.getByText("1 dòng", { exact: true })).toBeVisible();
-  for (const [btn, name] of [["Lọc", "Lọc dòng"], ["Sắp xếp", "Sắp xếp"], ["Nhóm", "Nhóm dòng"], ["Cột", "Cột của view"], ["Tô màu", "Tô màu theo điều kiện"]] as const) {
+  for (const [btn, name] of [["Lọc", "Lọc dòng"], ["Sắp xếp", "Sắp xếp"], ["Nhóm", "Nhóm dòng"], ["Ẩn cột", "Cột của view"], ["Tô màu", "Tô màu theo điều kiện"]] as const) {
     const d = await openTool(pg, btn, name);
     if (btn === "Lọc") {
       await d.getByRole("button", { name: "Thêm điều kiện" }).click();

@@ -68,3 +68,79 @@ Dương báo: trên Mac, vuốt hai ngón để quay lại trang chỉ chạy kh
 - Nút `actions` portal vào `#topbar-actions` (hàng trước chuông). Không đổi tên nút. Dưới 640px khung này ẩn, nút "•••" (hiện khi có actions) mở thành bảng dưới top bar, bấm nút hay link trong bảng thì đóng. Dùng portal vào node luôn gắn nên trạng thái trang không mất khi bảng đóng.
 - Giữ nguyên thanh công cụ riêng của trang Datahub mở (Nhập dữ liệu, Chia sẻ) và trang Deal: chỉ h1 thành sr-only; Datahub mở đưa tên datahub vào breadcrumb.
 - Tiêu đề trang nội dung (bài Knowledge, skill AI Hub, "Xin chào") giữ hiện vì là nội dung, không trùng breadcrumb.
+
+## 12C-1 Datahub: danh sách và trang mở (28/11)
+
+### Bảng đối chiếu thao tác (lập trước khi đổi; không thao tác nào mất)
+
+Danh sách Datahub (`list.tsx`):
+
+| # | Thao tác | Chỗ cũ | Chỗ mới |
+| --- | --- | --- | --- |
+| 1 | Tạo datahub | nút trên top bar | giữ (top bar, nút chính) |
+| 2 | Nhập dữ liệu (tạo datahub từ file) | nút trên top bar | giữ (top bar) |
+| 3 | Thùng rác datahub | link trên top bar | giữ (top bar) |
+| 4 | Xem Của tôi / Được chia sẻ | 2 tab | 3 tab: **Tất cả** (mới, đứng đầu), Của tôi, Được chia sẻ với tôi; tab trên URL `?tab=` (mặc định `all`) |
+| 5 | Mở datahub | bấm thẻ | giữ |
+| 6 | Đổi tên / Xoá datahub (Hoàn tác) | menu "..." của thẻ (chỉ của tôi) | giữ |
+| 7 | Chủ + quyền của datahub được chia sẻ | dòng "Chủ" trên thẻ | giữ, hiện cả ở tab Tất cả (hai datahub trùng tên phân biệt bằng chủ) |
+| 8 | Dùng bao nhiêu / giới hạn | dòng chữ dưới tab (tab Của tôi) | giữ (tab Tất cả và Của tôi) |
+
+Trang datahub mở (`detail.tsx`, `view-tabs.tsx`, `view-tools.tsx`, `table-view.tsx`):
+
+| # | Thao tác | Chỗ cũ | Chỗ mới |
+| --- | --- | --- | --- |
+| 9 | Về danh sách datahub | link "Datahub" đầu trang | nút mũi tên bên trái dải tab bảng (`aria-label` giữ) |
+| 10 | Nhập dữ liệu (vào bảng của datahub) | nút ở dải đầu trang | top bar (nút phụ) |
+| 11 | Chia sẻ datahub | nút ở dải đầu trang | top bar (nút phụ) |
+| 12 | Xem chủ + quyền (người được chia sẻ) | dòng đầu trang | bên phải dải tab bảng |
+| 13 | Chọn bảng | tab bảng | tab bảng, cuộn ngang |
+| 14 | Đổi tên, chuyển trái/phải, xoá bảng | menu "..." của tab đang mở | giữ |
+| 15 | Dashboard | tab sau các bảng | công tắc phân đoạn "Dữ liệu \| Dashboard" ghim trái đầu trang (chế độ = đường dẫn `/datahub/:id` hoặc `/dashboard`, theo quyết định 28/11 trong module12-giao-dien); chế độ Dashboard ẩn dải tab bảng và thanh công cụ dữ liệu |
+| 16 | Thêm bảng | nút "Thêm bảng" | nút "+" ghim trái dải tab bảng (menu), mục "Thêm bảng" |
+| 17 | Tạo bảng gộp | nút "Tạo bảng gộp" | nút "+" → mục "Tạo bảng gộp" |
+| 18 | Chọn view | tab view | nút chọn view (menu) đầu thanh công cụ |
+| 19 | Thêm view | nút "Thêm view" | menu chọn view → "Thêm view" |
+| 20 | Đổi tên / sao chép / về mặc định / chuyển / xoá view | menu "..." của tab view | nút "..." cạnh nút chọn view |
+| 21 | Ghi chú "đang xem bản riêng" | dưới tab view | dưới thanh công cụ |
+| 22 | Thời gian | thanh công cụ | giữ |
+| 23 | Lọc | thanh công cụ | giữ (hiện số điều kiện) |
+| 24 | Sắp xếp | thanh công cụ | giữ (hiện số cột) |
+| 25 | Nhóm | thanh công cụ | giữ (hiện số cấp) |
+| 26 | Cột (ẩn, thứ tự, cố định) | nút "Cột" | nút "Ẩn cột" (hiện số cột ẩn) |
+| 27 | Tô màu | thanh công cụ | giữ (hiện số quy tắc) |
+| 28 | Chiều cao dòng (mật độ) | nút "Dòng: ..." | nút icon bên phải, cạnh ô tìm |
+| 29 | Tìm trong bảng (phím "/") | ô tìm | giữ, bên phải |
+| 30 | Chip lọc thời gian, cảnh báo thiết lập trỏ cột đã xoá | dưới thanh | giữ |
+| 31 | Theo kỳ chung; Ưu tiên / Cần kiểm lại (bảng Deal) | thanh công cụ | giữ, bên phải cạnh ô tìm |
+| 32 | Cột của bảng | nút | "..." |
+| 33 | Xuất | nút | "..." |
+| 34 | Nhập (vào bảng đang mở) | nút | "..." |
+| 35 | Tìm dòng trùng | nút | "..." |
+| 36 | Thùng rác của bảng | nút | "..." |
+| 37 | So sánh phiên bản (bảng chính sách com) | nút | "..." |
+| 38 | Thêm cột | nút | "..." |
+| 39 | Thêm dòng | nút ở dòng công cụ thứ 3 | nút chính duy nhất, đầu thanh công cụ (sau nút chọn view) |
+| 40 | Hoàn tác, Làm lại | nút | giữ, nút icon cạnh Thêm dòng |
+| 41 | Sửa n dòng, Xoá n dòng | nút khi chọn dòng | giữ, cùng dòng công cụ |
+| 42 | Chi tiết dòng | nút khi chọn dòng | giữ, cùng dòng công cụ |
+| 43 | Thu gọn / Mở tất cả nhóm | nút khi có nhóm | giữ, cùng dòng công cụ |
+| 44 | Nhãn "Chỉ xem" | dòng công cụ | giữ |
+| 45 | Số dòng, "Đang lưu...", "Đã lưu view" | góc phải dòng công cụ + dòng riêng | một dòng chân dưới bảng |
+| 46 | Cảnh báo quá 1.000 nhóm | trên bảng | giữ |
+| 47 | Bảng gộp: thanh trạng thái (`MergeBar`) | trên cùng | giữ |
+
+47 thao tác, không mất cái nào. Đổi chỗ: 9–12, 15–20, 26, 28, 32–39, 45 (28 thao tác); còn lại giữ chỗ hoặc chỉ đổi dáng.
+
+### Quyết định khi code 12C-1
+
+- **Một thanh công cụ.** `ViewTools` giữ dòng duy nhất (cho phép xuống dòng khi quá hẹp, không cuộn ngang trang). Trái: nút chọn view (+ "•••" của view), "Thêm dòng" (nút chính duy nhất; `OpenTable` portal vào khe `rowSlotRef` vì phiên dòng nằm dưới `ViewBody`), Hoàn tác, Làm lại, thao tác dòng đang chọn, rồi Thời gian, Lọc, Sắp xếp, Nhóm, Ẩn cột, Tô màu. Phải: Theo kỳ chung / Ưu tiên / Cần kiểm lại (bảng Deal), ô tìm (phím "/"), mật độ dòng (chỉ icon), "•••".
+- **Nút công cụ.** Hiện số đang áp ("Lọc 2": `aria-label` có số) và tô primary nhạt khi áp. Nhãn chữ chỉ hiện khi vùng thanh rộng từ 72rem (container query); hẹp hơn chỉ icon, tên ở `title` và `aria-label`. Nút "Cột" đổi tên "Ẩn cột" theo đề bài (spec `openTool` đổi theo). "Thu gọn/Mở tất cả" nhóm thành nút icon.
+- **Menu "•••"** (`aria-label="Thêm thao tác"`, thay cả popover cũ của điện thoại): Nhập, Xuất, Tìm dòng trùng, Thùng rác | Cột của bảng, Thêm cột, So sánh phiên bản; mỗi mục vẫn theo quyền như cũ.
+- **Dashboard (theo yêu cầu Opus 28/11):** công tắc phân đoạn "Dữ liệu | Dashboard" ghim trái, chế độ là đường dẫn (`/datahub/:id` hay `/dashboard`; link gửi được, không thêm hook). Chế độ Dashboard ẩn dải tab bảng và thanh công cụ dữ liệu; chỉ chủ datahub thấy công tắc. `data-testid="dashboard-tab"` giữ trên mục Dashboard.
+- **Dải tab bảng:** "+" ghim trái (menu Thêm bảng, Tạo bảng gộp), nút "Bảng ▾ (n)" mở danh sách mọi bảng (ô tìm khi hơn 6 bảng, icon, số dòng, dấu bảng đang mở, chip Gộp / quyền của người được chia sẻ); tab đang mở tự cuộn vào tầm nhìn; hai mép có bóng mờ + mũi tên khi còn tab khuất; tên dài cắt kèm tooltip. Chưa làm: kéo thả đổi thứ tự trong danh sách (đã có "Chuyển sang trái/phải" ở menu tab). Điện thoại: nút "Bảng" bị cắt mép phải khi tab hẹp, lề phải cuộn ngang được, trang không tràn.
+- **Danh sách datahub:** mặc định tab Tất cả (URL không có `tab=`). Khi Tất cả rỗng và Của tôi rỗng cùng chữ "Bạn chưa có datahub nào". Thẻ: icon, tên, mô tả (hoặc "Chưa có mô tả"), số bảng, số dòng, "Cập nhật vừa xong/5 phút trước/ngày dd/mm/yyyy"; datahub được chia sẻ có dòng Chủ + quyền. Tab Được chia sẻ rỗng có nút "Xem datahub của tôi".
+- **URL:** view đang mở `?view=` qua `useUrlState`; bảng nằm ở đường dẫn.
+- **Toast:** Sonner `expand` (xếp dọc, không chồng), tối đa 4; khi đầy bỏ toast thường cũ nhất trước.
+- **Lối tắt thêm (rẻ):** phím "/" ô tìm (đã có), mũi tên về danh sách datahub cạnh dải tab, danh sách bảng có tìm.
+- **Spec sửa vì nút đổi chỗ** (không sửa để che lỗi): mục vào "•••" (`stage2c1`, `2c3`, `2c4`, `2d`, `2e`, `3b`, `4-1d`, `4-7` — hai spec cuối chưa chạy), tab view thành nút chọn view (`2c2`), tab Dashboard không còn là tab đầu (`2c1` `nth(2)`), tab mặc định đổi sang Tất cả (`2c1`, `2e`: hai datahub trùng tên cùng hiện ở Tất cả).

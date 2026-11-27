@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
-import { API, Session, type ProjectName, chooseOption } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, moreAction, expectMore, moreActions } from "./helpers";
 import { GridDriver } from "./grid";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 import { seedMany } from "./dh-fixtures";
@@ -128,6 +128,9 @@ test("danh sách datahub: người mới thấy trạng thái rỗng; tên 100 k
   const op = owner.page;
   await op.goto("/datahub");
   await expect(op.getByRole("tab", { name: /^Của tôi \(\d+\)/ })).toBeVisible();
+  // "Tất cả" (the default tab) holds both datahubs of the same name; the two other tabs split them.
+  await expect(op.getByRole("link", { name: `Mở datahub ${name}` })).toHaveCount(2);
+  await op.getByRole("tab", { name: /^Của tôi/ }).click();
   await expect(op.getByRole("link", { name: `Mở datahub ${name}` })).toHaveCount(1);
   // The name is text: no <b> or <script> element was made out of it.
   await expect(op.locator("main b, main script")).toHaveCount(0);
@@ -298,7 +301,7 @@ function parseCsv(text: string): string[][] {
 
 async function exportFile(s: Session, format: "csv" | "xlsx", scope: "table" | "view" = "table"): Promise<string> {
   const pg = s.page;
-  await pg.getByRole("button", { name: "Xuất", exact: true }).click();
+  await moreAction(pg, "Xuất");
   const d = dialog(pg, "Xuất dữ liệu");
   await chooseOption(d.getByLabel("Phạm vi xuất"), scope);
   await chooseOption(d.getByLabel("Định dạng file"), format);
@@ -469,17 +472,19 @@ test("phân quyền theo vai trò: chủ, người Xem, người Sửa, Leader, 
 
   // Screen: the buttons that a role does not have are not there.
   const url = `/datahub/${dh.id}/${t}`;
-  const tools = ["Chia sẻ", "Thêm cột", "Tìm dòng trùng", "Thùng rác", "Nhập"];
+  // "Chia sẻ" is a button of the top bar; the others are items of the "..." menu of the table toolbar.
   const present = async (s: Session) => {
     const out: string[] = [];
-    for (const name of tools) if ((await s.page.getByRole("button", { name, exact: true }).count()) > 0) out.push(name);
+    if ((await s.page.getByRole("button", { name: "Chia sẻ", exact: true }).count()) > 0) out.push("Chia sẻ");
+    const items = await moreActions(s.page);
+    for (const name of ["Thêm cột", "Tìm dòng trùng", "Thùng rác", "Nhập"]) if (items.includes(name)) out.push(name);
     return out;
   };
   const open = async (s: Session) => {
     await s.page.goto(url);
     await expect(s.page.getByRole("heading", { level: 1, name: `Phân quyền ${p}` })).toBeVisible();
     await expect(s.page.getByTestId("grid")).toBeVisible();
-    await expect(s.page.getByRole("button", { name: "Xuất", exact: true })).toBeVisible();
+    await expectMore(s.page, "Xuất", true);
   };
   const owner = await sessionOf(browser, "owner");
   const viewer = await sessionOf(browser, "viewer", DENIED);
@@ -612,7 +617,7 @@ test("nhập xlsx tự sinh (số lớn, số âm, ngày, ô trống, <b>) rồi
 
   // Export CSV and XLSX of the table and compare with the source again.
   await pg.goto(`/datahub/${imported.id}/${tableId}`);
-  await expect(pg.getByRole("button", { name: "Xuất", exact: true })).toBeVisible();
+  await expectMore(pg, "Xuất", true);
   const csv = parseCsv(fs.readFileSync(await exportFile(owner, "csv"), "utf8"));
   expect(csv[0]).toEqual(["Tên", "Số lớn", "Số âm", "Tiền", "Ngày", "Ghi chú"]);
   expect(csv.length).toBe(N + 1);
@@ -666,7 +671,7 @@ test("tìm dòng trùng trên bảng 10.000 dòng nhiều nhóm; xử lý hết 
   const pg = owner.page;
   await pg.goto(`/datahub/${dh.id}/${t}`);
   await expect(pg.getByText("10.100 dòng", { exact: true })).toBeVisible({ timeout: 60_000 });
-  await pg.getByRole("button", { name: "Tìm dòng trùng" }).click();
+  await moreAction(pg, "Tìm dòng trùng");
   const dd = dialog(pg, "Tìm dòng trùng");
   await dd.getByRole("checkbox", { name: "Mã" }).check();
   await dd.getByRole("button", { name: "Tìm dòng trùng" }).click();
@@ -694,7 +699,7 @@ test("tìm dòng trùng trên bảng 10.000 dòng nhiều nhóm; xử lý hết 
   const inTrash = await ownerApi.call<{ rows: { id: string; row_no: number }[] }>("GET", `/datahub/trash?table_id=${t}`);
   const mine = inTrash.rows.find((r) => r.id === cell.id);
   expect(mine, "dòng vừa xoá phải nằm trong thùng rác").toBeDefined();
-  await pg.getByRole("button", { name: "Thùng rác" }).click();
+  await moreAction(pg, "Thùng rác");
   const td = dialog(pg, "Thùng rác của bảng");
   await expect(td.getByTestId("trash-row").first()).toBeVisible();
   await shot(owner, "6-thung-rac");

@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { createPortal } from "react-dom";
 import { formatCount } from "@soe/shared";
 import { GitCompare, ChevronsDownUp, ChevronsUpDown, Columns3, Copy, Download, Maximize2, MoreHorizontal, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, errorMessage, Field, Input, Modal, Select } from "@/components/ui/form";
-import { Popover } from "@/components/ui/popover";
+import { Menu, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -16,7 +17,9 @@ import { TableSession } from "@/lib/datahub/session";
 import type { Column, Level, TableDetail } from "@/lib/datahub/types";
 import { ViewAutosave } from "@/lib/datahub/view-autosave";
 import { buildQuery, DEFAULT_ROW_HEIGHT, fullOrder, layoutColumns, moveColumn, normalizeConfig, pruneConfig, querySignature, ROW_HEIGHTS, type ColorRule, type SessionQuery, type ViewConfig, type ViewDto } from "@/lib/datahub/view-config";
+import { cn } from "@/lib/utils";
 import { can, liveBus, useMe, type LiveSignal } from "@/lib/session";
+import { useUrlState } from "@/lib/use-url-state";
 import { followsPeriod, overlayQuery, QUICK_LABEL, quickAvailable, useSharedPeriod, type QuickView } from "@/lib/datahub/deal-view";
 import { PolicyDiffDialog } from "@/pages/deal/policy-diff";
 import { canAddColumnHere, canEditColumnHere, isTemplateTable, layerLabel, templatePageUrl } from "@/lib/datahub/template-ui";
@@ -30,7 +33,7 @@ import { ImportDialog } from "./import-dialog";
 import { MergeBar } from "./merge-status";
 import { RowPanel } from "./row-panel";
 import { TableTrashDialog } from "./trash";
-import { ViewTabs } from "./view-tabs";
+import { ViewSwitcher } from "./view-tabs";
 import { ViewTools } from "./view-tools";
 
 /** An open table: view tabs and tools on top, then the row toolbar, the grid, the status line and the row panel. */
@@ -88,11 +91,13 @@ export interface GridView {
   onHeaderAction: (key: string, action: "freeze" | "unfreeze" | "hide" | "asc" | "desc" | "group" | "edit" | "delete" | "template") => void;
 }
 
+const VIEW_URL = { view: "" };
+
 /** Owns the current view: which one is open (the address keeps it), its settings (saved as they change) and the session of rows it reads. */
 function ViewHost({ table, data }: { table: TableDetail; data: { views: ViewDto[]; last_view_id: string | null } }) {
   const qc = useQueryClient();
-  const nav = useNavigate();
-  const urlView = (useSearch({ strict: false }) as { view?: string }).view;
+  // The open view lives in the address (?view=<id>): a link sent to someone opens the same view; the table is in the path.
+  const [{ view: urlView }, setUrl] = useUrlState(VIEW_URL);
   const views = data.views;
   const view = views.find((v) => v.id === urlView) ?? views.find((v) => v.id === data.last_view_id) ?? views[0];
 
@@ -106,7 +111,7 @@ function ViewHost({ table, data }: { table: TableDetail; data: { views: ViewDto[
 
   if (!view) return <GridSkeleton />;
   return <ViewBody key={view.id} table={table} views={views} view={view} onSelect={(id) => {
-    void nav({ search: ((prev: Record<string, unknown>) => ({ ...prev, view: id })) as never, replace: true });
+    setUrl({ view: id });
     void rememberView(table.id, id).catch(() => undefined);
   }} />;
 }
@@ -138,7 +143,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   // Rows added by the import (made by the worker) are not part of what the open grid knows: after an import it reads the table again.
   const [reloadKey, setReloadKey] = useState(0);
   const [trashOpen, setTrashOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [rowSlot, setRowSlot] = useState<HTMLElement | null>(null);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [colUI, setColUI] = useState<{ kind: "manage" } | { kind: "add" } | { kind: "edit"; col: Column } | null>(null);
   const deleteCol = useColumnDelete(table);
@@ -222,22 +227,24 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   const canEditData = !merged && (table.access === "owner" || table.access === "edit_data");
   // The owner may switch "Thành viên được thêm dòng hàng loạt" off: members then cannot import or paste new rows.
   const canBulk = table.access === "owner" || table.members_bulk_create !== false;
-  const actions = [
+  // The "..." menu: what is used now and then. Two groups: the data (import, export, duplicates, trash) and the structure (columns).
+  const dataActions = [
+    { key: "import", label: "Nhập", icon: <Upload size={16} aria-hidden />, run: () => setImportOpen(true), show: canEditData && canBulk },
+    { key: "export", label: "Xuất", icon: <Download size={16} aria-hidden />, run: () => setExportOpen(true), show: true },
+    { key: "dup", label: "Tìm dòng trùng", icon: <Copy size={16} aria-hidden />, run: () => setDupOpen(true), show: canEditData },
+    { key: "trash", label: "Thùng rác", icon: <Trash size={16} aria-hidden />, run: () => setTrashOpen(true), show: canEditData },
+  ].filter((a) => a.show);
+  const structureActions = [
     { key: "cols", label: "Cột của bảng", icon: <Columns3 size={16} aria-hidden />, run: () => setColUI({ kind: "manage" }), disabled: false, show: true },
-    { key: "export", label: "Xuất", icon: <Download size={16} aria-hidden />, run: () => setExportOpen(true), disabled: false, show: true },
-    { key: "import", label: "Nhập", icon: <Upload size={16} aria-hidden />, run: () => setImportOpen(true), disabled: false, show: canEditData && canBulk },
-    { key: "dup", label: "Tìm dòng trùng", icon: <Copy size={16} aria-hidden />, run: () => setDupOpen(true), disabled: false, show: canEditData },
-    { key: "trash", label: "Thùng rác", icon: <Trash size={16} aria-hidden />, run: () => setTrashOpen(true), disabled: false, show: canEditData },
-    { key: "policy", label: "So sánh phiên bản", icon: <GitCompare size={16} aria-hidden />, run: () => setPolicyOpen(true), disabled: false, show: table.role_set === "com_policy" && can(me, "deal:policy:write") },
     { key: "add", label: "Thêm cột", icon: <Plus size={16} aria-hidden />, run: () => setColUI({ kind: "add" }), disabled: table.columns.length >= table.max_columns, show: canAddColumnHere(table) },
-  ].filter((x) => x.show);
+    { key: "policy", label: "So sánh phiên bản", icon: <GitCompare size={16} aria-hidden />, run: () => setPolicyOpen(true), disabled: false, show: table.role_set === "com_policy" && can(me, "deal:policy:write") },
+  ].filter((a) => a.show);
   const sig = `${table.id}:${columnsSignature(table)}:${querySignature(query)}:${reloadKey}`;
   const saveText = auto.status === "saving" ? "Đang lưu view…" : auto.status === "saved" ? "Đã lưu view" : "";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       {merged && <MergeBar table={table} />}
-      <ViewTabs tableId={table.id} views={views} currentId={view.id} access={table.access} onSelect={onSelect} currentConfig={config} />
       <ViewTools
         columns={table.columns}
         config={config}
@@ -246,38 +253,32 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
         search={search}
         onSearch={setSearch}
         onCleanDead={cleanDead}
+        rowSlotRef={setRowSlot}
+        lead={<ViewSwitcher tableId={table.id} views={views} currentId={view.id} access={table.access} onSelect={onSelect} currentConfig={config} />}
         extra={
           <>
             {shared && followsPeriod(table) && (
-              <label className="flex min-h-9 items-center gap-1.5 text-sm" title="Bỏ chọn để view này giữ khoảng thời gian riêng (ô Thời gian)">
+              <label className="flex min-h-9 shrink-0 items-center gap-1.5 text-sm" title="Bỏ chọn để view này giữ khoảng thời gian riêng (ô Thời gian)">
                 <input type="checkbox" className="h-4 w-4" data-testid="follow-period" checked={!config.own_period} onChange={(e) => change({ own_period: e.target.checked ? undefined : true })} />
                 Theo kỳ chung
               </label>
             )}
             {quickAvailable(table) && (["priority", "recheck"] as const).map((k) => (
-              <Button key={k} variant="secondary" aria-pressed={quick === k} data-testid={`quick-${k}`} className={quick === k ? "!border-primary !bg-primary/10" : ""} onClick={() => setQuick(quick === k ? null : k)}>{QUICK_LABEL[k]}</Button>
+              <Button key={k} variant="secondary" aria-pressed={quick === k} data-testid={`quick-${k}`} className={cn("shrink-0", quick === k && "!border-primary !bg-primary/10")} onClick={() => setQuick(quick === k ? null : k)}>{QUICK_LABEL[k]}</Button>
             ))}
-            <span className="contents max-sm:hidden">{actions.map((a) => <Button key={a.key} variant="secondary" disabled={a.disabled} onClick={a.run}>{a.icon} {a.label}</Button>)}</span>
-            <span className="sm:hidden">
-              <Popover
-                open={moreOpen}
-                onOpenChange={setMoreOpen}
-                label="Thêm thao tác"
-                align="end"
-                width="w-64"
-                className="flex flex-col gap-1 p-1"
-                trigger={<Button variant="secondary" aria-label="Thêm thao tác" className="min-h-11 min-w-11"><MoreHorizontal size={16} aria-hidden /></Button>}
-              >
-                {actions.map((a) => (
-                  <button key={a.key} type="button" disabled={a.disabled} className="flex min-h-11 items-center gap-2 rounded px-3 text-left hover:bg-muted disabled:opacity-50" onClick={() => { setMoreOpen(false); a.run(); }}>
-                    {a.icon} {a.label}
-                  </button>
-                ))}
-              </Popover>
-            </span>
           </>
         }
+        more={
+          <Menu trigger={<Button variant="secondary" aria-label="Thêm thao tác" title="Thêm thao tác" className="shrink-0 !px-2.5"><MoreHorizontal size={16} aria-hidden /></Button>}>
+            {dataActions.map((a) => <MenuItem key={a.key} onSelect={a.run}>{a.icon} {a.label}</MenuItem>)}
+            {dataActions.length > 0 && structureActions.length > 0 && <MenuSeparator />}
+            {structureActions.map((a) => <MenuItem key={a.key} disabled={a.disabled} onSelect={a.run}>{a.icon} {a.label}</MenuItem>)}
+          </Menu>
+        }
       />
+      {view.shared && table.access !== "owner" && view.has_override && (
+        <p className="text-xs text-muted-foreground">Bạn đang xem bản riêng của view này; thay đổi của bạn không ảnh hưởng người khác. Chọn "Về mặc định" trong menu view để bỏ.</p>
+      )}
       {policyOpen && <PolicyDiffDialog onClose={() => setPolicyOpen(false)} />}
       {trashOpen && <TableTrashDialog tableId={table.id} onClose={() => setTrashOpen(false)} onRestored={() => { void qc.invalidateQueries({ queryKey: dhKeys.table(table.id) }); }} />}
       {dupOpen && <DuplicatesDialog table={table} onClose={() => setDupOpen(false)} />}
@@ -286,16 +287,16 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
       {colUI?.kind === "manage" && <ColumnManager table={table} level={table.access} onClose={() => setColUI(null)} onAdd={() => setColUI({ kind: "add" })} onEdit={(c) => setColUI({ kind: "edit", col: c })} onDelete={(c) => { setColUI(null); void deleteCol(c); }} />}
       {colUI?.kind === "add" && <ColumnEditor table={table} onClose={() => setColUI(null)} />}
       {colUI?.kind === "edit" && <ColumnEditor key={colUI.col.id} table={table} column={colUI.col} onClose={() => setColUI(null)} />}
-      <p className="-mt-1 min-h-4 text-xs text-muted-foreground" aria-live="polite">
-        {saveText}
-        {saveText && view.shared && table.access !== "owner" ? " (chỉ cho bạn)" : ""}
-      </p>
-      <LoadedTable key={sig} table={table} query={query} gridView={gridView} searching={search.trim() !== ""} onClearFilters={() => { setSearch(""); auto.change({ filter: undefined, time_filter: undefined }); }} />
+      <LoadedTable key={sig} table={table} query={query} gridView={gridView} rowSlot={rowSlot} statusText={saveText ? `${saveText}${saveText && view.shared && table.access !== "owner" ? " (chỉ cho bạn)" : ""}` : ""} searching={search.trim() !== ""} onClearFilters={() => { setSearch(""); auto.change({ filter: undefined, time_filter: undefined }); }} />
     </div>
   );
 }
 
-export function LoadedTable({ table, query, gridView, searching, onClearFilters }: { table: TableDetail; query: SessionQuery; gridView: GridView; searching: boolean; onClearFilters: () => void }) {
+/**
+ * `rowSlot`: the node of the page toolbar the row actions (add row, undo, selection) are portaled into. `undefined` (a page with no
+ * toolbar of its own) draws them in a line above the grid; `null` is the toolbar not mounted yet. `statusText`: the view-saving text of the footer line.
+ */
+export function LoadedTable({ table, query, gridView, searching, onClearFilters, rowSlot, statusText }: { table: TableDetail; query: SessionQuery; gridView: GridView; searching: boolean; onClearFilters: () => void; rowSlot?: HTMLElement | null; statusText?: string }) {
   // One session per table layout and query (`key` in ViewBody). Started and stopped by an effect: StrictMode runs it twice in development.
   const [session] = useState(() => {
     const s = new TableSession(table, query);
@@ -310,10 +311,10 @@ export function LoadedTable({ table, query, gridView, searching, onClearFilters 
     session.start();
     return () => session.stop();
   }, [session]);
-  return <OpenTable table={table} session={session} gridView={gridView} filtered={searching || !!query.filter || !!query.timeFilter} onClearFilters={onClearFilters} />;
+  return <OpenTable table={table} session={session} gridView={gridView} filtered={searching || !!query.filter || !!query.timeFilter} onClearFilters={onClearFilters} rowSlot={rowSlot} statusText={statusText} />;
 }
 
-function OpenTable({ table, session, gridView, filtered, onClearFilters }: { table: TableDetail; session: TableSession; gridView: GridView; filtered: boolean; onClearFilters: () => void }) {
+function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot, statusText }: { table: TableDetail; session: TableSession; gridView: GridView; filtered: boolean; onClearFilters: () => void; rowSlot?: HTMLElement | null; statusText?: string }) {
   const qc = useQueryClient();
   // A merged table is read-only for everyone, its owner included.
   const level: Level = table.kind === "merged" ? "view" : table.access;
@@ -447,45 +448,50 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters }: { tab
     body = <TableGrid session={session} level={level} view={gridView} apiRef={apiRef} onOpenRow={setOpenRow} onSelection={(ids, active) => setSel({ ids, active })} onAddRow={addRow} />;
   }
 
+  // What belongs to the rows: add a row (the one main button of the screen), undo and redo, actions on the selection, the groups.
+  const rowTools = (
+    <>
+      {canWrite && (
+        <>
+          <Button onClick={() => void addRow()} disabled={columnsEmpty} className="shrink-0"><Plus size={16} aria-hidden /> Thêm dòng</Button>
+          <Tip label="Hoàn tác (Ctrl+Z)">
+            <Button variant="ghost" aria-label="Hoàn tác" disabled={!undo.canUndo} onClick={() => void doUndo(false)} className="shrink-0 !px-2"><Undo2 size={16} aria-hidden /></Button>
+          </Tip>
+          <Tip label="Làm lại (Ctrl+Shift+Z)">
+            <Button variant="ghost" aria-label="Làm lại" disabled={!undo.canRedo} onClick={() => void doUndo(true)} className="shrink-0 !px-2"><Redo2 size={16} aria-hidden /></Button>
+          </Tip>
+        </>
+      )}
+      {sel.ids.length > 0 && canWrite && (
+        <>
+          <Button variant="secondary" className="shrink-0" onClick={() => setBulk(true)}><Pencil size={16} aria-hidden /> Sửa {formatCount(sel.ids.length, "dòng")}</Button>
+          <Button variant="secondary" className="shrink-0 !text-bad" onClick={() => void deleteSelected()}><Trash2 size={16} aria-hidden /> Xoá {formatCount(sel.ids.length, "dòng")}</Button>
+        </>
+      )}
+      {(sel.active || sel.ids.length === 1) && (
+        <Button variant="secondary" className="shrink-0" onClick={() => setOpenRow(sel.ids.length === 1 ? sel.ids[0]! : sel.active)}><Maximize2 size={16} aria-hidden /> Chi tiết dòng</Button>
+      )}
+      {session.grouped && (
+        <>
+          <Button variant="ghost" className="shrink-0 !px-2" title="Thu gọn tất cả nhóm" aria-label="Thu gọn tất cả" onClick={() => session.setAllCollapsed(true)} data-testid="groups-collapse-all"><ChevronsDownUp size={16} aria-hidden /></Button>
+          <Button variant="ghost" className="shrink-0 !px-2" title="Mở tất cả nhóm" aria-label="Mở tất cả" onClick={() => session.setAllCollapsed(false)} data-testid="groups-expand-all"><ChevronsUpDown size={16} aria-hidden /></Button>
+        </>
+      )}
+      {!canWrite && <Badge tone="muted">Chỉ xem</Badge>}
+    </>
+  );
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onKeyDown={onKeyDown}>
-      <div role="toolbar" aria-label="Công cụ bảng" className="flex flex-wrap items-center gap-2">
-        {canWrite && (
-          <>
-            <Tip label="Hoàn tác (Ctrl+Z)">
-              <Button variant="secondary" aria-label="Hoàn tác" disabled={!undo.canUndo} onClick={() => void doUndo(false)} className="!px-2.5"><Undo2 size={16} aria-hidden /></Button>
-            </Tip>
-            <Tip label="Làm lại (Ctrl+Shift+Z)">
-              <Button variant="secondary" aria-label="Làm lại" disabled={!undo.canRedo} onClick={() => void doUndo(true)} className="!px-2.5"><Redo2 size={16} aria-hidden /></Button>
-            </Tip>
-            <Button variant="secondary" onClick={() => void addRow()} disabled={columnsEmpty}><Plus size={16} aria-hidden /> Thêm dòng</Button>
-          </>
-        )}
-        {sel.ids.length > 0 && canWrite && (
-          <>
-            <Button variant="secondary" onClick={() => setBulk(true)}><Pencil size={16} aria-hidden /> Sửa {formatCount(sel.ids.length, "dòng")}</Button>
-            <Button variant="secondary" className="!text-bad" onClick={() => void deleteSelected()}><Trash2 size={16} aria-hidden /> Xoá {formatCount(sel.ids.length, "dòng")}</Button>
-          </>
-        )}
-        {(sel.active || sel.ids.length === 1) && (
-          <Button variant="secondary" onClick={() => setOpenRow(sel.ids.length === 1 ? sel.ids[0]! : sel.active)}><Maximize2 size={16} aria-hidden /> Chi tiết dòng</Button>
-        )}
-        {session.grouped && (
-          <>
-            <Button variant="secondary" onClick={() => session.setAllCollapsed(true)} data-testid="groups-collapse-all"><ChevronsDownUp size={16} aria-hidden /> Thu gọn tất cả</Button>
-            <Button variant="secondary" onClick={() => session.setAllCollapsed(false)} data-testid="groups-expand-all"><ChevronsUpDown size={16} aria-hidden /> Mở tất cả</Button>
-          </>
-        )}
-        {!canWrite && <Badge tone="muted">Chỉ xem</Badge>}
-        <div className="ml-auto flex items-center gap-3 text-sm text-muted-foreground" aria-live="polite">
-          {saving > 0 ? <span>Đang lưu...</span> : null}
-          {!columnsEmpty && store.known && <span>{formatCount(total, "dòng")}</span>}
-        </div>
-      </div>
+      {rowSlot === undefined ? <div role="toolbar" aria-label="Công cụ bảng" className="flex flex-wrap items-center gap-2">{rowTools}</div> : rowSlot ? createPortal(rowTools, rowSlot) : null}
       {session.grouped && session.groupsTruncated && (
         <p role="status" className="rounded-md bg-warn/15 px-3 py-2 text-sm">Có hơn 1.000 nhóm nên chỉ hiện 1.000 nhóm đầu. Lọc bớt dòng hoặc chọn cột nhóm khác.</p>
       )}
       {body}
+      <div className="flex min-h-4 flex-wrap items-center gap-x-3 text-xs text-muted-foreground" aria-live="polite">
+        {!columnsEmpty && store.known && <span>{formatCount(total, "dòng")}</span>}
+        {saving > 0 ? <span>Đang lưu...</span> : null}
+        {statusText ? <span>{statusText}</span> : null}
+      </div>
       {openRow && <RowPanel session={session} rowId={openRow} level={level} onClose={() => setOpenRow(null)} />}
       {bulk && <BulkEdit session={session} level={level} ids={sel.ids} onClose={() => setBulk(false)} />}
     </div>

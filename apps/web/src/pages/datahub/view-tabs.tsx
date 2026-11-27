@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Copy, MoreHorizontal, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Copy, LayoutGrid, MoreHorizontal, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 
 type Views = { views: ViewDto[]; last_view_id: string | null };
 
-/** The views of a table as tabs: pick one, add, rename, copy, move, reset to the shared setting, delete. */
-export function ViewTabs({ tableId, views, currentId, access, onSelect, currentConfig }: { tableId: string; views: ViewDto[]; currentId: string; access: Level; onSelect: (id: string) => void; currentConfig: ViewConfig }) {
+/** The view switcher at the left of the toolbar: pick a view, add one; its "..." menu renames, copies, moves, resets to the shared setting, deletes. */
+export function ViewSwitcher({ tableId, views, currentId, access, onSelect, currentConfig }: { tableId: string; views: ViewDto[]; currentId: string; access: Level; onSelect: (id: string) => void; currentConfig: ViewConfig }) {
   const qc = useQueryClient();
   const owner = access === "owner";
   const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "rename"; v: ViewDto } | { kind: "delete"; v: ViewDto } | { kind: "copy"; v: ViewDto } | null>(null);
@@ -50,44 +50,48 @@ export function ViewTabs({ tableId, views, currentId, access, onSelect, currentC
 
   return (
     <>
-      <div role="tablist" aria-label="Các view" className="flex items-center gap-1 overflow-x-auto border-b border-border">
-        {views.map((v) => {
-          const on = v.id === currentId;
-          return (
-            <div key={v.id} className={cn("flex shrink-0 items-center border-b-2", on ? "border-primary" : "border-transparent")}>
-              <button type="button" role="tab" aria-selected={on} title={v.name} onClick={() => onSelect(v.id)} className={cn("flex max-w-48 items-center gap-2 px-3 py-3 text-sm sm:py-2", on ? "font-medium" : "text-muted-foreground hover:text-foreground")}>
-                <span className="truncate">{v.name}</span>
-                {!v.shared && <Badge tone="muted">Riêng</Badge>}
-              </button>
-              {on && (
-                <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn view ${v.name}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
-                  {(owner || !v.shared) && <MenuItem onSelect={() => setDialog({ kind: "rename", v })}><Pencil size={16} aria-hidden /> Đổi tên view</MenuItem>}
-                  <MenuItem onSelect={() => setDialog({ kind: "copy", v })}><Copy size={16} aria-hidden /> Sao chép view</MenuItem>
-                  {v.has_override && <MenuItem onSelect={() => reset.mutate(v)}><RotateCcw size={16} aria-hidden /> Về mặc định</MenuItem>}
-                  {canMove(v) && (
-                    <>
-                      <MenuItem disabled={!neighbour(v, -1)} onSelect={() => move.mutate({ v, by: -1 })}><ChevronLeft size={16} aria-hidden /> Chuyển sang trái</MenuItem>
-                      <MenuItem disabled={!neighbour(v, 1)} onSelect={() => move.mutate({ v, by: 1 })}><ChevronRight size={16} aria-hidden /> Chuyển sang phải</MenuItem>
-                    </>
-                  )}
-                  {(owner || !v.shared) && views.length > 1 && (
-                    <>
-                      <MenuSeparator />
-                      <MenuItem danger onSelect={() => setDialog({ kind: "delete", v })}><Trash2 size={16} aria-hidden /> Xoá view</MenuItem>
-                    </>
-                  )}
-                </Menu>
-              )}
-            </div>
-          );
-        })}
-        <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "add" })}>
-          <Plus size={16} aria-hidden /> Thêm view
-        </Button>
+      <div className="flex shrink-0 items-center gap-0.5" data-slot="view-switcher">
+        <Menu
+          align="start"
+          trigger={
+            <Button variant="secondary" aria-label={`Chọn view, đang ở ${cur?.name ?? ""}`} title={cur?.name} className="max-w-44 !pr-2 sm:max-w-52">
+              <LayoutGrid size={16} aria-hidden className="shrink-0 text-primary" />
+              <span className="truncate">{cur?.name}</span>
+              {cur && !cur.shared && <Badge tone="muted">Riêng</Badge>}
+              <ChevronDown size={14} aria-hidden className="shrink-0 text-muted-foreground" />
+            </Button>
+          }
+        >
+          {views.map((v) => (
+            <MenuItem key={v.id} aria-current={v.id === currentId ? "true" : undefined} title={v.name} onSelect={() => onSelect(v.id)}>
+              <Check size={16} aria-hidden className={cn("shrink-0", v.id === currentId ? "text-primary" : "invisible")} />
+              <span className="min-w-0 flex-1 truncate">{v.name}</span>
+              {!v.shared && <Badge tone="muted">Riêng</Badge>}
+            </MenuItem>
+          ))}
+          <MenuSeparator />
+          <MenuItem onSelect={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /> Thêm view</MenuItem>
+        </Menu>
+        {cur && (
+          <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn view ${cur.name}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
+            {(owner || !cur.shared) && <MenuItem onSelect={() => setDialog({ kind: "rename", v: cur })}><Pencil size={16} aria-hidden /> Đổi tên view</MenuItem>}
+            <MenuItem onSelect={() => setDialog({ kind: "copy", v: cur })}><Copy size={16} aria-hidden /> Sao chép view</MenuItem>
+            {cur.has_override && <MenuItem onSelect={() => reset.mutate(cur)}><RotateCcw size={16} aria-hidden /> Về mặc định</MenuItem>}
+            {canMove(cur) && (
+              <>
+                <MenuItem disabled={!neighbour(cur, -1)} onSelect={() => move.mutate({ v: cur, by: -1 })}><ChevronLeft size={16} aria-hidden /> Chuyển sang trái</MenuItem>
+                <MenuItem disabled={!neighbour(cur, 1)} onSelect={() => move.mutate({ v: cur, by: 1 })}><ChevronRight size={16} aria-hidden /> Chuyển sang phải</MenuItem>
+              </>
+            )}
+            {(owner || !cur.shared) && views.length > 1 && (
+              <>
+                <MenuSeparator />
+                <MenuItem danger onSelect={() => setDialog({ kind: "delete", v: cur })}><Trash2 size={16} aria-hidden /> Xoá view</MenuItem>
+              </>
+            )}
+          </Menu>
+        )}
       </div>
-      {cur && cur.shared && !owner && cur.has_override && (
-        <p className="text-xs text-muted-foreground">Bạn đang xem bản riêng của view này; thay đổi của bạn không ảnh hưởng người khác. Chọn "Về mặc định" trong menu view để bỏ.</p>
-      )}
       {dialog && (dialog.kind === "add" || dialog.kind === "copy") && (
         <NameDialog
           title={dialog.kind === "add" ? "Thêm view" : "Sao chép view"}

@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PersonChip } from "@/components/ui/person";
 import { Link, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Layers, MoreHorizontal, Pencil, Plus, Share2, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, Layers, MoreHorizontal, Pencil, Plus, Share2, Table2, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { SHARE_PERMISSION_LABELS } from "@soe/shared";
+import { formatCount, SHARE_PERMISSION_LABELS } from "@soe/shared";
+import { Popover } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { Button, ConfirmDialog, ErrorText, Field, Input, Modal } from "@/components/ui/form";
-import { useCrumbs } from "@/lib/page-chrome";
+import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle } from "@/components/ui/form";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, NoAccessState } from "@/components/ui/states";
@@ -54,33 +54,27 @@ export function DatahubPage() {
 }
 
 function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; tableId?: string; current?: TableBrief; dashboard: { id?: string } | null }) {
-  useCrumbs(dh.name);
   const [sharing, setSharing] = useState(false);
   const [importing, setImporting] = useState(false);
   // What a person may import into: the owner any normal table; a member only tables they edit and where the owner allows adding rows in bulk.
   const importTables = dh.tables.filter((t) => t.kind !== "merged" && (dh.access === "owner" || (t.access === "edit_data" && t.members_bulk_create !== false)));
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Link to="/datahub" className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground sm:min-h-9 hover:text-foreground" aria-label="Về danh sách datahub">
-          <ArrowLeft size={16} aria-hidden /> Datahub
-        </Link>
-        <h1 className="sr-only">{dh.name}</h1>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {importTables.length > 0 && (
-            <Button variant="secondary" onClick={() => setImporting(true)}><Upload size={16} aria-hidden /> Nhập dữ liệu</Button>
-          )}
-          {dh.access === "owner" && (
-            <Button variant="secondary" onClick={() => setSharing(true)}><Share2 size={16} aria-hidden /> Chia sẻ</Button>
-          )}
-        </div>
-        {dh.access !== "owner" && (
-          <span className="flex items-center gap-2 text-sm text-muted-foreground">
-            Chủ: <span className="[overflow-wrap:anywhere]">{dh.owner_name ? <PersonChip person={{ id: dh.owner_id, full_name: dh.owner_name }} /> : "—"}</span>
-            <Badge tone="muted">{SHARE_PERMISSION_LABELS[dh.access === "view" ? "view" : "edit_data"]}</Badge>
-          </span>
-        )}
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {/* The name is the last breadcrumb; "Nhập dữ liệu" and "Chia sẻ" sit in the top bar, both secondary: the one main button of the screen is "Thêm dòng". */}
+      <PageTitle
+        actions={
+          <>
+            {importTables.length > 0 && (
+              <Button variant="secondary" onClick={() => setImporting(true)}><Upload size={16} aria-hidden /> <span className="max-md:hidden">Nhập dữ liệu</span></Button>
+            )}
+            {dh.access === "owner" && (
+              <Button variant="secondary" onClick={() => setSharing(true)}><Share2 size={16} aria-hidden /> <span className="max-md:hidden">Chia sẻ</span></Button>
+            )}
+          </>
+        }
+      >
+        {dh.name}
+      </PageTitle>
       {sharing && <ShareDialog dh={dh} onClose={() => setSharing(false)} />}
       {importing && <ImportDialog target={{ datahub: { id: dh.id, name: dh.name, access: dh.access, tables: importTables.map((t) => ({ id: t.id, name: t.name })) } }} onClose={() => setImporting(false)} />}
       <TableTabs dh={dh} currentId={dashboard ? undefined : tableId} dashboardOn={!!dashboard} />
@@ -97,6 +91,65 @@ function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; ta
   );
 }
 
+/** "Bảng ▾ (n)": every table of the datahub in one searchable list, for when the strip cannot show them all. */
+function TableList({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const list = dh.tables.filter((t) => t.name.toLowerCase().includes(q.trim().toLowerCase()));
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(""); }} label="Danh sách bảng" width="w-80" className="p-2"
+      trigger={<Button variant="secondary" aria-label={`Danh sách bảng, ${dh.tables.length} bảng`} className="shrink-0 !px-2.5"><Table2 size={16} aria-hidden /> Bảng <ChevronDown size={14} aria-hidden /> <span className="rounded-full bg-muted px-1.5 text-xs leading-5 text-muted-foreground">{dh.tables.length}</span></Button>}>
+      {dh.tables.length > 6 && <Input aria-label="Tìm bảng" placeholder="Tìm bảng" value={q} onChange={(ev) => setQ(ev.target.value)} className="mb-2" autoComplete="off" />}
+      <ul className="flex flex-col gap-0.5">
+        {list.map((t) => (
+          <li key={t.id}>
+            <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: dh.id, tableId: t.id }} onClick={() => setOpen(false)} title={t.name} aria-current={t.id === currentId ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2 rounded-md px-2 text-sm hover:bg-primary-soft sm:min-h-9", t.id === currentId && "bg-primary-soft font-medium")}>
+              {t.kind === "merged" ? <Layers size={16} aria-hidden className="shrink-0 text-primary" /> : <Table2 size={16} aria-hidden className="shrink-0 text-muted-foreground" />}
+              <span className="min-w-0 flex-1 truncate">{t.name}</span>
+              {t.kind === "merged" && <Badge tone="muted">Gộp</Badge>}
+              {dh.access !== "owner" && <Badge tone="muted">{SHARE_PERMISSION_LABELS[t.access === "view" ? "view" : "edit_data"]}</Badge>}
+              <span className="shrink-0 text-xs text-muted-foreground">{formatCount(t.row_count, "dòng")}</span>
+              {t.id === currentId && <Check size={14} aria-hidden className="shrink-0 text-primary" />}
+            </Link>
+          </li>
+        ))}
+        {list.length === 0 && <li className="px-2 py-3 text-muted-foreground">Không có bảng nào khớp.</li>}
+      </ul>
+    </Popover>
+  );
+}
+
+/** The scrolling part of the strip: the open tab scrolls into view, a fade and an arrow on an edge show that tabs are hidden there. */
+function ScrollStrip({ children, activeKey }: { children: React.ReactNode; activeKey?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ left: false, right: false });
+  const measure = () => {
+    const el = ref.current;
+    if (el) setEdge({ left: el.scrollLeft > 2, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 2 });
+  };
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ inline: "nearest", block: "nearest" });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [activeKey, children]);
+  const by = (dir: -1 | 1) => ref.current?.scrollBy({ left: dir * 240, behavior: "smooth" });
+  return (
+    <div className="relative flex min-w-0 flex-1 items-center">
+      <div ref={ref} onScroll={measure} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{children}</div>
+      {edge.left && <button type="button" aria-label="Cuộn tab sang trái" onClick={() => by(-1)} className="absolute left-0 top-0 flex h-full w-9 cursor-pointer items-center justify-start bg-gradient-to-r from-workspace via-workspace/90 to-transparent pl-0.5 text-muted-foreground hover:text-foreground"><ChevronLeft size={16} aria-hidden /></button>}
+      {edge.right && <button type="button" aria-label="Cuộn tab sang phải" onClick={() => by(1)} className="absolute right-0 top-0 flex h-full w-9 cursor-pointer items-center justify-end bg-gradient-to-l from-workspace via-workspace/90 to-transparent pr-0.5 text-muted-foreground hover:text-foreground"><ChevronRight size={16} aria-hidden /></button>}
+    </div>
+  );
+}
+
+const segCls = (on: boolean) => cn("inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-sm sm:min-h-7", on ? "bg-primary-soft font-medium text-primary" : "text-muted-foreground hover:text-foreground");
+const tabCls = (on: boolean) => cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm sm:min-h-8", on ? "bg-primary-soft font-medium text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground");
+
+/** The strip above a table: the "Dữ liệu | Dashboard" switch pinned on the left (the mode is in the address); in Dữ liệu then "+" and the tables as tabs that scroll sideways. */
 function TableTabs({ dh, currentId, dashboardOn }: { dh: DatahubBrief; currentId?: string; dashboardOn: boolean }) {
   const owner = dh.access === "owner";
   const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "merge" } | { kind: "rename"; t: TableBrief } | { kind: "delete"; t: TableBrief } | null>(null);
@@ -115,41 +168,61 @@ function TableTabs({ dh, currentId, dashboardOn }: { dh: DatahubBrief; currentId
 
   return (
     <>
-      <div role="tablist" aria-label="Các bảng" className="flex items-center gap-1 overflow-x-auto border-b border-border">
-        {dh.tables.map((t, i) => {
-          const on = t.id === currentId;
-          return (
-            <div key={t.id} className={cn("flex shrink-0 items-center border-b-2", on ? "border-primary" : "border-transparent")}>
-              <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: dh.id, tableId: t.id }} role="tab" aria-selected={on} className={cn("max-w-48 truncate px-3 py-3 text-sm sm:py-2", on ? "font-medium" : "text-muted-foreground hover:text-foreground")} title={t.name}>
-                {t.kind === "merged" && <Layers size={14} aria-label="Bảng gộp" className="mr-1 inline align-[-2px]" />}
-                {t.name}
-              </Link>
-              {owner && on && (
-                <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn bảng ${t.name}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
-                  <MenuItem onSelect={() => setDialog({ kind: "rename", t })}><Pencil size={16} aria-hidden /> Đổi tên bảng</MenuItem>
-                  <MenuItem disabled={i === 0} onSelect={() => move.mutate({ t, to: i - 1 })}><ChevronLeft size={16} aria-hidden /> Chuyển sang trái</MenuItem>
-                  <MenuItem disabled={i === dh.tables.length - 1} onSelect={() => move.mutate({ t, to: i + 1 })}><ChevronRight size={16} aria-hidden /> Chuyển sang phải</MenuItem>
-                  <MenuSeparator />
-                  <MenuItem danger onSelect={() => setDialog({ kind: "delete", t })}><Trash2 size={16} aria-hidden /> Xoá bảng</MenuItem>
-                </Menu>
-              )}
+      <div className="flex min-w-0 items-center gap-1">
+        <Link to="/datahub" className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground sm:min-h-8 sm:min-w-8" aria-label="Về danh sách datahub" title="Về danh sách datahub">
+          <ArrowLeft size={16} aria-hidden />
+        </Link>
+        {owner && (
+          <div role="group" aria-label="Chế độ xem" className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">
+            <Link to="/datahub/$datahubId" params={{ datahubId: dh.id }} aria-current={dashboardOn ? undefined : "page"} className={segCls(!dashboardOn)}>
+              <Table2 size={14} aria-hidden /> Dữ liệu
+            </Link>
+            <Link to="/datahub/$datahubId/dashboard" params={{ datahubId: dh.id }} aria-current={dashboardOn ? "page" : undefined} data-testid="dashboard-tab" className={segCls(dashboardOn)}>
+              <BarChart3 size={14} aria-hidden /> Dashboard
+            </Link>
+          </div>
+        )}
+        {!dashboardOn && (
+        <div role="tablist" aria-label="Các bảng" className="flex min-w-0 flex-1 items-center gap-1">
+          {owner && (
+            <div className="flex shrink-0 items-center gap-1">
+              <Menu trigger={<Button variant="ghost" aria-label="Thêm bảng" title="Thêm bảng" className="!px-2"><Plus size={16} aria-hidden /></Button>} align="start">
+                <MenuItem onSelect={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /> Thêm bảng</MenuItem>
+                <MenuItem data-testid="add-merged-table" onSelect={() => setDialog({ kind: "merge" })}><Layers size={16} aria-hidden /> Tạo bảng gộp</MenuItem>
+              </Menu>
+              <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
             </div>
-          );
-        })}
-        {owner && (
-          <Link to="/datahub/$datahubId/dashboard" params={{ datahubId: dh.id }} role="tab" aria-selected={dashboardOn} data-testid="dashboard-tab" className={cn("ml-2 inline-flex shrink-0 items-center gap-1 border-b-2 px-3 py-3 text-sm sm:py-2", dashboardOn ? "border-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground")}>
-            <BarChart3 size={14} aria-hidden /> Dashboard
-          </Link>
+          )}
+          <TableList dh={dh} currentId={currentId} />
+          <ScrollStrip activeKey={currentId}>
+            {dh.tables.map((t, i) => {
+              const on = t.id === currentId;
+              return (
+                <div key={t.id} className={cn("flex shrink-0 items-center rounded-lg", on && "bg-primary-soft")}>
+                  <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: dh.id, tableId: t.id }} role="tab" aria-selected={on} className={cn(tabCls(on), "max-w-48 truncate bg-transparent", on && owner && "pr-1")} title={t.name}>
+                    {t.kind === "merged" && <Layers size={14} aria-label="Bảng gộp" className="shrink-0" />}
+                    <span className="truncate">{t.name}</span>
+                  </Link>
+                  {owner && on && (
+                    <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn bảng ${t.name}`} className="!min-h-8 !px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
+                      <MenuItem onSelect={() => setDialog({ kind: "rename", t })}><Pencil size={16} aria-hidden /> Đổi tên bảng</MenuItem>
+                      <MenuItem disabled={i === 0} onSelect={() => move.mutate({ t, to: i - 1 })}><ChevronLeft size={16} aria-hidden /> Chuyển sang trái</MenuItem>
+                      <MenuItem disabled={i === dh.tables.length - 1} onSelect={() => move.mutate({ t, to: i + 1 })}><ChevronRight size={16} aria-hidden /> Chuyển sang phải</MenuItem>
+                      <MenuSeparator />
+                      <MenuItem danger onSelect={() => setDialog({ kind: "delete", t })}><Trash2 size={16} aria-hidden /> Xoá bảng</MenuItem>
+                    </Menu>
+                  )}
+                </div>
+              );
+            })}
+          </ScrollStrip>
+        </div>
         )}
-        {owner && (
-          <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "add" })}>
-            <Plus size={16} aria-hidden /> Thêm bảng
-          </Button>
-        )}
-        {owner && (
-          <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "merge" })} data-testid="add-merged-table">
-            <Layers size={16} aria-hidden /> Tạo bảng gộp
-          </Button>
+        {dh.access !== "owner" && (
+          <span className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground max-sm:hidden">
+            Chủ: <span className="[overflow-wrap:anywhere]">{dh.owner_name ? <PersonChip person={{ id: dh.owner_id, full_name: dh.owner_name }} /> : "—"}</span>
+            <Badge tone="muted">{SHARE_PERMISSION_LABELS[dh.access === "view" ? "view" : "edit_data"]}</Badge>
+          </span>
         )}
       </div>
       {dialog?.kind === "add" && (

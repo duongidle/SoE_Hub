@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PersonChip } from "@/components/ui/person";
 import { Link } from "@tanstack/react-router";
-import { DhNameSchema, formatCount, formatRelative, SHARE_PERMISSION_LABELS } from "@soe/shared";
-import { Database, MoreHorizontal, Pencil, Plus, Trash2, Trash, Upload } from "lucide-react";
+import { DhNameSchema, formatCount, SHARE_PERMISSION_LABELS } from "@soe/shared";
+import { Database, MoreHorizontal, Pencil, Plus, Table2, Trash2, Trash, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, Field, Input, Modal, PageTitle, Tabs, Textarea, errorMessage } from "@/components/ui/form";
@@ -15,9 +15,10 @@ import type { DatahubBrief } from "@/lib/datahub/types";
 import { ImportDialog } from "./import-dialog";
 import { can, useMe } from "@/lib/session";
 import { useUrlState } from "@/lib/use-url-state";
+import { updatedText } from "@/lib/datahub/card-text";
 
-type Tab = "mine" | "shared";
-const URL_DEFAULTS = { tab: "mine" };
+type Tab = "all" | "mine" | "shared";
+const URL_DEFAULTS = { tab: "all" };
 
 /** Name rule of the design (module 2, section 2), checked here so the message appears under the field before the server is asked. */
 export function nameError(v: string): string | null {
@@ -29,7 +30,7 @@ export function DatahubListPage() {
   const me = useMe().data;
   // The tab lives in the URL (?tab=shared): reload, shared link and back button keep it.
   const [{ tab: tabParam }, setUrl] = useUrlState(URL_DEFAULTS);
-  const tab: Tab = tabParam === "shared" ? "shared" : "mine";
+  const tab: Tab = tabParam === "shared" ? "shared" : tabParam === "mine" ? "mine" : "all";
   const setTab = (t: Tab) => setUrl({ tab: t });
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ kind: "create" } | { kind: "import" } | { kind: "rename"; dh: DatahubBrief } | null>(null);
@@ -58,7 +59,7 @@ export function DatahubListPage() {
 
   const mine = (q.data ?? []).filter((d) => d.owner_id === me?.user.id);
   const shared = (q.data ?? []).filter((d) => d.owner_id !== me?.user.id);
-  const shown = tab === "mine" ? mine : shared;
+  const shown = tab === "mine" ? mine : tab === "shared" ? shared : (q.data ?? []);
   const canCreate = can(me, "datahub:datahub:create");
   const full = limits.data ? limits.data.used.datahubs >= limits.data.limits.datahubs : false;
 
@@ -83,11 +84,12 @@ export function DatahubListPage() {
         value={tab}
         onChange={setTab}
         items={[
+          { value: "all", label: `Tất cả${q.data ? ` (${q.data.length})` : ""}` },
           { value: "mine", label: `Của tôi${q.data ? ` (${mine.length})` : ""}` },
           { value: "shared", label: `Được chia sẻ với tôi${q.data ? ` (${shared.length})` : ""}` },
         ]}
       />
-      {tab === "mine" && limits.data && <p className="-mt-2 mb-3 text-sm text-muted-foreground">{limits.data.used.datahubs} / {limits.data.limits.datahubs} datahub{full ? ". Xoá bớt hoặc nhờ Admin tăng giới hạn để tạo thêm." : ""}</p>}
+      {tab !== "shared" && limits.data && <p className="-mt-2 mb-3 text-sm text-muted-foreground">{limits.data.used.datahubs} / {limits.data.limits.datahubs} datahub{full ? ". Xoá bớt hoặc nhờ Admin tăng giới hạn để tạo thêm." : ""}</p>}
 
       {q.isLoading ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-3" aria-busy="true" aria-label="Đang tải danh sách datahub">
@@ -96,20 +98,20 @@ export function DatahubListPage() {
       ) : q.error ? (
         <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được danh sách datahub" />
       ) : shown.length === 0 ? (
-        tab === "mine" ? (
+        tab !== "shared" ? (
           <EmptyState
             title="Bạn chưa có datahub nào"
             hint="Datahub là nơi bạn gom các bảng dữ liệu của mình, như một file Google Sheets."
             cta={canCreate ? { label: "Tạo datahub đầu tiên", icon: <Plus size={16} aria-hidden />, onClick: () => setDialog({ kind: "create" }) } : undefined}
           />
         ) : (
-          <EmptyState title="Chưa có datahub nào được chia sẻ với bạn" hint="Khi ai đó chia sẻ datahub hoặc một bảng cho bạn, nó sẽ hiện ở đây." />
+          <EmptyState title="Chưa có datahub nào được chia sẻ với bạn" hint="Khi ai đó chia sẻ datahub hoặc một bảng cho bạn, nó sẽ hiện ở đây." cta={{ label: "Xem datahub của tôi", onClick: () => setTab("mine") }} />
         )
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-3">
           {shown.map((d) => (
             <li key={d.id}>
-              <DatahubCard dh={d} mine={tab === "mine"} onRename={() => setDialog({ kind: "rename", dh: d })} onDelete={() => remove.mutate(d)} />
+              <DatahubCard dh={d} mine={d.owner_id === me?.user.id} onRename={() => setDialog({ kind: "rename", dh: d })} onDelete={() => remove.mutate(d)} />
             </li>
           ))}
         </ul>
@@ -123,20 +125,25 @@ export function DatahubListPage() {
 }
 
 function DatahubCard({ dh, mine, onRename, onDelete }: { dh: DatahubBrief; mine: boolean; onRename: () => void; onDelete: () => void }) {
-  const first = dh.tables[0];
+  const rows = dh.tables.reduce((n, t) => n + t.row_count, 0);
+  const updated = updatedText(dh.updated_at);
   return (
-    <div className="relative flex h-full flex-col gap-2 rounded-lg border border-border bg-card p-4 hover:bg-muted/40">
-      <Link to="/datahub/$datahubId" params={{ datahubId: dh.id }} className="flex min-w-0 flex-1 flex-col gap-2 after:absolute after:inset-0" aria-label={`Mở datahub ${dh.name}`}>
-        <span className="flex items-start gap-2">
-          <Database size={20} aria-hidden className="mt-0.5 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 text-base font-semibold [overflow-wrap:anywhere]">{dh.name}</span>
+    <div className="relative flex h-full flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-card transition-[border-color,box-shadow] duration-150 hover:border-primary-border hover:shadow-md">
+      <Link to="/datahub/$datahubId" params={{ datahubId: dh.id }} className="flex min-w-0 flex-1 flex-col gap-2 rounded-lg after:absolute after:inset-0 after:rounded-card" aria-label={`Mở datahub ${dh.name}`}>
+        <span className="flex items-start gap-3">
+          <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
+            <Database size={20} />
+          </span>
+          <span className="min-w-0 flex-1 pr-8">
+            <span className="block text-base font-semibold leading-snug [overflow-wrap:anywhere]">{dh.name}</span>
+            {dh.description ? <span className="mt-0.5 line-clamp-2 block text-sm text-muted-foreground [overflow-wrap:anywhere]">{dh.description}</span> : <span className="mt-0.5 block text-sm text-faint">Chưa có mô tả</span>}
+          </span>
         </span>
-        {dh.description && <span className="line-clamp-2 text-sm text-muted-foreground [overflow-wrap:anywhere]">{dh.description}</span>}
       </Link>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-        <span>{formatCount(dh.tables.length, "bảng")}</span>
-        {first && <span>{formatCount(dh.tables.reduce((n, t) => n + t.row_count, 0), "dòng")}</span>}
-        <span>Sửa {formatRelative(dh.updated_at)}</span>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-soft pt-3 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1"><Table2 size={14} aria-hidden /> {formatCount(dh.tables.length, "bảng")}</span>
+        <span>{formatCount(rows, "dòng")}</span>
+        {updated && <span className="ml-auto">{updated}</span>}
       </div>
       {!mine && (
         <div className="flex flex-wrap items-center gap-2 text-sm">

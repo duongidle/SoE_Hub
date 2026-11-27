@@ -5,6 +5,34 @@ import { expect, type Browser, type BrowserContext, type Locator, type Page } fr
 
 const run = promisify(execFile);
 
+/** Opens the "..." menu of the table toolbar (import, export, duplicates, trash, columns) and returns the menu. */
+export async function openMore(page: Page): Promise<Locator> {
+  await page.getByRole("button", { name: "Thêm thao tác", exact: true }).click();
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  return menu;
+}
+/** Runs an action of the "..." menu of the table toolbar. */
+export async function moreAction(page: Page, name: string): Promise<void> {
+  const menu = await openMore(page);
+  await menu.getByRole("menuitem", { name, exact: true }).click();
+}
+/** The names of the actions in the "..." menu (the menu is closed again). */
+export async function moreActions(page: Page): Promise<string[]> {
+  const menu = await openMore(page);
+  const names = (await menu.getByRole("menuitem").allInnerTexts()).map((t) => t.trim());
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  return names;
+}
+/** The action is (or is not) in the "..." menu of the table toolbar. */
+export async function expectMore(page: Page, name: string, present: boolean): Promise<void> {
+  const menu = await openMore(page);
+  await expect(menu.getByRole("menuitem", { name, exact: true })).toHaveCount(present ? 1 : 0);
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+}
+
 export const VIEWPORTS = {
   desktop: { width: 1280, height: 800 },
   phone: { width: 375, height: 812 },

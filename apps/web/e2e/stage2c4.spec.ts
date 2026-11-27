@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { API, Session, type ProjectName, chooseOption } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, moreAction, expectMore } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -158,14 +158,14 @@ test("chia sẻ: chủ chia sẻ Xem cả datahub và Sửa một bảng; quyề
 
   // In the browser: the viewer has neither "Chia sẻ" nor the editing tools; the editor has the duplicate tool but not "Thêm cột".
   await openDatahub(viewer, dealsId);
-  await expect(viewer.page.getByRole("button", { name: "Cột của bảng" })).toBeVisible();
+  await expectMore(viewer.page, "Cột của bảng", true);
   await expect(viewer.page.getByRole("button", { name: "Chia sẻ" })).toHaveCount(0);
-  await expect(viewer.page.getByRole("button", { name: "Tìm dòng trùng" })).toHaveCount(0);
-  await expect(viewer.page.getByRole("button", { name: "Thùng rác" })).toHaveCount(0);
+  await expectMore(viewer.page, "Tìm dòng trùng", false);
+  await expectMore(viewer.page, "Thùng rác", false);
   await openDatahub(editor, dealsId);
-  await expect(editor.page.getByRole("button", { name: "Tìm dòng trùng" })).toBeVisible();
+  await expectMore(editor.page, "Tìm dòng trùng", true);
   await expect(editor.page.getByRole("button", { name: "Chia sẻ" })).toHaveCount(0);
-  await expect(editor.page.getByRole("button", { name: "Thêm cột", exact: true })).toHaveCount(0);
+  await expectMore(editor.page, "Thêm cột", false);
 
   // Change the editor's permission to Xem: the write stops at once.
   await chooseOption(d.getByLabel(new RegExp(`Quyền của Người Sửa 4C ${p} với Deals`)), { label: "Xem" });
@@ -191,7 +191,7 @@ test("tìm dòng trùng: chọn cột, xử lý từng nhóm, xử lý mọi nh�
   for (const n of names) await ownerApi.call("POST", `/tables/${custId}/rows`, { data: { "Tên khách": n } });
   const pg = owner.page;
   await openDatahub(owner, custId);
-  await pg.getByRole("button", { name: "Tìm dòng trùng" }).click();
+  await moreAction(pg, "Tìm dòng trùng");
   const d = dialog(pg, "Tìm dòng trùng");
   await expect(d.getByRole("button", { name: "Tìm dòng trùng" })).toBeDisabled();
   await d.getByRole("checkbox", { name: "Tên khách" }).check();
@@ -239,7 +239,7 @@ test("thùng rác: khôi phục dòng, cột, bảng, datahub; tên bị dùng t
   // A new column took the name of the deleted one: restoring asks for a new name.
   await ownerApi.call("POST", `/tables/${dealsId}/columns`, { name: "Cột sẽ xoá", type: "text" });
   await openDatahub(owner, dealsId);
-  await pg.getByRole("button", { name: "Thùng rác" }).click();
+  await moreAction(pg, "Thùng rác");
   const d = dialog(pg, "Thùng rác của bảng");
   await expect(d.getByTestId("trash-column")).toHaveCount(1);
   await expect(d.getByTestId("trash-row")).toHaveCount(1);

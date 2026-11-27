@@ -174,8 +174,12 @@ test("menu Datahub, danh sách: tạo, đổi tên, xoá và hoàn tác; 4 trạ
   await viewer.page.getByRole("tab", { name: /Của tôi/ }).click();
   await expect(viewer.page.getByText("Bạn chưa có datahub nào")).toBeVisible();
   await expect(viewer.page.getByRole("button", { name: "Tạo datahub đầu tiên" })).toBeVisible();
-  await expect(viewer.page).not.toHaveURL(/tab=/);
+  await expect(viewer.page).toHaveURL(/[?&]tab=mine/);
   await viewer.shot("12-dh-empty-cta");
+  // "Tất cả" (mine + shared) is the default tab: it keeps the address short.
+  await viewer.page.getByRole("tab", { name: /^Tất cả/ }).click();
+  await expect(viewer.page).not.toHaveURL(/tab=/);
+  await expect(viewer.page.getByText(`Chủ: Đặng Thị Ngọc Hân ${p}`)).toBeVisible();
 });
 
 test("trang datahub: tab bảng, URL gửi được, thêm / đổi tên / chuyển / xoá bảng", async () => {
@@ -188,6 +192,7 @@ test("trang datahub: tab bảng, URL gửi được, thêm / đổi tên / chuy�
   await expect(pg).toHaveURL(new RegExp(`/${fx.leadId}$`));
 
   await pg.getByRole("button", { name: "Thêm bảng" }).click();
+  await pg.getByRole("menuitem", { name: "Thêm bảng" }).click();
   const d = pg.getByRole("dialog", { name: "Thêm bảng" });
   await d.getByLabel("Tên bảng *").fill("Tạm");
   await d.getByRole("button", { name: "Thêm bảng" }).click();
@@ -202,7 +207,7 @@ test("trang datahub: tab bảng, URL gửi được, thêm / đổi tên / chuy�
 
   await pg.getByRole("button", { name: "Tuỳ chọn bảng Tạm 2" }).click();
   await pg.getByRole("menuitem", { name: "Chuyển sang trái" }).click();
-  await expect(pg.getByRole("tab").nth(1)).toHaveText("Tạm 2");
+  await expect(pg.getByRole("tab").nth(2)).toHaveText("Tạm 2"); // the first tab is Dashboard, pinned on the left
 
   await pg.getByRole("button", { name: "Tuỳ chọn bảng Tạm 2" }).click();
   await pg.getByRole("menuitem", { name: "Xoá bảng" }).click();

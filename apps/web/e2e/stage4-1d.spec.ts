@@ -1,7 +1,7 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { GridDriver } from "./grid";
-import { API, Session, type ProjectName, chooseOption, closeSelect, expectSelectValue, openSelect } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, closeSelect, expectSelectValue, openSelect, moreAction, expectMore } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -145,7 +145,7 @@ test("khoá phân chia: chủ bật trong hộp thoại Chia sẻ; thành viên 
   // In the browser: the member sees only 2 rows and no import button; the leader sees 4.
   const g1 = await openTable(u1S);
   await expect(u1S.page.getByText("2 dòng", { exact: true })).toBeVisible();
-  await expect(u1S.page.getByRole("button", { name: "Nhập", exact: true })).toHaveCount(0);
+  await expectMore(u1S.page, "Nhập", false);
   await expect(u1S.page.getByRole("button", { name: "Nhập dữ liệu" })).toHaveCount(0);
   await u1S.shot("split-member-view");
   await openTable(leadS);
@@ -153,7 +153,7 @@ test("khoá phân chia: chủ bật trong hộp thoại Chia sẻ; thành viên 
   // The owner still has the import button.
   await openTable(ownerS);
   await expect(ownerS.page.getByText("6 dòng", { exact: true })).toBeVisible();
-  await expect(ownerS.page.getByRole("button", { name: "Nhập", exact: true })).toBeVisible();
+  await expectMore(ownerS.page, "Nhập", true);
 
   // Pasting more new rows than one is refused with a sentence (the server refuses too).
   await g1.click(0, 1);
@@ -173,7 +173,7 @@ test("ô Người dùng chỉ gợi ý thành viên; cột không cho sửa là 
   // Owner turns "Cho phép sửa" off for Ghi chú from the column editor.
   const pg = ownerS.page;
   await openTable(ownerS);
-  await pg.getByRole("button", { name: "Cột của bảng" }).click();
+  await moreAction(pg, "Cột của bảng");
   await dialog(pg, "Cột của bảng").getByRole("button", { name: "Sửa cột Ghi chú" }).click();
   const e = dialog(pg, 'Sửa cột "Ghi chú"');
   const allow = e.getByRole("checkbox", { name: /Cho phép sửa/ });
@@ -286,7 +286,7 @@ test("thu gọn / mở tất cả nhóm: lưu vào view, còn nguyên sau khi t�
 test("xuất dạng tổng hợp: hộp thoại có Dòng nhóm / Mọi dòng; file là các dòng nhóm", async () => {
   const pg = ownerS.page;
   await openTable(ownerS);
-  await pg.getByRole("button", { name: "Xuất", exact: true }).click();
+  await moreAction(pg, "Xuất");
   const d = dialog(pg, "Xuất dữ liệu");
   await chooseOption(d.getByLabel("Phạm vi xuất"), { index: 0 });
   await expectSelectValue(d.getByLabel("Dòng xuất ra"), "groups");
@@ -308,7 +308,7 @@ test("cột Ngày sửa của cột: tạo trên bảng đã có dữ liệu (đ
   const shared = (await ownerApi.call<{ views: { id: string; shared: boolean }[] }>("GET", `/tables/${tableId}/views`)).views.find((v) => v.shared)!;
   await ownerApi.call("PATCH", `/views/${shared.id}`, { config: { group: null, group_aggs: null, groups_collapsed: null, groups_toggled: null } });
   await openTable(ownerS);
-  await pg.getByRole("button", { name: "Thêm cột", exact: true }).click();
+  await moreAction(pg, "Thêm cột");
   const d = dialog(pg, "Thêm cột");
   await d.getByRole("textbox", { name: /^Tên cột/ }).fill("Ngày đổi giai đoạn");
   await chooseOption(d.getByLabel("Kiểu cột"), { label: "Ngày sửa của cột" });
@@ -343,7 +343,7 @@ test("đổi tên lựa chọn: hộp thoại liệt kê công thức so chữ v
   await ownerApi.call("POST", `/tables/${tableId}/columns`, { name: "Là Thắng", type: "formula", config: { formula: '=IF([Giai đoạn]="Thắng",1,0)' } });
   await ownerApi.call("POST", `/tables/${tableId}/columns`, { name: "Nối Thắng", type: "formula", config: { formula: '=[Giai đoạn]&"Thắng"' } });
   await openTable(ownerS);
-  await pg.getByRole("button", { name: "Cột của bảng" }).click();
+  await moreAction(pg, "Cột của bảng");
   await dialog(pg, "Cột của bảng").getByRole("button", { name: "Sửa cột Giai đoạn" }).click();
   const e = dialog(pg, 'Sửa cột "Giai đoạn"');
   await e.getByLabel("Tên lựa chọn 2").fill("Won");
