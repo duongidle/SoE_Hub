@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tổng quan · SoE HUB</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"SoE Number";src:local("Roboto");unicode-range:U+0030-0039}
+:root{--canvas:#F4F5FA;--work:#F8F9FC;--side:#FAF9FE;--ink:#1E1B3A;--muted:#646A82;--faint:#94A3B8;--line:#E2E8F0;--line2:#ECEEF5;--pri:#4F46E5;--pri-h:#4338CA;--pri-soft:#EEF0FF;--pri-b:#C7D2FE}
+body{font-family:"SoE Number","Be Vietnam Pro",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;
+background:radial-gradient(circle at 12% 8%,rgba(165,180,252,.30),transparent 36%),radial-gradient(circle at 88% 12%,rgba(167,243,208,.24),transparent 38%),var(--canvas)}
+.num{font-variant-numeric:tabular-nums}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 20px -4px rgba(30,27,58,.05),0 1px 3px rgba(30,27,58,.03)}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:10px;font-size:14px;font-weight:500;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.btn:hover{border-color:var(--pri-b)}
+.btn-pri{background:var(--pri);border-color:var(--pri);color:#fff}.btn-pri:hover{background:var(--pri-h)}
+.chip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid}
+.ok{background:#ECFDF5;color:#047857;border-color:#A7F3D0}.info{background:#EFF6FF;color:#1D4ED8;border-color:#BFDBFE}
+.warn{background:#FFFBEB;color:#B45309;border-color:#FDE68A}.bad{background:#FFF1F2;color:#BE123C;border-color:#FECDD3}
+.ai{background:#F5F3FF;color:#6D28D9;border-color:#DDD6FE}.neutral{background:#F8FAFC;color:#475569;border-color:#E2E8F0}
+.seg{display:inline-flex;padding:3px;border-radius:10px;background:#F1F2F8}.seg a{padding:5px 12px;border-radius:8px;font-size:14px;color:var(--muted);font-weight:500}
+.seg a.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(30,27,58,.08)}
+.nav a{display:flex;align-items:center;gap:10px;height:38px;padding:0 12px;border-radius:10px;font-size:14px;color:var(--muted);position:relative}
+.nav a:hover{background:#F1F2F8;color:var(--ink)}
+.nav a.on{background:var(--pri-soft);color:var(--pri);font-weight:600}.nav a.on::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--pri)}
+.nav i,.nav svg{width:18px;height:18px}
+svg.lucide{width:16px;height:16px;stroke-width:2}
+.scroll{overscroll-behavior-y:contain}
+@media (max-width:1023px){aside.side{display:none}}
+@media (max-width:767px){.shell{margin:0!important;border-radius:0!important;height:100dvh!important}}
+</style></head><body class="h-screen p-2.5 sm:p-3.5 flex">
+<div class="shell flex-1 bg-white rounded-[20px] flex overflow-hidden" style="box-shadow:0 20px 50px -12px rgba(30,27,58,.08),0 0 0 1px rgba(226,232,240,.9)">
+<aside class="side w-[220px] shrink-0 flex flex-col justify-between border-r" style="background:var(--side);border-color:var(--line2)">
+ <div class="p-3">
+  <div class="flex items-center gap-2.5 px-1 py-1.5 mb-3">
+   <div class="w-9 h-9 rounded-[10px] grid place-items-center text-white font-bold text-[14px]" style="background:var(--pri)">SH</div>
+   <div class="leading-tight"><div class="font-bold text-[15px]">SoE HUB</div><div class="text-[11.5px]" style="color:var(--muted)">Solution of Excellence</div></div>
+  </div>
+  <nav class="nav flex flex-col gap-0.5 pl-3 -ml-0"><a href="#" class="on"><i data-lucide="layout-grid"></i>Tổng quan</a><a href="#" class=""><i data-lucide="database"></i>Datahub</a><a href="#" class=""><i data-lucide="briefcase"></i>Quản lý Deal</a><a href="#" class=""><i data-lucide="file-text"></i>Dynamic Form</a><a href="#" class=""><i data-lucide="route"></i>Onboarding</a><a href="#" class=""><i data-lucide="book-open"></i>Knowledge</a><a href="#" class=""><i data-lucide="sparkles"></i>AI Hub</a><a href="#" class=""><i data-lucide="badge-check"></i>Duyệt bài</a><a href="#" class=""><i data-lucide="network"></i>Org chart</a></nav>
+ </div>
+ <div class="p-3 border-t" style="border-color:var(--line2)"><nav class="nav pl-3 flex flex-col gap-0.5"><a href="#"><i data-lucide="settings"></i>Cài đặt</a><a href="#"><i data-lucide="log-out"></i>Đăng xuất</a></nav></div>
+</aside>
+<div class="flex-1 min-w-0 flex flex-col" style="background:var(--work)">
+ <header class="h-12 shrink-0 flex items-center justify-between px-5 border-b" style="background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-color:var(--line2)">
+  <div class="flex items-center gap-2 text-[14px] min-w-0"><span class="font-semibold truncate">Tổng quan</span></div>
+  <div class="flex items-center gap-2">
+   <button class="relative w-9 h-9 grid place-items-center rounded-[10px] hover:bg-slate-100" aria-label="Thông báo"><i data-lucide="bell"></i><span class="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold text-white grid place-items-center" style="background:#E11D48">3</span></button>
+   <div class="flex items-center gap-2 pl-1"><div class="w-8 h-8 rounded-full grid place-items-center text-[12px] font-bold" style="background:var(--pri-soft);color:var(--pri)">MA</div><span class="text-[14px] font-medium hidden sm:inline">Minh An</span></div>
+  </div>
+ </header>
+ <main class="scroll flex-1 overflow-y-auto">
+<div class="px-5 pt-4 pb-8 max-w-[1320px] mx-auto">
+ <div class="flex items-center justify-between mb-3">
+  <div class="text-[14px]" style="color:var(--muted)">Chào buổi chiều, <b style="color:var(--ink)">Minh An</b> · Thứ Năm 27/11/2026</div>
+ </div>
+ <div class="grid xl:grid-cols-[1fr_340px] gap-4">
+  <section class="card overflow-hidden">
+   <div class="flex items-center gap-1 px-3 pt-3 border-b overflow-x-auto" style="border-color:var(--line2)">
+    <a href="#" class="group flex items-center gap-1.5 px-3 h-10 -mb-px text-[14px] whitespace-nowrap rounded-t-[10px] border-b-2 " style="border-color:transparent;color:var(--muted)"><i data-lucide="users" style="width:14px;height:14px;"></i>Được chia sẻ</a><span class="w-px h-5 mx-1" style="background:var(--line)"></span><a href="#" class="group flex items-center gap-1.5 px-3 h-10 -mb-px text-[14px] whitespace-nowrap rounded-t-[10px] border-b-2 font-semibold" style="border-color:var(--pri);color:var(--ink)"><i data-lucide="grip-vertical" style="width:14px;height:14px;color:var(--faint)"></i>Doanh thu team Q4</a><a href="#" class="group flex items-center gap-1.5 px-3 h-10 -mb-px text-[14px] whitespace-nowrap rounded-t-[10px] border-b-2 " style="border-color:transparent;color:var(--muted)"><i data-lucide="grip-vertical" style="width:14px;height:14px;color:var(--faint)"></i>Pipeline của tôi</a><a href="#" class="group flex items-center gap-1.5 px-3 h-10 -mb-px text-[14px] whitespace-nowrap rounded-t-[10px] border-b-2 " style="border-color:transparent;color:var(--muted)"><i data-lucide="grip-vertical" style="width:14px;height:14px;color:var(--faint)"></i>Onboarding team</a>
+    <button class="ml-1 flex items-center gap-1 whitespace-nowrap h-8 px-2.5 rounded-[10px] text-[13px] font-medium hover:bg-slate-100" style="color:var(--pri)"><i data-lucide="pin"></i>Ghim dashboard</button>
+    
+   </div>
+   <div class="p-4">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+     <div class="flex items-center gap-2"><span class="text-[15px] font-semibold">Doanh thu team Q4</span><span class="chip neutral">Quý 4/2026</span></div>
+     <a href="#" class="text-[13px] font-medium flex items-center gap-1" style="color:var(--pri)">Mở dashboard<i data-lucide="arrow-up-right" style="width:13px;height:13px"></i></a>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+     <div class="rounded-[14px] border p-3.5" style="border-color:var(--line)"><div class="text-[13px]" style="color:var(--muted)">Doanh thu ghi nhận</div><div class="mt-1 text-[18px] font-bold num tracking-tight whitespace-nowrap">8.230.873.600 ₫</div><div class="mt-1"><span class="chip ok" style="height:20px;font-size:11px">+12,4% so với Q3</span></div></div><div class="rounded-[14px] border p-3.5" style="border-color:var(--line)"><div class="text-[13px]" style="color:var(--muted)">Số deal Won</div><div class="mt-1 text-[18px] font-bold num tracking-tight whitespace-nowrap">167</div><div class="mt-1"><span class="chip ok" style="height:20px;font-size:11px">+9 deal</span></div></div><div class="rounded-[14px] border p-3.5" style="border-color:var(--line)"><div class="text-[13px]" style="color:var(--muted)">Com tạm tính</div><div class="mt-1 text-[18px] font-bold num tracking-tight whitespace-nowrap">356.303.499 ₫</div><div class="mt-1"><span class="chip warn" style="height:20px;font-size:11px">Chờ đối soát</span></div></div><div class="rounded-[14px] border p-3.5" style="border-color:var(--line)"><div class="text-[13px]" style="color:var(--muted)">Forecast chưa ký</div><div class="mt-1 text-[18px] font-bold num tracking-tight whitespace-nowrap">1.240.000.000 ₫</div><div class="mt-1"><span class="chip info" style="height:20px;font-size:11px">24 deal đang đàm phán</span></div></div>
+    </div>
+    <div class="grid lg:grid-cols-[1.6fr_1fr] gap-3 mt-3">
+     <div class="rounded-[14px] border p-4" style="border-color:var(--line)">
+      <div class="flex justify-between text-[13px]"><span class="font-semibold">Doanh thu theo tháng</span><span style="color:var(--muted)">triệu ₫</span></div>
+      <div class="mt-3 h-[170px] flex items-end gap-2"><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:56px;background:#C7D2FE"></div><span class="text-[11px] num" style="color:var(--muted)">T1</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:73px;background:#C7D2FE"></div><span class="text-[11px] num" style="color:var(--muted)">T2</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:64px;background:#C7D2FE"></div><span class="text-[11px] num" style="color:var(--muted)">T3</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:84px;background:#C7D2FE"></div><span class="text-[11px] num" style="color:var(--muted)">T4</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:95px;background:#C7D2FE"></div><span class="text-[11px] num" style="color:var(--muted)">T5</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:88px;background:#C7D2FE"></div><span class="text-[11px] num" style="color:var(--muted)">T6</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:112px;background:#C7D2FE"></div><span class="text-[11px] num" style="color:var(--muted)">T7</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:105px;background:#C7D2FE"></div><span class="text-[11px] num" style="color:var(--muted)">T8</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:123px;background:#C7D2FE"></div><span class="text-[11px] num" style="color:var(--muted)">T9</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:117px;background:var(--pri)"></div><span class="text-[11px] num" style="color:var(--muted)">T10</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:129px;background:var(--pri)"></div><span class="text-[11px] num" style="color:var(--muted)">T11</span></div><div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-[6px]" style="height:140px;background:var(--pri)"></div><span class="text-[11px] num" style="color:var(--muted)">T12</span></div></div>
+     </div>
+     <div class="rounded-[14px] border p-4" style="border-color:var(--line)">
+      <div class="text-[13px] font-semibold">Theo loại deal</div>
+      <div class="mt-3 flex items-center gap-4">
+       <svg width="120" height="120" viewBox="0 0 42 42"><circle cx="21" cy="21" r="15.9" fill="none" stroke="#EEF0FF" stroke-width="6"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#4F46E5" stroke-width="6" stroke-dasharray="58 42" stroke-dashoffset="25"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#10B981" stroke-width="6" stroke-dasharray="27 73" stroke-dashoffset="-33"/><circle cx="21" cy="21" r="15.9" fill="none" stroke="#F59E0B" stroke-width="6" stroke-dasharray="15 85" stroke-dashoffset="-60"/></svg>
+       <ul class="text-[13px] space-y-2"><li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#4F46E5"></span><span class="flex-1">PS không kèm POD</span><b class="num">58%</b></li><li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#10B981"></span><span class="flex-1">POD bán mới</span><b class="num">27%</b></li><li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#F59E0B"></span><span class="flex-1">Gia hạn</span><b class="num">15%</b></li></ul>
+      </div>
+     </div>
+    </div>
+    <div class="rounded-[14px] border mt-3 overflow-hidden" style="border-color:var(--line)">
+     <div class="px-4 py-3 text-[13px] font-semibold flex justify-between"><span>Deal sắp chốt trong tháng</span><a href="#" style="color:var(--pri)" class="font-medium">Mở bảng Deals</a></div>
+     <table class="w-full text-[13.5px]"><thead><tr class="text-left text-[12px]" style="color:var(--muted);background:#FAFBFE"><th class="px-4 py-2 font-medium">Khách hàng</th><th class="px-4 py-2 font-medium">Người phụ trách</th><th class="px-4 py-2 font-medium">Trạng thái</th><th class="px-4 py-2 font-medium text-right">Giá trị</th><th class="px-4 py-2 font-medium text-right">Dự kiến chốt</th></tr></thead>
+     <tbody><tr class="border-t" style="border-color:var(--line2)"><td class="px-4 py-2.5 font-medium">Công ty Ánh Dương</td><td class="px-4 py-2.5"><span class="inline-flex items-center gap-1.5"><span class="w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold" style="background:var(--pri-soft);color:var(--pri)">MA</span>Minh An</span></td><td class="px-4 py-2.5"><span class="chip warn" style="height:20px;font-size:11px">Đàm phán</span></td><td class="px-4 py-2.5 text-right num font-medium">420.000.000 ₫</td><td class="px-4 py-2.5 text-right num" style="color:var(--muted)">05/12</td></tr><tr class="border-t" style="border-color:var(--line2)"><td class="px-4 py-2.5 font-medium">Tập đoàn Hưng Phát</td><td class="px-4 py-2.5"><span class="inline-flex items-center gap-1.5"><span class="w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold" style="background:var(--pri-soft);color:var(--pri)">BN</span>Bảo Ngọc</span></td><td class="px-4 py-2.5"><span class="chip info" style="height:20px;font-size:11px">Đã gửi đề xuất</span></td><td class="px-4 py-2.5 text-right num font-medium">310.000.000 ₫</td><td class="px-4 py-2.5 text-right num" style="color:var(--muted)">12/12</td></tr><tr class="border-t" style="border-color:var(--line2)"><td class="px-4 py-2.5 font-medium">Nam Việt Logistics</td><td class="px-4 py-2.5"><span class="inline-flex items-center gap-1.5"><span class="w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold" style="background:var(--pri-soft);color:var(--pri)">QB</span>Quốc Bảo</span></td><td class="px-4 py-2.5"><span class="chip warn" style="height:20px;font-size:11px">Đàm phán</span></td><td class="px-4 py-2.5 text-right num font-medium">185.000.000 ₫</td><td class="px-4 py-2.5 text-right num" style="color:var(--muted)">18/12</td></tr><tr class="border-t" style="border-color:var(--line2)"><td class="px-4 py-2.5 font-medium">Sao Mai Retail</td><td class="px-4 py-2.5"><span class="inline-flex items-center gap-1.5"><span class="w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold" style="background:var(--pri-soft);color:var(--pri)">MA</span>Minh An</span></td><td class="px-4 py-2.5"><span class="chip ok" style="height:20px;font-size:11px">Chờ ký</span></td><td class="px-4 py-2.5 text-right num font-medium">96.000.000 ₫</td><td class="px-4 py-2.5 text-right num" style="color:var(--muted)">20/12</td></tr></tbody></table>
+    </div>
+   </div>
+  </section>
+
+  <div class="space-y-4">
+   <section class="card p-4">
+    <div class="flex items-center justify-between"><h2 class="text-[15px] font-semibold">Onboarding của tôi</h2><span class="chip info num">Tuần 6/18</span></div>
+    <div class="mt-2 h-[3px] rounded-full bg-slate-100 overflow-hidden"><div class="h-full" style="width:31%;background:linear-gradient(90deg,#6366F1,#10B981)"></div></div>
+    <div class="mt-3 text-[13.5px]">Hôm nay còn <b>2 việc</b> · mốc <b>Test Work+ Basic</b> thứ Sáu</div>
+    <a href="#" class="mt-2 inline-flex items-center gap-1 text-[13px] font-medium" style="color:var(--pri)">Mở hành trình<i data-lucide="arrow-right" style="width:13px;height:13px"></i></a>
+   </section>
+   <section class="card p-4">
+    <h2 class="text-[15px] font-semibold">Mở gần đây</h2>
+    <ul class="mt-2 -mx-2"><li><a href="#" class="flex items-center gap-3 px-2 py-2 rounded-[10px] hover:bg-slate-50"><span class="w-8 h-8 shrink-0 chip info grid place-items-center" style="height:32px;padding:0;border-radius:10px"><i data-lucide="database"></i></span><span class="flex-1 min-w-0"><span class="block text-[14px] font-medium truncate">Theo dõi lead Q4</span><span class="block text-[12px]" style="color:var(--muted)">Datahub · Deals</span></span><span class="text-[12px] shrink-0" style="color:var(--faint)">10 phút trước</span></a></li><li><a href="#" class="flex items-center gap-3 px-2 py-2 rounded-[10px] hover:bg-slate-50"><span class="w-8 h-8 shrink-0 chip ok grid place-items-center" style="height:32px;padding:0;border-radius:10px"><i data-lucide="file-text"></i></span><span class="flex-1 min-w-0"><span class="block text-[14px] font-medium truncate">Work+ Advanced (Wework & Service)</span><span class="block text-[12px]" style="color:var(--muted)">Dynamic Form</span></span><span class="text-[12px] shrink-0" style="color:var(--faint)">1 giờ trước</span></a></li><li><a href="#" class="flex items-center gap-3 px-2 py-2 rounded-[10px] hover:bg-slate-50"><span class="w-8 h-8 shrink-0 chip ai grid place-items-center" style="height:32px;padding:0;border-radius:10px"><i data-lucide="layout-dashboard"></i></span><span class="flex-1 min-w-0"><span class="block text-[14px] font-medium truncate">Pipeline của tôi</span><span class="block text-[12px]" style="color:var(--muted)">Dashboard</span></span><span class="text-[12px] shrink-0" style="color:var(--faint)">hôm qua</span></a></li><li><a href="#" class="flex items-center gap-3 px-2 py-2 rounded-[10px] hover:bg-slate-50"><span class="w-8 h-8 shrink-0 chip info grid place-items-center" style="height:32px;padding:0;border-radius:10px"><i data-lucide="database"></i></span><span class="flex-1 min-w-0"><span class="block text-[14px] font-medium truncate">Onboarding</span><span class="block text-[12px]" style="color:var(--muted)">Datahub · Q&A</span></span><span class="text-[12px] shrink-0" style="color:var(--faint)">hôm qua</span></a></li><li><a href="#" class="flex items-center gap-3 px-2 py-2 rounded-[10px] hover:bg-slate-50"><span class="w-8 h-8 shrink-0 chip warn grid place-items-center" style="height:32px;padding:0;border-radius:10px"><i data-lucide="book-open"></i></span><span class="flex-1 min-w-0"><span class="block text-[14px] font-medium truncate">Cấu hình luồng duyệt công tác phí</span><span class="block text-[12px]" style="color:var(--muted)">Knowledge</span></span><span class="text-[12px] shrink-0" style="color:var(--faint)">25/11</span></a></li></ul>
+   </section>
+   <section class="card p-4">
+    <div class="flex items-center justify-between"><h2 class="text-[15px] font-semibold">Nhắc hẹn sắp tới</h2><a href="#" class="text-[13px] font-medium" style="color:var(--pri)">+ Tạo</a></div>
+    <ul class="mt-2 text-[13.5px] space-y-2.5"><li class="flex gap-3"><span class="chip warn shrink-0 num" style="height:22px">15:30</span><span class="pt-0.5">Gọi lại khách Ánh Dương về báo giá</span></li><li class="flex gap-3"><span class="chip info shrink-0 num" style="height:22px">Ngày mai 09:00</span><span class="pt-0.5">Họp review pipeline với Leader</span></li><li class="flex gap-3"><span class="chip bad shrink-0 num" style="height:22px">Thứ Sáu 17:00</span><span class="pt-0.5">Test Work+ Basic</span></li></ul>
+   </section>
+   <section class="card p-4">
+    <h2 class="text-[15px] font-semibold">Thông báo chung</h2>
+    <div class="mt-2 text-[13.5px]"><b>Lịch nghỉ Tết 2027</b> <span style="color:var(--muted)">· Ban điều hành · 26/11</span><p class="mt-1 line-clamp-2" style="color:#3B3F57">Toàn công ty nghỉ từ 05/02 đến hết 14/02/2027. Các deal có hạn trong thời gian nghỉ cần chốt trước 03/02.</p></div>
+   </section>
+  </div>
+ </div>
+</div></main>
+</div></div>
+<script>lucide.createIcons();</script></body></html>

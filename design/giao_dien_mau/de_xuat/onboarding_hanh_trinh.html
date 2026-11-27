@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Onboarding · SoE HUB</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"SoE Number";src:local("Roboto");unicode-range:U+0030-0039}
+:root{--canvas:#F4F5FA;--work:#F8F9FC;--side:#FAF9FE;--ink:#1E1B3A;--muted:#646A82;--faint:#94A3B8;--line:#E2E8F0;--line2:#ECEEF5;--pri:#4F46E5;--pri-h:#4338CA;--pri-soft:#EEF0FF;--pri-b:#C7D2FE}
+body{font-family:"SoE Number","Be Vietnam Pro",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;
+background:radial-gradient(circle at 12% 8%,rgba(165,180,252,.30),transparent 36%),radial-gradient(circle at 88% 12%,rgba(167,243,208,.24),transparent 38%),var(--canvas)}
+.num{font-variant-numeric:tabular-nums}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 20px -4px rgba(30,27,58,.05),0 1px 3px rgba(30,27,58,.03)}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:10px;font-size:14px;font-weight:500;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.btn:hover{border-color:var(--pri-b)}
+.btn-pri{background:var(--pri);border-color:var(--pri);color:#fff}.btn-pri:hover{background:var(--pri-h)}
+.chip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid}
+.ok{background:#ECFDF5;color:#047857;border-color:#A7F3D0}.info{background:#EFF6FF;color:#1D4ED8;border-color:#BFDBFE}
+.warn{background:#FFFBEB;color:#B45309;border-color:#FDE68A}.bad{background:#FFF1F2;color:#BE123C;border-color:#FECDD3}
+.ai{background:#F5F3FF;color:#6D28D9;border-color:#DDD6FE}.neutral{background:#F8FAFC;color:#475569;border-color:#E2E8F0}
+.seg{display:inline-flex;padding:3px;border-radius:10px;background:#F1F2F8}.seg a{padding:5px 12px;border-radius:8px;font-size:14px;color:var(--muted);font-weight:500}
+.seg a.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(30,27,58,.08)}
+.nav a{display:flex;align-items:center;gap:10px;height:38px;padding:0 12px;border-radius:10px;font-size:14px;color:var(--muted);position:relative}
+.nav a:hover{background:#F1F2F8;color:var(--ink)}
+.nav a.on{background:var(--pri-soft);color:var(--pri);font-weight:600}.nav a.on::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--pri)}
+.nav i,.nav svg{width:18px;height:18px}
+svg.lucide{width:16px;height:16px;stroke-width:2}
+.scroll{overscroll-behavior-y:contain}
+@media (max-width:1023px){aside.side{display:none}}
+@media (max-width:767px){.shell{margin:0!important;border-radius:0!important;height:100dvh!important}}
+</style></head><body class="h-screen p-2.5 sm:p-3.5 flex">
+<div class="shell flex-1 bg-white rounded-[20px] flex overflow-hidden" style="box-shadow:0 20px 50px -12px rgba(30,27,58,.08),0 0 0 1px rgba(226,232,240,.9)">
+<aside class="side w-[220px] shrink-0 flex flex-col justify-between border-r" style="background:var(--side);border-color:var(--line2)">
+ <div class="p-3">
+  <div class="flex items-center gap-2.5 px-1 py-1.5 mb-3">
+   <div class="w-9 h-9 rounded-[10px] grid place-items-center text-white font-bold text-[14px]" style="background:var(--pri)">SH</div>
+   <div class="leading-tight"><div class="font-bold text-[15px]">SoE HUB</div><div class="text-[11.5px]" style="color:var(--muted)">Solution of Excellence</div></div>
+  </div>
+  <nav class="nav flex flex-col gap-0.5 pl-3 -ml-0"><a href="#" class=""><i data-lucide="layout-grid"></i>Tổng quan</a><a href="#" class=""><i data-lucide="database"></i>Datahub</a><a href="#" class=""><i data-lucide="briefcase"></i>Quản lý Deal</a><a href="#" class=""><i data-lucide="file-text"></i>Dynamic Form</a><a href="#" class="on"><i data-lucide="route"></i>Onboarding</a><a href="#" class=""><i data-lucide="book-open"></i>Knowledge</a><a href="#" class=""><i data-lucide="sparkles"></i>AI Hub</a><a href="#" class=""><i data-lucide="badge-check"></i>Duyệt bài</a><a href="#" class=""><i data-lucide="network"></i>Org chart</a></nav>
+ </div>
+ <div class="p-3 border-t" style="border-color:var(--line2)"><nav class="nav pl-3 flex flex-col gap-0.5"><a href="#"><i data-lucide="settings"></i>Cài đặt</a><a href="#"><i data-lucide="log-out"></i>Đăng xuất</a></nav></div>
+</aside>
+<div class="flex-1 min-w-0 flex flex-col" style="background:var(--work)">
+ <header class="h-12 shrink-0 flex items-center justify-between px-5 border-b" style="background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-color:var(--line2)">
+  <div class="flex items-center gap-2 text-[14px] min-w-0"><span style="color:var(--muted)">Onboarding</span><i data-lucide="chevron-right" style="color:var(--faint)"></i><span class="font-semibold truncate">Hành trình của tôi</span></div>
+  <div class="flex items-center gap-2">
+   <button class="relative w-9 h-9 grid place-items-center rounded-[10px] hover:bg-slate-100" aria-label="Thông báo"><i data-lucide="bell"></i><span class="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold text-white grid place-items-center" style="background:#E11D48">3</span></button>
+   <div class="flex items-center gap-2 pl-1"><div class="w-8 h-8 rounded-full grid place-items-center text-[12px] font-bold" style="background:var(--pri-soft);color:var(--pri)">MA</div><span class="text-[14px] font-medium hidden sm:inline">Minh An</span></div>
+  </div>
+ </header>
+ <main class="scroll flex-1 overflow-y-auto">
+<div class="px-5 pt-4 pb-8 space-y-4 max-w-[1280px] mx-auto">
+ <div class="flex flex-wrap items-center justify-between gap-3">
+  <div class="seg"><a href="#">Hôm nay</a><a href="#" class="on">Hành trình</a><a href="#">Kết quả của tôi</a></div>
+  <div class="flex items-center gap-2 text-[13px]" style="color:var(--muted)">
+   <span class="chip neutral">Lộ trình SoE Associate</span><span class="hidden md:inline">Leader:</span>
+   <span class="hidden md:inline-flex items-center gap-1.5 font-medium" style="color:var(--ink)"><span class="w-6 h-6 rounded-full grid place-items-center text-[10px] font-bold ok" style="border:0">HT</span>Hà Tùng</span>
+  </div>
+ </div>
+
+ <section class="card p-5">
+  <div class="grid lg:grid-cols-[1.1fr_1.4fr_1fr] gap-5 items-center">
+   <div>
+    <div class="text-[13px]" style="color:var(--muted)">Bạn đang ở</div>
+    <div class="flex items-baseline gap-2 mt-0.5"><span class="text-[30px] font-bold num">Tuần 6</span><span class="text-[16px] num" style="color:var(--muted)">/ 18</span></div>
+    <div class="text-[14px] mt-0.5">Giai đoạn 2 · Thực chiến có kèm</div>
+    <div class="mt-3 h-[3px] rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full" style="width:31%;background:linear-gradient(90deg,#6366F1,#10B981)"></div></div>
+    <div class="mt-1.5 text-[12px] num" style="color:var(--muted)">31% chặng đường · bắt đầu 20/10/2026</div>
+   </div>
+   <div class="rounded-[14px] p-4 flex gap-3 items-start" style="background:var(--pri-soft)">
+    <div class="w-10 h-10 rounded-[12px] grid place-items-center shrink-0 text-white" style="background:var(--pri)"><i data-lucide="flag" style="width:20px;height:20px"></i></div>
+    <div class="min-w-0">
+     <div class="text-[12px] font-semibold" style="color:var(--pri)">MỐC TIẾP THEO · THỨ SÁU 05/12</div>
+     <div class="text-[16px] font-semibold mt-0.5">Test Work+ Basic</div>
+     <div class="text-[13px] mt-1" style="color:var(--muted)">Còn <b style="color:var(--ink)">2 việc</b>: làm bài test (cần ≥ 80 điểm) và thêm 3 câu Q&amp;A.</div>
+    </div>
+   </div>
+   <div class="flex lg:justify-end gap-2">
+    <a href="#" class="btn">Xem Q&amp;A của tôi</a>
+    <a href="#" class="btn btn-pri"><i data-lucide="play"></i>Làm bài test</a>
+   </div>
+  </div>
+ </section>
+
+ <section class="card p-5 overflow-hidden">
+  <div class="flex items-center justify-between mb-1">
+   <h2 class="text-[16px] font-semibold">Hành trình 18 tuần</h2>
+   <div class="hidden sm:flex items-center gap-3 text-[12px]" style="color:var(--muted)">
+    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#10B981"></span>Đã qua</span>
+    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:#F59E0B"></span>Trễ</span>
+    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:var(--pri)"></span>Đang ở</span>
+    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full border" style="border-color:#CBD5E1"></span>Chưa tới</span>
+    <span class="flex items-center gap-1.5"><i data-lucide="flag" style="width:13px;height:13px"></i>Checkpoint</span>
+   </div>
+  </div>
+  <div class="overflow-x-auto -mx-5 px-5" style="overscroll-behavior-x:contain"><div id="road" class="relative" style="width:1100px;height:280px"></div></div>
+ </section>
+
+ <div class="grid lg:grid-cols-[1.6fr_1fr] gap-4">
+  <section class="card">
+   <div class="px-5 pt-4 pb-3 flex items-start justify-between gap-3 border-b" style="border-color:var(--line2)">
+    <div><div class="text-[12px] font-semibold" style="color:var(--pri)">TUẦN 6 · 01/12 – 06/12</div>
+     <h2 class="text-[16px] font-semibold mt-0.5">Thực chiến kèm Sale, chuẩn bị Test Work+</h2>
+     <p class="text-[13px] mt-0.5" style="color:var(--muted)">Mục tiêu: tự demo được luồng Work+ cơ bản cho khách 50–200 nhân sự.</p></div>
+    <span class="chip info shrink-0 num">5/9 việc</span>
+   </div>
+   <div id="tasks" class="divide-y" style="--tw-divide-opacity:1"></div>
+  </section>
+
+  <div class="space-y-4">
+   <section class="card p-5">
+    <div class="flex items-center justify-between"><h2 class="text-[15px] font-semibold">Checkpoint tuần 6</h2><span class="chip info">Đang chạy</span></div>
+    <div class="mt-3 space-y-4">
+     <div><div class="flex justify-between text-[13px]"><span>Test Work+ Basic · điểm cao nhất</span><span class="num font-semibold">72 <span style="color:var(--muted);font-weight:400">/ 80</span></span></div>
+      <div class="mt-1.5 h-2 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full" style="width:90%;background:#F59E0B"></div></div>
+      <div class="text-[12px] mt-1" style="color:var(--muted)">Lần 1 · còn 1 lần thi lại</div></div>
+     <div><div class="flex justify-between text-[13px]"><span>Q&amp;A trong tuần</span><span class="num font-semibold">7 <span style="color:var(--muted);font-weight:400">/ 10 câu</span></span></div>
+      <div class="mt-1.5 h-2 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full" style="width:70%;background:var(--pri)"></div></div></div>
+     <div class="flex items-center justify-between text-[13px]"><span>Leader xác nhận demo</span><span class="chip neutral">Chờ Hà Tùng</span></div>
+    </div>
+   </section>
+   <section class="card p-5">
+    <h2 class="text-[15px] font-semibold">Các mốc đã qua</h2>
+    <ul class="mt-2 text-[13px] divide-y" style="border-color:var(--line2)">
+     <li class="py-2.5 flex items-center justify-between gap-2"><span>T2 · Học phần mềm cơ bản</span><span class="chip ok">Đạt</span></li>
+     <li class="py-2.5 flex items-center justify-between gap-2"><span>T4 · Q&amp;A 30 câu</span><span class="chip warn">Đạt muộn</span></li>
+    </ul>
+   </section>
+   <section class="card p-5">
+    <h2 class="text-[15px] font-semibold">Lối tắt</h2>
+    <div class="mt-2 grid grid-cols-1 gap-1 text-[14px]">
+     <a href="#" class="flex items-center gap-3 px-2 py-2 rounded-[10px] hover:bg-slate-50"><span class="w-8 h-8 rounded-[10px] grid place-items-center" style="background:var(--pri-soft);color:var(--pri)"><i data-lucide="notebook-pen"></i></span><span class="flex-1"><span class="block font-medium">Bài thu hoạch của tôi</span><span class="block text-[12px]" style="color:var(--muted)">12 bài · 1 cần sửa</span></span><i data-lucide="chevron-right" style="color:var(--faint)"></i></a><a href="#" class="flex items-center gap-3 px-2 py-2 rounded-[10px] hover:bg-slate-50"><span class="w-8 h-8 rounded-[10px] grid place-items-center" style="background:var(--pri-soft);color:var(--pri)"><i data-lucide="messages-square"></i></span><span class="flex-1"><span class="block font-medium">Q&A của tôi</span><span class="block text-[12px]" style="color:var(--muted)">37 câu</span></span><i data-lucide="chevron-right" style="color:var(--faint)"></i></a><a href="#" class="flex items-center gap-3 px-2 py-2 rounded-[10px] hover:bg-slate-50"><span class="w-8 h-8 rounded-[10px] grid place-items-center" style="background:var(--pri-soft);color:var(--pri)"><i data-lucide="calendar-check"></i></span><span class="flex-1"><span class="block font-medium">Báo cáo cuối ngày</span><span class="block text-[12px]" style="color:var(--muted)">đã nộp 28/30 ngày</span></span><i data-lucide="chevron-right" style="color:var(--faint)"></i></a>
+    </div>
+   </section>
+  </div>
+ </div>
+</div>
+<script>
+const phases=[['Giai đoạn 1','Nền tảng',1,4],['Giai đoạn 2','Thực chiến có kèm',5,9],['Giai đoạn 3','Tự chạy deal',10,14],['Giai đoạn 4','Đánh giá thử việc',15,18]];
+const N=18,cur=6,W=1100,H=280,x0=40,x1=W-40;
+const state=w=>w<cur?(w===3||w===4?'late':'done'):w===cur?'cur':'next';
+const cps={2:['Phần mềm cơ bản','ok'],4:['Q&A 30 câu','warn'],6:['Test Work+ Basic','info'],9:['Mockup HRM+','next'],13:['3 deal có BANT','next'],18:['Đánh giá cuối','next']};
+const pts=[...Array(N)].map((_,i)=>[x0+(x1-x0)*i/(N-1),140+40*Math.sin(i*0.62+0.4)]);
+const path=p=>p.map((q,i)=>{if(!i)return 'M'+q[0]+' '+q[1];const a=p[i-2]||p[i-1],b=p[i-1],c=q,d=p[i+1]||q;
+ return 'C'+(b[0]+(c[0]-a[0])/6)+' '+(b[1]+(c[1]-a[1])/6)+','+(c[0]-(d[0]-b[0])/6)+' '+(c[1]-(d[1]-b[1])/6)+','+c[0]+' '+c[1]}).join(' ');
+let s='<svg width="'+W+'" height="'+H+'" class="absolute inset-0">';
+phases.forEach(([n,t,a,b],k)=>{const xa=pts[a-1][0]-26,xb=pts[b-1][0]+26;s+='<rect x="'+xa+'" y="8" width="'+(xb-xa)+'" height="'+(H-16)+'" rx="14" fill="'+(k%2?'#FAFAFF':'#F7F8FC')+'"/>'});
+s+='<path d="'+path(pts)+'" fill="none" stroke="#E2E8F0" stroke-width="10" stroke-linecap="round"/>';
+s+='<path d="'+path(pts)+'" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="2 8" stroke-linecap="round"/>';
+s+='<path d="'+path(pts.slice(0,cur))+'" fill="none" stroke="#6366F1" stroke-width="10" stroke-linecap="round"/>';
+s+='</svg>';
+let h='';
+phases.forEach(([n,t,a,b])=>{const xa=pts[a-1][0]-14;h+='<div class="absolute text-[12px] leading-tight" style="left:'+xa+'px;top:16px"><div class="font-semibold" style="color:var(--muted)">'+n.toUpperCase()+'</div><div class="font-semibold text-[13px]" style="color:var(--ink)">'+t+'</div></div>'});
+pts.forEach(([x,y],i)=>{const w=i+1,st=state(w);
+ const fill={done:'#10B981',late:'#F59E0B',cur:'#4F46E5',next:'#fff'}[st];
+ const ring=st==='cur'?'<span class="absolute inset-[-7px] rounded-full" style="border:2px solid #C7D2FE"></span>':'';
+ const inner=st==='done'||st==='late'?'<i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:3"></i>':st==='cur'?'<span class="text-[11px] font-bold text-white num">'+w+'</span>':'<span class="text-[11px] font-semibold num" style="color:#94A3B8">'+w+'</span>';
+ h+='<button title="Tuần '+w+'" class="absolute grid place-items-center rounded-full hover:scale-110 transition-transform" style="left:'+(x-13)+'px;top:'+(y-13)+'px;width:26px;height:26px;background:'+fill+';border:'+(st==='next'?'2px solid #CBD5E1':'2px solid #fff')+';box-shadow:0 2px 6px rgba(30,27,58,.12)">'+ring+inner+'</button>';
+ h+='<div class="absolute text-[11px] num" style="left:'+(x-16)+'px;width:32px;text-align:center;top:'+(y+18)+'px;color:var(--muted)">T'+w+'</div>';
+ if(cps[w]){const [n,c]=cps[w];const ty=y+36;
+  h+='<div class="absolute flex flex-col items-center" style="left:'+(x-70)+'px;width:140px;top:'+ty+'px"><span class="chip '+(c==='next'?'neutral':c)+' whitespace-nowrap" style="height:24px"><i data-lucide="flag" style="width:12px;height:12px"></i>'+n+'</span></div>';}
+ if(st==='cur'){h+='<div class="absolute" style="left:'+(x-62)+'px;top:'+(y-50)+'px"><div class="flex items-center gap-1.5 bg-white rounded-full pl-1 pr-2.5 py-1 text-[12px] font-semibold" style="box-shadow:0 6px 18px -4px rgba(79,70,229,.35);border:1px solid #C7D2FE"><span class="w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold text-white" style="background:var(--pri)">MA</span>Bạn đang ở đây</div></div>'}
+});
+document.getElementById('road').innerHTML=s+h;const sc=document.getElementById('road').parentElement;sc.scrollLeft=Math.max(0,pts[cur-1][0]-sc.clientWidth/2);
+const tasks=[['Thứ Hai 01/12',[['On-job','Đi demo cùng Sale: Công ty Ánh Dương (120 NS)','10:00',1,'Bài thu hoạch'],['Tự học','Đọc tài liệu Work+ phần Quy trình','',1,'']]],
+['Thứ Ba 02/12',[['Session','Session với CS: xử lý ticket thường gặp','14:00',1,''],['On-job','Viết bài thu hoạch buổi on-job thứ Hai','18:00',1,'Mở form']]],
+['Thứ Tư 03/12',[['Review 1-1','Review 1-1 với Leader','16:00',1,'']]],
+['Thứ Sáu 05/12',[['Test','Test Work+ Basic (≥ 80 điểm)','17:00',0,'Làm bài'],['Q&A','Thêm 3 câu Q&A trong tuần','18:00',0,'Mở form']]],
+['Mỗi ngày',[['Báo cáo','Báo cáo cuối ngày','18:00',0,'Nộp hôm nay']]]];
+const tc={'On-job':'ok','Tự học':'neutral','Session':'info','Review 1-1':'ai','Test':'warn','Q&A':'info','Báo cáo':'neutral'};
+document.getElementById('tasks').innerHTML=tasks.map(([d,list])=>'<div class="px-5 py-3"><div class="text-[12px] font-semibold mb-1.5" style="color:var(--muted)">'+d+'</div>'+list.map(([t,n,due,done,link])=>'<div class="flex items-center gap-3 py-1.5"><span class="w-5 h-5 rounded-[6px] grid place-items-center shrink-0 '+(done?'':'border')+'" style="'+(done?'background:#10B981':'border-color:#CBD5E1')+'">'+(done?'<i data-lucide="check" style="width:13px;height:13px;color:#fff;stroke-width:3"></i>':'')+'</span><span class="chip '+tc[t]+' shrink-0" style="height:20px;font-size:11px">'+t+'</span><span class="flex-1 min-w-0 text-[14px] '+(done?'line-through':'')+'" style="'+(done?'color:var(--faint)':'')+'">'+n+'</span>'+(due?'<span class="text-[12px] num shrink-0" style="color:var(--muted)">'+due+'</span>':'')+(link&&!done?'<a href="#" class="text-[13px] font-medium shrink-0 flex items-center gap-1" style="color:var(--pri)">'+link+'<i data-lucide="arrow-up-right" style="width:13px;height:13px"></i></a>':'')+'</div>').join('')+'</div>').join('');
+lucide.createIcons();
+</script></main>
+</div></div>
+<script>lucide.createIcons();</script></body></html>
