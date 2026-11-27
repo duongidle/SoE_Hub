@@ -11,6 +11,14 @@ Cập nhật: 27/11/2026
 - **Git:** `main` và `dev` đã push tới abe3d39 (23/11).
 - **Việc dời:** thiết kế đã chốt nhưng dời → `design/update_v1.md`; giao diện → `design/stage12.md`.
 
+## Đang làm: Stage 12A — Nền và khung (kế hoạch Opus 27/11, Dương duyệt "làm tiếp 12A")
+
+Thiết kế: `design/module12-giao-dien.md`; ảnh mockup: `design/giao_dien_mau/anh/*.png` (agent xem ảnh, không đọc HTML mockup). Test theo "Kiểm thử theo cấp", e2e chỉ spec liên quan; cả bộ e2e để 12G.
+
+- [ ] **12A-1 (agent A):** token `index.css` (màu, bo góc, bóng, nền quầng); thương hiệu SoE HUB + "Solution of Excellence"; làm lại thành phần `components/ui` (Button, Input, Textarea, Field, Card, Badge, Tabs, Modal, Table, PageTitle, states, toast, tooltip, popover) + thêm `Drawer` (ngăn kéo phải); khung `shell.tsx`: sidebar 220/64 thu gọn (nhớ ở localStorage), top bar 48px có breadcrumb, sidebar thành ngăn kéo dưới 1024px; menu đổi "Form" → "Dynamic Form", mục quản trị rời sidebar sang Cài đặt (đáy sidebar: Cài đặt, Đăng xuất). "Dashboard chia sẻ" giữ tới 12D.
+- [ ] **12A-2 (agent B):** chuông có tab Thông báo / Nhắc hẹn / Thông báo chung (API `announcement.list_received`, `list_sent` có sẵn) + nút "+" (Tạo nhắc hẹn; Tạo thông báo chung theo quyền `notification:announce`); bỏ menu Nhắc hẹn, Thông báo chung (giữ route); trang Cài đặt hai cột (nhóm Cá nhân: tài khoản, thông báo; nhóm Quản trị: các trang `/quan-tri/*`, Cấp dữ liệu Guest, theo quyền).
+- [ ] **12A-3 (agent C):** `Select` (`components/ui/form.tsx`) thành dropdown chung trên popover, giữ chữ ký cũ để ~41 file tự nhận; helper e2e thay 122 chỗ `selectOption`.
+
 ## Bước tiếp
 
 1. **XONG 27/11 (code trên `25a2342`, thêm commit sửa này): sửa lỗi bảo mật form công khai.** Hàm luật `internalOnlyIssues`/`isInternalOnly` (`ops.ts`) gọi ở `checkPublish`, `form.form.update` (bản nháp + đã xuất bản) và `submitResponse` (bỏ giá trị). Test: 3 test mới trong `form.test.ts`; `pnpm typecheck`, `pnpm lint` sạch; `vitest run form.test.ts form-quiz.test.ts`: 41 pass / 0 fail / 0 skip. Mô tả lỗi gốc:
