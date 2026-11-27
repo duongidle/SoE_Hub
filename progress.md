@@ -41,16 +41,9 @@ Theo `design/kiem-thu.md` mục 1 (Stage 12 kiểm kỹ giao diện, không áp 
 - [ ] **12G-1 (agent A, chức năng):** sửa mục "Danh sách sửa để 12G" (Xem com lọc ở server, stage1 phone menu Cài đặt, thanh công cụ Deal 1280px, Template một nút chính, Theo dõi onboarding tiêu đề cột + nhãn checkpoint, Org chart 375px); rồi `DH_EQUIV_EDITS=2500 pnpm test` toàn bộ + cả bộ e2e desktop + phone luồng chính; sửa lỗi tới sạch; đi luồng thật theo vai trò (Admin, Manager, Leader, Member, Guest) không lỗi console/network.
 - [ ] **12G-2 (agent B, giao diện):** so cỡ chữ/màu chữ với mockup và thang chuẩn (sửa ở token/thành phần chung); `impeccable` audit + harden + clarify + polish ~10 màn chính; `break-ui` dữ liệu xấu nhất ~10 màn chính; `ui-ux-pro-max` quick-reference 1–3, 8; `mobile-native` baseline cho trang công khai; sửa; chạy lại spec bị ảnh hưởng; Bruno đủ cho endpoint mới Stage 12.
 
-## Danh sách sửa để 12G (Opus ghi khi rà, 28/11)
+## Danh sách sửa để 12G
 
-- Test `stage1` "Admin thấy menu quản trị" ở phone hết giờ (có sẵn, trước 12F-2): helper `menuLink` ở `e2e/helpers.ts` mở menu điện thoại rồi bấm "Cài đặt" lặp 6 lần; sửa ở 12G (tìm nguyên nhân, không skip).
-- Org chart ở 375px: bảng cuộn ngang trong khung, cột Chi tiết/Sửa nằm ngoài tầm nhìn; cân nhắc hàng thẻ trên điện thoại.
-
-- Onboarding Theo dõi: các cột số (tiến độ, checkpoint, việc trễ, kết quả) không có tiêu đề cột; nhãn checkpoint trên con đường bị cắt ("Báo cáo tu…") — cho nhãn xuống dòng hoặc tooltip.
-
-- Quản lý Deal 1280px: thanh công cụ xuống hai dòng khi có nút "Thời gian" (ô tìm rơi xuống dòng 2).
-- Template Deal: hai nút đặc màu cùng màn ("Tạo bảng template" trên top bar và "Thêm cột") — còn một nút chính.
-- Lối tắt "Xem com" lọc trong 500 dòng Sổ com đầu (12D-2, không thêm API): deal có com ngoài 500 dòng sẽ thiếu mà không báo. Sửa tận gốc: lọc theo deal ở server (tham số lọc của lệnh đọc dòng sẵn có, hoặc thêm), hoặc ít nhất báo "đang xem 500 dòng đầu".
+(Đã sửa hết ở 12G-1: xem `design/module12-quyet-dinh-khi-code.md` mục 12G-1. Danh sách này giờ để trống; 12G-2 ghi thêm việc giao diện nếu có.)
 
 ## Đang làm: Stage 12D — Tổng quan và Quản lý Deal (Dương: làm liền tới 12F)
 
