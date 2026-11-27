@@ -12,6 +12,11 @@ Thống nhất concept giao diện cho Stage 12. File này ngắn, chỉ nói c�
 - **Tự do bố cục** (Dương cho phép 28/11/2026): trong Stage 12, Opus được tự sắp xếp lại mọi thứ trên màn (vị trí nút, thanh công cụ, nhóm thao tác, menu, tab, panel, mật độ thông tin) theo mockup hoặc theo cách của sản phẩm chuẩn (Lark Base, Airtable, Linear, Notion) để trực quan, dễ dùng, dễ nhìn, gọn và đẹp. Giới hạn: không bỏ chức năng đã chốt (chỉ được giấu vào menu "•••" hay panel), không đổi dữ liệu, quyền, cách tính; mỗi màn vẫn một nút chính; thay đổi lớn ghi vào quyết định khi code và báo Dương cuối giai đoạn.
 - **Nút và lối tắt** (Dương cho phép 28/11/2026): chỗ nào thao tác hay dùng hoặc nơi hay vào đang bị giấu sâu thì được đưa ra thành nút, hoặc thêm lối tắt truy cập (link nhảy thẳng tới nơi cần, mục truy cập nhanh, "mở gần đây", nút đi tới màn liên quan). Lối tắt chỉ dẫn tới nơi người dùng có quyền vào.
 - **Không chồng tiêu đề** (Dương chốt 28/11/2026): breadcrumb ở top bar đã nói trang đang ở đâu thì trang không hiện lại tiêu đề lớn trùng tên. Giữ `h1` cho trình đọc màn hình (ẩn bằng `sr-only`) để đúng thứ tự tiêu đề. Nút của tiêu đề cũ (ví dụ "Tạo datahub") chuyển lên top bar bên phải hoặc vào thanh công cụ của trang. Trang có nội dung riêng mà breadcrumb không nói (tên datahub, tên form đang sửa) thì tên đó nằm ở breadcrumb, không lặp thêm dòng.
+- **Lối tắt đã duyệt** (Dương 28/11/2026), làm trong giai đoạn của màn đó:
+  - 12D Tổng quan: khu "Mở gần đây" (datahub, form, dashboard vừa mở, bấm vào thẳng; lưu theo người ở server, dùng chung bảng tuỳ chọn người dùng của 12D để đổi máy vẫn giữ; chỉ hiện thứ còn quyền mở).
+  - 12D Quản lý Deal: từ dòng deal đi thẳng tới đợt thanh toán / com của deal đó; bấm tên người mở thẻ người.
+  - 12E Dynamic Form: form đã nối Datahub có nút đi thẳng tới bảng phản hồi.
+  - 12F Onboarding: mỗi checkpoint có link tới đúng bài test hoặc form cần làm.
 - Màn chưa có mockup (Onboarding, AI Hub, Duyệt bài, đăng nhập, chuông, ngăn kéo chi tiết, điện thoại của app) dựng theo concept ở mục 2, ghép từ màn cùng loại.
 - Những gì đã chốt và đã code (menu sau khi gom vào chuông và Tổng quan, tên "Dynamic Form", dropdown riêng thay `<select>`, thẻ người…) giữ nguyên; mockup lệch thì theo cái đã chốt.
 
