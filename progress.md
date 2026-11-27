@@ -11,6 +11,13 @@ Cập nhật: 28/11/2026
 - **Git:** `main` và `dev` đã push tới abe3d39 (23/11).
 - **Việc dời:** thiết kế đã chốt nhưng dời → `design/update_v1.md`; giao diện → `design/stage12.md`.
 
+## Đang làm: Stage 12E — Dynamic Form
+
+Nguồn: ảnh `anh/soe_hub_dynamic_form_lark_ergonomic_edition.png`, `anh/soe_hub_public_form_survey_for_user.png`, `anh/pf_375.png`; `module12-giao-dien.md` mục 2 (Form: chèn bằng "+", không kéo thả, không phím A–D); `stage12.md` ba dòng Dynamic Form.
+
+- [ ] **12E-1 (agent A, trình soạn):** tên "Dynamic Form" khắp nơi; danh sách form; trình soạn 3 cột đứng yên (trái khối/mục lục, giữa tờ form WYSIWYG cuộn riêng, phải thuộc tính có công tắc gạt); thanh 4 bước Thiết kế · Thiết lập · Chia sẻ · Phản hồi; vạch "+" giữa câu mở bảng chọn loại câu (lưới 2 cột, nhóm màu, icon lucide), nút "Thêm câu hỏi" cuối, lên/xuống trên câu đang chọn; Thiết lập có công tắc "Chế độ Bài kiểm tra" (bật mới hiện thang điểm, điểm đạt, số lần làm, hiện gì cho người làm; ẩn "Mỗi người một phản hồi"; ghi chú khác nhau "Số phản hồi tối đa" và "số lần làm"); lối tắt form nối Datahub → bảng phản hồi; gom hai thông báo trùng của câu Người điền ở form công khai (server `checkPublish`: bỏ luật fill_self cũ phần access public, đã có internal_only).
+- [ ] **12E-2 (agent B, form công khai + chấm bài):** trang điền (`fill.tsx`, `renderer.tsx`) theo ảnh: thanh tiến độ kính mờ ghim đỉnh, dải bìa 72px gradient, thẻ câu, bản đồ câu bên phải (ẩn ở điện thoại), lưu nháp hiện rõ, nút nộp; màn Chấm bài, Phản hồi theo concept; e2e 375px đủ luồng form công khai; chạy cuối bước: vitest apps packages + e2e stage7 (desktop + phone).
+
 ## Danh sách sửa để 12G (Opus ghi khi rà, 28/11)
 
 - Quản lý Deal 1280px: thanh công cụ xuống hai dòng khi có nút "Thời gian" (ô tìm rơi xuống dòng 2).
