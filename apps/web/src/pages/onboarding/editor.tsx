@@ -1,12 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-react";
 import { Button, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { api } from "@/lib/api";
+import { useUrlState } from "@/lib/use-url-state";
 import { listForms, type FormBrief } from "../form/model";
-import { GROUP_LABEL, KIND_LABEL, WEEKDAY_LABEL, issueAt, planKey, usePlan, type Cond, type Cp, type Item, type PlanFull, type Stage } from "./common";
+import { GROUP_LABEL, KIND_LABEL, KIND_TONE, Pill, Segmented, WEEKDAY_LABEL, issueAt, planKey, usePlan, type Cond, type Cp, type Item, type PlanFull, type Stage } from "./common";
 
 const REPEAT_LABEL: Record<string, string> = { once: "Một lần", daily_workdays: "Mỗi ngày làm việc (T2-T7)", weekly: "Mỗi tuần" };
 const AGG_LABEL: Record<string, string> = { count: "Đếm dòng", sum: "Tổng", avg: "Trung bình", max: "Cao nhất", min: "Thấp nhất" };
@@ -153,7 +157,7 @@ function CondEditor({ k, onChange, forms, reload, onNew, err }: { k: Cond; onCha
 export function PlanEditorPage() {
   const { planId } = useParams({ strict: false }) as { planId: string };
   const plan = usePlan(planId);
-  if (plan.isLoading) return <p className="text-sm text-muted-foreground">Đang tải...</p>;
+  if (plan.isLoading) return <div aria-busy="true" className="flex flex-col gap-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-48 w-full" /><p className="sr-only">Đang tải...</p></div>;
   if (plan.error) return <ErrorState error={plan.error} onRetry={() => void plan.refetch()} />;
   if (!plan.data) return null;
   // A new version (after a save) remounts the editor with the saved plan.
@@ -167,6 +171,10 @@ function Editor({ p }: { p: PlanFull }) {
   const [name, setName] = useState(p.name);
   const [stages, setStages] = useState<Stage[]>(() => p.stages.map((s) => ({ ...s, weeks: s.weeks.map((w) => ({ ...w, items: w.items.map((i) => ({ ...i })) })) })));
   const [cps, setCps] = useState<Cp[]>(() => p.checkpoints.map((c) => ({ ...c, conditions: c.conditions.map((k) => ({ ...k })) })));
+  const [{ muc }, setUrl] = useUrlState({ muc: "cau-truc" });
+  const section = muc === "checkpoint" ? "checkpoint" : "cau-truc";
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (k: string) => setExpanded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const [newFor, setNewFor] = useState<((f: FormBrief) => void) | null>(null);
 
   const weeks = stages.flatMap((s, si) => s.weeks.map((w, wi) => ({ si, wi, w })));
@@ -196,10 +204,14 @@ function Editor({ p }: { p: PlanFull }) {
       {readOnly && <p className="mb-3 rounded-md bg-muted p-3 text-sm">{ended ? "Lộ trình đã kết thúc, không sửa được." : "Chỉ Leader trực tiếp hoặc Manager sửa được lộ trình này."}</p>}
       <ErrorText error={e} />
       <fieldset disabled={readOnly} className="mt-3 flex flex-col gap-6">
-        <Field label="Tên lộ trình" required error={issueAt(e, "name")}><Input value={name} onChange={(ev) => setName(ev.target.value)} data-testid="ed-name" /></Field>
+        <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-end gap-3 rounded-card border border-border bg-card/95 px-3 py-2 shadow-card backdrop-blur" data-testid="ed-toolbar">
+          <div className="min-w-48 flex-1 sm:max-w-sm"><Field label="Tên lộ trình" required error={issueAt(e, "name")}><Input value={name} onChange={(ev) => setName(ev.target.value)} data-testid="ed-name" /></Field></div>
+          <Segmented label="Phần của lộ trình" value={section} onChange={(v) => setUrl({ muc: v })} items={[{ value: "cau-truc", label: "Cấu trúc" }, { value: "checkpoint", label: `Checkpoint (${cps.length})` }]} />
+          <span className="num ml-auto pb-2 text-xs text-muted-foreground">{weeks.length} tuần · {stages.reduce((a, s) => a + s.weeks.reduce((b, w) => b + w.items.length, 0), 0)} việc</span>
+        </div>
 
-        <section>
-          <h2 className="mb-2 text-lg font-semibold">Giai đoạn, tuần, công việc</h2>
+        {section === "cau-truc" && <section>
+          <h2 className="sr-only">Giai đoạn, tuần, công việc</h2>
           <div className="flex flex-col gap-4">
             {stages.map((s, si) => (
               <div key={si} className="rounded-xl border border-border p-3" data-testid="ed-stage">
@@ -220,24 +232,41 @@ function Editor({ p }: { p: PlanFull }) {
                         {w.items.map((it, ii) => {
                           const base = `structure.stages.${si}.weeks.${wi}.items.${ii}`;
                           const up = (patch: Partial<Item>) => setItem(si, wi, ii, patch);
+                          const ik = `${si}-${wi}-${ii}`;
+                          const isOpen = expanded.has(ik) || (!!it.need_form && !it.form_id) || !!issueAt(e, `${base}.until_week_no`) || !!issueAt(e, `${base}.due_time`) || !!issueAt(e, `${base}.remind_before_min`) || !!issueAt(e, `${base}.link`);
                           return (
                             <li key={ii} className="rounded-lg border border-border bg-card p-3" data-testid="ed-item">
-                              <div className="grid gap-2 sm:grid-cols-3">
+                              <div className="grid gap-2 sm:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto] sm:items-end">
                                 <Field label="Tên công việc" required error={issueAt(e, `${base}.name`)}><Input value={it.name} onChange={(ev) => up({ name: ev.target.value })} data-testid="ed-item-name" /></Field>
                                 <Field label="Loại"><Select value={it.kind} onChange={(ev) => up({ kind: ev.target.value })}>{Object.entries(KIND_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select></Field>
                                 <Field label="Lặp"><Select value={it.repeat} onChange={(ev) => up({ repeat: ev.target.value })}>{Object.entries(REPEAT_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select></Field>
-                                {it.repeat !== "daily_workdays" && <Field label="Thứ"><Select value={it.weekday} onChange={(ev) => up({ weekday: Number(ev.target.value) })}>{WEEKDAY_LABEL.slice(1).map((l, i) => <option key={l} value={i + 1}>{l}</option>)}</Select></Field>}
-                                {it.repeat !== "once" && <Field label="Lặp tới tuần" error={issueAt(e, `${base}.until_week_no`)}><Input type="number" min={1} value={it.until_week_no ?? ""} onChange={(ev) => up({ until_week_no: ev.target.value === "" ? null : Number(ev.target.value) })} /></Field>}
-                                <Field label="Hạn trong ngày" error={issueAt(e, `${base}.due_time`)}><Input type="time" value={(it.due_time ?? "").slice(0, 5)} onChange={(ev) => up({ due_time: ev.target.value || null })} /></Field>
-                                <Field label="Nhắc trước (phút)" error={issueAt(e, `${base}.remind_before_min`)}><Input type="number" min={0} value={it.remind_before_min ?? ""} onChange={(ev) => up({ remind_before_min: ev.target.value === "" ? null : Number(ev.target.value) })} /></Field>
-                                <Field label="Link" error={issueAt(e, `${base}.link`)}><Input value={it.link ?? ""} onChange={(ev) => up({ link: ev.target.value })} /></Field>
+                                {it.repeat !== "daily_workdays" ? <Field label="Thứ"><Select value={it.weekday} onChange={(ev) => up({ weekday: Number(ev.target.value) })}>{WEEKDAY_LABEL.slice(1).map((l, i) => <option key={l} value={i + 1}>{l}</option>)}</Select></Field> : <span />}
+                                <Button variant="ghost" aria-expanded={isOpen} onClick={() => toggle(ik)} data-testid="ed-item-more"><ChevronDown size={16} aria-hidden className={cn("transition-transform", isOpen && "rotate-180")} />Chi tiết</Button>
                               </div>
-                              <div className="mt-2 flex flex-wrap items-end gap-3">
-                                <FormPick value={it.form_id} onChange={(v) => up({ form_id: v, need_form: false })} forms={formList} reload={reload} onNew={() => setNewFor(() => (f: FormBrief) => up({ form_id: f.id, need_form: false }))} />
-                                {it.need_form && !it.form_id && <span className="text-sm text-warn" data-testid="need-form">Chọn hoặc tạo form của bạn.</span>}
-                                {it.form_id && <label className="flex min-h-9 items-center gap-1 text-sm"><input type="checkbox" checked={!!it.share_table} onChange={(ev) => up({ share_table: ev.target.checked })} />Chia sẻ bảng cho nhân sự</label>}
-                                <Button variant="ghost" onClick={() => setStage(si, (x) => ({ ...x, weeks: x.weeks.map((y, j) => (j === wi ? { ...y, items: y.items.filter((_, k) => k !== ii) } : y)) }))}>Xoá việc</Button>
-                              </div>
+                              {!isOpen && (it.form_id || it.due_time || it.need_form || it.link) && (
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                  <Pill tone={KIND_TONE[it.kind] ?? "neutral"}>{KIND_LABEL[it.kind] ?? it.kind}</Pill>
+                                  {it.due_time && <span className="num">hạn {it.due_time.slice(0, 5)}</span>}
+                                  {it.form_id && <span>có form gắn</span>}
+                                  {it.need_form && !it.form_id && <span className="text-warn" data-testid="need-form">Chọn hoặc tạo form của bạn.</span>}
+                                </div>
+                              )}
+                              {isOpen && (
+                                <div className="mt-3 border-t border-border-soft pt-3">
+                                  <div className="grid gap-2 sm:grid-cols-3">
+                                    {it.repeat !== "once" && <Field label="Lặp tới tuần" error={issueAt(e, `${base}.until_week_no`)}><Input type="number" min={1} value={it.until_week_no ?? ""} onChange={(ev) => up({ until_week_no: ev.target.value === "" ? null : Number(ev.target.value) })} /></Field>}
+                                    <Field label="Hạn trong ngày" error={issueAt(e, `${base}.due_time`)}><Input type="time" value={(it.due_time ?? "").slice(0, 5)} onChange={(ev) => up({ due_time: ev.target.value || null })} /></Field>
+                                    <Field label="Nhắc trước (phút)" error={issueAt(e, `${base}.remind_before_min`)}><Input type="number" min={0} value={it.remind_before_min ?? ""} onChange={(ev) => up({ remind_before_min: ev.target.value === "" ? null : Number(ev.target.value) })} /></Field>
+                                    <Field label="Link" error={issueAt(e, `${base}.link`)}><Input value={it.link ?? ""} onChange={(ev) => up({ link: ev.target.value })} /></Field>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap items-end gap-3">
+                                    <FormPick value={it.form_id} onChange={(v) => up({ form_id: v, need_form: false })} forms={formList} reload={reload} onNew={() => setNewFor(() => (f: FormBrief) => up({ form_id: f.id, need_form: false }))} />
+                                    {it.need_form && !it.form_id && <span className="text-sm text-warn" data-testid="need-form">Chọn hoặc tạo form của bạn.</span>}
+                                    {it.form_id && <label className="flex min-h-9 items-center gap-1 text-sm"><input type="checkbox" checked={!!it.share_table} onChange={(ev) => up({ share_table: ev.target.checked })} />Chia sẻ bảng cho nhân sự</label>}
+                                  </div>
+                                </div>
+                              )}
+                              <div className="mt-2 flex justify-end"><Button variant="ghost" onClick={() => setStage(si, (x) => ({ ...x, weeks: x.weeks.map((y, j) => (j === wi ? { ...y, items: y.items.filter((_, k) => k !== ii) } : y)) }))}>Xoá việc</Button></div>
                               {issueAt(e, `${base}.form_id`) && <p role="alert" className="text-xs text-bad">{issueAt(e, `${base}.form_id`)}</p>}
                             </li>
                           );
@@ -252,10 +281,10 @@ function Editor({ p }: { p: PlanFull }) {
             ))}
             <div><Button variant="secondary" onClick={() => setStages((a) => [...a, { name: `Giai đoạn ${a.length + 1}`, weeks: [] }])} data-testid="ed-add-stage">Thêm giai đoạn</Button></div>
           </div>
-        </section>
+        </section>}
 
-        <section>
-          <h2 className="mb-2 text-lg font-semibold">Checkpoint</h2>
+        {section === "checkpoint" && <section>
+          <h2 className="sr-only">Checkpoint</h2>
           <div className="flex flex-col gap-3">
             {cps.map((c, ci) => (
               <div key={ci} className="rounded-xl border border-border p-3" data-testid="ed-cp">
@@ -291,7 +320,7 @@ function Editor({ p }: { p: PlanFull }) {
             ))}
             <div><Button variant="secondary" onClick={() => setCps((a) => [...a, { name: "", week_no: null, is_final: false, conditions: [newCond("metric")] }])} data-testid="ed-add-cp">Thêm checkpoint</Button></div>
           </div>
-        </section>
+        </section>}
       </fieldset>
       {newFor && <NewFormDialog onClose={() => setNewFor(null)} onCreated={(f) => { reload(); newFor(f); setNewFor(null); }} />}
     </div>

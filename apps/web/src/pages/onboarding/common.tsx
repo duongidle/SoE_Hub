@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { api, ApiError } from "@/lib/api";
 import { can, useMe } from "@/lib/session";
@@ -68,7 +69,75 @@ export function CpChip({ status }: { status: string }) {
   return <Chip cls={s.cls}>{s.label}</Chip>;
 }
 
-/** Sub-menu of the Onboarding pages. Staff see their own page; Leaders and Managers also see the follow-up and the plans. */
+export type Tone = "ok" | "info" | "warn" | "bad" | "ai" | "neutral";
+const TONE: Record<Tone, string> = {
+  ok: "border-ok-border bg-ok-bg text-ok", info: "border-info-border bg-info-bg text-info", warn: "border-warn-border bg-warn-bg text-warn", bad: "border-bad-border bg-bad-bg text-bad",
+  ai: "border-ai-border bg-ai-bg text-ai", neutral: "border-border bg-muted text-muted-foreground",
+};
+/** Small coloured label: colour by meaning (green done, blue running, amber waiting, red late, purple special). */
+export function Pill({ tone, children, className }: { tone: Tone; children: React.ReactNode; className?: string }) {
+  return <span className={cn("inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs font-semibold", TONE[tone], className)}>{children}</span>;
+}
+export const CP_TONE: Record<string, Tone> = { not_yet: "neutral", running: "info", passed: "ok", passed_late: "warn", failed: "bad" };
+export const KIND_TONE: Record<string, Tone> = { on_job: "ok", self_study: "neutral", session: "info", session_cs: "info", session_sale: "info", review_1_1: "ai", test: "warn", mockup: "ai", off: "neutral", other: "neutral" };
+export const isPassed = (s: string) => s === "passed" || s === "passed_late";
+
+/** Segmented control (role tab, so a screen reader and a test read it as tabs). */
+export function Segmented<T extends string>({ value, onChange, items, label }: { value: T; onChange: (v: T) => void; items: { value: T; label: string }[]; label?: string }) {
+  return (
+    <div role="tablist" aria-label={label} className="inline-flex max-w-full overflow-x-auto rounded-md bg-muted p-[3px]">
+      {items.map((i) => (
+        <button key={i.value} type="button" role="tab" aria-selected={value === i.value} onClick={() => onChange(i.value)}
+          className={cn("min-h-10 whitespace-nowrap rounded-[8px] px-3.5 text-sm font-medium transition-colors sm:min-h-8", value === i.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+          {i.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** True for a moment after a checkpoint turns to passed (a small reaction; the global reduced-motion rule shortens it). */
+export function useJustPassed(status: string): boolean {
+  const prev = useRef(status);
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const was = prev.current;
+    prev.current = status;
+    if (!isPassed(was) && isPassed(status)) {
+      setOn(true);
+      const t = setTimeout(() => setOn(false), 900);
+      return () => clearTimeout(t);
+    }
+  }, [status]);
+  return on;
+}
+
+export interface FlatOcc { occ: Occ; item: Item; week: number }
+export const flatten = (plan: PlanFull): FlatOcc[] =>
+  plan.stages.flatMap((s) => s.weeks.flatMap((w, wi) => w.items.flatMap((it) => (it.occurrences ?? []).map((occ) => ({ occ, item: it, week: w.week_no ?? wi + 1 })))));
+
+export type WeekState = "done" | "doing" | "future" | "late" | "break";
+export interface WeekInfo { no: number; w: Week; stage: number; state: WeekState; start: string | null; end: string | null; done: number; total: number }
+/** Every week of the plan in order, with its dates and state. Week numbers are the order in the plan (the server numbers them the same way). */
+export function buildWeeks(plan: PlanFull, today: string): WeekInfo[] {
+  let no = 0;
+  return plan.stages.flatMap((s, si) => s.weeks.map((w) => {
+    no += 1;
+    const start = plan.start_date ? addDays(plan.start_date, (no - 1) * 7) : null;
+    const end = start ? addDays(start, 6) : null;
+    const occs = w.items.flatMap((i) => i.occurrences ?? []);
+    let state: WeekState;
+    if (w.is_break) state = "break";
+    else if (!start || !end || today < start) state = "future";
+    else if (today > end) state = occs.some((o) => !o.done_at) ? "late" : "done";
+    else state = "doing";
+    return { no, w, stage: si, state, start, end, done: occs.filter((o) => o.done_at).length, total: occs.length };
+  }));
+}
+export const dayOf = (d: string) => { const x = new Date(`${d}T00:00:00Z`).getUTCDay(); return x === 0 ? 7 : x; };
+export const dayLabel = (d: string) => `${WEEKDAY_LABEL[dayOf(d)]} ${fmtDate(d)}`;
+
+/** Page-level menu of Onboarding: only drawn when there is more than one place to go. */
 export function OnbNav({ active }: { active: "me" | "follow" | "plans" }) {
   const me = useMe().data;
   const manage = can(me, "onboarding:path:create");
@@ -76,13 +145,13 @@ export function OnbNav({ active }: { active: "me" | "follow" | "plans" }) {
   const following = usePlans("following");
   const hasOwn = (mine.data ?? []).some((p) => p.staff_id === me?.user.id);
   const link = (to: string, label: string, on: boolean, testid: string) => (
-    <Link to={to} data-testid={testid} className={cn("whitespace-nowrap border-b-2 px-3 py-2 text-sm", on ? "border-primary font-medium" : "border-transparent text-muted-foreground")}>{label}</Link>
+    <Link key={to} to={to} data-testid={testid} aria-current={on ? "page" : undefined} className={cn("inline-flex min-h-9 items-center whitespace-nowrap rounded-md px-3 text-sm", on ? "bg-primary-soft font-semibold text-primary" : "text-muted-foreground hover:bg-primary-soft hover:text-foreground")}>{label}</Link>
   );
-  return (
-    <div className="mb-4 flex gap-1 overflow-x-auto border-b border-border" data-testid="onb-nav">
-      {(hasOwn || !manage) && link("/onboarding", "Của tôi", active === "me", "onb-nav-me")}
-      {(manage || (following.data ?? []).length > 0) && link("/onboarding/theo-doi", "Theo dõi", active === "follow", "onb-nav-follow")}
-      {manage && link("/onboarding/lo-trinh", "Lộ trình", active === "plans", "onb-nav-plans")}
-    </div>
-  );
+  const links = [
+    (hasOwn || !manage) && link("/onboarding", "Của tôi", active === "me", "onb-nav-me"),
+    (manage || (following.data ?? []).length > 0) && link("/onboarding/theo-doi", "Theo dõi", active === "follow", "onb-nav-follow"),
+    manage && link("/onboarding/lo-trinh", "Lộ trình", active === "plans", "onb-nav-plans"),
+  ].filter(Boolean);
+  if (links.length < 2) return null;
+  return <nav aria-label="Onboarding" className="mb-4 flex gap-1 overflow-x-auto" data-testid="onb-nav">{links}</nav>;
 }

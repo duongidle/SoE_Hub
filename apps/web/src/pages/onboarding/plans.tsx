@@ -2,14 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PersonChip } from "@/components/ui/person";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select, Tabs } from "@/components/ui/form";
+import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useUrlState } from "@/lib/use-url-state";
 import { PeopleField } from "@/components/ui/people-field";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { api, apiList } from "@/lib/api";
 import { disambiguate } from "@/lib/people";
 import { useMe } from "@/lib/session";
-import { Chip, OnbNav, PLAN_STATUS, addDays, usePlans, type PlanFull } from "./common";
+import { OnbNav, PLAN_STATUS, Pill, Segmented, addDays, usePlans, type PlanFull } from "./common";
 
 interface Member { id: string; full_name: string; roles: string[]; leader_id: string | null }
 
@@ -75,7 +77,9 @@ function CreateDialog({ onClose, template }: { onClose: () => void; template: bo
 
 export function PlanListPage() {
   const me = useMe().data;
-  const [scope, setScope] = useState<"mine" | "template" | "following">("mine");
+  const [{ ban }, setUrl] = useUrlState({ ban: "mine" });
+  const scope = (["mine", "template", "following"].includes(ban) ? ban : "mine") as "mine" | "template" | "following";
+  const setScope = (v: "mine" | "template" | "following") => setUrl({ ban: v });
   const [dlg, setDlg] = useState<{ kind: "assign" | "delete"; plan: PlanFull } | "create" | null>(null);
   const list = usePlans(scope);
   const qc = useQueryClient();
@@ -99,22 +103,25 @@ export function PlanListPage() {
     <div>
       <PageTitle actions={<Button onClick={() => setDlg("create")} data-testid="plan-new">Tạo lộ trình</Button>}>Lộ trình onboarding</PageTitle>
       <OnbNav active="plans" />
-      <Tabs value={scope} onChange={setScope} items={[{ value: "mine", label: "Của tôi" }, { value: "template", label: "Mẫu" }, { value: "following", label: "Tôi theo dõi" }]} />
-      {list.error ? <ErrorState error={list.error} onRetry={() => void list.refetch()} /> : list.isLoading ? <p className="text-sm text-muted-foreground">Đang tải...</p> : rows.length === 0 ? <EmptyState title="Chưa có lộ trình" hint="Nhân bản lộ trình mẫu hoặc tạo mới." /> : (
+      <div className="mb-4"><Segmented label="Loại lộ trình" value={scope} onChange={setScope} items={[{ value: "mine", label: "Của tôi" }, { value: "template", label: "Mẫu" }, { value: "following", label: "Tôi theo dõi" }]} /></div>
+      {list.error ? <ErrorState error={list.error} onRetry={() => void list.refetch()} /> : list.isLoading ? <div aria-busy="true" className="flex flex-col gap-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><p className="sr-only">Đang tải...</p></div> : rows.length === 0 ? (
+        <EmptyState title={scope === "following" ? "Bạn chưa theo dõi lộ trình nào" : "Chưa có lộ trình"} hint={scope === "following" ? "Lộ trình hiện ở đây khi Leader thêm bạn làm người theo dõi." : "Nhân bản lộ trình mẫu hoặc tạo mới."} cta={scope === "following" ? undefined : { label: "Tạo lộ trình", onClick: () => setDlg("create") }} />
+      ) : (
         <ul className="flex flex-col gap-2" data-testid="plan-list">
           {rows.map((p) => (
-            <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3" data-testid="plan-row" data-name={p.name}>
-              <div className="min-w-0 flex-1">
+            <li key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-border bg-card p-4 shadow-card" data-testid="plan-row" data-name={p.name}>
+              <div className="min-w-0 flex-1 basis-56">
                 <div className="font-medium [overflow-wrap:anywhere]">{p.name}</div>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  {p.is_template ? <Chip cls="bg-primary/10 text-primary">Mẫu</Chip> : <Chip cls="bg-muted text-muted-foreground">{PLAN_STATUS[p.status] ?? p.status}</Chip>}
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  {p.is_template ? <Pill tone="ai">Mẫu</Pill> : <Pill tone={p.status === "active" ? "info" : p.status === "completed" ? "ok" : "neutral"}>{PLAN_STATUS[p.status] ?? p.status}</Pill>}
                   {p.staff_name && p.staff_id ? <PersonChip person={{ id: p.staff_id, full_name: p.staff_name }} /> : p.staff_name && <span>{p.staff_name}</span>}
-                  <span>{p.weeks ?? 0} tuần</span>
+                  <span className="num">{p.weeks ?? 0} tuần</span>
+                  {p.occurrences_total ? <span className="num">{Math.round(((p.occurrences_done ?? 0) / p.occurrences_total) * 100)}% việc xong</span> : null}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {p.staff_id && <Link to="/onboarding/nhan-su/$planId" params={{ planId: p.id }} className="inline-flex min-h-9 items-center px-2 text-sm text-primary underline">Xem tiến độ</Link>}
-                <Link to="/onboarding/lo-trinh/$planId" params={{ planId: p.id }} className="inline-flex min-h-9 items-center px-2 text-sm text-primary underline" data-testid="plan-edit">Sửa</Link>
+              <div className="flex flex-wrap items-center gap-1">
+                {p.staff_id && <Link to="/onboarding/nhan-su/$planId" params={{ planId: p.id }} className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-primary sm:min-h-9">Xem tiến độ</Link>}
+                <Link to="/onboarding/lo-trinh/$planId" params={{ planId: p.id }} className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-primary sm:min-h-9" data-testid="plan-edit">Sửa</Link>
                 <Button variant="secondary" loading={clone.isPending && clone.variables?.id === p.id} onClick={() => clone.mutate(p)} data-testid="plan-clone">Nhân bản</Button>
                 {!p.staff_id && <Button variant="secondary" onClick={() => setDlg({ kind: "assign", plan: p })} data-testid="plan-assign">Gắn cho nhân sự</Button>}
                 {p.status !== "active" && <Button variant="ghost" onClick={() => setDlg({ kind: "delete", plan: p })} aria-label={`Xoá ${p.name}`}>Xoá</Button>}

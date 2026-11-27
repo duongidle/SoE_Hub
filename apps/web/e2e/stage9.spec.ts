@@ -83,6 +83,7 @@ test("Leader gắn lộ trình mẫu cho nhân sự, sửa trong trình sửa; n
   // The person: Today, tick, send one Q&A, My results.
   const up = user.page;
   await up.goto("/onboarding");
+  await up.getByRole("tab", { name: "Hôm nay" }).click(); // 12F-1: the page opens on the Journey
   await expect(up.getByTestId("onb-today")).toBeVisible();
   const occ = up.getByTestId("onb-occ").filter({ hasText: "Gửi câu hỏi Q&A trong tuần" }).first();
   await expect(occ).toBeVisible();
@@ -129,7 +130,8 @@ test("Leader mở Theo dõi, vào trang nhân sự, xác nhận tay checkpoint; 
   await phone.page.goto("/onboarding");
   await phone.page.getByRole("tab", { name: "Hành trình" }).click();
   await expect(phone.page.getByTestId("onb-journey")).toBeVisible();
-  await phone.page.getByTestId("onb-week").first().getByRole("button").click();
+  await phone.page.getByTestId("onb-week").first().click(); // 12F-1: the week node itself opens the drawer
+  await expect(phone.page.getByTestId("onb-week-drawer")).toBeVisible();
   const o = await phone.page.evaluate(() => ({ s: document.documentElement.scrollWidth, c: document.documentElement.clientWidth }));
   expect(o.s).toBeLessThanOrEqual(o.c);
 });
