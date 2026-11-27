@@ -230,6 +230,8 @@ export function Shell() {
 
   // An open table fills the window (the grid scrolls inside it); other pages are a centered column that scrolls.
   const wide = shown.startsWith("/datahub/") || shown.startsWith("/du-lieu-duoc-cap/") || (shown.startsWith("/quan-ly-deal") && shown !== "/quan-ly-deal/template");
+  // The form editor fills the window on a wide screen (outline and properties stay put, only the sheet scrolls); on a narrow one the page scrolls.
+  const formEdit = /^\/form\/[^/]+$/.test(shown) && shown !== "/form/cham-bai" && shown !== "/form/bai-lam";
   const baseTrail = crumbs(shown);
   // A name the menu does not know (datahub, form...) ends the breadcrumb; settings pages already carry their label.
   const trail = !leaf || isSettingsPath(shown) || baseTrail[baseTrail.length - 1] === leaf ? baseTrail : baseTrail[0] === BRAND_NAME ? [leaf] : [...baseTrail, leaf];
@@ -274,7 +276,7 @@ export function Shell() {
           </Dialog.Portal>
 
           <div className="flex min-w-0 flex-1 flex-col bg-workspace">
-            <div data-scroll-restoration-id="shell-main" className={cn("contain-scroll-y flex min-h-0 flex-1 flex-col", wide ? "overflow-hidden" : "overflow-y-auto")}>
+            <div data-scroll-restoration-id="shell-main" className={cn("contain-scroll-y flex min-h-0 flex-1 flex-col", wide ? "overflow-hidden" : formEdit ? "overflow-y-auto lg:overflow-hidden" : "overflow-y-auto")}>
               <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b border-border-soft bg-card/85 px-3 backdrop-blur-md sm:px-5">
                 <Dialog.Trigger asChild>
                   <Button variant="ghost" className="shrink-0 !px-2 lg:hidden" aria-label="Mở menu" aria-expanded={open}>
@@ -315,7 +317,7 @@ export function Shell() {
                   </Button>
                 </div>
               </header>
-              <PageChromeContext.Provider value={chrome}><main id="noi-dung" tabIndex={-1} className={wide ? "flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : isSettingsPath(shown) ? <SettingsLayout me={me} path={shown}><Outlet /></SettingsLayout> : <Outlet />}</main></PageChromeContext.Provider>
+              <PageChromeContext.Provider value={chrome}><main id="noi-dung" tabIndex={-1} className={wide ? "flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : formEdit ? "flex w-full flex-col px-4 py-3 sm:px-6 lg:min-h-0 lg:flex-1" : "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : isSettingsPath(shown) ? <SettingsLayout me={me} path={shown}><Outlet /></SettingsLayout> : <Outlet />}</main></PageChromeContext.Provider>
             </div>
           </div>
         </Dialog.Root>

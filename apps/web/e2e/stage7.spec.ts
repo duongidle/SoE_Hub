@@ -5,7 +5,7 @@ import { API, Session, type ProjectName, chooseOption } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
- * Stage 7B1: the form list and the editor (add questions, drag and drop with the real mouse, link columns, conditions, publish),
+ * Stage 7B1: the form list and the editor (add questions with the "+" line and the arrows, link columns, conditions, publish),
  * and the quiz (answers, hand grading screen). Every account is made up. Desktop only.
  */
 test.describe.configure({ mode: "serial" });
@@ -53,7 +53,7 @@ test.afterAll(async () => {
 });
 
 test.describe("7B1", () => {
-  test("tạo form, thêm câu, kéo thả đổi thứ tự, nối cột, điều kiện hiện, xuất bản", async () => {
+  test("tạo form, thêm câu, đổi thứ tự bằng nút lên/xuống và dấu +, nối cột, điều kiện hiện, xuất bản", async () => {
     test.setTimeout(180_000);
     const page = mgr.page;
     const titles = () => page.getByTestId("canvas-block").getByTestId("block-title").allTextContents();
@@ -69,29 +69,43 @@ test.describe("7B1", () => {
 
     // three questions, then a fourth for the "choose an unlinked column" path
     for (const [kind, label] of [["text", "Họ tên"], ["single_select", "Bạn thích gì"], ["number", "Tuổi"]] as const) {
+      await page.getByTestId("add-question").click();
       await page.getByTestId(`add-${kind}`).click();
       await page.getByTestId("q-label").fill(label);
     }
     await expect.poll(titles).toEqual(["Họ tên", "Bạn thích gì", "Tuổi"]);
     await saved();
 
-    // drag the third question to the top with the real mouse
-    const handle = (title: string) => page.getByTestId("canvas-block").filter({ has: page.getByTestId("block-title").getByText(title, { exact: true }) }).getByTestId(/^drag-/).first();
-    const from = (await handle("Tuổi").boundingBox())!;
-    const to = (await handle("Họ tên").boundingBox())!;
-    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 - 12, { steps: 4 });
-    await page.mouse.move(to.x + to.width / 2, to.y - 4, { steps: 25 });
-    await page.mouse.up();
+    // order changes with the arrows of the chosen block (no drag and drop): "Tuổi" up twice
+    const pick = (title: string) => page.getByTestId("canvas-block").filter({ has: page.getByTestId("block-title").getByText(title, { exact: true }) }).getByTestId("block-select");
+    await pick("Tuổi").click();
+    await page.getByTestId("block-up").click();
+    await page.getByTestId("block-up").click();
     await expect.poll(titles).toEqual(["Tuổi", "Họ tên", "Bạn thích gì"]);
+    await expect(page.getByTestId("block-up")).toBeDisabled();
     await saved();
     await page.reload();
     await expect.poll(titles).toEqual(["Tuổi", "Họ tên", "Bạn thích gì"]);
 
     // the Down button moves it back one place
-    await page.getByTestId("canvas-block").first().getByTestId("block-down").click();
+    await pick("Tuổi").click();
+    await page.getByTestId("block-down").click();
     await expect.poll(titles).toEqual(["Họ tên", "Tuổi", "Bạn thích gì"]);
+
+    // the "+" line between two blocks puts a new one exactly there; the copy of a block comes right after it
+    await page.getByTestId("insert-root-1").click();
+    await page.getByTestId("add-block-heading").click();
+    await expect.poll(titles).toEqual(["Họ tên", "Tiêu đề mới", "Tuổi", "Bạn thích gì"]);
+    await page.getByTestId("block-clone").click();
+    await expect.poll(titles).toEqual(["Họ tên", "Tiêu đề mới", "Tiêu đề mới", "Tuổi", "Bạn thích gì"]);
+    await page.getByTestId("block-delete").click(); // the copy is the chosen block
+    await expect.poll(titles).toEqual(["Họ tên", "Tiêu đề mới", "Tuổi", "Bạn thích gì"]);
+    await pick("Tiêu đề mới").click();
+    await page.getByTestId("block-delete").click();
+    await expect.poll(titles).toEqual(["Họ tên", "Tuổi", "Bạn thích gì"]);
+    // the outline on the left jumps to a question
+    await page.getByTestId("toc-item").filter({ hasText: "Bạn thích gì" }).click();
+    await expect(page.getByTestId("q-label")).toHaveValue("Bạn thích gì");
 
     // link: make a new column for "Họ tên" and "Tuổi"
     for (const t of ["Họ tên", "Tuổi"]) {
@@ -104,6 +118,7 @@ test.describe("7B1", () => {
     const tableId = (await mgrApi.call<{ table_id: string }>("GET", `/forms/${formId}`)).table_id;
     await mgrApi.call("POST", `/tables/${tableId}/columns`, { name: "Ghi chú", type: "text" });
     await page.getByTestId("canvas-block").filter({ has: page.getByTestId("block-title").getByText("Bạn thích gì", { exact: true }) }).getByTestId("block-select").click();
+    await page.getByTestId("add-question").click();
     await page.getByTestId("add-text").click();
     await page.getByTestId("q-label").fill("Ghi chú");
     await page.getByTestId("link-open").click();
@@ -146,7 +161,7 @@ test.describe("7B1", () => {
     await page.getByRole("tab", { name: "Thiết lập" }).click();
     const note = page.getByTestId("notify-new-response");
     await expect(note).toBeDisabled();
-    await expect(note.locator("..")).toContainText("Sắp có");
+    await expect(note.locator("xpath=ancestor::label")).toContainText("Sắp có");
     await page.getByRole("tab", { name: "Chia sẻ" }).click();
     await expect(page.getByTestId("form-link")).toHaveValue(/\/f\/[A-Za-z0-9]{10}$/);
 
@@ -174,11 +189,11 @@ test.describe("7B1", () => {
     await mgrApi.call("PATCH", `/forms/${f.id}`, { access: "all_accounts" });
 
     await page.goto(`/form/${f.id}`);
-    await page.getByRole("tab", { name: "Bài kiểm tra" }).click();
+    await page.getByRole("tab", { name: "Thiết lập" }).click();
     await page.getByTestId("quiz-enabled").check();
     await page.getByTestId("quiz-pass").fill("50");
     await chooseOption(page.getByTestId("quiz-show"), "score");
-    await page.getByRole("tab", { name: "Soạn" }).click();
+    await page.getByRole("tab", { name: "Thiết kế" }).click();
     await page.getByTestId("canvas-block").filter({ hasText: "Thủ đô" }).getByTestId("block-select").click();
     await page.getByTestId("q-points").fill("5");
     await chooseOption(page.getByTestId("q-answer"), "Hà Nội");

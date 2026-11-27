@@ -3,6 +3,9 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Select, Textarea } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
+import { BLOCK_NAME, metaOf, TONE_CLS } from "./kinds";
 import { notify } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/api";
 import { getTable } from "@/lib/datahub/api";
@@ -138,7 +141,7 @@ function QuizSection({ q, set }: { q: Question; set: Patch }) {
   );
 }
 
-export function PropsPanel({ cfg, block, change, formId, tableId, flush, reload }: { cfg: FormConfig; block: Block; change: (c: FormConfig) => void; formId: string; tableId: string | null; flush: () => Promise<void>; reload: () => Promise<void> }) {
+function PropsBody({ cfg, block, change, formId, tableId, flush, reload }: { cfg: FormConfig; block: Block; change: (c: FormConfig) => void; formId: string; tableId: string | null; flush: () => Promise<void>; reload: () => Promise<void> }) {
   const set: Patch = (p) => change(patchBlock(cfg, block.id, p));
   const all = flat(cfg.blocks);
   const pos = all.findIndex((f) => f.block.id === block.id);
@@ -155,12 +158,13 @@ export function PropsPanel({ cfg, block, change, formId, tableId, flush, reload 
   const setOpts = (list: { id?: string; label: string }[]) => set({ options: list });
   return (
     <div className="flex flex-col gap-3" data-testid="props-question">
-      <p className="text-xs text-muted-foreground">Kiểu: {kindLabel(q.input)}</p>
       <Field label="Nhãn câu hỏi"><Input value={q.label} maxLength={500} onChange={(e) => set({ label: e.target.value })} data-testid="q-label" /></Field>
       <Field label="Mô tả"><Input value={q.description ?? ""} onChange={(e) => set({ description: e.target.value || undefined })} /></Field>
       <Field label="Gợi ý trong ô"><Input value={q.hint ?? ""} onChange={(e) => set({ hint: e.target.value || undefined })} /></Field>
-      <Check checked={!!q.required} onChange={(v) => set({ required: v })} testid="q-required">Bắt buộc</Check>
-      <Check checked={!!q.hidden} onChange={(v) => set({ hidden: v })}>Trường ẩn (giá trị lấy từ link)</Check>
+      <div className="divide-y divide-border-soft rounded-xl border border-border px-3">
+        <Switch checked={!!q.required} onChange={(v) => set({ required: v })} testid="q-required" label="Bắt buộc trả lời" hint="Không gửi được form nếu bỏ trống" />
+        <Switch checked={!!q.hidden} onChange={(v) => set({ hidden: v })} testid="q-hidden" label="Trường ẩn" hint="Giá trị lấy từ link, người điền không thấy" />
+      </div>
       <Field label="Mã tham số" hint="Dùng trong link điền sẵn, ví dụ ?cong_ty=..."><Input value={q.param ?? ""} maxLength={40} onChange={(e) => set({ param: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") || undefined })} /></Field>
       {!isSelect(q.input) && q.input !== "attachment" && q.input !== "user" && q.input !== "relation" && <Field label="Giá trị mặc định"><Input value={q.default === undefined ? "" : String(q.default)} onChange={(e) => set({ default: e.target.value === "" ? undefined : e.target.value })} /></Field>}
       {q.input === "scale" && (
@@ -194,6 +198,23 @@ export function PropsPanel({ cfg, block, change, formId, tableId, flush, reload 
       <div><p className="mb-1 text-sm font-medium">Câu hiện khi</p><CondEditor value={q.show_if} onChange={(v) => set({ show_if: v })} before={before} /></div>
       <LinkSection formId={formId} tableId={tableId} q={q} flush={flush} reload={reload} />
       {cfg.quiz?.enabled && <QuizSection q={q} set={set} />}
+    </div>
+  );
+}
+
+/** The right column: what kind of block is chosen (and its number), then its properties. */
+export function PropsPanel(p: { cfg: FormConfig; block: Block; num: number | null; change: (c: FormConfig) => void; formId: string; tableId: string | null; flush: () => Promise<void>; reload: () => Promise<void> }) {
+  const { num, ...rest } = p;
+  const b = p.block;
+  const q = b as Question;
+  const meta = metaOf(b.type, q.input);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2 border-b border-border-soft pb-3">
+        <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium", TONE_CLS[meta.tone])}><meta.icon size={13} aria-hidden />{b.type === "question" ? kindLabel(q.input) : BLOCK_NAME[b.type]}</span>
+        {num !== null && <span className="text-xs font-medium text-muted-foreground">Câu {num}</span>}
+      </div>
+      <PropsBody {...rest} />
     </div>
   );
 }

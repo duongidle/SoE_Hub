@@ -43,6 +43,8 @@ const FormOut = z.object({
   notify_new_response: z.boolean(),
   table_id: Id.nullable(),
   table_name: z.string().nullable(),
+  /** The datahub of the target table (a link to the response table needs it). */
+  datahub_id: Id.nullable(),
   published_version: z.number().int(),
   has_unpublished: z.boolean(),
   response_count: z.number().int(),
@@ -59,14 +61,16 @@ export function disabledIds(cfg: FormConfig, cols: Map<string, LiveColumn>, hasT
   return out;
 }
 
-async function summary(db: Executor, f: FormRow, extra: { responses?: number; last?: string | null; tableName?: string | null; alive?: boolean } = {}) {
+async function summary(db: Executor, f: FormRow, extra: { responses?: number; last?: string | null; tableName?: string | null; datahubId?: string | null; alive?: boolean } = {}) {
   const responses = extra.responses ?? (await responseCount(db, f.id));
   let tableName = extra.tableName;
   let alive = extra.alive;
-  if (f.tableId && (tableName === undefined || alive === undefined)) {
-    const r = await db.execute(sql`SELECT t.name, (t.deleted_at IS NULL AND d.deleted_at IS NULL) AS alive FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id WHERE /*scope:system*/ t.id = ${f.tableId}::uuid`);
-    const row = r.rows[0] as { name: string; alive: boolean } | undefined;
+  let datahubId = extra.datahubId;
+  if (f.tableId && (tableName === undefined || alive === undefined || datahubId === undefined)) {
+    const r = await db.execute(sql`SELECT t.name, t.datahub_id, (t.deleted_at IS NULL AND d.deleted_at IS NULL) AS alive FROM dh_tables t JOIN dh_datahubs d ON d.id = t.datahub_id WHERE /*scope:system*/ t.id = ${f.tableId}::uuid`);
+    const row = r.rows[0] as { name: string; datahub_id: string; alive: boolean } | undefined;
     tableName = row?.name ?? null;
+    datahubId = row?.datahub_id ?? null;
     alive = row?.alive ?? false;
   }
   let last = extra.last;
@@ -79,7 +83,7 @@ async function summary(db: Executor, f: FormRow, extra: { responses?: number; la
   const published = await latestConfig(db, f);
   return {
     id: f.id, name: f.name, status: f.status, state: st.state, state_reason: st.reason ?? null, code: f.code, link_path: `/f/${f.code}`, access: f.access, audience: f.audience, options: f.options,
-    notify_new_response: f.notifyNewResponse, table_id: f.tableId, table_name: tableName ?? null, published_version: f.publishedVersion,
+    notify_new_response: f.notifyNewResponse, table_id: f.tableId, table_name: tableName ?? null, datahub_id: datahubId ?? null, published_version: f.publishedVersion,
     has_unpublished: !published || stableJson(published) !== stableJson(f.draft), response_count: responses, last_response_at: last, version: f.version, created_at: f.createdAt, deleted_at: f.deletedAt,
   };
 }
@@ -208,7 +212,7 @@ export function checkPublish(cfg: FormConfig, cols: Map<string, LiveColumn>, has
       issues.push({ code: "no_table", message: "Form có câu hỏi cần lưu nhưng chưa có bảng đích.", block_id: q.id });
       continue;
     }
-    if (q.fill_self && (q.input !== "user" || !q.hidden || access === "public")) issues.push({ code: "fill_self", message: `Câu "${q.label || q.id}": "Người điền" phải là câu ẩn kiểu Người dùng của form nội bộ.`, block_id: q.id });
+    if (q.fill_self && (q.input !== "user" || !q.hidden)) issues.push({ code: "fill_self", message: `Câu "${q.label || q.id}": "Người điền" phải là câu ẩn kiểu Người dùng của form nội bộ.`, block_id: q.id });
     if (linked.has(q.column_id)) issues.push({ code: "duplicate_column", message: `Câu "${q.label}" và một câu khác cùng nối vào cột "${col.name}".`, block_id: q.id, column: col.name });
     linked.set(q.column_id, q.id);
     if (!compatibleTypes(q.input).includes(col.type)) issues.push({ code: "type_mismatch", message: `Câu "${q.label}" không nối được vào cột "${col.name}" (kiểu cột không hợp).`, block_id: q.id, column: col.name });
@@ -401,13 +405,13 @@ export const formManageOperations = [
     handler: async (ctx, i) => {
       const trashed = i.trashed === "true";
       const rows = await ctx.db.execute(sql`SELECT f.*, (SELECT count(*)::int FROM form_responses r WHERE r.form_id = f.id) AS responses,
-          (SELECT max(r.created_at) FROM form_responses r WHERE r.form_id = f.id) AS last_at, t.name AS table_name, (t.deleted_at IS NULL AND d.deleted_at IS NULL) AS table_alive
+          (SELECT max(r.created_at) FROM form_responses r WHERE r.form_id = f.id) AS last_at, t.name AS table_name, t.datahub_id AS table_datahub_id, (t.deleted_at IS NULL AND d.deleted_at IS NULL) AS table_alive
         FROM forms f LEFT JOIN dh_tables t ON t.id = f.table_id LEFT JOIN dh_datahubs d ON d.id = t.datahub_id
         WHERE /*scope:system*/ f.owner_id = ${ctx.actor.userId}::uuid AND ${trashed ? sql`f.deleted_at IS NOT NULL` : sql`f.deleted_at IS NULL`} ORDER BY f.created_at DESC, f.id`);
       const items = [];
       for (const r of rows.rows as Raw[]) {
         const last = r.last_at ? new Date(r.last_at as string | Date).toISOString() : null;
-        items.push(await summary(ctx.db, formFromDb(r), { responses: r.responses as number, last, tableName: (r.table_name as string | null) ?? null, alive: r.table_alive === null ? true : !!r.table_alive }));
+        items.push(await summary(ctx.db, formFromDb(r), { responses: r.responses as number, last, tableName: (r.table_name as string | null) ?? null, datahubId: (r.table_datahub_id as string | null) ?? null, alive: r.table_alive === null ? true : !!r.table_alive }));
       }
       return { items, nextCursor: null, total: items.length };
     },

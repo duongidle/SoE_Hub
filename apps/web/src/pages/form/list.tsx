@@ -1,15 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Copy, FilePlus2, RotateCcw, Trash2 } from "lucide-react";
+import { ClipboardCheck, Copy, FilePlus2, RotateCcw, Table2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select, Tabs } from "@/components/ui/form";
+import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { api, fmtTime } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { type FormBrief, formKeys, listForms } from "./model";
 
 export const STATUS_LABEL: Record<string, string> = { draft: "Nháp", open: "Đang nhận", paused: "Tạm dừng", closed: "Đã đóng", not_started: "Chưa mở" };
+/** Colors by meaning: green = receiving, amber = paused, blue = not open yet, grey = draft or closed. */
+export const STATUS_TONE: Record<string, "ok" | "warn" | "info" | "muted"> = { open: "ok", paused: "warn", not_started: "info", draft: "muted", closed: "muted" };
 interface Targets { datahub_id: string; datahub_name: string; tables: { id: string; name: string }[] }
 
 /** Create: a new table in a datahub (default), or an existing table. The list is made by the server and has no table a form may not write to. */
@@ -53,6 +56,8 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+const linkBtn = "inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium hover:border-primary-border hover:bg-primary-soft sm:min-h-9";
+
 export function FormListPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<"live" | "trash">("live");
@@ -63,27 +68,37 @@ export function FormListPage() {
   const clone = useMutation({ mutationFn: (f: FormBrief) => api("POST", `/forms/${f.id}/clone`, {}), onSuccess: () => { notify.ok("Đã nhân bản form"); refresh(); } });
   const rm = useMutation({ mutationFn: (f: FormBrief) => api("DELETE", `/forms/${f.id}`), onSuccess: () => { setDel(null); notify.ok("Đã chuyển vào thùng rác"); refresh(); } });
   const restore = useMutation({ mutationFn: (f: FormBrief) => api("POST", `/forms/${f.id}/restore`, {}), onSuccess: () => { notify.ok("Đã khôi phục form"); refresh(); } });
+  const segCls = (on: boolean) => cn("inline-flex min-h-11 cursor-pointer items-center rounded-md px-3 text-sm sm:min-h-7", on ? "bg-card font-medium text-primary shadow-sm" : "text-muted-foreground hover:text-foreground");
   return (
     <div>
-      <PageTitle actions={<><Link to="/form/cham-bai" className="inline-flex min-h-11 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted sm:min-h-9">Chấm bài</Link><Button onClick={() => setCreating(true)} data-testid="new-form"><FilePlus2 size={16} aria-hidden /> Tạo form</Button></>}>Form</PageTitle>
-      <Tabs value={tab} onChange={setTab} items={[{ value: "live", label: "Form của tôi" }, { value: "trash", label: "Thùng rác" }]} />
+      <PageTitle actions={<><Link to="/form/cham-bai" className={linkBtn}><ClipboardCheck size={16} aria-hidden /> Chấm bài</Link><Button onClick={() => setCreating(true)} data-testid="new-form"><FilePlus2 size={16} aria-hidden /> Tạo form</Button></>}>Dynamic Form</PageTitle>
+      <div className="mb-4 flex w-fit gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="Danh sách form">
+        {([["live", "Form của tôi"], ["trash", "Thùng rác"]] as const).map(([v, l]) => <button key={v} type="button" role="tab" aria-selected={tab === v} className={segCls(tab === v)} onClick={() => setTab(v)}>{l}</button>)}
+      </div>
       <ErrorText error={clone.error ?? rm.error ?? restore.error} />
-      {q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data?.length === 0 ? <EmptyState title={tab === "trash" ? "Thùng rác trống" : "Chưa có form"} hint={tab === "trash" ? undefined : "Bấm Tạo form để bắt đầu."} /> : (
+      {q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data?.length === 0 ? (
+        <EmptyState title={tab === "trash" ? "Thùng rác trống" : "Chưa có form nào"} hint={tab === "trash" ? undefined : "Tạo form đầu tiên để thu phản hồi vào một bảng Datahub."} cta={tab === "trash" ? undefined : { label: "Tạo form", onClick: () => setCreating(true), icon: <FilePlus2 size={16} aria-hidden /> }} />
+      ) : (
         <ul className="flex flex-col gap-2" data-testid="form-list">
           {q.data?.map((f) => (
-            <li key={f.id} className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-card p-3" data-testid="form-row">
-              <div className="min-w-0 flex-1">
-                {tab === "live" ? <Link to="/form/$id" params={{ id: f.id }} className="font-medium text-primary underline [overflow-wrap:anywhere]">{f.name}</Link> : <span className="font-medium">{f.name}</span>}
-                <p className="text-xs text-muted-foreground">{f.response_count} phản hồi{f.last_response_at ? `, mới nhất ${fmtTime(f.last_response_at)}` : ""}{f.table_name ? ` · bảng ${f.table_name}` : ""}</p>
+            <li key={f.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-card px-4 py-3 hover:border-primary-border" data-testid="form-row">
+              <div className="min-w-0 flex-1 basis-60">
+                {tab === "live" ? <Link to="/form/$id" params={{ id: f.id }} className="font-semibold text-foreground hover:text-primary [overflow-wrap:anywhere]">{f.name}</Link> : <span className="font-semibold">{f.name}</span>}
+                <p className="mt-0.5 text-xs text-muted-foreground"><span className="tabular-nums">{f.response_count}</span> phản hồi{f.last_response_at ? `, mới nhất ${fmtTime(f.last_response_at)}` : ""}{f.table_name ? ` · bảng ${f.table_name}` : ""}</p>
               </div>
-              <Badge>{STATUS_LABEL[f.state] ?? f.state}</Badge>
-              {f.has_unpublished && f.published_version > 0 && <Badge>Có thay đổi chưa xuất bản</Badge>}
-              {tab === "live" ? (
-                <>
-                  <Button variant="secondary" onClick={() => clone.mutate(f)} aria-label={`Nhân bản ${f.name}`}><Copy size={16} aria-hidden /> Nhân bản</Button>
-                  <Button variant="ghost" onClick={() => setDel(f)} aria-label={`Xoá ${f.name}`}><Trash2 size={16} aria-hidden /></Button>
-                </>
-              ) : <Button variant="secondary" onClick={() => restore.mutate(f)}><RotateCcw size={16} aria-hidden /> Khôi phục</Button>}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge tone={STATUS_TONE[f.state]}>{STATUS_LABEL[f.state] ?? f.state}</Badge>
+                {f.has_unpublished && f.published_version > 0 && <Badge tone="warn">Có thay đổi chưa xuất bản</Badge>}
+              </div>
+              <div className="flex items-center gap-1">
+                {tab === "live" ? (
+                  <>
+                    {f.table_id && f.datahub_id && <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: f.datahub_id, tableId: f.table_id }} className={linkBtn} aria-label={`Mở bảng phản hồi của ${f.name}`} data-testid="open-responses"><Table2 size={16} aria-hidden /> Mở bảng phản hồi</Link>}
+                    <Button variant="ghost" onClick={() => clone.mutate(f)} aria-label={`Nhân bản ${f.name}`} title="Nhân bản"><Copy size={16} aria-hidden /></Button>
+                    <Button variant="ghost" onClick={() => setDel(f)} aria-label={`Xoá ${f.name}`} title="Xoá"><Trash2 size={16} aria-hidden /></Button>
+                  </>
+                ) : <Button variant="secondary" onClick={() => restore.mutate(f)}><RotateCcw size={16} aria-hidden /> Khôi phục</Button>}
+              </div>
             </li>
           ))}
         </ul>

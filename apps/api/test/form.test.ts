@@ -487,6 +487,13 @@ describe("form: câu chỉ dành cho form nội bộ không lọt vào form côn
       expect(JSON.stringify(e.details)).toContain("internal_only");
     }
   });
+  it("câu Người điền ở form công khai chỉ báo một lỗi (internal_only), không thêm lỗi fill_self", async () => {
+    const x = await setup([q("a", "text"), filler]);
+    await t.c.db.db.execute(sql`UPDATE forms SET /*scope:system*/ access = 'public' WHERE id = ${x.id}::uuid`); // state the commands refuse to build
+    const e = await fails(a("form.form.publish", { form_id: x.id }));
+    const codes = (e.details.issues as { code: string; block_id?: string }[]).filter((i) => i.block_id === "who" && ["internal_only", "fill_self"].includes(i.code)).map((i) => i.code);
+    expect(codes).toEqual(["internal_only"]);
+  });
   it("nộp công khai: giá trị gửi cho câu Người điền / Người dùng bị bỏ, không ghi vào dòng", async () => {
     const x = await setup([q("a", "text"), filler, q("u", "user")]);
     await t.c.db.db.execute(sql`UPDATE forms SET /*scope:system*/ access = 'public' WHERE id = ${x.id}::uuid`); // state the commands refuse to build

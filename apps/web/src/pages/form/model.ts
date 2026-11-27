@@ -112,6 +112,23 @@ export function insertBlock(cfg: FormConfig, block: Block, afterId?: string | nu
   }
   return { ...cfg, blocks: [...cfg.blocks, block] };
 }
+/** Puts `block` at `index` of the top-level list (`parentId` null) or of the group `parentId`. */
+export function insertAt(cfg: FormConfig, block: Block, parentId: string | null, index: number): FormConfig {
+  const put = (list: Block[]): Block[] => { const c = [...list]; c.splice(Math.max(0, Math.min(index, c.length)), 0, block); return c; };
+  if (!parentId) return { ...cfg, blocks: put(cfg.blocks) };
+  return { ...cfg, blocks: cfg.blocks.map((b) => (b.id === parentId && b.type === "group" ? ({ ...b, blocks: put(kids(b)) } as Block) : b)) };
+}
+/** A copy with fresh ids. A copy has no column (two questions may not share one), no link parameter and no reveal rules (they name other blocks). */
+export function cloneBlock(b: Block): Block {
+  if (b.type === "group") return { ...b, id: rid("g"), blocks: kids(b).map(cloneBlock) } as Block;
+  if (b.type !== "question") return { ...b, id: rid() };
+  const q = b as Question;
+  const map = new Map<string, string>();
+  const options = q.options?.map((o) => { const id = o.id ? rid("o_") : undefined; if (o.id && id) map.set(o.id, id); return { ...o, id }; });
+  const { column_id: _c, param: _p, reveal: _r, ...rest } = q;
+  const answer = Array.isArray(q.answer) ? q.answer.map((a) => map.get(String(a)) ?? a) : typeof q.answer === "string" ? map.get(q.answer) ?? q.answer : q.answer;
+  return { ...rest, id: rid("q"), ...(options ? { options } : {}), ...(q.answer !== undefined ? { answer } : {}) } as Question;
+}
 /** Moves a block up or down inside its own list. */
 export function moveBlock(cfg: FormConfig, id: string, dir: -1 | 1): FormConfig {
   const swap = (list: Block[]): Block[] => {
@@ -226,7 +243,7 @@ export interface FormBrief {
   id: string; name: string; status: "draft" | "open" | "paused" | "closed"; state: string; state_reason: string | null; code: string; link_path: string;
   access: "public" | "all_accounts" | "selected"; audience: { user_ids: string[]; team_ids: string[]; roles: string[]; guest_ids: string[]; guest_presets: string[] };
   options: { one_per_user?: boolean; open_at?: string | null; close_at?: string | null; max_responses?: number | null; closed_message?: string | null; graders?: string[] };
-  notify_new_response: boolean; table_id: string | null; table_name: string | null; published_version: number; has_unpublished: boolean; response_count: number; last_response_at: string | null; version: number; deleted_at: string | null;
+  notify_new_response: boolean; table_id: string | null; table_name: string | null; datahub_id: string | null; published_version: number; has_unpublished: boolean; response_count: number; last_response_at: string | null; version: number; deleted_at: string | null;
 }
 export interface FormDetail extends FormBrief { draft: FormConfig; published: FormConfig | null; disabled_question_ids: string[]; max_columns: number | null }
 export interface PublishIssue { code: string; message: string; block_id?: string; column?: string }
