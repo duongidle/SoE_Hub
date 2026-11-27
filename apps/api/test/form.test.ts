@@ -466,3 +466,34 @@ describe("form: columns and tables", () => {
     await unlimit(t, org.userA1.id);
   });
 });
+
+describe("form: câu chỉ dành cho form nội bộ không lọt vào form công khai", () => {
+  const filler = q("who", "user", { label: "Người điền", hidden: true, fill_self: true });
+  it("form nội bộ có câu Người điền hoặc Người dùng thì không đổi sang công khai được", async () => {
+    const x = await setup([q("a", "text"), filler]);
+    const e = await fails(a("form.form.update", { form_id: x.id, access: "public" }));
+    expect(e).toMatchObject({ code: "validation_error", details: { reason: "internal_only_public" } });
+    const y = await setup([q("a", "text")]);
+    await a("form.form.save_draft", { form_id: y.id, config: cfgOf([q("a", "text"), q("u", "user")]) }); // only the draft has it
+    const e2 = await fails(a("form.form.update", { form_id: y.id, access: "public" }));
+    expect(e2.details.reason).toBe("internal_only_public");
+  });
+  it("xuất bản form công khai có câu user hoặc relation thì bị chặn", async () => {
+    for (const input of ["user", "relation"]) {
+      const x = await newForm();
+      await a("form.form.update", { form_id: x.id, access: "public" });
+      await a("form.form.save_draft", { form_id: x.id, config: cfgOf([q("a", "text"), q("p", input)]) });
+      const e = await fails(a("form.form.publish", { form_id: x.id }));
+      expect(JSON.stringify(e.details)).toContain("internal_only");
+    }
+  });
+  it("nộp công khai: giá trị gửi cho câu Người điền / Người dùng bị bỏ, không ghi vào dòng", async () => {
+    const x = await setup([q("a", "text"), filler, q("u", "user")]);
+    await t.c.db.db.execute(sql`UPDATE forms SET /*scope:system*/ access = 'public' WHERE id = ${x.id}::uuid`); // state the commands refuse to build
+    const r = await submitPublic(x.code, { a: "xin chào", who: org.userA1.id, u: org.userA1.id });
+    const row = (await rows(x.tableId)).find((z) => z.id === r.row_id)!;
+    const cols = (await a("datahub.table.get", { table_id: x.tableId })).columns as { key: string; name: string }[];
+    expect(row.data[cols.find((c) => c.name === "Câu a")!.key]).toBe("xin chào");
+    for (const n of ["Người điền", "Câu u"]) expect(row.data[cols.find((c) => c.name === n)!.key] ?? null).toBeNull();
+  });
+});

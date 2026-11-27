@@ -13,7 +13,7 @@ import { ROW_EVENTS } from "../datahub/shared";
 import { TableSchema } from "../datahub/table-schema";
 import { sanitizeFilename } from "../system/files";
 import { isEmptyAnswer, publicConfig, questionsOf, visibleBlocks, flatten, type FormConfig, type Question } from "./config";
-import { disabledIds } from "./ops";
+import { disabledIds, isInternalOnly } from "./ops";
 import { attemptsOf, gradeAnswers, scoreCells, summarize, type Result } from "./quiz";
 import { notifyGraders, quizView, type QuizSubmitView } from "./grade";
 import { DAILY_LIMIT_MAX, Id, ownerCtx, VERSION_COLUMN_NAME, liveColumns, loadFormRow, responseCount, stateOf, tableAlive, versionConfig, type FormRow, type LiveColumn } from "./shared";
@@ -160,7 +160,9 @@ async function submitResponse(ctx: AnyCtx, f: FormRow, input: Submit, publicMode
     if (disabled.has(q.id) || !q.column_id || !visible.has(q.id)) continue;
     const col = cols.get(q.column_id)!;
     let v = answers[q.id];
-    // "Filler" field: the person logged in, whatever the browser sent. A public form has nobody to write (checkPublish refuses it).
+    // A public form has nobody to vouch for a person or a row: whatever the browser sent for these questions is dropped (checkPublish and form.form.update refuse them too).
+    if ((publicMode || f.access === "public") && isInternalOnly(q)) continue;
+    // "Filler" field: the person logged in, whatever the browser sent.
     if (q.fill_self && filler) v = filler.userId;
     if (isEmptyAnswer(v) && q.default !== undefined && q.default !== null) v = q.default;
     if (isEmptyAnswer(v)) {

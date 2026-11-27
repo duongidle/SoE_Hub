@@ -13,7 +13,7 @@ Cập nhật: 27/11/2026
 
 ## Bước tiếp
 
-1. **Sửa lỗi bảo mật form công khai** (Dương chốt sửa 27/11, đang giao Sonnet; làm trước Stage 12A):
+1. **XONG 27/11 (code trên `25a2342`, thêm commit sửa này): sửa lỗi bảo mật form công khai.** Hàm luật `internalOnlyIssues`/`isInternalOnly` (`ops.ts`) gọi ở `checkPublish`, `form.form.update` (bản nháp + đã xuất bản) và `submitResponse` (bỏ giá trị). Test: 3 test mới trong `form.test.ts`; `pnpm typecheck`, `pnpm lint` sạch; `vitest run form.test.ts form-quiz.test.ts`: 41 pass / 0 fail / 0 skip. Mô tả lỗi gốc:
    - `form.form.update` đổi `access` sang `public` không kiểm lại câu `fill_self`; `submitResponse` (`apps/api/src/modules/form/fill.ts`) ở chế độ công khai giữ giá trị trình duyệt gửi cho "Người điền" → người ngoài nộp bài dưới tên người khác.
    - `checkPublish` (`ops.ts`) không chặn câu `user`, `relation` ở form công khai (Module 7 mục 2: chỉ form nội bộ).
    - Sửa tận gốc: một hàm luật "chỉ form nội bộ" gọi cả khi publish lẫn khi đổi access; nộp công khai luôn bỏ giá trị `user`/`fill_self`/`relation`; test tái hiện.

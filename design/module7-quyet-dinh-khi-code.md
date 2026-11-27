@@ -73,3 +73,7 @@
 - **Tải file:** chỉ form công khai (`form.public.upload_*`); form nội bộ chưa có lệnh tải file nên ô Đính kèm hiện ghi chú (dời, `update_v1.md`).
 - **Sửa test cũ theo mã:** `form-quiz.test.ts` kỳ vọng `answer` của JSON/nhân bản là mã (`o_…`) thay vì tên.
 
+
+## Câu chỉ dành cho form nội bộ (27/11/2026, sửa lỗi bảo mật)
+
+- Một hàm luật: ops.ts isInternalOnly/internalOnlyIssues (fill_self, input user, input relation). Gọi ở checkPublish khi access public, form.form.update khi đổi sang public (kiểm nháp và bản đã xuất bản; reason internal_only_public) và submitResponse (form công khai: bỏ giá trị trình duyệt gửi cho các câu này, không ghi vào dòng).

@@ -165,6 +165,20 @@ async function saveDraft(ctx: Ctx, f: FormRow, cfg: FormConfig): Promise<void> {
 // publishing (design module7 2.2, 2.3a, 2.3b, 2.4)
 // ---------------------------------------------------------------------------------------------
 
+/** Questions only an internal form can have: "Người điền" (fill_self), Người dùng (user) and Liên kết (relation) pick a person or a row, which a public form has nobody to vouch for (design module7 2). The one rule used by publishing, by changing access and by the public submit. */
+export const INTERNAL_ONLY_INPUTS: readonly string[] = ["user", "relation"];
+export function isInternalOnly(q: Question): boolean {
+  return !!q.fill_self || INTERNAL_ONLY_INPUTS.includes(q.input);
+}
+export function internalOnlyIssues(cfg: FormConfig): FormIssue[] {
+  return flatten(cfg.blocks)
+    .filter((f) => f.block.type === "question" && isInternalOnly(f.block as Question))
+    .map((f) => {
+      const q = f.block as Question;
+      return { code: "internal_only", message: `Câu "${q.label || q.id}" (${q.fill_self ? "Người điền" : q.input === "user" ? "Người dùng" : "Liên kết"}) chỉ dùng cho form nội bộ.`, block_id: q.id };
+    });
+}
+
 /** Everything that stops a form from being published, one entry per problem (the editor shows them next to the question). */
 export function checkPublish(cfg: FormConfig, cols: Map<string, LiveColumn>, hasTable: boolean, access?: string): FormIssue[] {
   const issues: FormIssue[] = [];
@@ -178,6 +192,7 @@ export function checkPublish(cfg: FormConfig, cols: Map<string, LiveColumn>, has
   }
   const questions = flat.filter((f) => f.block.type === "question");
   const disabled = disabledIds(cfg, cols, hasTable);
+  if (access === "public") issues.push(...internalOnlyIssues(cfg).filter((i) => !disabled.has(i.block_id!)));
   const linked = new Map<string, string>();
   const unlinked: Question[] = [];
   for (const f of questions) {
@@ -450,6 +465,12 @@ export const formManageOperations = [
       const options = i.options ?? f.options;
       const published = await latestConfig(ctx.db, f);
       if (access === "public" && (published?.quiz?.enabled || f.draft.quiz?.enabled)) throw new AppError("validation_error", "Bài kiểm tra chỉ dùng cho form nội bộ. Tắt chế độ Bài kiểm tra trước.", { reason: "quiz_public" });
+      if (access === "public" && access !== f.access) {
+        for (const [where, cfg] of [["bản nháp", f.draft], ["bản đã xuất bản", published]] as const) {
+          const bad = cfg ? internalOnlyIssues(cfg) : [];
+          if (bad.length) throw new AppError("validation_error", `Không đổi sang công khai được: ${where} có câu chỉ dùng cho form nội bộ. ${bad[0]!.message}`, { reason: "internal_only_public", issues: bad });
+        }
+      }
       if (i.options?.graders?.length) {
         const ok = await ctx.db.execute(sql`SELECT id FROM users WHERE /*scope:system*/ kind = 'person' AND status = 'active' AND id = ANY(${`{${i.options.graders.join(",")}}`}::uuid[])`);
         if (ok.rows.length !== new Set(i.options.graders).size) throw new AppError("validation_error", "Người chấm phải là tài khoản đang hoạt động.", { reason: "grader_invalid" });
