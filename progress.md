@@ -11,6 +11,13 @@ Cập nhật: 27/11/2026
 - **Git:** `main` và `dev` đã push tới abe3d39 (23/11).
 - **Việc dời:** thiết kế đã chốt nhưng dời → `design/update_v1.md`; giao diện → `design/stage12.md`.
 
+## Đang làm: Stage 12B — Người dùng (rà phạm vi Opus 28/11, Dương duyệt "làm 12b")
+
+Phạm vi: `chuan-giao-dien.md` mục "Hiển thị người dùng" + `stage12.md` dòng "Thẻ người dùng chung", "Chọn nhiều người một lần". Rà theo kinh nghiệm: giữ hết, trừ hai chỗ dời (ghi `update_v1.md`): ảnh đại diện (chưa có tải ảnh, dùng chữ cái đầu) và thẻ chi tiết khi rê chuột **trong ô grid canvas** (grid chỉ hiện tên + phân biệt trùng tên; thẻ chi tiết xem ở panel dòng). Ô chọn người đã hiện email dòng 2 (`PersonPicker`).
+
+- [ ] **12B-1 (agent A, server + component):** `datahub.people.lookup` (và nơi trả người dùng cho web) trả thêm email, team (Leader), vai trò, trạng thái theo quyền xem thông tin người dùng hiện có; tra thành viên một team cho "chọn cả team"; export tuỳ chọn thêm cột email cạnh cột Người dùng. Web: `components/ui/person.tsx` (thẻ người: chữ cái đầu + tên, thẻ chi tiết khi rê/chạm), hàm phân biệt trùng tên dùng chung (cả grid canvas), `PeoplePicker` chọn nhiều (gõ tìm, tick nhiều, chọn cả team) mở rộng từ `PersonPicker`. Lắp thử một chỗ mỗi loại.
+- [ ] **12B-2 (agent B, lắp vào màn):** thay mọi chỗ in tên người (khoảng 20 file: grep full_name) bằng thẻ người; mọi ô nhận nhiều người (chia sẻ datahub/dashboard, người theo dõi, người chấm, khán giả form, thông báo chung, cột Người dùng nhiều người, gắn lộ trình) dùng `PeoplePicker`; e2e spec liên quan; chạy cuối bước (vitest apps packages + e2e spec liên quan).
+
 ## Đang làm: Stage 12A — Nền và khung (kế hoạch Opus 27/11, Dương duyệt "làm tiếp 12A")
 
 Thiết kế: `design/module12-giao-dien.md`; ảnh mockup: `design/giao_dien_mau/anh/*.png` (agent xem ảnh, không đọc HTML mockup). Test theo "Kiểm thử theo cấp", e2e chỉ spec liên quan; cả bộ e2e để 12G.
