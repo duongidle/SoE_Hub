@@ -11,3 +11,14 @@
 - **Trang /cai-dat tạm:** `pages/settings.tsx` (`SettingsHubPage`), danh sách link theo quyền từ `SETTINGS_LINKS` (shell.tsx). Link có `aria-label` = tên để e2e khớp exact.
 - **e2e helper:** `Session.menuLink/clickMenu/hasMenu` với mục quản trị tự đi qua "Cài đặt" rồi tìm link trong `main`.
 - **Drawer:** `components/ui/drawer.tsx`, 420px (560px với `wide`), đầy màn dưới 640px, hỏi khi `dirty`, có `footer`.
+
+## 12A-2 (27/11/2026)
+
+- **Chuông là popover rộng (28rem), không dùng Drawer:** ba tab (Thông báo, Nhắc hẹn, Thông báo chung) đều là danh sách ngắn; popover giữ nguyên `getByRole("dialog", { name: "Thông báo" })` của e2e. Form tạo (nhắc hẹn, thông báo chung) mở bằng Modal ở ngoài popover (popover đóng trước), tạo xong chuông mở lại đúng tab.
+- **Tab Nhắc hẹn** chỉ hiện với `notification:manage`. **Tab Thông báo chung**: ai cũng thấy "Đã nhận"; `notification:announce` thấy thêm "Đã gửi". Nút "+" chỉ hiện khi có ít nhất một quyền; mỗi mục theo quyền riêng.
+- **Tái dùng:** `RemindersPanel` (`showNew` tắt nút "Nhắc mới" khi nằm trong chuông), `AnnouncementsPanel` (tab điều khiển từ ngoài), `ComposeForm` (chỉ form, không Card). Trang `/nhac-hen` và `/thong-bao-chung` vẫn có, dùng cùng các thành phần.
+- **Bộ lọc "Tất cả/Chưa đọc" của chuông** đổi thành nút "Chỉ chưa đọc" trong tab Thông báo (tránh hai dải tab lồng nhau).
+- **Cài đặt hai cột:** `SettingsLayout` (`pages/settings.tsx`) bọc mọi trang cài đặt ngay trong `shell.tsx` (`isSettingsPath`, `settingsLinkFor` chọn mục khớp dài nhất; `/tai-khoan/*` thuộc Cài đặt). Nhóm "Cá nhân" = mục không đòi quyền; "Quản trị" = còn lại. `/cai-dat`: màn rộng (>=768px) chuyển thẳng sang mục đầu tiên (Tài khoản của tôi); điện thoại hiện danh sách, chọn thì vào trang con có link quay lại "Cài đặt". Nav tên "Menu cài đặt"; link có `aria-label` = tên.
+- **e2e helper `menuLink`:** sau khi bấm "Cài đặt" ở sidebar, tìm link trong nav "Menu cài đặt" (không còn kiểm URL `/cai-dat$` vì desktop chuyển trang).
+- **Sửa theo:** `crumbs` chọn mục cài đặt dài nhất (trước đó `/tai-khoan/thong-bao` ra nhầm "Tài khoản của tôi"); mục Cài đặt ở sidebar sáng khi đang ở trang cài đặt bất kỳ.
+- **Button secondary:** đã là nền trắng (`bg-card`) + viền từ 12A-1, chỉ hover mới tím nhạt; không sửa.
