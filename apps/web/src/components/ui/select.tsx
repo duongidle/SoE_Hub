@@ -32,7 +32,7 @@ function readOptions(children: React.ReactNode, group?: string, out: Opt[] = [])
   return out;
 }
 
-const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").toLowerCase();
+const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d");
 
 /**
  * The system dropdown (replaces the browser's `<select>`). Same props as a select: `<option>`/`<optgroup>` children, value or

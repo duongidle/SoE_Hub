@@ -40,6 +40,8 @@ pnpm dev                      # api :3000, worker, web :5173
 Trên macOS với Homebrew, user Postgres mặc định là tên user máy, nên các URL có dạng `postgres://<tên-user>@localhost:5432/soe_hub`.
 Nếu lệnh `psql` không có trong PATH: `export PATH=/opt/homebrew/opt/postgresql@17/bin:$PATH`.
 
+Đổi lockfile hoặc nâng thư viện (ví dụ `pnpm install` kéo bản mới) thì tắt và chạy lại `pnpm dev`: Vite giữ bản thư viện cũ trong cache của dev server đang chạy.
+
 Chạy riêng từng phần: `pnpm dev:api`, `pnpm dev:worker`, `pnpm dev:web`.
 
 Kiểm tra:
