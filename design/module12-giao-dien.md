@@ -17,7 +17,8 @@ Thống nhất concept giao diện cho Stage 12. File này ngắn, chỉ nói c�
   - 12D Quản lý Deal: từ dòng deal đi thẳng tới đợt thanh toán / com của deal đó; bấm tên người mở thẻ người.
   - 12E Dynamic Form: form đã nối Datahub có nút đi thẳng tới bảng phản hồi.
   - 12F Onboarding: mỗi checkpoint có link tới đúng bài test hoặc form cần làm.
-- Màn chưa có mockup (Onboarding, AI Hub, Duyệt bài, đăng nhập, chuông, ngăn kéo chi tiết, điện thoại của app) dựng theo concept ở mục 2, ghép từ màn cùng loại.
+- Màn chưa có mockup (Onboarding, AI Hub, Duyệt bài, đăng nhập, chuông, ngăn kéo chi tiết, điện thoại của app) dựng theo concept ở mục 2. **Ở các màn này Opus được sáng tạo nhiều nhất** (Dương 28/11/2026): bố cục chuẩn production, dễ dùng, trực quan, sinh động; không bị bó vào kiểu "danh sách thẻ". Ví dụ Onboarding là một **hành trình**: lộ trình hiện như con đường theo tuần với các mốc (checkpoint), thấy mình đang ở đâu, đã qua gì, mốc tiếp theo cần gì, có cảm giác tiến lên và muốn khám phá; không phải đống thẻ việc. Chức năng và số liệu vẫn theo thiết kế Module 9.
+- **Màn sáng tạo lớn làm mockup trước:** với màn đổi hẳn cách trình bày (Onboarding, AI Hub, Tổng quan), Opus dựng một mockup HTML tĩnh (cùng token màu, dữ liệu giả) cho Dương xem và chốt, rồi mới giao code. Rẻ hơn nhiều so với code xong rồi làm lại.
 - Những gì đã chốt và đã code (menu sau khi gom vào chuông và Tổng quan, tên "Dynamic Form", dropdown riêng thay `<select>`, thẻ người…) giữ nguyên; mockup lệch thì theo cái đã chốt.
 
 ## 2. Concept
