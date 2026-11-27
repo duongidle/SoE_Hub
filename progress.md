@@ -11,6 +11,13 @@ Cập nhật: 27/11/2026
 - **Git:** `main` và `dev` đã push tới abe3d39 (23/11).
 - **Việc dời:** thiết kế đã chốt nhưng dời → `design/update_v1.md`; giao diện → `design/stage12.md`.
 
+## Đang làm: Stage 12D — Tổng quan và Quản lý Deal (Dương: làm liền tới 12F)
+
+Mockup đã chốt: `design/giao_dien_mau/de_xuat/tong_quan.html`; Deal: ảnh `anh/soe_hub_dashboard_deal.png`, `anh/soe_hub_cai_dat_template.png`. Lối tắt đã duyệt: `module12-giao-dien.md` mục 1. Quyết định 12C: "Sửa bố cục" dashboard giữ kéo thẻ trực tiếp (Opus quyết 28/11, không thêm công tắc).
+
+- [ ] **12D-1 (agent A, server + Tổng quan):** bảng tuỳ chọn theo người (khoá–giá trị, dùng chung: tab dashboard ghim + thứ tự, "Mở gần đây"); ghi "mở gần đây" khi mở datahub/form/dashboard/bài Knowledge (tối đa 20, đọc thì lọc theo quyền hiện tại); trang Tổng quan theo mockup (khu dashboard dạng tab: "Được chia sẻ" + tab ghim, kéo đổi thứ tự; cột phải: Onboarding của tôi khi có lộ trình, Mở gần đây, Nhắc hẹn sắp tới, Thông báo chung); bỏ menu "Dashboard chia sẻ" (giữ route); thẻ tình trạng hệ thống chuyển sang Cài đặt (Admin). Kèm kiểm ảnh 12C: KPI dashboard đúng cỡ lớn, thanh công cụ Datahub hiện chữ ở 1280px, gauge nhãn không đè.
+- [ ] **12D-2 (agent B, Deal web):** thanh kỳ ghi rõ "Kỳ của danh sách deal" và lọc theo cột nào, tách hẳn khỏi bộ lọc thời gian; trang Quản lý Deal theo ảnh mockup (thẻ KPI, forecast, dashboard Deals dùng nền bento của 12C); Template, Thanh toán và com, Chốt kỳ theo concept; lối tắt dòng deal → đợt thanh toán/com; Deal ở 375px; chạy cuối bước: vitest apps packages + e2e stage4-*.
+
 ## Đang làm: Stage 12C — Datahub (Dương 28/11: làm liền 12C→12F, không chờ duyệt giữa giai đoạn; không cần ảnh so sánh; đủ chức năng là được, tự do bố cục)
 
 Nguồn: `module12-giao-dien.md` mục 1–2; ảnh `design/giao_dien_mau/anh/soe_hub_datahub_onboarding.png`; `stage12.md` dòng Datahub. Kiểu Lark Base / Airtable. **Bảng đối chiếu chức năng** (agent A lập trước khi đổi, ghi ở `module12-quyet-dinh-khi-code.md` mục 12C): mọi thao tác Datahub hiện có → chỗ mới; không thao tác nào mất. E2e Datahub cũ (stage2c1–2e, 3b–3e) là lưới an toàn: chỉ sửa spec khi selector đổi do chuyển chỗ.
