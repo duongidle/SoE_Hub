@@ -501,7 +501,7 @@ export function AuditLogPage() {
       setExportError(e);
     }
   };
-  const set = (k: keyof AuditFilters) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setDraft((d) => ({ ...d, [k]: e.target.value }));
+  const set = (k: keyof AuditFilters) => (e: { target: { value: string } }) => setDraft((d) => ({ ...d, [k]: e.target.value }));
   return (
     <div className="flex flex-col gap-4">
       <PageTitle actions={<Button variant="secondary" onClick={exportCsv}>Xuất CSV</Button>}>Nhật ký hệ thống</PageTitle>

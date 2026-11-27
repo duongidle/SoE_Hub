@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -189,14 +189,14 @@ test("bộ lọc chung: khoảng thời gian và cột; bản riêng tự lưu, 
   const k1 = cardOf(pg, "Tổng theo ngày chốt").getByTestId("kpi-value");
   const k2 = cardOf(pg, "Tổng mọi lúc").getByTestId("kpi-value");
   await expect(k1).toHaveText("2.150");
-  await pg.getByTestId("filter-field").selectOption({ label: "Loại" });
-  await pg.getByTestId("filter-value").selectOption({ label: "POD" });
+  await chooseOption(pg.getByTestId("filter-field"), { label: "Loại" });
+  await chooseOption(pg.getByTestId("filter-value"), { label: "POD" });
   await expect(k1).toHaveText("1.425");
   await expect(k2).toHaveText("2.150"); // opted out of the common filter
   await expect(pg.getByTestId("filter-chip")).toHaveText(/Loại = POD/);
-  await pg.getByTestId("filter-range").selectOption({ label: "Năm nay" });
+  await chooseOption(pg.getByTestId("filter-range"), { label: "Năm nay" });
   await expect(k1).toHaveText(/^\d/); // the dashboard filters are applied together; the exact number depends on today's date
-  await pg.getByTestId("filter-range").selectOption({ label: "Mọi thời gian" });
+  await chooseOption(pg.getByTestId("filter-range"), { label: "Mọi thời gian" });
   await expect(k1).toHaveText("1.425");
   // saved as the person's own copy: it survives a reload
   await expect.poll(async () => (await ownerApi.call<{ my_filters: unknown }>("GET", `/dashboards/${d2.id}`)).my_filters).not.toBeNull();
@@ -209,8 +209,8 @@ test("bộ lọc chung: khoảng thời gian và cột; bản riêng tự lưu, 
   await expect(pg.getByTestId("filter-chip")).toHaveCount(0);
   expect((await ownerApi.call<{ my_filters: unknown }>("GET", `/dashboards/${d2.id}`)).my_filters).toBeNull();
   // the owner makes a filter the default for everyone
-  await pg.getByTestId("filter-field").selectOption({ label: "Loại" });
-  await pg.getByTestId("filter-value").selectOption({ label: "DCC" });
+  await chooseOption(pg.getByTestId("filter-field"), { label: "Loại" });
+  await chooseOption(pg.getByTestId("filter-value"), { label: "DCC" });
   await expect(k1).toHaveText("725");
   await pg.getByTestId("filter-save-default").click();
   await expect.poll(async () => (await ownerApi.call<{ default_filters: { conditions?: unknown[] } }>("GET", `/dashboards/${d2.id}`)).default_filters.conditions?.length).toBe(1);
@@ -349,8 +349,8 @@ test("chia sẻ dashboard: người nhận thấy số mà không có quyền b�
   await expect(vp.getByRole("menuitem", { name: "Sửa biểu đồ" })).toHaveCount(0);
   await vp.keyboard.press("Escape");
   // the person's own filter works on the numbers the owner computed
-  await vp.getByTestId("filter-field").selectOption({ label: "Loại" });
-  await vp.getByTestId("filter-value").selectOption({ label: "POD" });
+  await chooseOption(vp.getByTestId("filter-field"), { label: "Loại" });
+  await chooseOption(vp.getByTestId("filter-value"), { label: "POD" });
   await expect(cardOf(vp, "Tổng riêng của chủ").getByTestId("kpi-value")).toHaveText("1.425");
   await vp.getByTestId("filter-reset").click();
   await expect(cardOf(vp, "Tổng riêng của chủ").getByTestId("kpi-value")).toHaveText("2.150");

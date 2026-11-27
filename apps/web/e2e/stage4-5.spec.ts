@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -277,7 +277,7 @@ test("thanh chọn kỳ: đổi kỳ và cách hiểu thì Deals lọc đúng; K
   await page.getByTestId("period-prev").click();
   await expect(page.getByTestId("period-name")).toHaveText("Tháng 10/2026");
   await expectLines(page, 1); // Gamma started on 2 Oct
-  await page.getByTestId("period-rule").selectOption("closed");
+  await chooseOption(page.getByTestId("period-rule"), "closed");
   await expectLines(page, 1); // Gamma closed on 15 Oct
   await page.getByTestId("period-prev").click();
   await expectLines(page, 0); // nothing closed in September

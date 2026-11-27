@@ -1,7 +1,7 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { GridDriver } from "./grid";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, closeSelect, openSelect } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -142,7 +142,7 @@ test("Template: Manager tạo bảng, thêm cột, xem trước \"Áp dụng cho
   await pg.getByRole("button", { name: "Tạo bảng template" }).click();
   const d = dialog(pg, "Tạo bảng template");
   await d.getByLabel("Tên bảng *").fill("Việc của team 4.3");
-  await d.getByLabel("Quyền mặc định").selectOption("edit_data");
+  await chooseOption(d.getByLabel("Quyền mặc định"), "edit_data");
   await d.getByRole("button", { name: "Tạo bảng" }).click();
   const panel = pg.getByTestId("template-panel");
   await expect(panel.getByRole("heading", { name: "Việc của team 4.3" })).toBeVisible();
@@ -267,11 +267,11 @@ test("Template: Manager tạo bảng cho một team; Leader thấy bảng ở nh
   await pg.getByRole("button", { name: "Tạo bảng template" }).click();
   const d = dialog(pg, "Tạo bảng template");
   await d.getByLabel("Tên bảng *").fill("Việc riêng của team");
-  await d.getByLabel("Phạm vi").selectOption("team");
+  await chooseOption(d.getByLabel("Phạm vi"), "team");
   // A team table needs a Leader: the form says so before anything is sent.
   await d.getByRole("button", { name: "Tạo bảng" }).click();
   await expect(d.getByText("Chọn Leader của team.")).toBeVisible();
-  await d.getByLabel("Leader của team").selectOption({ label: `Leader 43 ${p}` });
+  await chooseOption(d.getByLabel("Leader của team"), { label: `Leader 43 ${p}` });
   await d.getByRole("button", { name: "Tạo bảng" }).click();
   await expect(pg.getByTestId("template-panel").getByRole("heading", { name: "Việc riêng của team" })).toBeVisible();
   // The list groups it under the team of that Leader.
@@ -283,8 +283,11 @@ test("Template: Manager tạo bảng cho một team; Leader thấy bảng ở nh
   await expect.poll(async () => (await leadApi.call<{ name: string }[]>("GET", "/datahub/templates")).some((t) => t.name === "Việc riêng của team")).toBe(true);
   // A table of another tree's team is not offered: only Leaders of this tree are in the list.
   await pg.getByRole("button", { name: "Tạo bảng template" }).click();
-  await dialog(pg, "Tạo bảng template").getByLabel("Phạm vi").selectOption("team");
-  await expect(dialog(pg, "Tạo bảng template").getByLabel("Leader của team").locator("option")).toHaveCount(2);
+  await chooseOption(dialog(pg, "Tạo bảng template").getByLabel("Phạm vi"), "team");
+  const leaderTrigger = dialog(pg, "Tạo bảng template").getByLabel("Leader của team");
+  const leaderList = await openSelect(leaderTrigger);
+  await expect(leaderList.getByRole("option")).toHaveCount(2);
+  await closeSelect(leaderList);
   await pg.keyboard.press("Escape");
 });
 
@@ -300,7 +303,7 @@ test("Template: cột Người dùng có thuộc tính (vai trò, %, tổng tố
   await dialog(pg, "Thêm cột vào template").getByRole("button", { name: "Tiếp tục" }).click();
   let ed = dialog(pg, "Thêm cột");
   await ed.getByLabel(/Tên cột/).fill("Người làm");
-  await ed.getByLabel("Kiểu cột").selectOption({ label: "Người dùng" });
+  await chooseOption(ed.getByLabel("Kiểu cột"), { label: "Người dùng" });
   const attrs = ed.getByTestId("attrs-editor");
   await attrs.getByRole("button", { name: "Thêm thuộc tính" }).click();
   await attrs.getByLabel("Tên thuộc tính 1").fill("Vai trò");
@@ -308,7 +311,7 @@ test("Template: cột Người dùng có thuộc tính (vai trò, %, tổng tố
   await attrs.getByLabel("Các nhãn thuộc tính 1").fill("Chính, Phụ");
   await attrs.getByRole("button", { name: "Thêm thuộc tính" }).click();
   await attrs.getByLabel("Tên thuộc tính 2").fill("Tỉ lệ");
-  await attrs.getByLabel("Kiểu thuộc tính 2").selectOption("percent");
+  await chooseOption(attrs.getByLabel("Kiểu thuộc tính 2"), "percent");
   await attrs.getByLabel("Tổng tối đa thuộc tính 2").fill("100");
   // A select attribute without labels is refused in the form, in words.
   await attrs.getByLabel("Các nhãn thuộc tính 1").fill("");
@@ -328,13 +331,13 @@ test("Template: cột Người dùng có thuộc tính (vai trò, %, tổng tố
   // 2) A column "gửi xuống": one value per person, filled by the system from the % attribute.
   await panel.getByRole("button", { name: "Thêm cột" }).first().click();
   const step = dialog(pg, "Thêm cột vào template");
-  await step.getByLabel("Cách lưu giá trị").selectOption("person");
-  await step.getByLabel("Cột người tham gia").selectOption({ label: "Người làm" });
-  await step.getByLabel("Thuộc tính gửi xuống").selectOption({ label: "Tỉ lệ" });
+  await chooseOption(step.getByLabel("Cách lưu giá trị"), "person");
+  await chooseOption(step.getByLabel("Cột người tham gia"), { label: "Người làm" });
+  await chooseOption(step.getByLabel("Thuộc tính gửi xuống"), { label: "Tỉ lệ" });
   await step.getByRole("button", { name: "Tiếp tục" }).click();
   ed = dialog(pg, "Thêm cột");
   await ed.getByLabel(/Tên cột/).fill("Phần của tôi");
-  await ed.getByLabel("Kiểu cột").selectOption({ label: "Phần trăm" });
+  await chooseOption(ed.getByLabel("Kiểu cột"), { label: "Phần trăm" });
   await ed.getByRole("button", { name: "Thêm cột" }).click();
   await dialog(pg, "Áp dụng thay đổi template?").getByRole("button", { name: "Xác nhận" }).click();
   await expect(panel.getByTestId("template-column").filter({ hasText: "Phần của tôi" }).getByText("Hệ thống tự điền, không ai sửa ô")).toBeVisible();
@@ -344,9 +347,9 @@ test("Template: cột Người dùng có thuộc tính (vai trò, %, tổng tố
   // A column that cannot take the attribute is refused by the server in words (a text column cannot hold a %).
   await panel.getByRole("button", { name: "Thêm cột" }).first().click();
   const step2 = dialog(pg, "Thêm cột vào template");
-  await step2.getByLabel("Cách lưu giá trị").selectOption("person");
-  await step2.getByLabel("Cột người tham gia").selectOption({ label: "Người làm" });
-  await step2.getByLabel("Thuộc tính gửi xuống").selectOption({ label: "Tỉ lệ" });
+  await chooseOption(step2.getByLabel("Cách lưu giá trị"), "person");
+  await chooseOption(step2.getByLabel("Cột người tham gia"), { label: "Người làm" });
+  await chooseOption(step2.getByLabel("Thuộc tính gửi xuống"), { label: "Tỉ lệ" });
   await step2.getByRole("button", { name: "Tiếp tục" }).click();
   ed = dialog(pg, "Thêm cột");
   await ed.getByLabel(/Tên cột/).fill("Sai kiểu");

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 import { seedMany } from "./dh-fixtures";
 
@@ -311,8 +311,8 @@ test("chủ: bộ lọc chung, lọc chéo, xem các dòng, CSV, PNG, xuất r�
   await pg.goto(`/datahub/${hubId}/dashboard/${fullId}`);
   await expect(cardOf(pg, "KPI ").getByTestId("kpi-value")).toHaveText(TOTAL_TEXT);
   // common filter
-  await pg.getByTestId("filter-field").selectOption({ label: "Loại" });
-  await pg.getByTestId("filter-value").selectOption({ label: "POD" });
+  await chooseOption(pg.getByTestId("filter-field"), { label: "Loại" });
+  await chooseOption(pg.getByTestId("filter-value"), { label: "POD" });
   await expect(cardOf(pg, "KPI ").getByTestId("kpi-value")).toHaveText("275");
   await pg.getByTestId("filter-reset").click();
   await expect(cardOf(pg, "KPI ").getByTestId("kpi-value")).toHaveText(TOTAL_TEXT);
@@ -373,8 +373,8 @@ test("được chia sẻ dashboard, không có quyền bảng nguồn: thấy đ
   await expect(vp.getByRole("menuitem", { name: /CSV/ })).toHaveCount(0);
   await vp.keyboard.press("Escape");
   // own filter: a copy of the person, the default of the owner stays
-  await vp.getByTestId("filter-field").selectOption({ label: "Loại" });
-  await vp.getByTestId("filter-value").selectOption({ label: "POD" });
+  await chooseOption(vp.getByTestId("filter-field"), { label: "Loại" });
+  await chooseOption(vp.getByTestId("filter-value"), { label: "POD" });
   await expect(cardOf(vp, "KPI ").getByTestId("kpi-value")).toHaveText("275");
   await expect.poll(async () => (await viewerNoApi.call<{ my_filters: unknown }>("GET", `/dashboards/${fullId}/view`)).my_filters).not.toBeNull();
   expect((await ownerApi.call<{ my_filters: unknown }>("GET", `/dashboards/${fullId}`)).my_filters).toBeNull();
@@ -532,8 +532,8 @@ test("điện thoại: chủ mở dashboard, xem biểu đồ, đổi bộ lọc
   // the number is not cut at 375px
   const kv = cardOf(pg, "KPI ").getByTestId("kpi-value");
   expect(await kv.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
-  await pg.getByTestId("filter-field").selectOption({ label: "Loại" });
-  await pg.getByTestId("filter-value").selectOption({ label: "POD" });
+  await chooseOption(pg.getByTestId("filter-field"), { label: "Loại" });
+  await chooseOption(pg.getByTestId("filter-value"), { label: "POD" });
   await expect(cardOf(pg, "KPI ").getByTestId("kpi-value")).toHaveText("275");
   await pg.getByTestId("filter-reset").click();
   await expect(cardOf(pg, "KPI ").getByTestId("kpi-value")).toHaveText(TOTAL_TEXT);
@@ -548,8 +548,8 @@ test("điện thoại: người được chia sẻ mở dashboard từ danh sác
   await vp.getByTestId("shared-dashboard").filter({ hasText: "Đủ loại" }).click();
   await expect(cardOf(vp, "KPI ").getByTestId("kpi-value")).toHaveText(TOTAL_TEXT);
   await expect(vp.getByTestId("kpi-rows")).toHaveCount(0);
-  await vp.getByTestId("filter-field").selectOption({ label: "Loại" });
-  await vp.getByTestId("filter-value").selectOption({ label: "DCC" });
+  await chooseOption(vp.getByTestId("filter-field"), { label: "Loại" });
+  await chooseOption(vp.getByTestId("filter-value"), { label: "DCC" });
   await expect(cardOf(vp, "KPI ").getByTestId("kpi-value")).toHaveText("250");
   await vp.getByTestId("filter-reset").click();
   await viewerNo.shot("3e-phone-shared");

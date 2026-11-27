@@ -2,7 +2,7 @@ import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { seedMany } from "./dh-fixtures";
 import { GridDriver } from "./grid";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, expectSelectValue } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -136,7 +136,7 @@ test("thêm cột: lỗi tên hiện dưới ô, sửa rồi lưu; mô tả và 
   await owner.shot("column-add-name-error");
 
   await nameBox(d).fill("Nguồn lead");
-  await d.getByLabel("Kiểu cột").selectOption({ label: "Văn bản" });
+  await chooseOption(d.getByLabel("Kiểu cột"), { label: "Văn bản" });
   await d.getByLabel("Độ dài tối đa").fill("0");
   await d.getByLabel("Độ dài tối đa").blur();
   await expect(d.getByText("Độ dài tối đa là số nguyên từ 1 đến 100000.")).toBeVisible();
@@ -164,7 +164,7 @@ test("cột Một lựa chọn: lựa chọn, màu, thứ tự; sửa; đổi ki
   await open(owner);
   let d = await openAdd(pg);
   await nameBox(d).fill("Giai đoạn");
-  await d.getByLabel("Kiểu cột").selectOption({ label: "Một lựa chọn" });
+  await chooseOption(d.getByLabel("Kiểu cột"), { label: "Một lựa chọn" });
   await d.getByRole("button", { name: "Thêm lựa chọn" }).click();
   await d.getByRole("textbox", { name: "Tên lựa chọn 1" }).fill("Mới");
   await d.getByRole("button", { name: "Thêm lựa chọn" }).click();
@@ -172,7 +172,7 @@ test("cột Một lựa chọn: lựa chọn, màu, thứ tự; sửa; đổi ki
   await d.getByRole("button", { name: "Thêm cột", exact: true }).click();
   await expect(d.getByText('Tên lựa chọn bị trùng: "mới".')).toBeVisible();
   await d.getByRole("textbox", { name: "Tên lựa chọn 2" }).fill("Chốt");
-  await d.getByLabel("Màu của lựa chọn 2").selectOption({ label: "Xanh lá" });
+  await chooseOption(d.getByLabel("Màu của lựa chọn 2"), { label: "Xanh lá" });
   await d.getByRole("button", { name: "Chuyển lựa chọn 2 lên" }).click();
   await d.getByRole("button", { name: "Thêm cột", exact: true }).click();
   await waitToast(pg, "Đã thêm cột");
@@ -189,7 +189,7 @@ test("cột Một lựa chọn: lựa chọn, màu, thứ tự; sửa; đổi ki
 
   // Change the type of "Ghi chú" (text: "12", "abc", "7") to a number: the dialog says what is lost; "Giữ lại" changes nothing.
   d = await openEdit(pg, "Ghi chú");
-  await d.getByLabel("Kiểu cột").selectOption({ label: "Số" });
+  await chooseOption(d.getByLabel("Kiểu cột"), { label: "Số" });
   await d.getByRole("button", { name: "Lưu cột" }).click();
   const warn = dialog(pg, /Đổi cột "Ghi chú" từ Văn bản sang Số\?/);
   await expect(warn).toBeVisible();
@@ -222,7 +222,7 @@ test("công thức: gợi ý, cú pháp, lỗi báo ngay rồi sửa, xem trư�
   await open(owner);
   const d = await openAdd(pg);
   await nameBox(d).fill("Gấp đôi");
-  await d.getByLabel("Kiểu cột").selectOption({ label: "Công thức" });
+  await chooseOption(d.getByLabel("Kiểu cột"), { label: "Công thức" });
   const box = d.getByRole("textbox", { name: "Công thức", exact: true });
   await box.click();
 
@@ -260,8 +260,8 @@ test("công thức: gợi ý, cú pháp, lỗi báo ngay rồi sửa, xem trư�
   // Reference picker: a column of another table.
   await d.getByRole("button", { name: "Chèn cột hoặc bảng" }).click();
   const ref = pg.getByRole("dialog", { name: "Chèn cột hoặc bảng" });
-  await ref.getByRole("combobox", { name: /^Bảng/ }).selectOption({ label: "Khách hàng" });
-  await expect(ref.getByRole("combobox", { name: /^Cột/ })).toHaveValue("Tên khách");
+  await chooseOption(ref.getByRole("combobox", { name: /^Bảng/ }), { label: "Khách hàng" });
+  await expectSelectValue(ref.getByRole("combobox", { name: /^Cột/ }), "Tên khách");
   await expect(ref.getByText("[Khách hàng].[Tên khách]")).toBeVisible();
   await ref.getByRole("button", { name: "Chèn vào công thức" }).click();
   await expect(box).toHaveValue(/\[Khách hàng\]\.\[Tên khách\]/);
@@ -270,7 +270,7 @@ test("công thức: gợi ý, cú pháp, lỗi báo ngay rồi sửa, xem trư�
   await d.getByRole("button", { name: "Công thức mẫu" }).click();
   const lib = pg.getByRole("dialog", { name: "Công thức mẫu" });
   await lib.getByRole("button", { name: /Phân loại theo ngưỡng/ }).click();
-  await expect(lib.getByLabel("Cột số")).toHaveValue("Doanh thu");
+  await expectSelectValue(lib.getByLabel("Cột số"), "Doanh thu");
   await lib.getByRole("button", { name: "Thay công thức bằng mẫu này" }).click();
   await expect(box).toHaveValue('=IF([Doanh thu] >= 1000000000, "Trên 1 tỷ", "Dưới 1 tỷ")');
   await expect(d.getByRole("cell", { name: "Dưới 1 tỷ" }).first()).toBeVisible();
@@ -297,29 +297,29 @@ test("cột Liên kết, Lookup, Rollup: chọn bảng và cột từ danh sách
   // Relation column to "Khách hàng".
   let d = await openAdd(pg);
   await nameBox(d).fill("Khách");
-  await d.getByLabel("Kiểu cột").selectOption({ label: "Liên kết dòng" });
+  await chooseOption(d.getByLabel("Kiểu cột"), { label: "Liên kết dòng" });
   await d.getByRole("button", { name: "Thêm cột", exact: true }).click();
   await expect(d.getByText("Chọn bảng để liên kết tới.")).toBeVisible();
-  await d.getByLabel("Liên kết tới bảng").selectOption({ label: "Khách hàng" });
+  await chooseOption(d.getByLabel("Liên kết tới bảng"), { label: "Khách hàng" });
   await d.getByRole("button", { name: "Thêm cột", exact: true }).click();
   await created("Khách");
   await expect(d).toBeHidden();
   // Lookup and rollup read through it.
   d = await openAdd(pg);
   await nameBox(d).fill("Tên KH");
-  await d.getByLabel("Kiểu cột").selectOption({ label: "Lookup" });
-  await d.getByLabel("Cột Liên kết của bảng này").selectOption({ label: "Khách" });
+  await chooseOption(d.getByLabel("Kiểu cột"), { label: "Lookup" });
+  await chooseOption(d.getByLabel("Cột Liên kết của bảng này"), { label: "Khách" });
   await expect(d.getByLabel(/^Cột của bảng "Khách hàng"/)).toBeEnabled();
-  await d.getByLabel(/^Cột của bảng "Khách hàng"/).selectOption({ label: "Tên khách" });
+  await chooseOption(d.getByLabel(/^Cột của bảng "Khách hàng"/), { label: "Tên khách" });
   await d.getByRole("button", { name: "Thêm cột", exact: true }).click();
   await created("Tên KH");
   await expect(d).toBeHidden();
   d = await openAdd(pg);
   await nameBox(d).fill("Số KH");
-  await d.getByLabel("Kiểu cột").selectOption({ label: "Rollup" });
-  await d.getByLabel("Cột Liên kết của bảng này").selectOption({ label: "Khách" });
-  await d.getByLabel(/^Cột của bảng "Khách hàng"/).selectOption({ label: "Tên khách" });
-  await d.getByLabel("Cách tổng hợp").selectOption({ label: "Đếm ô không trống" });
+  await chooseOption(d.getByLabel("Kiểu cột"), { label: "Rollup" });
+  await chooseOption(d.getByLabel("Cột Liên kết của bảng này"), { label: "Khách" });
+  await chooseOption(d.getByLabel(/^Cột của bảng "Khách hàng"/), { label: "Tên khách" });
+  await chooseOption(d.getByLabel("Cách tổng hợp"), { label: "Đếm ô không trống" });
   await d.getByRole("button", { name: "Thêm cột", exact: true }).click();
   await created("Số KH");
   await expect(d).toBeHidden();
@@ -332,9 +332,9 @@ test("cột Liên kết, Lookup, Rollup: chọn bảng và cột từ danh sách
   await expect(g.root).toBeVisible();
   d = await openAdd(pg);
   await nameBox(d).fill("NCC");
-  await d.getByLabel("Kiểu cột").selectOption({ label: "Liên kết dòng" });
-  await d.getByLabel(/^Datahub của bảng cần liên kết/).selectOption({ label: `Kho khác ${p}` });
-  await d.getByLabel("Liên kết tới bảng").selectOption({ label: "Nhà cung cấp" });
+  await chooseOption(d.getByLabel("Kiểu cột"), { label: "Liên kết dòng" });
+  await chooseOption(d.getByLabel(/^Datahub của bảng cần liên kết/), { label: `Kho khác ${p}` });
+  await chooseOption(d.getByLabel("Liên kết tới bảng"), { label: "Nhà cung cấp" });
   await d.getByRole("button", { name: "Thêm cột", exact: true }).click();
   await created("NCC");
   await expect(d).toBeHidden();
@@ -388,7 +388,7 @@ test("cột Đính kèm: tải file lên, tải về, loại file không nhận,
   const g = await open(owner);
   const d = await openAdd(pg);
   await nameBox(d).fill("Hợp đồng");
-  await d.getByLabel("Kiểu cột").selectOption({ label: "Đính kèm" });
+  await chooseOption(d.getByLabel("Kiểu cột"), { label: "Đính kèm" });
   await d.getByLabel("Số file tối đa mỗi ô").fill("3");
   await d.getByRole("button", { name: "Thêm cột", exact: true }).click();
   await created("Hợp đồng");

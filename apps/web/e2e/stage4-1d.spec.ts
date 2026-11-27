@@ -1,7 +1,7 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { GridDriver } from "./grid";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, closeSelect, expectSelectValue, openSelect } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -254,8 +254,8 @@ test("thu gọn / mở tất cả nhóm: lưu vào view, còn nguyên sau khi t�
   const g = await openTable(ownerS);
   const gp = await openTool(pg, "Nhóm", "Nhóm dòng");
   await gp.getByRole("button", { name: "Thêm cấp nhóm" }).click();
-  await gp.getByLabel("Cột nhóm cấp 1").selectOption({ label: "Giai đoạn" });
-  await gp.getByLabel("Tổng của cột Doanh thu").selectOption({ label: "Tổng" });
+  await chooseOption(gp.getByLabel("Cột nhóm cấp 1"), { label: "Giai đoạn" });
+  await chooseOption(gp.getByLabel("Tổng của cột Doanh thu"), { label: "Tổng" });
   await pg.keyboard.press("Escape");
   await expect(pg.getByText("Đã lưu view")).toBeVisible();
   // 6 rows + 2 groups.
@@ -288,9 +288,11 @@ test("xuất dạng tổng hợp: hộp thoại có Dòng nhóm / Mọi dòng; f
   await openTable(ownerS);
   await pg.getByRole("button", { name: "Xuất", exact: true }).click();
   const d = dialog(pg, "Xuất dữ liệu");
-  await d.getByLabel("Phạm vi xuất").selectOption({ index: 0 });
-  await expect(d.getByLabel("Dòng xuất ra")).toHaveValue("groups");
-  await expect(d.getByLabel("Dòng xuất ra").locator("option")).toHaveText(["Dòng nhóm (tổng hợp)", "Mọi dòng"]);
+  await chooseOption(d.getByLabel("Phạm vi xuất"), { index: 0 });
+  await expectSelectValue(d.getByLabel("Dòng xuất ra"), "groups");
+  const rowsList = await openSelect(d.getByLabel("Dòng xuất ra"));
+  await expect(rowsList.getByRole("option")).toHaveText(["Dòng nhóm (tổng hợp)", "Mọi dòng"]);
+  await closeSelect(rowsList);
   const dl = pg.waitForEvent("download");
   await d.getByRole("button", { name: "Xuất file" }).click();
   const file = await dl;
@@ -309,7 +311,7 @@ test("cột Ngày sửa của cột: tạo trên bảng đã có dữ liệu (đ
   await pg.getByRole("button", { name: "Thêm cột", exact: true }).click();
   const d = dialog(pg, "Thêm cột");
   await d.getByRole("textbox", { name: /^Tên cột/ }).fill("Ngày đổi giai đoạn");
-  await d.getByLabel("Kiểu cột").selectOption({ label: "Ngày sửa của cột" });
+  await chooseOption(d.getByLabel("Kiểu cột"), { label: "Ngày sửa của cột" });
   // Computed and system columns are not offered; one watched column is needed.
   await d.getByRole("button", { name: "Thêm cột" }).click();
   await expect(d.getByRole("alert").filter({ hasText: "Chọn từ 1 đến 5 cột" }).first()).toBeVisible();

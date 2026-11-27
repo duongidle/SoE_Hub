@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { API, Session, cliAdminCreate, type ProjectName } from "./helpers";
+import { API, Session, cliAdminCreate, type ProjectName, chooseOption, openSelect } from "./helpers";
 
 /**
  * Stage 1 flows on a real stack (empty database, api + worker + web), run once per project (desktop 1440x900 and
@@ -334,7 +334,7 @@ test("nhật ký: lọc theo hành động, người, kết quả; chi tiết c�
   // The denied attempt of the User on the audit log.
   await form.getByLabel("Hành động").fill("system.audit");
   await form.getByLabel("Người thực hiện").fill(email("user"));
-  await form.getByLabel("Kết quả").selectOption("denied");
+  await chooseOption(form.getByLabel("Kết quả"), "denied");
   await form.getByRole("button", { name: "Lọc", exact: true }).click();
   await expect(auditRow(/system\.audit\.list/).first()).toBeVisible();
   await expect(auditRow(/Thành công/)).toHaveCount(0);
@@ -350,18 +350,18 @@ test("nhật ký: lọc theo hành động, người, kết quả; chi tiết c�
   // Rows without a signed-in actor: channel filled, "Chưa đăng nhập", the email that was tried.
   await form.getByLabel("Hành động").fill("auth.login");
   await form.getByLabel("Người thực hiện").fill("");
-  await form.getByLabel("Kết quả").selectOption("error");
+  await chooseOption(form.getByLabel("Kết quả"), "error");
   await form.getByRole("button", { name: "Lọc", exact: true }).click();
   const anon = auditRow(/auth\.login/).filter({ hasText: "Chưa đăng nhập" }).first();
   await expect(anon).toBeVisible();
   await expect(anon).toContainText(email("lock"));
   await expect(anon).toContainText("Web");
   await expect(anon).toContainText("IP");
-  await form.getByLabel("Kết quả").selectOption("");
+  await chooseOption(form.getByLabel("Kết quả"), "");
 
   // Channel and time range filters work and an empty result says so.
   await form.getByRole("button", { name: "Xoá lọc" }).click();
-  await form.getByLabel("Kênh").selectOption("web");
+  await chooseOption(form.getByLabel("Kênh"), "web");
   await form.getByLabel("Từ lúc").fill("01/01/2000 00:00");
   await form.getByLabel("Đến lúc").fill("02/01/2000");
   await form.getByRole("button", { name: "Lọc", exact: true }).click();
@@ -388,9 +388,11 @@ test("chuyển giao dữ liệu: chọn nguồn + đích -> xem trước -> xác
   await admin.clickMenu("Chuyển giao");
   const pick = async (label: string, who: string) => {
     await admin.page.getByLabel(`${label}: tìm`).fill(email(who));
-    const opt = admin.page.getByLabel(label, { exact: true }).locator("option", { hasText: email(who) });
-    await expect(opt).toHaveCount(1);
-    await admin.page.getByLabel(label, { exact: true }).selectOption({ label: `${nameOf(who)} (${email(who)})` });
+    const trigger = admin.page.getByLabel(label, { exact: true });
+    const list = await openSelect(trigger);
+    await expect(list.getByRole("option", { name: new RegExp(email(who).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) })).toHaveCount(1);
+    await list.getByRole("option", { name: `${nameOf(who)} (${email(who)})`, exact: true }).click();
+    await expect(list).toBeHidden();
   };
   await pick("Tài khoản nguồn", "user");
   await pick("Tài khoản nhận", "user2");

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /** Stage 9D: Onboarding through the real screens. Two flows, invented accounts only. Desktop only (the 375px check opens its own phone-sized window). */
@@ -65,7 +65,7 @@ test("Leader gắn lộ trình mẫu cho nhân sự, sửa trong trình sửa; n
   await lp.goto("/onboarding/lo-trinh");
   await lp.getByRole("tab", { name: "Mẫu" }).click(); // a clone of a template is a template
   await lp.getByTestId("plan-row").filter({ hasText: "(bản sao)" }).first().getByTestId("plan-assign").click();
-  await lp.getByTestId("assign-staff").selectOption({ label: USER_NAME() });
+  await chooseOption(lp.getByTestId("assign-staff"), { label: USER_NAME() });
   await lp.getByTestId("assign-start").fill(mondayOfWeek());
   await lp.getByTestId("assign-ok").click();
   await expect(lp.getByTestId("onb-plan-view")).toBeVisible();
@@ -76,7 +76,7 @@ test("Leader gắn lộ trình mẫu cho nhân sự, sửa trong trình sửa; n
   await expect(lp.getByTestId("onb-editor")).toBeVisible();
   const item = lp.locator('[data-testid="ed-item"]').filter({ has: lp.locator('input[value="Gửi câu hỏi Q&A trong tuần"]') }).first();
   await expect(item).toBeVisible();
-  await item.locator('label:has(> span:text-is("Thứ")) select').selectOption(String(dayOfWeek()));
+  await chooseOption(item.locator('label:has(> span:text-is("Thứ")) [role="combobox"]'), String(dayOfWeek()));
   await lp.getByTestId("plan-save").click();
   await expect(lp.getByText("Đã lưu lộ trình.")).toBeVisible();
 

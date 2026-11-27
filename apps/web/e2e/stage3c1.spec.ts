@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, expectSelectValue } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -52,9 +52,9 @@ async function addChart(page: Page, type: string, title: string) {
 }
 async function pickSource(page: Page, agg: string, field?: string) {
   const s = panel(page).getByTestId("series-0");
-  await s.getByLabel("Nguồn dữ liệu").selectOption({ label: dealsName() });
-  await s.getByLabel("Cách tính").selectOption({ label: agg });
-  if (field) await s.getByLabel("Cột giá trị").selectOption({ label: field });
+  await chooseOption(s.getByLabel("Nguồn dữ liệu"), { label: dealsName() });
+  await chooseOption(s.getByLabel("Cách tính"), { label: agg });
+  if (field) await chooseOption(s.getByLabel("Cột giá trị"), { label: field });
 }
 async function closePanel(page: Page) {
   await panel(page).getByRole("button", { name: "Đóng cấu hình" }).click();
@@ -137,8 +137,8 @@ test("biểu đồ cột (nhóm, chồng), đường theo tháng, tròn và bả
   await addChart(pg, "Cột đứng", "Theo loại");
   await pickSource(pg, "Tổng", "Số tiền");
   await panel(pg).getByRole("button", { name: "Thêm cột nhóm" }).click();
-  await panel(pg).getByLabel("Cột nhóm 1").selectOption({ label: "Loại" });
-  await panel(pg).getByLabel("Xếp chồng").selectOption({ label: "Chồng" });
+  await chooseOption(panel(pg).getByLabel("Cột nhóm 1"), { label: "Loại" });
+  await chooseOption(panel(pg).getByLabel("Xếp chồng"), { label: "Chồng" });
   await saved(pg);
   await expect(panel(pg).locator("[data-chart-ready]").first()).toBeVisible();
   await closePanel(pg);
@@ -153,8 +153,8 @@ test("biểu đồ cột (nhóm, chồng), đường theo tháng, tròn và bả
   // Line: by month.
   await addChart(pg, "Đường", "Theo tháng");
   await pickSource(pg, "Đếm dòng");
-  await panel(pg).getByLabel("Cột ngày").selectOption({ label: "Ngày" });
-  await panel(pg).getByLabel("Nhóm theo thời gian").selectOption({ label: "Tháng" });
+  await chooseOption(panel(pg).getByLabel("Cột ngày"), { label: "Ngày" });
+  await chooseOption(panel(pg).getByLabel("Nhóm theo thời gian"), { label: "Tháng" });
   await saved(pg);
   await closePanel(pg);
   const line = cardOf(pg, "Theo tháng");
@@ -168,7 +168,7 @@ test("biểu đồ cột (nhóm, chồng), đường theo tháng, tròn và bả
   await addChart(pg, "Tròn", "Cơ cấu");
   await pickSource(pg, "Tổng", "Số tiền");
   await panel(pg).getByRole("button", { name: "Thêm cột nhóm" }).click();
-  await panel(pg).getByLabel("Cột nhóm 1").selectOption({ label: "Loại" });
+  await chooseOption(panel(pg).getByLabel("Cột nhóm 1"), { label: "Loại" });
   await saved(pg);
   await closePanel(pg);
   const pie = cardOf(pg, "Cơ cấu");
@@ -179,7 +179,7 @@ test("biểu đồ cột (nhóm, chồng), đường theo tháng, tròn và bả
   await addChart(pg, "Bảng", "Bảng theo loại");
   await pickSource(pg, "Tổng", "Số tiền");
   await panel(pg).getByRole("button", { name: "Thêm cột nhóm" }).click();
-  await panel(pg).getByLabel("Cột nhóm 1").selectOption({ label: "Loại" });
+  await chooseOption(panel(pg).getByLabel("Cột nhóm 1"), { label: "Loại" });
   await saved(pg);
   await closePanel(pg);
   const tb = cardOf(pg, "Bảng theo loại");
@@ -216,7 +216,7 @@ test("các loại còn lại (bar, area, combo hai trục, donut, pivot) vẽ đ
   // Edit: the panel opens with the saved settings and changes are saved by themselves.
   await cardOf(pg, "Donut").getByRole("button", { name: /Tuỳ chọn biểu đồ Donut/ }).click();
   await pg.getByRole("menuitem", { name: "Sửa biểu đồ" }).click();
-  await expect(panel(pg).getByLabel("Loại biểu đồ")).toHaveValue("donut");
+  await expectSelectValue(panel(pg).getByLabel("Loại biểu đồ"), "donut");
   await panel(pg).getByLabel("Tiêu đề").fill("Donut đổi tên");
   await saved(pg);
   await closePanel(pg);

@@ -41,9 +41,8 @@ export function DateTimeInput({ value, onChange, ...props }: Omit<React.Componen
   );
 }
 
-export function Select({ className, ...props }: React.ComponentProps<"select">) {
-  return <select className={cn("min-h-11 w-full rounded-md border border-border bg-card px-2 py-1.5 text-base sm:min-h-9 sm:text-sm", className)} {...props} />;
-}
+export { Select } from "./select";
+export type { SelectChange } from "./select";
 
 export function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return <textarea className={cn("w-full rounded-md border border-border bg-card px-3 py-1.5 text-base outline-none transition-colors placeholder:text-faint hover:border-primary-border focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:text-sm", className)} {...props} />;

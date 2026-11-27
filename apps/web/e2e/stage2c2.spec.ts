@@ -2,7 +2,7 @@ import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { seedMany } from "./dh-fixtures";
 import { GridDriver } from "./grid";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -159,8 +159,8 @@ test("lọc: điều kiện lồng nhau tự lưu, giữ sau khi tải lại; l�
   await expect(pg.getByText("12 dòng", { exact: true })).toBeVisible();
   const d = await openTool(pg, "Lọc", "Lọc dòng");
   await d.getByRole("button", { name: "Thêm điều kiện" }).click();
-  await d.getByLabel("Cột", { exact: true }).selectOption({ label: "Giai đoạn" });
-  await d.getByLabel("Giá trị").selectOption({ label: "Chốt" });
+  await chooseOption(d.getByLabel("Cột", { exact: true }), { label: "Giai đoạn" });
+  await chooseOption(d.getByLabel("Giá trị"), { label: "Chốt" });
   await expect(pg.getByText("3 dòng", { exact: true })).toBeVisible();
   await waitSaved(pg);
   expect((await sharedView(ownerApi)).config.filter).toEqual({ field: keys["Giai đoạn"], op: "eq", value: expect.any(String) });
@@ -171,8 +171,8 @@ test("lọc: điều kiện lồng nhau tự lưu, giữ sau khi tải lại; l�
   // A condition on a number: "lớn hơn" a huge value leaves nothing.
   const d2 = await openTool(pg, "Lọc", "Lọc dòng");
   await d2.getByRole("button", { name: "Thêm điều kiện" }).click();
-  await d2.getByLabel("Cột", { exact: true }).nth(1).selectOption({ label: "Doanh thu" });
-  await d2.getByLabel("Toán tử").nth(1).selectOption({ label: "lớn hơn" });
+  await chooseOption(d2.getByLabel("Cột", { exact: true }).nth(1), { label: "Doanh thu" });
+  await chooseOption(d2.getByLabel("Toán tử").nth(1), { label: "lớn hơn" });
   await d2.getByLabel("Giá trị").nth(1).fill("99.999.999.999");
   await d2.getByLabel("Giá trị").nth(1).blur();
   await expect(pg.getByRole("heading", { name: "Không có dòng nào khớp" })).toBeVisible();
@@ -190,16 +190,16 @@ test("sắp xếp nhiều cấp và theo cột công thức; nhóm có dòng t�
   const g = await open(owner);
   const s = await openTool(pg, "Sắp xếp", "Sắp xếp");
   await s.getByRole("button", { name: "Thêm cấp sắp xếp" }).click();
-  await s.getByLabel("Cột sắp xếp cấp 1").selectOption({ label: "Gấp đôi" });
-  await s.getByLabel("Chiều sắp xếp").selectOption({ label: "Lớn → nhỏ" });
+  await chooseOption(s.getByLabel("Cột sắp xếp cấp 1"), { label: "Gấp đôi" });
+  await chooseOption(s.getByLabel("Chiều sắp xếp"), { label: "Lớn → nhỏ" });
   await pg.keyboard.press("Escape");
   await expect.poll(async () => g.read(5, 0), { timeout: 10_000 }).toMatch(/24\.000\.000/);
   await waitSaved(pg);
   // Group by stage with the total of revenue.
   const gp = await openTool(pg, "Nhóm", "Nhóm dòng");
   await gp.getByRole("button", { name: "Thêm cấp nhóm" }).click();
-  await gp.getByLabel("Cột nhóm cấp 1").selectOption({ label: "Giai đoạn" });
-  await gp.getByLabel("Tổng của cột Doanh thu").selectOption({ label: "Tổng" });
+  await chooseOption(gp.getByLabel("Cột nhóm cấp 1"), { label: "Giai đoạn" });
+  await chooseOption(gp.getByLabel("Tổng của cột Doanh thu"), { label: "Tổng" });
   await pg.keyboard.press("Escape");
   // 12 rows + 4 groups (Mới, Đang chăm, Chốt, empty).
   await expect.poll(() => lines(g), { timeout: 10_000 }).toBe(16);
@@ -236,7 +236,7 @@ test("ô Thời gian: khoảng có sẵn, kỳ cụ thể có ‹ ›, chip bỏ
   const pg = owner.page;
   await open(owner);
   const d = await openTool(pg, "Thời gian", "Lọc theo thời gian");
-  await d.getByLabel("Khoảng thời gian").selectOption({ label: "Tháng này" });
+  await chooseOption(d.getByLabel("Khoảng thời gian"), { label: "Tháng này" });
   const expected = await apiTotal(`&time_filter=${encodeURIComponent(JSON.stringify({ columns: [keys["Ngày nhận"]], range: { kind: "preset", preset: "this_month" } }))}`);
   expect(expected).toBe(6);
   await expect(pg.getByText("6 dòng", { exact: true })).toBeVisible();
@@ -247,7 +247,7 @@ test("ô Thời gian: khoảng có sẵn, kỳ cụ thể có ‹ ›, chip bỏ
   await expect(chip).toContainText(/\d{2}\/\d{2}\/\d{4} – \d{2}\/\d{2}\/\d{4}/);
   await owner.shot("view-time");
   // A specific month, one step back: the rows of this month are out.
-  await d.getByLabel("Khoảng thời gian").selectOption({ label: "Một kỳ cụ thể (tháng, quý, năm)" });
+  await chooseOption(d.getByLabel("Khoảng thời gian"), { label: "Một kỳ cụ thể (tháng, quý, năm)" });
   await expect(chip).toContainText(/Tháng \d+\/\d{4}/);
   await d.getByRole("button", { name: "Kỳ trước" }).click();
   await expect(pg.getByRole("heading", { name: "Không có dòng nào khớp" })).toBeVisible();
@@ -276,9 +276,9 @@ test("cột của view: ẩn, đổi thứ tự, cố định, chiều cao dòng
   const col = await openTool(pg, "Tô màu", "Tô màu theo điều kiện");
   await col.getByRole("button", { name: "Thêm quy tắc" }).click();
   await col.getByRole("button", { name: "Thêm điều kiện" }).click();
-  await col.getByLabel("Cột", { exact: true }).selectOption({ label: "Giai đoạn" });
-  await col.getByLabel("Giá trị").selectOption({ label: "Chốt" });
-  await col.getByLabel("Màu của quy tắc 1").selectOption({ label: "Xanh lá" });
+  await chooseOption(col.getByLabel("Cột", { exact: true }), { label: "Giai đoạn" });
+  await chooseOption(col.getByLabel("Giá trị"), { label: "Chốt" });
+  await chooseOption(col.getByLabel("Màu của quy tắc 1"), { label: "Xanh lá" });
   await pg.keyboard.press("Escape");
   await waitSaved(pg);
   await owner.shot("view-colors");
@@ -337,8 +337,8 @@ test("người Xem và người Sửa đổi view chung: lưu thành bản riên
     const g = await open(s);
     const d = await openTool(pg, "Sắp xếp", "Sắp xếp");
     await d.getByRole("button", { name: "Thêm cấp sắp xếp" }).click();
-    await d.getByLabel("Cột sắp xếp cấp 1").selectOption({ label: "Doanh thu" });
-    await d.getByLabel("Chiều sắp xếp").selectOption({ label: "Lớn → nhỏ" });
+    await chooseOption(d.getByLabel("Cột sắp xếp cấp 1"), { label: "Doanh thu" });
+    await chooseOption(d.getByLabel("Chiều sắp xếp"), { label: "Lớn → nhỏ" });
     await pg.keyboard.press("Escape");
     await expect(pg.getByText("Đã lưu view (chỉ cho bạn)")).toBeVisible();
     await expect.poll(async () => g.read(2, 0), { timeout: 10_000 }).toMatch(/12\.000\.000/);
@@ -424,7 +424,7 @@ test("nhóm có rất nhiều nhóm: cắt ở 1.000 nhóm và báo rõ; 10.000 
   const g = new GridDriver(pg);
   const gp = await openTool(pg, "Nhóm", "Nhóm dòng");
   await gp.getByRole("button", { name: "Thêm cấp nhóm" }).click();
-  await gp.getByLabel("Cột nhóm cấp 1").selectOption({ label: "Mã" });
+  await chooseOption(gp.getByLabel("Cột nhóm cấp 1"), { label: "Mã" });
   await pg.keyboard.press("Escape");
   await expect(pg.getByText(/Có hơn 1\.000 nhóm/)).toBeVisible({ timeout: 20_000 });
   // 1.000 groups of one row each: 2.000 lines.
@@ -436,14 +436,14 @@ test("nhóm có rất nhiều nhóm: cắt ở 1.000 nhóm và báo rõ; 10.000 
   // Filter "Tiền lớn hơn 9.000.000" and sort by money: 999 rows (values 9.001.000 .. 9.999.000 step 1.000 each appear once).
   const f = await openTool(pg, "Lọc", "Lọc dòng");
   await f.getByRole("button", { name: "Thêm điều kiện" }).click();
-  await f.getByLabel("Cột", { exact: true }).selectOption({ label: "Tiền" });
-  await f.getByLabel("Toán tử").selectOption({ label: "lớn hơn" });
+  await chooseOption(f.getByLabel("Cột", { exact: true }), { label: "Tiền" });
+  await chooseOption(f.getByLabel("Toán tử"), { label: "lớn hơn" });
   await f.getByLabel("Giá trị").fill("9.000.000");
   await pg.keyboard.press("Escape");
   await expect(pg.getByText("999 dòng", { exact: true })).toBeVisible({ timeout: 20_000 });
   const s = await openTool(pg, "Sắp xếp", "Sắp xếp");
   await s.getByRole("button", { name: "Thêm cấp sắp xếp" }).click();
-  await s.getByLabel("Cột sắp xếp cấp 1").selectOption({ label: "Tiền" });
+  await chooseOption(s.getByLabel("Cột sắp xếp cấp 1"), { label: "Tiền" });
   await pg.keyboard.press("Escape");
   await expect.poll(async () => g.read(1, 0), { timeout: 10_000 }).toBe("9.001.000 ₫");
   await owner.shot("view-10k-filtered");

@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
-import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { expect, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 
 const run = promisify(execFile);
 
@@ -14,6 +14,48 @@ export type ProjectName = keyof typeof VIEWPORTS;
 export const WEB = process.env.E2E_WEB_URL ?? "http://localhost:5273";
 export const API = process.env.E2E_API_URL ?? "http://localhost:3100";
 const SHOTS = path.join(process.cwd(), "e2e", "screenshots");
+
+/**
+ * Picks an option of the system dropdown (`Select`): opens it from its trigger button, clicks the option, waits for the list to close.
+ * A plain string is matched as the option's value, then as its label; `{ label }` is the exact label.
+ */
+export async function chooseOption(trigger: Locator, option: string | { label: string } | { index: number }): Promise<void> {
+  const list = await openSelect(trigger);
+  const byValue = typeof option === "string" ? list.locator(`[role="option"][data-value="${option.replace(/"/g, '\\"')}"]`) : null;
+  if (typeof option === "object" && "index" in option) {
+    await list.getByRole("option").nth(option.index).click();
+    await expect(list).toBeHidden();
+    return;
+  }
+  const pick = byValue && (await byValue.count()) > 0 ? byValue.first() : list.getByRole("option", { name: typeof option === "string" ? option : (option as { label: string }).label, exact: true }).first();
+  await pick.click();
+  await expect(list).toBeHidden();
+}
+
+/**
+ * Opens a `Select` and returns its list (role listbox). Close it with `closeSelect(list)`. While the list is open the page behind
+ * it is aria-hidden (the dropdown is modal), so role-based locators of the trigger stop matching: the trigger is held by handle.
+ */
+export async function openSelect(trigger: Locator): Promise<Locator> {
+  const handle = await trigger.elementHandle();
+  if (!handle) throw new Error("openSelect: trigger not found");
+  await handle.click();
+  await expect.poll(() => handle.getAttribute("aria-expanded")).toBe("true");
+  const id = await handle.getAttribute("aria-controls");
+  const list = trigger.page().locator(`[id="${id}"]`);
+  await expect(list).toBeVisible();
+  return list;
+}
+
+export async function closeSelect(list: Locator): Promise<void> {
+  await list.page().keyboard.press("Escape");
+  await expect(list).toBeHidden();
+}
+
+/** The value of a `Select` (what a select's toHaveValue read). */
+export async function expectSelectValue(trigger: Locator, value: string | RegExp): Promise<void> {
+  await expect(trigger).toHaveAttribute("data-value", value);
+}
 
 /** One signed-in (or anonymous) browser of one person. Collects console errors and failed network requests. */
 export class Session {
@@ -187,8 +229,8 @@ export class Session {
       await d.getByRole("checkbox", { name: m.role, exact: true }).check();
       await d.getByRole("checkbox", { name: "User", exact: true }).uncheck();
     }
-    if (m.manager) await d.getByLabel("Thuộc cây của Manager").selectOption({ label: m.manager });
-    if (m.leader) await d.getByLabel("Cấp trên trực tiếp").selectOption({ label: m.leader });
+    if (m.manager) await chooseOption(d.getByLabel("Thuộc cây của Manager"), { label: m.manager });
+    if (m.leader) await chooseOption(d.getByLabel("Cấp trên trực tiếp"), { label: m.leader });
     await d.getByRole("button", { name: "Lưu" }).click();
     await expect(d).toBeHidden();
     await expect(this.page.getByRole("row", { name: new RegExp(m.email) })).toBeVisible();

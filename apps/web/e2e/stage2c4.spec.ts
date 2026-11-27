@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -106,8 +106,8 @@ async function share(page: Page, who: string, scope: string, permission: string)
   const d = dialog(page, /^Chia sẻ/);
   await d.getByRole("combobox", { name: "Tìm người" }).fill(who);
   await d.getByRole("option", { name: new RegExp(who) }).getByRole("button").click();
-  await d.getByLabel("Phạm vi chia sẻ").selectOption({ label: scope });
-  await d.getByLabel("Quyền chia sẻ").selectOption({ label: permission });
+  await chooseOption(d.getByLabel("Phạm vi chia sẻ"), { label: scope });
+  await chooseOption(d.getByLabel("Quyền chia sẻ"), { label: permission });
   await d.getByRole("button", { name: "Chia sẻ", exact: true }).click();
 }
 
@@ -162,10 +162,10 @@ test("chia sẻ: chủ chia sẻ Xem cả datahub và Sửa một bảng; quyề
   await expect(editor.page.getByRole("button", { name: "Thêm cột", exact: true })).toHaveCount(0);
 
   // Change the editor's permission to Xem: the write stops at once.
-  await d.getByLabel(new RegExp(`Quyền của Người Sửa 4C ${p} với Deals`)).selectOption({ label: "Xem" });
+  await chooseOption(d.getByLabel(new RegExp(`Quyền của Người Sửa 4C ${p} với Deals`)), { label: "Xem" });
   await toast(pg, "Đã đổi quyền");
   await expect.poll(() => statusOf(() => editorApi.call("POST", `/tables/${dealsId}/rows`, { data: { Tên: "sau khi đổi" } }))).toBe(403);
-  await d.getByLabel(new RegExp(`Quyền của Người Sửa 4C ${p} với Deals`)).selectOption({ label: "Sửa dữ liệu" });
+  await chooseOption(d.getByLabel(new RegExp(`Quyền của Người Sửa 4C ${p} với Deals`)), { label: "Sửa dữ liệu" });
   await expect.poll(() => statusOf(() => editorApi.call("POST", `/tables/${dealsId}/rows`, { data: { Tên: "lại được" } }))).toBe(200);
 
   // Revoke both: they lose access.
@@ -298,7 +298,7 @@ test("Admin: đặt giới hạn riêng cho một người, giới hạn có tá
   await expect(pg.getByText("Chưa đặt giới hạn riêng cho ai.")).toBeVisible();
   const user = pg.getByRole("combobox", { name: "Người dùng" });
   await pg.getByRole("textbox", { name: "Người dùng: tìm" }).fill(`Người Khác 4C ${p}`);
-  await user.selectOption({ label: `Người Khác 4C ${p} (${email("other")})` });
+  await chooseOption(user, { label: `Người Khác 4C ${p} (${email("other")})` });
 
   // Wrong values are refused under the form, before the server.
   await pg.getByTestId("limit-max_columns").fill("201");

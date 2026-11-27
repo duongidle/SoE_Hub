@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, expectSelectValue } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -203,9 +203,9 @@ test("mốc cohort chín: đổi mốc thì dòng ghi chú đổi, ít hơn 10 d
   await expect(note).toContainText("Đang dùng mốc");
   await expect(note).toContainText("mặc định"); // one Won deal: fewer than 10
   await expect(note).toContainText("90 ngày");
-  await page.getByTestId("cycle-milestone").selectOption("none");
+  await chooseOption(page.getByTestId("cycle-milestone"), "none");
   await expect(note).toContainText("không chờ");
-  await page.getByTestId("cycle-milestone").selectOption("p90");
+  await chooseOption(page.getByTestId("cycle-milestone"), "p90");
   await expect(note).toContainText("P90");
   // The cohort charts exist, and cutting at the mature month does not break the dashboard.
   await page.getByTestId("cycle-cut").check();
@@ -229,8 +229,8 @@ test("màn Đợt chọn kỳ: tháng trước hiện đợt đã về của th�
   const page = mgrS.page;
   await page.goto("/quan-ly-deal/thanh-toan");
   await page.getByTestId("dot-view-month").click();
-  await expect(page.getByTestId("dot-period")).toHaveValue("this_month");
-  await page.getByTestId("dot-period").selectOption("last_month");
+  await expectSelectValue(page.getByTestId("dot-period"), "this_month");
+  await chooseOption(page.getByTestId("dot-period"), "last_month");
   const row = page.getByTestId("dot-row").filter({ hasText: "20.000.000" });
   await expect(row).toHaveCount(1);
   await row.getByTestId("unconfirm").click();

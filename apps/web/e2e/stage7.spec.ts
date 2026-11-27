@@ -1,7 +1,7 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -62,7 +62,7 @@ test.describe("7B1", () => {
     await page.goto("/form");
     await page.getByTestId("new-form").click();
     await page.getByTestId("form-name").fill(`Khảo sát ${p}`);
-    await page.getByTestId("form-target-datahub").selectOption(datahubId);
+    await chooseOption(page.getByTestId("form-target-datahub"), datahubId);
     await page.getByTestId("form-create-submit").click();
     await expect(page).toHaveURL(/\/form\/[0-9a-f-]{36}$/);
     const formId = page.url().split("/").pop()!;
@@ -107,15 +107,15 @@ test.describe("7B1", () => {
     await page.getByTestId("add-text").click();
     await page.getByTestId("q-label").fill("Ghi chú");
     await page.getByTestId("link-open").click();
-    await page.getByTestId("link-pick").selectOption({ label: "Ghi chú" });
+    await chooseOption(page.getByTestId("link-pick"), { label: "Ghi chú" });
     await page.getByTestId("link-existing").click();
     await expect(page.getByTestId("link-status")).toContainText("Đã nối với cột Ghi chú");
 
     // the condition: show "Ghi chú" when "Bạn thích gì" is "Lựa chọn 1"
     await page.getByTestId("cond-add").click();
     const cond = page.getByTestId("cond-editor");
-    await cond.getByLabel("Câu hỏi").selectOption({ label: "Bạn thích gì" });
-    await cond.getByLabel("Giá trị").selectOption("Lựa chọn 1");
+    await chooseOption(cond.getByLabel("Câu hỏi"), { label: "Bạn thích gì" });
+    await chooseOption(cond.getByLabel("Giá trị"), "Lựa chọn 1");
     await saved();
 
     // preview on a phone: the question shows only after the choice
@@ -177,11 +177,11 @@ test.describe("7B1", () => {
     await page.getByRole("tab", { name: "Bài kiểm tra" }).click();
     await page.getByTestId("quiz-enabled").check();
     await page.getByTestId("quiz-pass").fill("50");
-    await page.getByTestId("quiz-show").selectOption("score");
+    await chooseOption(page.getByTestId("quiz-show"), "score");
     await page.getByRole("tab", { name: "Soạn" }).click();
     await page.getByTestId("canvas-block").filter({ hasText: "Thủ đô" }).getByTestId("block-select").click();
     await page.getByTestId("q-points").fill("5");
-    await page.getByTestId("q-answer").selectOption("Hà Nội");
+    await chooseOption(page.getByTestId("q-answer"), "Hà Nội");
     await page.getByTestId("canvas-block").filter({ hasText: "Viết về team" }).getByTestId("block-select").click();
     await page.getByTestId("q-points").fill("5");
     await expect(page.getByTestId("save-status")).toHaveText("Đã lưu nháp");

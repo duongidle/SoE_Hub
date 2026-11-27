@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, closeSelect, openSelect } from "./helpers";
 import { seedMany } from "./dh-fixtures";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
@@ -133,10 +133,12 @@ test("tạo bảng gộp trong giao diện: nguồn theo thứ tự ưu tiên, g
 
   // Sources: markup in a name is text. Only tables of the owner are offered (not the other person's).
   const sel = d.getByTestId("merge-source-select");
-  await expect(sel.locator("option", { hasText: `Nguồn B ${ODD} ${p}` })).toHaveCount(1);
-  await sel.selectOption({ label: `DH A ${p} – ${names().a}` });
+  const srcList = await openSelect(sel);
+  await expect(srcList.getByRole("option", { name: `Nguồn B ${ODD} ${p}`, exact: false })).toHaveCount(1);
+  await closeSelect(srcList);
+  await chooseOption(sel, { label: `DH A ${p} – ${names().a}` });
   await d.getByTestId("merge-add-source").click();
-  await sel.selectOption({ label: `DH B ${p} – ${names().b}` });
+  await chooseOption(sel, { label: `DH B ${p} – ${names().b}` });
   await d.getByTestId("merge-add-source").click();
   await expect(d.getByTestId("merge-source")).toHaveCount(2);
   // No key: the warning and the diagnosis from the server (6 rows read, nothing dropped).
@@ -247,12 +249,12 @@ test("nguồn lớn: 2.500 dòng thêm vào bảng gộp, đủ số dòng, bả
   // The saved configuration is back in the form: 2 sources, the key, manual mapping. B has priority, so the merged column is named "mst" (the name of its first source).
   await expect(d.getByTestId("merge-source")).toHaveCount(2);
   await expect(d.getByTestId("merge-key-mst")).toBeChecked();
-  await d.getByTestId("merge-source-select").selectOption({ label: `DH A ${p} – Lớn ${p}` });
+  await chooseOption(d.getByTestId("merge-source-select"), { label: `DH A ${p} – Lớn ${p}` });
   await d.getByTestId("merge-add-source").click();
   // The big table has MST and Số: map MST by hand (Số has no counterpart, so it is left out of the merge).
   const mapping = d.getByTestId("merge-mapping");
   const mstRow = mapping.getByTestId("merge-mapping-row").filter({ has: pg.locator('input[value="mst"]') });
-  await mstRow.getByRole("combobox", { name: new RegExp(`ở DH A ${p} – Lớn ${p}`) }).selectOption({ label: "MST" });
+  await chooseOption(mstRow.getByRole("combobox", { name: new RegExp(`ở DH A ${p} – Lớn ${p}`) }), { label: "MST" });
   await expect(d.getByTestId("merge-summary")).toContainText("Gộp 3 bảng", { timeout: 20_000 });
   await d.getByTestId("merge-submit").click();
   await expect(dialog(pg, /^Cấu hình bảng gộp/)).toBeHidden();

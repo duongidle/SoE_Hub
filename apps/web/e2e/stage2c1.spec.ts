@@ -2,7 +2,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { seedLead, seedMany, type LeadFixture } from "./dh-fixtures";
 import { GridDriver } from "./grid";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -378,8 +378,8 @@ test("xoá dòng đã chọn có Hoàn tác; sửa hàng loạt", async () => {
   await g.clickMarker(1);
   await pg.getByRole("button", { name: "Sửa 2 dòng" }).click();
   const d = pg.getByRole("dialog", { name: "Sửa 2 dòng" });
-  await d.getByLabel("Cột").selectOption({ label: "Giai đoạn" });
-  await d.locator("select").nth(1).selectOption({ label: "Chốt" });
+  await chooseOption(d.getByLabel("Cột"), { label: "Giai đoạn" });
+  await chooseOption(d.getByRole("combobox").nth(1), { label: "Chốt" });
   await d.getByRole("button", { name: "Ghi vào 2 dòng" }).click();
   await expect(toast(pg, "Đã sửa 2 dòng")).toBeVisible();
   expect(await g.read(COL.stage, 0)).toBe("Chốt");

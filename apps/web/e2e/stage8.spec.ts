@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption } from "./helpers";
 import { createAdmin, seedPeople } from "./seed";
 
 /** Stage 8C: Knowledge article and AI Hub skill, through the real screens: write or upload, review, find, download. Invented data only. Desktop only. */
@@ -52,8 +52,8 @@ test("bài Knowledge: soạn, gửi duyệt, Manager duyệt, thành viên tìm 
   await up.goto("/knowledge/soan");
   await up.getByTestId("f-title").fill(title);
   await up.getByTestId("f-summary").fill("Các bước đối soát công nợ cuối tháng với khách hàng.");
-  await up.getByTestId("f-category").selectOption("business");
-  await up.getByTestId("f-type").selectOption("guide");
+  await chooseOption(up.getByTestId("f-category"), "business");
+  await chooseOption(up.getByTestId("f-type"), "guide");
   await up.getByTestId("f-tags").fill("công nợ, đối soát");
   const text = "Cuối tháng kế toán xuất bảng công nợ, gửi cho từng khách để xác nhận số liệu. Khách phản hồi trong ba ngày làm việc. Nếu lệch số thì đối chiếu từng hoá đơn và phiếu thu, ghi chú lý do chênh lệch rồi cập nhật lại bảng. Sau khi hai bên thống nhất, kế toán khoá kỳ và lưu biên bản xác nhận vào hồ sơ khách hàng để tiện tra cứu sau này.";
   await up.getByTestId("body-editor").fill(text);
@@ -91,7 +91,7 @@ test("skill AI Hub: tải zip có đường dẫn cá nhân, gửi kèm cảnh b
   await up.goto("/ai-hub/tai-len");
   await up.getByTestId("zip-input").setInputFiles({ name: `${name}.zip`, mimeType: "application/zip", buffer });
   await expect(up.getByTestId("pkg-name")).toContainText(`${name}.zip`);
-  await up.getByTestId("f-group").selectOption("sales");
+  await chooseOption(up.getByTestId("f-group"), "sales");
   await up.getByTestId("check").click();
   await expect(up.getByText("Đạt, có cảnh báo")).toBeVisible();
   await expect(up.getByTestId("issues-all")).toContainText("đường dẫn máy cá nhân");

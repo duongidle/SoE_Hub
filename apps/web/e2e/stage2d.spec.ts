@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, expectSelectValue } from "./helpers";
 import { GridDriver } from "./grid";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
@@ -206,8 +206,8 @@ test("nhập vào bảng có sẵn từ bảng tính: dòng sai kiểu bị bỏ
   await expect(d.getByTestId("import-sheets")).toContainText("5 dòng");
   await d.getByRole("button", { name: "Ghép cột" }).click();
   // The open table is the target and the columns with the same header are already mapped to it.
-  await expect(d.getByLabel("Bảng có sẵn")).toHaveValue(tableId);
-  await expect(d.getByLabel("Cột của bảng cho cột B")).not.toHaveValue("");
+  await expectSelectValue(d.getByLabel("Bảng có sẵn"), tableId);
+  await expect(d.getByLabel("Cột của bảng cho cột B")).not.toHaveAttribute("data-value", "");
   await d.getByRole("button", { name: "Kiểm tra" }).click();
   await expect(d.getByTestId("import-report-sheet")).toContainText("3");
   const issues = d.getByTestId("import-issues");
@@ -253,8 +253,8 @@ test("xuất CSV, XLSX, JSON: số rất lớn, số âm, ngày, ô trống, tê
   const exportAs = async (format: string, scope?: "view" | "table" | "datahub") => {
     await pg.getByRole("button", { name: "Xuất", exact: true }).click();
     const d = dialog(pg, "Xuất dữ liệu");
-    if (scope) await d.getByLabel("Phạm vi xuất").selectOption(scope);
-    await d.getByLabel("Định dạng file").selectOption(format);
+    if (scope) await chooseOption(d.getByLabel("Phạm vi xuất"), scope);
+    await chooseOption(d.getByLabel("Định dạng file"), format);
     const wait = pg.waitForEvent("download", { timeout: 30_000 });
     await d.getByRole("button", { name: "Xuất file" }).click();
     const dl = await wait;
@@ -308,8 +308,8 @@ test("người được chia sẻ Xem: xuất được dữ liệu nhưng file k
   await pg.getByRole("button", { name: "Xuất", exact: true }).click();
   const d = dialog(pg, "Xuất dữ liệu");
   await expect(d).toContainText("Bạn không được xem nội dung công thức");
-  await d.getByLabel("Phạm vi xuất").selectOption("table");
-  await d.getByLabel("Định dạng file").selectOption("xlsx");
+  await chooseOption(d.getByLabel("Phạm vi xuất"), "table");
+  await chooseOption(d.getByLabel("Định dạng file"), "xlsx");
   const wait = pg.waitForEvent("download", { timeout: 30_000 });
   await d.getByRole("button", { name: "Xuất file" }).click();
   const dl = await wait;

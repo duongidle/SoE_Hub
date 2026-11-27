@@ -4,15 +4,16 @@ import { cn } from "@/lib/utils";
 
 /**
  * A panel that opens under a button, in a portal (never cut by a scroll box). Esc and a click outside close it; focus moves into
- * it and comes back to the button. It never grows past the window: taller content scrolls inside.
+ * it and comes back to the button. `modal` traps focus in the panel and shuts the page behind it (needed when it opens from inside a dialog, whose own focus trap would otherwise pull focus back out). It never grows past the window: taller content scrolls inside.
  */
-export function Popover({ trigger, children, label, align = "start", width = "w-[28rem]", open, onOpenChange, className, fixedSide }: { fixedSide?: boolean; trigger: React.ReactNode; children: React.ReactNode; label: string; align?: "start" | "center" | "end"; width?: string; open?: boolean; onOpenChange?: (open: boolean) => void; className?: string }) {
+export function Popover({ trigger, children, label, align = "start", width = "w-[28rem]", open, onOpenChange, className, fixedSide, modal, onOpenAutoFocus }: { onOpenAutoFocus?: (e: Event) => void; modal?: boolean; fixedSide?: boolean; trigger: React.ReactNode; children: React.ReactNode; label: string; align?: "start" | "center" | "end"; width?: string; open?: boolean; onOpenChange?: (open: boolean) => void; className?: string }) {
   return (
-    <P.Root open={open} onOpenChange={onOpenChange}>
+    <P.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <P.Trigger asChild>{trigger}</P.Trigger>
       <P.Portal>
         <P.Content
           aria-label={label}
+          onOpenAutoFocus={onOpenAutoFocus}
           align={align}
           sideOffset={4}
           collisionPadding={8}

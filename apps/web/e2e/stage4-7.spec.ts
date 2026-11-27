@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { API, Session, type ProjectName } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, expectSelectValue } from "./helpers";
 import { GridDriver } from "./grid";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
@@ -202,15 +202,15 @@ test.describe("4.7B2 Import: cột Người và Liên kết", () => {
     await d.getByLabel("Dữ liệu dán").fill(text);
     await d.getByRole("button", { name: "Đọc dữ liệu" }).click();
     await d.getByRole("button", { name: "Ghép cột" }).click();
-    await expect(d.getByLabel("Bảng có sẵn")).toHaveValue(projId);
+    await expectSelectValue(d.getByLabel("Bảng có sẵn"), projId);
     return d;
   }
 
   test("cột Người và Liên kết chọn được khi ghép cột; xem trước báo email lạ và liên kết không khớp đúng dòng", async () => {
     const d = await openImport(["Tên dự án\tPhụ trách\tKhách", `DA1\t${email("u1")}\tKH1`, "DA2\tnguoila@base.vn\tKH1", `DA3\t${email("u1")}\tKH-LA`].join("\n"));
     // The two columns of the table with the same header are mapped to the table's Người dùng and Liên kết columns.
-    await expect(d.getByLabel("Cột của bảng cho cột B")).not.toHaveValue("");
-    await expect(d.getByLabel("Cột của bảng cho cột C")).not.toHaveValue("");
+    await expect(d.getByLabel("Cột của bảng cho cột B")).not.toHaveAttribute("data-value", "");
+    await expect(d.getByLabel("Cột của bảng cho cột C")).not.toHaveAttribute("data-value", "");
     await expect(d.getByLabel("Cột tìm dòng liên kết cho cột C")).toBeVisible();
     await d.getByRole("button", { name: "Kiểm tra" }).click();
     const issues = d.getByTestId("import-issues");
@@ -227,7 +227,7 @@ test.describe("4.7B2 Import: cột Người và Liên kết", () => {
 
   test("ô link_by: chọn cột khác của bảng đích để tìm dòng liên kết", async () => {
     const d = await openImport(["Tên dự án\tKhách", "DA4\tKhách Một"].join("\n"));
-    await d.getByLabel("Cột tìm dòng liên kết cho cột B").selectOption({ label: "Tìm theo cột Tên KH" });
+    await chooseOption(d.getByLabel("Cột tìm dòng liên kết cho cột B"), { label: "Tìm theo cột Tên KH" });
     await d.getByRole("button", { name: "Kiểm tra" }).click();
     await expect(d.getByTestId("import-report-sheet")).toBeVisible();
     await expect(d.getByTestId("import-issues")).toHaveCount(0);
@@ -254,11 +254,11 @@ test.describe("4.7B2 Guest bảng", () => {
     await page.goto("/cap-du-lieu");
     await page.getByRole("button", { name: "Cấp dữ liệu" }).click();
     const d = page.getByRole("dialog", { name: "Cấp dữ liệu cho Guest" });
-    await d.getByLabel("Guest").selectOption({ label: `Guest 47 ${p} (${email("guest")})` });
-    await d.getByRole("combobox", { name: "Dữ liệu", exact: true }).selectOption({ label: "Bảng Datahub (chọn cột được thấy)" });
+    await chooseOption(d.getByLabel("Guest"), { label: `Guest 47 ${p} (${email("guest")})` });
+    await chooseOption(d.getByRole("combobox", { name: "Dữ liệu", exact: true }), { label: "Bảng Datahub (chọn cột được thấy)" });
     await expect(d.getByRole("button", { name: "Cấp", exact: true })).toBeDisabled();
-    await d.getByLabel("Datahub", { exact: true }).selectOption({ label: `Guest 47 ${p}` });
-    await d.getByLabel("Bảng được cấp").selectOption({ label: "Báo giá 47" });
+    await chooseOption(d.getByLabel("Datahub", { exact: true }), { label: `Guest 47 ${p}` });
+    await chooseOption(d.getByLabel("Bảng được cấp"), { label: "Báo giá 47" });
     const cols = d.getByTestId("grant-columns");
     await cols.getByLabel("Công ty").check();
     await cols.getByLabel("Giá").check();
