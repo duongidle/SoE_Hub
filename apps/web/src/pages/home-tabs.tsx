@@ -24,12 +24,15 @@ const TABS_MAX = 20;
 const SHARED = "shared";
 const tabClass = (on: boolean) => cn("flex h-10 max-w-52 -mb-px items-center gap-1.5 whitespace-nowrap rounded-t-control border-b-2 px-3 text-sm transition-colors", on ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:text-foreground");
 
-function PinnedTabButton({ tab, on, onSelect }: { tab: PinnedTab; on: boolean; onSelect: () => void }) {
+function PinnedTabButton({ tab, on, pos, onSelect }: { tab: PinnedTab; on: boolean; pos: number; onSelect: () => void }) {
   const btn = useRef<HTMLButtonElement>(null);
   // The open tab always comes into view (a phone shows two or three tabs at a time).
   useEffect(() => {
-    if (on) btn.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [on]);
+    if (!on) return;
+    // After the reorder animation of the strip has settled, so the position it measures is the final one.
+    const id = window.setTimeout(() => btn.current?.scrollIntoView({ block: "nearest", inline: "nearest" }), 260);
+    return () => window.clearTimeout(id);
+  }, [on, pos]); // a reorder moves the open tab too, so it comes back into view
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
   // Only the mouse drags (the strip scrolls with touch); the menu of the open tab has "Chuyển sang trái / phải" for the keyboard and the phone.
   return (
@@ -237,8 +240,8 @@ export function DashboardTabs() {
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
-            {tabs.map((t) => (
-              <PinnedTabButton key={t.id} tab={t} on={t.id === active} onSelect={() => select(t.id)} />
+            {tabs.map((t, i) => (
+              <PinnedTabButton key={t.id} tab={t} on={t.id === active} pos={i} onSelect={() => select(t.id)} />
             ))}
           </SortableContext>
         </DndContext>

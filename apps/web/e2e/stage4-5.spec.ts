@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { API, Session, type ProjectName, chooseOption } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, moreAction } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -315,7 +315,7 @@ test("so sánh phiên bản chính sách com: dòng đổi, tỉ lệ cũ sang m
   await mgrApi.call("POST", `/tables/${tbl["Chính sách com"]}/rows`, { data: { "Hiệu lực từ": "2026-12-01", "Nguồn lead": "ML", Level: "Level 3", Performance: "KPI", "Tỉ lệ": 0.25 } });
   const page = mgrS.page;
   await openTab(page, "Chính sách com");
-  await page.getByRole("button", { name: "So sánh phiên bản" }).click();
+  await moreAction(page, "So sánh phiên bản"); // since 12C the action lives in the "•••" menu
   const dlg = page.getByTestId("policy-diff");
   await expect(dlg.getByTestId("policy-diff-row")).toHaveCount(1);
   await expect(dlg.getByTestId("policy-diff-row")).toContainText("Đổi");
