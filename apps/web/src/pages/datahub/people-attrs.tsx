@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Button, Input, Select } from "@/components/ui/form";
 import { attrsOf, entriesOf, type PersonAttr, type PersonEntry } from "@/lib/datahub/cells";
 import type { Column } from "@/lib/datahub/types";
-import { PersonPicker } from "./pickers";
+import { PeoplePicker } from "@/components/ui/people-picker";
+import { disambiguate, type PersonInfo } from "@/lib/people";
 
 /** "50", "50%", "12,5%" -> 0.5, 0.5, 0.125; null when it is not a number. */
 export function parsePercentText(t: string): number | null {
@@ -20,8 +21,10 @@ export function PeopleAttrsEditor({ col, tableId, value, names, onSave, onCancel
   const [list, setList] = useState<PersonEntry[]>(() => entriesOf(value));
   const [texts, setTexts] = useState<Record<string, string>>({});
   const [adding, setAdding] = useState(false);
-  const [known, setKnown] = useState<Record<string, string>>({});
-  const nameOf = (id: string) => known[id] ?? names.get(id) ?? "…";
+  const [known, setKnown] = useState<Record<string, PersonInfo>>({});
+  const baseName = (id: string) => known[id]?.full_name ?? names.get(id) ?? "…";
+  const shown = disambiguate(list.map((e) => known[e.id] ?? { id: e.id, full_name: baseName(e.id) }));
+  const nameOf = (id: string) => shown.get(id) ?? baseName(id);
   const setAttr = (i: number, a: PersonAttr, v: string | number | boolean | null) => setList((l) => l.map((e, k) => (k === i ? { ...e, attrs: { ...e.attrs, [a.key]: v } } : e)));
   const total = (a: PersonAttr) => list.reduce((s, e) => s + (typeof e.attrs[a.key] === "number" ? (e.attrs[a.key] as number) : 0), 0);
   return (
@@ -62,11 +65,12 @@ export function PeopleAttrsEditor({ col, tableId, value, names, onSave, onCancel
         <p key={a.key} className="text-xs text-muted-foreground">Tổng {a.label}: {percentText(total(a)) || "0%"}{a.sum_max !== undefined ? ` (tối đa ${percentText(a.sum_max)})` : ""}</p>
       ))}
       {!readonly && adding && (
-        <PersonPicker tableId={tableId} value={null} onCancel={() => setAdding(false)} onDone={(p) => {
+        <PeoplePicker tableId={tableId} value={[]} excludeIds={list.map((x) => x.id)} doneLabel="Thêm" onCancel={() => setAdding(false)} onDone={(picked) => {
           setAdding(false);
-          if (!p || list.some((x) => x.id === p.id)) return;
-          setKnown((k) => ({ ...k, [p.id]: p.full_name }));
-          setList((l) => [...l, { id: p.id, attrs: Object.fromEntries(attrs.filter((a) => a.default !== undefined && a.default !== null).map((a) => [a.key, a.default as string | number | boolean])) }]);
+          const fresh = picked.filter((p) => !list.some((x) => x.id === p.id));
+          if (!fresh.length) return;
+          setKnown((k) => ({ ...k, ...Object.fromEntries(fresh.map((p) => [p.id, p] as const)) }));
+          setList((l) => [...l, ...fresh.map((p) => ({ id: p.id, attrs: Object.fromEntries(attrs.filter((a) => a.default !== undefined && a.default !== null).map((a) => [a.key, a.default as string | number | boolean])) }))]);
         }} />
       )}
       {error && <p role="alert" className="text-xs text-bad">{error}</p>}

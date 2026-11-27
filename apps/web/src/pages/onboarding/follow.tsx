@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { ErrorText, Input, PageTitle, Select, Table } from "@/components/ui/form";
+import { PersonChip } from "@/components/ui/person";
+import { disambiguate } from "@/lib/people";
 import { EmptyState } from "@/components/ui/states";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -25,6 +27,7 @@ export function FollowPage() {
   const all = res.data ?? [];
   const leaders = [...new Map(all.filter((r) => r.leader_id).map((r) => [r.leader_id!, r.leader_name ?? ""])).entries()];
   const plans = [...new Set(all.map((r) => r.plan_name))];
+  const staffNames = disambiguate(all.map((r) => ({ id: r.staff_id, full_name: r.staff_name })));
   const rows = all.filter((r) => (!leader || r.leader_id === leader) && (!plan || r.plan_name === plan));
   return (
     <div>
@@ -43,7 +46,7 @@ export function FollowPage() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.plan_id} className="cursor-pointer hover:bg-muted/50" data-testid="onb-row" tabIndex={0} onClick={() => void nav({ to: "/onboarding/nhan-su/$planId", params: { planId: r.plan_id } })} onKeyDown={(e) => { if (e.key === "Enter") void nav({ to: "/onboarding/nhan-su/$planId", params: { planId: r.plan_id } }); }}>
-                <td className="font-medium"><Link to="/onboarding/nhan-su/$planId" params={{ planId: r.plan_id }} className="text-primary underline" onClick={(e) => e.stopPropagation()}>{r.staff_name}</Link></td>
+                <td className="font-medium"><span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}><PersonChip person={{ id: r.staff_id, full_name: r.staff_name }} label={staffNames.get(r.staff_id)} /><Link to="/onboarding/nhan-su/$planId" params={{ planId: r.plan_id }} className="text-xs text-primary underline" aria-label={`Mở lộ trình của ${r.staff_name}`}>Mở</Link></span></td>
                 <td>{r.plan_name}{r.status !== "active" && <span className="text-xs text-muted-foreground"> ({PLAN_STATUS[r.status]})</span>}</td>
                 <td>{r.current_week}/{r.total_weeks}</td>
                 <td data-testid="onb-row-progress">{r.progress_pct}%</td>

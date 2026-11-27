@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { PersonChip } from "@/components/ui/person";
 import { Link, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, BarChart3, ChevronLeft, ChevronRight, Layers, MoreHorizontal, Pencil, Plus, Share2, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -73,7 +74,7 @@ function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; ta
         </div>
         {dh.access !== "owner" && (
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
-            Chủ: <span className="[overflow-wrap:anywhere]">{dh.owner_name ?? "—"}</span>
+            Chủ: <span className="[overflow-wrap:anywhere]">{dh.owner_name ? <PersonChip person={{ id: dh.owner_id, full_name: dh.owner_name }} /> : "—"}</span>
             <Badge tone="muted">{SHARE_PERMISSION_LABELS[dh.access === "view" ? "view" : "edit_data"]}</Badge>
           </span>
         )}

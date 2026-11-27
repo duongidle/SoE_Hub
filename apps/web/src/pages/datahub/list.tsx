@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { PersonChip } from "@/components/ui/person";
 import { Link } from "@tanstack/react-router";
 import { DhNameSchema, formatCount, formatRelative, SHARE_PERMISSION_LABELS } from "@soe/shared";
 import { Database, MoreHorizontal, Pencil, Plus, Trash2, Trash, Upload } from "lucide-react";
@@ -139,7 +140,7 @@ function DatahubCard({ dh, mine, onRename, onDelete }: { dh: DatahubBrief; mine:
       </div>
       {!mine && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="min-w-0 [overflow-wrap:anywhere]">Chủ: {dh.owner_name ?? "—"}</span>
+          <span className="min-w-0 [overflow-wrap:anywhere]">Chủ: {dh.owner_name ? <PersonChip person={{ id: dh.owner_id, full_name: dh.owner_name }} /> : "—"}</span>
           <Badge tone="muted">{dh.access === "view" ? SHARE_PERMISSION_LABELS.view : SHARE_PERMISSION_LABELS.edit_data}</Badge>
         </div>
       )}

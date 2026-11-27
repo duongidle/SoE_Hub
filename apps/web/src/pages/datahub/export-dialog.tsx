@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button, ErrorText, Field, Modal, Notice, Select } from "@/components/ui/form";
+import { useMe } from "@/lib/session";
 import { cancelJob, createExport, jobDownload, saveFromUrl, type ExportBody, type JobDto } from "@/lib/datahub/api";
 import type { Column, TableDetail } from "@/lib/datahub/types";
 import type { SessionQuery } from "@/lib/datahub/view-config";
@@ -23,6 +24,8 @@ export function ExportDialog({ table, query, visible, filtered, onClose }: { tab
   const [jobId, setJobId] = useState<string | null>(null);
   const job = useJob(jobId);
   const downloaded = useRef<string | null>(null);
+  const isGuest = !!useMe().data?.user.roles.includes("guest");
+  const [emails, setEmails] = useState(false);
   const [dlError, setDlError] = useState<string | null>(null);
 
   const start = useMutation({
@@ -40,6 +43,7 @@ export function ExportDialog({ table, query, visible, filtered, onClose }: { tab
           if (query.aggs) body.aggs = query.aggs;
         }
       }
+      if (emails && !isGuest && !(scope === "view" && grouped && what === "groups")) body.user_emails = true;
       return createExport(body);
     },
     onSuccess: (j: JobDto) => setJobId(j.id),
@@ -80,6 +84,12 @@ export function ExportDialog({ table, query, visible, filtered, onClose }: { tab
                   <option value="rows">Mọi dòng</option>
                 </Select>
               </Field>
+            )}
+            {!isGuest && !(scope === "view" && grouped && what === "groups") && (
+              <label className="flex min-h-9 items-center gap-2 text-sm">
+                <input type="checkbox" checked={emails} onChange={(e) => setEmails(e.target.checked)} data-testid="export-emails" />
+                Thêm cột email cạnh cột người dùng
+              </label>
             )}
             <Field label="Định dạng">
               <Select value={format} onChange={(e) => setFormat(e.target.value as Format)} disabled={scope === "datahub"} aria-label="Định dạng file">

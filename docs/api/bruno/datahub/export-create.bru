@@ -22,11 +22,13 @@ body:json {
     "format": "xlsx",
     "filter": { "field": "Doanh thu", "op": "gt", "value": 0 },
     "sort": "Doanh thu:desc",
-    "columns": ["Tên", "Doanh thu"]
+    "columns": ["Tên", "Doanh thu"],
+    "user_emails": true
   }
 }
 
 docs {
   Xuất bảng (hoặc cả datahub) ra CSV, XLSX hoặc JSON. Chạy nền: gọi `datahub.job.get` đến khi xong rồi lấy `datahub.job.download_url`.
+  `user_emails: true` thêm cột email ngay sau mỗi cột người (Người dùng, Người tạo, Người sửa); Guest và xuất tổng hợp không dùng được.
   Quyền: `datahub:datahub:use`.
 }

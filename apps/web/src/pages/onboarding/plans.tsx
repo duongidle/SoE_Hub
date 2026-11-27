@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { PersonChip } from "@/components/ui/person";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select, Tabs } from "@/components/ui/form";
+import { PeopleField } from "@/components/ui/people-field";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { api, apiList } from "@/lib/api";
+import { disambiguate } from "@/lib/people";
 import { useMe } from "@/lib/session";
 import { Chip, OnbNav, PLAN_STATUS, addDays, usePlans, type PlanFull } from "./common";
 
@@ -23,13 +26,13 @@ function AssignDialog({ plan, onClose }: { plan: PlanFull; onClose: () => void }
   const qc = useQueryClient();
   const members = useQuery({ queryKey: ["onb", "members"], queryFn: () => apiList<Member>("/org/members?limit=200") });
   const people = (members.data?.data ?? []).filter((m) => m.id !== me?.user.id && m.roles.includes("user"));
-  const watchers = (members.data?.data ?? []).filter((m) => m.roles.some((r) => r === "leader" || r === "manager"));
   const [staff, setStaff] = useState("");
   const [start, setStart] = useState(nextMonday());
-  const [follower, setFollower] = useState("");
+  const [followers, setFollowers] = useState<string[]>([]);
+  const staffNames = disambiguate(people);
   const [err, setErr] = useState<string | null>(null);
   const m = useMutation({
-    mutationFn: () => api<PlanFull>("POST", `/onboarding/plans/${plan.id}/assign`, { staff_id: staff, start_date: start, ...(follower ? { followers: [follower] } : {}) }),
+    mutationFn: () => api<PlanFull>("POST", `/onboarding/plans/${plan.id}/assign`, { staff_id: staff, start_date: start, ...(followers.length ? { followers } : {}) }),
     onSuccess: async (p) => { await qc.invalidateQueries({ queryKey: ["onb"] }); notify.ok("Đã gắn lộ trình."); onClose(); await nav({ to: "/onboarding/nhan-su/$planId", params: { planId: p.id } }); },
   });
   const go = () => {
@@ -40,9 +43,9 @@ function AssignDialog({ plan, onClose }: { plan: PlanFull; onClose: () => void }
   return (
     <Modal title={`Gắn lộ trình: ${plan.name}`} open onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <Field label="Nhân sự" required><Select value={staff} onChange={(e) => setStaff(e.target.value)} data-testid="assign-staff"><option value="">Chọn người trong team</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}</Select></Field>
+        <Field label="Nhân sự" required><Select value={staff} onChange={(e) => setStaff(e.target.value)} data-testid="assign-staff"><option value="">Chọn người trong team</option>{people.map((p) => <option key={p.id} value={p.id}>{staffNames.get(p.id)}</option>)}</Select></Field>
         <Field label="Ngày bắt đầu (thứ Hai)" required><Input type="date" value={start} onChange={(e) => setStart(e.target.value)} data-testid="assign-start" /></Field>
-        <Field label="Người theo dõi (tuỳ chọn)"><Select value={follower} onChange={(e) => setFollower(e.target.value)}><option value="">Không</option>{watchers.filter((w) => w.id !== me?.user.id).map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}</Select></Field>
+        <Field label="Người theo dõi (tuỳ chọn)"><PeopleField label="Người theo dõi" value={followers} onChange={setFollowers} teams={false} excludeIds={me ? [me.user.id, staff].filter(Boolean) : staff ? [staff] : []} accept={(p) => !p.roles || p.roles.some((r) => r === "leader" || r === "manager")} testid="assign-followers" /></Field>
         {err && <p className="text-sm text-bad" role="alert">{err}</p>}
         <ErrorText error={m.error} />
         <div className="flex justify-between gap-2"><Button variant="secondary" onClick={onClose}>Huỷ</Button><Button loading={m.isPending} onClick={go} data-testid="assign-ok">Gắn</Button></div>
@@ -105,7 +108,7 @@ export function PlanListPage() {
                 <div className="font-medium [overflow-wrap:anywhere]">{p.name}</div>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   {p.is_template ? <Chip cls="bg-primary/10 text-primary">Mẫu</Chip> : <Chip cls="bg-muted text-muted-foreground">{PLAN_STATUS[p.status] ?? p.status}</Chip>}
-                  {p.staff_name && <span>{p.staff_name}</span>}
+                  {p.staff_name && p.staff_id ? <PersonChip person={{ id: p.staff_id, full_name: p.staff_name }} /> : p.staff_name && <span>{p.staff_name}</span>}
                   <span>{p.weeks ?? 0} tuần</span>
                 </div>
               </div>

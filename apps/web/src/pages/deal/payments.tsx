@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { PersonChip } from "@/components/ui/person";
 import { Link } from "@tanstack/react-router";
 import { formatCurrency, formatDate } from "@soe/shared";
 import { Plus, Trash2 } from "lucide-react";
@@ -526,7 +527,7 @@ function LedgerTab({ manager, myId }: { manager: boolean; myId: string }) {
               return (
                 <tr key={r.id} data-testid="ledger-row">
                   <td>{str(r.data[kyKey]).slice(0, 7) || "—"}</td>
-                  <td>{names.data?.get(pid) ?? "—"}</td>
+                  <td>{names.data?.get(pid) ? <PersonChip person={{ id: pid, full_name: names.data.get(pid)! }} /> : "—"}</td>
                   <td>{(idsOf(r.data[dealKey])[0] && dealLabels.data?.get(idsOf(r.data[dealKey])[0]!)) || "—"}</td>
                   <td className="text-right">{typeof r.data[s.key("ty_le_com")] === "number" ? `${Math.round((r.data[s.key("ty_le_com")] as number) * 10000) / 100}%` : "—"}</td>
                   <td className="text-right" data-testid="ledger-com">{money(r.data[s.key("com")])}</td>

@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PeopleField } from "@/components/ui/people-field";
+import { PersonChip } from "@/components/ui/person";
 import { Button, ConfirmDialog, ErrorText, Field, Input, PageTitle, Tabs, Textarea } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { api, apiList, fmtTime, qs } from "@/lib/api";
+import { disambiguate } from "@/lib/people";
 import { can, useMe } from "@/lib/session";
 
 interface Member { id: string; full_name: string; email: string | null; roles: string[]; status: string }
@@ -24,20 +27,18 @@ export function ComposeForm({ onSent }: { onSent: () => void }) {
   const [trees, setTrees] = useState<string[]>([]);
   const [teams, setTeams] = useState<string[]>([]);
   const [people, setPeople] = useState<string[]>([]);
-  const [search, setSearch] = useState("");
   const active = (members.data ?? []).filter((m) => m.status === "active" && !m.roles.includes("guest"));
-  const list = active.filter((m) => m.id !== me.user.id);
   // Your own tree or team is a target too (you are not a recipient yourself).
   const mgrs = ids(active, (m) => m.roles.includes("manager"));
   const leaders = ids(active, (m) => m.roles.includes("leader"));
   const toggle = (s: string[], set: (v: string[]) => void, id: string) => set(s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
-  const name = (id: string) => active.find((m) => m.id === id)?.full_name ?? id;
+  const shownNames = disambiguate(active);
+  const name = (id: string) => shownNames.get(id) ?? id;
   const send = useMutation({
     mutationFn: () => api("POST", "/announcements", { title, body, important, scope: { ...(all ? { all: true } : {}), ...(trees.length ? { trees } : {}), ...(teams.length ? { teams } : {}), ...(people.length ? { user_ids: people } : {}) } }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["announcements"] }); notify.ok("Đã gửi thông báo chung"); setTitle(""); setBody(""); setImportant(false); setAll(false); setTrees([]); setTeams([]); setPeople([]); onSent(); },
   });
   const noTarget = !all && !trees.length && !teams.length && !people.length;
-  const shown = list.filter((m) => !search || `${m.full_name} ${m.email ?? ""}`.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
   return (
     <form className="flex flex-col gap-3 text-sm" onSubmit={(e) => { e.preventDefault(); if (title.trim() && !noTarget) send.mutate(); }}>
           <Field label="Tiêu đề" required><Input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} data-testid="ann-title" /></Field>
@@ -48,8 +49,7 @@ export function ComposeForm({ onSent }: { onSent: () => void }) {
             {admin && <label className="flex items-center gap-2"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Mọi người</label>}
             {mgrs.map((id) => <label key={id} className="flex items-center gap-2"><input type="checkbox" checked={trees.includes(id)} onChange={() => toggle(trees, setTrees, id)} data-testid={`ann-tree-${id}`} /> Cả cây của {name(id)}</label>)}
             {leaders.map((id) => <label key={id} className="flex items-center gap-2"><input type="checkbox" checked={teams.includes(id)} onChange={() => toggle(teams, setTeams, id)} data-testid={`ann-team-${id}`} /> Team của {name(id)}</label>)}
-            <Input aria-label="Tìm người" placeholder="Tìm người lẻ theo tên hoặc email" value={search} onChange={(e) => setSearch(e.target.value)} className="mt-2" />
-            {shown.map((m) => <label key={m.id} className="flex items-center gap-2"><input type="checkbox" checked={people.includes(m.id)} onChange={() => toggle(people, setPeople, m.id)} /> {m.full_name}{m.email ? ` (${m.email})` : ""}</label>)}
+            <div className="mt-2"><PeopleField label="Người lẻ" value={people} onChange={setPeople} excludeIds={[me.user.id]} testid="ann-people" /></div>
           </fieldset>
           <ErrorText error={send.error} />
           <div><Button type="submit" loading={send.isPending} disabled={!title.trim() || noTarget} data-testid="ann-send">Gửi</Button></div>
@@ -73,7 +73,7 @@ function SentItem({ a }: { a: Sent }) {
         </div>
       </div>
       {a.body && <p className="mt-1 text-muted-foreground [overflow-wrap:anywhere]">{a.body}</p>}
-      {open && <div className="mt-2 text-xs">{st.data ? (st.data.unread.length ? <>Chưa đọc: {st.data.unread.map((u) => u.name).join(", ")}</> : "Mọi người đã đọc.") : "Đang tải..."}</div>}
+      {open && <div className="mt-2 text-xs">{st.data ? (st.data.unread.length ? <><span className="inline-flex flex-wrap items-center gap-1">Chưa đọc: {st.data.unread.map((u) => <PersonChip key={u.user_id} person={{ id: u.user_id, full_name: u.name }} />)}</span></> : "Mọi người đã đọc.") : "Đang tải..."}</div>}
       {ask && <ConfirmDialog title="Thu hồi thông báo?" message="Thông báo biến mất khỏi hộp thông báo của mọi người nhận." confirmLabel="Thu hồi" busy={recall.isPending} onClose={() => setAsk(false)} onConfirm={() => recall.mutate()} />}
     </li>
   );

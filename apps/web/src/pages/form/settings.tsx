@@ -1,11 +1,11 @@
 // Tabs Share, Settings and Quiz of the form editor (design module7 3, 6.3, 8, 14).
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Copy, RefreshCw, X } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Copy, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Select, Textarea } from "@/components/ui/form";
+import { PeopleField } from "@/components/ui/people-field";
 import { notify } from "@/components/ui/toast";
 import { api, fmtTime, parseVnDateTime } from "@/lib/api";
-import { lookupPeople } from "@/lib/datahub/api";
 import { ACCENTS, type Appearance, type FormConfig, type FormDetail, type Quiz } from "./model";
 
 const Check = ({ checked, onChange, children, disabled, testid }: { checked: boolean; onChange: (v: boolean) => void; children: React.ReactNode; disabled?: boolean; testid?: string }) => (
@@ -13,18 +13,9 @@ const Check = ({ checked, onChange, children, disabled, testid }: { checked: boo
 );
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => <section className="mb-4 flex max-w-xl flex-col gap-3 rounded-md border border-border bg-card p-4"><h2 className="font-medium">{title}</h2>{children}</section>;
 
-/** Search people by name and keep a list of ids (names are looked up for the chips). */
-export function PeoplePicker({ value, onChange, label }: { value: string[]; onChange: (v: string[]) => void; label: string }) {
-  const [q, setQ] = useState("");
-  const names = useQuery({ queryKey: ["people-ids", value.join(",")], queryFn: () => (value.length ? lookupPeople({ ids: value }) : Promise.resolve([])) });
-  const found = useQuery({ queryKey: ["people-q", q], queryFn: () => lookupPeople({ q }), enabled: q.trim().length >= 2 });
-  return (
-    <div className="flex flex-col gap-1" data-testid={`people-${label}`}>
-      <Field label={label}><Input value={q} placeholder="Gõ tên để tìm" onChange={(e) => setQ(e.target.value)} /></Field>
-      {q.trim().length >= 2 && <ul className="rounded-md border border-border">{(found.data ?? []).filter((p) => !value.includes(p.id)).slice(0, 6).map((p) => <li key={p.id}><button type="button" className="min-h-9 w-full px-2 text-left text-sm hover:bg-muted" onClick={() => { onChange([...value, p.id]); setQ(""); }}>{p.full_name}{p.email ? ` (${p.email})` : ""}</button></li>)}</ul>}
-      <div className="flex flex-wrap gap-1">{value.map((id) => <span key={id} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs">{names.data?.find((p) => p.id === id)?.full_name ?? id.slice(0, 6)}<button type="button" aria-label="Bỏ" onClick={() => onChange(value.filter((x) => x !== id))}><X size={12} aria-hidden /></button></span>)}</div>
-    </div>
-  );
+/** A list of people (ids) as a field: label, a button to the multi picker and the chosen people. */
+function PeopleList({ label, value, onChange, teams }: { label: string; value: string[]; onChange: (v: string[]) => void; teams?: boolean }) {
+  return <Field label={label}><PeopleField testid={`people-${label}`} label={label} value={value} onChange={onChange} teams={teams} /></Field>;
 }
 
 const toIso = (t: string): string | null => parseVnDateTime(t)?.toISOString() ?? null;
@@ -48,8 +39,8 @@ export function ShareTab({ form, reload }: { form: FormDetail; reload: () => voi
         </Field>
         {form.access === "selected" && (
           <div className="flex flex-col gap-3" data-testid="audience">
-            <PeoplePicker label="Người được điền" value={aud.user_ids} onChange={(v) => setAud({ user_ids: v })} />
-            <PeoplePicker label="Leader (cả team của họ)" value={aud.team_ids} onChange={(v) => setAud({ team_ids: v })} />
+            <PeopleList label="Người được điền" value={aud.user_ids} onChange={(v) => setAud({ user_ids: v })} />
+            <PeopleList label="Leader (cả team của họ)" value={aud.team_ids} onChange={(v) => setAud({ team_ids: v })} teams={false} />
             <div>
               <p className="text-sm font-medium">Vai trò</p>
               {(["manager", "leader", "user"] as const).map((r) => <Check key={r} checked={aud.roles.includes(r)} onChange={(v) => setAud({ roles: v ? [...aud.roles, r] : aud.roles.filter((x) => x !== r) })}>{{ manager: "Manager", leader: "Leader", user: "User" }[r]}</Check>)}
@@ -159,7 +150,7 @@ export function QuizTab({ form, cfg, change, reload }: { form: FormDetail; cfg: 
             <Field label="Người làm bài thấy">
               <Select value={quiz.show} onChange={(e) => set({ show: e.target.value as Quiz["show"] })} data-testid="quiz-show"><option value="none">Không thấy gì</option><option value="score">Chỉ điểm và Đạt / Không đạt</option><option value="score_answers">Điểm và đáp án đúng (sau khi form đóng)</option></Select>
             </Field>
-            <PeoplePicker label="Người chấm (ngoài chủ form)" value={form.options.graders ?? []} onChange={(v) => graders.mutate(v)} />
+            <PeopleList label="Người chấm (ngoài chủ form)" value={form.options.graders ?? []} onChange={(v) => graders.mutate(v)} />
             <ErrorText error={graders.error} />
             <p className="text-xs text-muted-foreground">Đáp án và điểm của từng câu đặt ở tab Soạn, khi chọn câu hỏi.</p>
           </>

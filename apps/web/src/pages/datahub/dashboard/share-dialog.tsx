@@ -1,25 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Button, ErrorText, Field, Input, Modal } from "@/components/ui/form";
+import { useState } from "react";
+import { Button, ErrorText, Field, Modal } from "@/components/ui/form";
+import { PeoplePicker } from "@/components/ui/people-picker";
+import { PersonChip, type PersonInfo } from "@/components/ui/person";
+import { Popover } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { addDashShare, dashKeys, getDashboard, listDashShares, removeDashShare, updateDashboard } from "@/lib/dashboard/api";
 import type { DashboardBrief } from "@/lib/dashboard/types";
-import { lookupPeople } from "@/lib/datahub/api";
-import type { Person } from "@/lib/datahub/types";
 
 const keyOf = (id: string) => ["mt-dash-shares", id] as const;
-
-function useDebounced<T>(v: T, ms: number): T {
-  const [d, setD] = useState(v);
-  useEffect(() => {
-    const t = setTimeout(() => setD(v), ms);
-    return () => clearTimeout(t);
-  }, [v, ms]);
-  return d;
-}
 
 /** Share a dashboard: the person sees its numbers (computed with your rights) without any right on the tables. Owner only. */
 export function DashboardShareDialog({ dashboard, ownerId, datahubId, onClose }: { dashboard: DashboardBrief; ownerId: string | null; datahubId: string; onClose: () => void }) {
@@ -27,17 +19,29 @@ export function DashboardShareDialog({ dashboard, ownerId, datahubId, onClose }:
   const q = useQuery({ queryKey: keyOf(dashboard.id), queryFn: () => listDashShares(dashboard.id) });
   const cur = useQuery({ queryKey: dashKeys.one(dashboard.id), queryFn: () => getDashboard(dashboard.id) });
   const guestVisible = !!cur.data?.guest_visible;
-  const [text, setText] = useState("");
-  const [person, setPerson] = useState<Person | null>(null);
-  const term = useDebounced(text.trim(), 250);
-  const found = useQuery({ queryKey: ["dh-share-people", term], queryFn: () => lookupPeople({ q: term }), enabled: term.length > 0 && !person });
+  const [people, setPeople] = useState<PersonInfo[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [failure, setFailure] = useState<unknown>(null);
   const add = useMutation({
-    mutationFn: () => addDashShare(dashboard.id, person!.id),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const failed: PersonInfo[] = [];
+      let first: unknown = null;
+      for (const p of people) {
+        try {
+          await addDashShare(dashboard.id, p.id);
+        } catch (e) {
+          failed.push(p);
+          first ??= e;
+        }
+      }
+      return { failed, first };
+    },
+    onSuccess: ({ failed, first }) => {
       void qc.invalidateQueries({ queryKey: keyOf(dashboard.id) });
-      notify.ok(`Đã chia sẻ cho ${person!.full_name}`);
-      setPerson(null);
-      setText("");
+      const done = people.length - failed.length;
+      if (done > 0) notify.ok(done === 1 ? `Đã chia sẻ cho ${people.find((p) => !failed.includes(p))!.full_name}` : `Đã chia sẻ cho ${done} người`);
+      setPeople(failed);
+      setFailure(failed.length ? first : null);
     },
   });
   const revoke = useMutation({
@@ -57,7 +61,6 @@ export function DashboardShareDialog({ dashboard, ownerId, datahubId, onClose }:
       void qc.invalidateQueries({ queryKey: dashKeys.list(datahubId) });
     },
   });
-  const results = (found.data ?? []).filter((p) => p.id !== ownerId);
 
   return (
     <Modal title={`Chia sẻ dashboard "${dashboard.name}"`} open onClose={onClose} wide>
@@ -65,32 +68,45 @@ export function DashboardShareDialog({ dashboard, ownerId, datahubId, onClose }:
         <p className="text-sm text-muted-foreground">Người được chia sẻ xem được các con số, tính bằng quyền của bạn. Họ không xem được bảng dữ liệu nguồn, trừ khi bạn chia sẻ cả datahub.</p>
         <section aria-label="Thêm người" className="flex flex-col gap-3">
           <h3 className="text-sm font-medium">Thêm người</h3>
-          {person ? (
-            <div className="flex items-center gap-2 rounded-md bg-muted p-2 text-sm" data-testid="dshare-picked">
-              <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{person.full_name}{person.email ? ` · ${person.email}` : ""}</span>
-              <Button variant="ghost" onClick={() => setPerson(null)} aria-label="Bỏ chọn người này" className="!px-2"><X size={16} aria-hidden /></Button>
-            </div>
-          ) : (
-            <Field label="Tìm người *" hint="Gõ tên hoặc email, rồi chọn một người trong danh sách.">
-              <Input value={text} onChange={(e) => setText(e.target.value)} autoComplete="off" role="combobox" aria-expanded={results.length > 0} aria-controls="dshare-people" />
-            </Field>
-          )}
-          {!person && term.length > 0 && (found.isLoading ? <Skeleton className="h-10 w-full" /> : results.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Không tìm thấy người nào.</p>
-          ) : (
-            <ul id="dshare-people" role="listbox" aria-label="Kết quả tìm người" className="max-h-48 overflow-y-auto rounded-md border border-border">
-              {results.map((p) => (
-                <li key={p.id} role="option" aria-selected={false}>
-                  <button type="button" onClick={() => setPerson(p)} className="flex min-h-11 w-full flex-col items-start justify-center px-3 text-left text-sm hover:bg-muted sm:min-h-9">
-                    <span className="[overflow-wrap:anywhere]">{p.full_name}</span>
-                    <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{p.email}</span>
-                  </button>
+          <Field label="Người nhận *" hint="Chọn một hay nhiều người, hoặc cả team, trong một lần.">
+            <Popover
+              label="Chọn người để chia sẻ"
+              open={pickerOpen}
+              onOpenChange={setPickerOpen}
+              modal
+              width="w-auto"
+              trigger={
+                <Button variant="secondary" aria-label="Chọn người" className="w-full justify-start sm:w-auto">
+                  <UserPlus size={16} aria-hidden /> {people.length ? `Đã chọn ${people.length} người, sửa danh sách` : "Chọn người"}
+                </Button>
+              }
+            >
+              <PeoplePicker
+                value={people}
+                excludeIds={ownerId ? [ownerId, ...(q.data ?? []).map((x) => x.grantee_id)] : (q.data ?? []).map((x) => x.grantee_id)}
+                onDone={(list) => {
+                  setPeople(list);
+                  setPickerOpen(false);
+                }}
+                onCancel={() => setPickerOpen(false)}
+              />
+            </Popover>
+          </Field>
+          {people.length > 0 && (
+            <ul aria-label="Người sẽ được chia sẻ" className="flex flex-col gap-1" data-testid="dshare-picked">
+              {people.map((p) => (
+                <li key={p.id} className="flex items-center gap-2 rounded-md bg-muted p-1.5 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <PersonChip person={p} />
+                    {p.email && <div className="pl-7 text-xs text-muted-foreground [overflow-wrap:anywhere]">{p.email}</div>}
+                  </div>
+                  <Button variant="ghost" onClick={() => setPeople((l) => l.filter((x) => x.id !== p.id))} aria-label={`Bỏ ${p.full_name}`} className="!px-2"><X size={16} aria-hidden /></Button>
                 </li>
               ))}
             </ul>
-          ))}
-          <div><Button onClick={() => add.mutate()} disabled={!person} loading={add.isPending} data-testid="dshare-add"><UserPlus size={16} aria-hidden /> Chia sẻ</Button></div>
-          <ErrorText error={add.error} />
+          )}
+          <div><Button onClick={() => add.mutate()} disabled={people.length === 0} loading={add.isPending} data-testid="dshare-add"><UserPlus size={16} aria-hidden /> {people.length > 1 ? `Chia sẻ cho ${people.length} người` : "Chia sẻ"}</Button></div>
+          <ErrorText error={failure ?? add.error} />
         </section>
         <section aria-label="Người đang được chia sẻ" className="flex flex-col gap-2">
           <h3 className="text-sm font-medium">Đang chia sẻ</h3>
@@ -101,7 +117,7 @@ export function DashboardShareDialog({ dashboard, ownerId, datahubId, onClose }:
               {q.data!.map((s) => (
                 <li key={s.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border p-2" data-testid="dshare-row">
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium [overflow-wrap:anywhere]">{s.full_name ?? "—"}</div>
+                    <div className="text-sm font-medium [overflow-wrap:anywhere]">{s.full_name ? <PersonChip person={{ id: s.grantee_id, full_name: s.full_name, email: s.email }} /> : "—"}</div>
                     <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{s.email}</div>
                   </div>
                   <Button variant="secondary" onClick={() => revoke.mutate(s.id)} loading={revoke.isPending && revoke.variables === s.id} aria-label={`Bỏ chia sẻ với ${s.full_name ?? "người này"}`}><X size={16} aria-hidden /> Bỏ chia sẻ</Button>

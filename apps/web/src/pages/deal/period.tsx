@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { PersonChip } from "@/components/ui/person";
 import { Link } from "@tanstack/react-router";
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from "@soe/shared";
 import { useEffect, useRef, useState } from "react";
@@ -243,7 +244,7 @@ function ComByPerson({ month, data, person, onPerson }: { month: string; data: P
         <tbody>
           {data.people.map((p) => (
             <tr key={p.person_id} data-testid="com-person">
-              <td>{names.data?.get(p.person_id) ?? "—"}{p.blank_lines > 0 && <Badge tone="warn" className="ml-2">{p.blank_lines} dòng trống</Badge>}</td>
+              <td>{names.data?.get(p.person_id) ? <PersonChip person={{ id: p.person_id, full_name: names.data.get(p.person_id)! }} /> : "—"}{p.blank_lines > 0 && <Badge tone="warn" className="ml-2">{p.blank_lines} dòng trống</Badge>}</td>
               <td className="text-right">{p.lines}</td>
               <td className="text-right" data-testid="com-total">{formatCurrency(p.total)}</td>
               <td className="text-right"><Button variant="secondary" aria-pressed={person === p.person_id} onClick={() => onPerson(person === p.person_id ? null : p.person_id)}>{person === p.person_id ? "Ẩn dòng" : "Xem dòng"}</Button></td>
@@ -295,7 +296,7 @@ function PeriodList({ rows, onPick }: { rows: { month: string; locked_at: string
           <tr key={r.month} data-testid="period-row">
             <td>{monthLabel(r.month)}</td>
             <td>{formatDateTime(r.locked_at)}</td>
-            <td>{(r.locked_by && names.data?.get(r.locked_by)) || "—"}</td>
+            <td>{r.locked_by && names.data?.get(r.locked_by) ? <PersonChip person={{ id: r.locked_by, full_name: names.data.get(r.locked_by)! }} /> : "—"}</td>
             <td className="text-right"><Button variant="secondary" onClick={() => onPick(r.month)}>Xem kỳ</Button></td>
           </tr>
         ))}

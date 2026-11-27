@@ -15,6 +15,7 @@ import type { Column, Level, Row } from "@/lib/datahub/types";
 import { cn } from "@/lib/utils";
 import { AttachmentField } from "./attachment-field";
 import { OriginLink } from "./merge-status";
+import { PersonChip } from "@/components/ui/person";
 import { OptionChip, PersonPicker, RatingPicker } from "./pickers";
 import { RelationPicker } from "./relation-picker";
 import { PeopleAttrsEditor } from "./people-attrs";
@@ -250,7 +251,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
     control = (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <span id={id} className="min-h-9 py-1.5 text-sm [overflow-wrap:anywhere]">{uid ? `${ctx.people.get(uid) ?? "…"}${ctx.noAccess?.has(uid) ? ` (${NO_ACCESS})` : ""}` : "—"}</span>
+          <span id={id} className="min-h-9 py-1.5 text-sm [overflow-wrap:anywhere]">{uid ? <><PersonChip person={{ id: uid, full_name: ctx.people.get(uid) ?? "…" }} />{ctx.noAccess?.has(uid) ? ` (${NO_ACCESS})` : ""}</> : "—"}</span>
           <Button variant="secondary" onClick={() => setPerson((v) => !v)}>{person ? "Đóng" : "Đổi người"}</Button>
         </div>
         {person && <PersonPicker tableId={session.table.id} value={uid} valueName={uid ? ctx.people.get(uid) : undefined} onCancel={() => setPerson(false)} onDone={(p) => { setPerson(false); if (p) session.labels.learnPerson(p.id, p.full_name, p.email); void save(p?.id ?? null); }} />}
@@ -320,7 +321,7 @@ function History({ session, rowId, ctx }: { session: TableSession; rowId: string
         return (
           <li key={h.version} className="flex flex-col gap-1 text-sm">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-              <span className="font-medium [overflow-wrap:anywhere]">{who}{via && <span className="font-normal text-muted-foreground"> {via}</span>} · {OP_LABEL[h.op] ?? h.op}</span>
+              <span className="inline-flex flex-wrap items-center font-medium [overflow-wrap:anywhere]">{h.actor?.userId ? <PersonChip person={{ id: h.actor.userId, full_name: who }} /> : who}{via && <span className="font-normal text-muted-foreground"> {via}</span>} · {OP_LABEL[h.op] ?? h.op}</span>
               <Tip label={formatDateTime(h.at)}><time dateTime={h.at} className="text-xs text-muted-foreground">{formatRelative(h.at)}</time></Tip>
             </div>
             {h.changes.map((c) => (

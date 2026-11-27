@@ -245,6 +245,7 @@ test("ô Người dùng có thuộc tính: Manager sửa vai trò và %, tổng 
   await ed.getByRole("button", { name: "Thêm người" }).click();
   await ed.getByLabel("Tìm người").fill("Thành viên Hai");
   await ed.getByRole("option", { name: /Thành viên Hai/ }).click();
+  await ed.getByRole("button", { name: /^Thêm \(1\)/ }).click();
   await expect(ed.getByTestId("people-entry")).toHaveCount(2);
   await ed.getByLabel(/^% doanh thu của Thành viên Hai/).fill("70%");
   await ed.getByRole("button", { name: "Lưu" }).click();

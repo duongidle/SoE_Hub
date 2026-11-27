@@ -3,6 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { PERMISSIONS, SERVICE_ACCOUNT_PERMISSIONS, type Permission } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
+import { PersonChip } from "@/components/ui/person";
+import { disambiguate } from "@/lib/people";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, ConfirmDialog, DateTimeInput, ErrorText, Field, Input, Modal, Notice, PageTitle, Select, Table, Tabs } from "@/components/ui/form";
 import { ApiError, api, apiList, fmtTime, parseVnDateTime, qs } from "@/lib/api";
@@ -418,7 +420,7 @@ function ActorCell({ r }: { r: AuditRow }) {
     const conn = (r.details as { connection_name?: unknown } | null)?.connection_name;
     return (
       <>
-        {r.actor_name}
+        {r.actor_user_id ? <PersonChip person={{ id: r.actor_user_id, full_name: r.actor_name, email: r.actor_email }} /> : r.actor_name}
         <div className="text-xs text-muted-foreground">{r.actor_email}</div>
         {typeof conn === "string" && <div className="text-xs text-muted-foreground">Kết nối: {conn}</div>}
       </>
@@ -953,6 +955,7 @@ type LimitKey = (typeof LIMIT_FIELDS)[number]["key"];
 export function DatahubLimitsPage() {
   const qc = useQueryClient();
   const list = useQuery({ queryKey: ["dh-user-limits"], queryFn: listUserLimits });
+  const limitNames = disambiguate((list.data ?? []).map((u) => ({ id: u.user_id, full_name: u.full_name, email: u.email })));
   const [userId, setUserId] = useState("");
   const [vals, setVals] = useState<Record<LimitKey, string>>({ max_datahubs: "", max_tables: "", max_columns: "" });
   const [localError, setLocalError] = useState<string | null>(null);
@@ -1018,7 +1021,7 @@ export function DatahubLimitsPage() {
             <tbody>
               {list.data?.map((u) => (
                 <tr key={u.user_id} data-testid="limit-row">
-                  <td className="[overflow-wrap:anywhere]">{u.full_name}<div className="text-xs text-muted-foreground">{u.email}</div></td>
+                  <td className="[overflow-wrap:anywhere]"><PersonChip person={{ id: u.user_id, full_name: u.full_name, email: u.email }} label={limitNames.get(u.user_id)} /><div className="text-xs text-muted-foreground">{u.email}</div></td>
                   <td>{u.max_datahubs ?? "Mặc định"}</td>
                   <td>{u.max_tables ?? "Mặc định"}</td>
                   <td>{u.max_columns ?? "Mặc định"}</td>

@@ -328,8 +328,11 @@ test("chia sẻ dashboard: người nhận thấy số mà không có quyền b�
   await pg.getByRole("button", { name: /Tuỳ chọn dashboard Chia sẻ thử/ }).click();
   await pg.getByRole("menuitem", { name: "Chia sẻ…" }).click();
   const dlg = pg.getByRole("dialog");
-  await dlg.getByLabel("Tìm người *").fill(`Người xem 3C2 ${p} ${RUN}`);
-  await dlg.getByRole("option", { name: new RegExp(`Người xem 3C2 ${p} ${RUN}`) }).click();
+  await dlg.getByRole("button", { name: "Chọn người" }).click();
+  const pk = pg.getByTestId("people-picker");
+  await pk.getByLabel("Tìm người").fill(`Người xem 3C2 ${p} ${RUN}`);
+  await pk.getByRole("option", { name: new RegExp(`Người xem 3C2 ${p} ${RUN}`) }).click();
+  await pk.getByRole("button", { name: /^Xong/ }).click();
   await dlg.getByTestId("dshare-add").click();
   await expect(dlg.getByTestId("dshare-row")).toContainText(`Người xem 3C2 ${p} ${RUN}`);
   await dlg.getByRole("button", { name: "Đóng", exact: true }).last().click();

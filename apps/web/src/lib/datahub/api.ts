@@ -267,6 +267,8 @@ export interface ExportBody {
   groups_only?: boolean;
   group?: { field: string; dir: "asc" | "desc" }[];
   aggs?: Record<string, string>;
+  /** An email column right after each person column (not for Guest, not for a summary). */
+  user_emails?: boolean;
 }
 export const createExport = (body: ExportBody) => api<JobDto>("POST", "/datahub/exports", body);
 

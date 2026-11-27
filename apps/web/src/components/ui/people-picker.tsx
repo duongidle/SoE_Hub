@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils";
  * Pick several people in one go: type to search (name or email), tick as many as needed, or add a whole team. The email is always on the
  * second line. Arrow keys move, Enter/Space ticks, Esc cancels; "Xong" hands over the list, "Huỷ" drops the changes.
  * A panel, not a popup: put it inside a Popover or a dialog. `tableId` limits the suggestions to the owner and members of that table;
- * `excludeIds` hides people who must not be offered (the owner of a share, people already chosen elsewhere).
+ * `teams={false}` hides "Chọn cả team" (a field of Leaders, where a team is not the answer); `accept` drops people a field may not take; `excludeIds` hides people who must not be offered (the owner of a share, people already chosen elsewhere).
  */
-export function PeoplePicker({ value, onDone, onCancel, tableId, excludeIds, autoFocus = true, doneLabel = "Xong" }: { value: PersonInfo[]; onDone: (people: PersonInfo[]) => void; onCancel?: () => void; tableId?: string; excludeIds?: readonly string[]; autoFocus?: boolean; doneLabel?: string }) {
+export function PeoplePicker({ value, onDone, onCancel, tableId, excludeIds, autoFocus = true, doneLabel = "Xong", teams: withTeams = true, accept }: { value: PersonInfo[]; onDone: (people: PersonInfo[]) => void; onCancel?: () => void; tableId?: string; excludeIds?: readonly string[]; autoFocus?: boolean; doneLabel?: string; teams?: boolean; accept?: (p: PersonInfo) => boolean }) {
   const [sel, setSel] = useState<PersonInfo[]>(value);
   const [q, setQ] = useState("");
   const [term, setTerm] = useState("");
@@ -31,7 +31,7 @@ export function PeoplePicker({ value, onDone, onCancel, tableId, excludeIds, aut
   const hidden = useMemo(() => new Set(excludeIds ?? []), [excludeIds]);
   const found = useQuery({ queryKey: ["people-picker", term, tableId ?? ""], queryFn: () => lookupPeople({ q: term, tableId }), enabled: term.length > 0 });
   const teams = useQuery({ queryKey: ["people-teams"], queryFn: listTeams, staleTime: 60_000 });
-  const list = term ? (found.data ?? []).filter((p) => !hidden.has(p.id)) : [];
+  const list = term ? (found.data ?? []).filter((p) => !hidden.has(p.id) && (accept?.(p) ?? true)) : [];
   const picked = (id: string) => sel.some((p) => p.id === id);
   const toggle = (p: PersonInfo) => setSel((s) => (s.some((x) => x.id === p.id) ? s.filter((x) => x.id !== p.id) : [...s, p]));
 
@@ -39,7 +39,7 @@ export function PeoplePicker({ value, onDone, onCancel, tableId, excludeIds, aut
     setTeamBusy(id);
     setTeamNote(null);
     try {
-      const members = (await lookupPeople({ teamId: id, tableId })).filter((p) => !hidden.has(p.id));
+      const members = (await lookupPeople({ teamId: id, tableId })).filter((p) => !hidden.has(p.id) && (accept?.(p) ?? true));
       setSel((s) => [...s, ...members.filter((p) => !s.some((x) => x.id === p.id))]);
       setTeamNote(members.length ? `Đã thêm ${members.length} người của team ${name}.` : tableId ? `Chưa ai của team ${name} là thành viên của bảng này.` : `Team ${name} chưa có ai để thêm.`);
     } catch {
@@ -74,7 +74,7 @@ export function PeoplePicker({ value, onDone, onCancel, tableId, excludeIds, aut
         </ul>
       )}
       <Input aria-label="Tìm người" placeholder="Gõ tên hoặc email" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} autoComplete="off" />
-      {!term && (teams.isLoading ? <Skeleton className="h-9 w-full" /> : (teams.data ?? []).length > 0 && (
+      {withTeams && !term && (teams.isLoading ? <Skeleton className="h-9 w-full" /> : (teams.data ?? []).length > 0 && (
         <div className="flex flex-col gap-1" aria-label="Chọn cả team">
           <p className="px-1 text-xs text-muted-foreground">Chọn cả team</p>
           <div className="contain-scroll-y flex max-h-28 flex-col gap-0.5 overflow-y-auto">

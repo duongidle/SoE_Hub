@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { GUEST_PRESET_LABELS, ROLES, ROLE_LABELS, USER_STATUS_LABELS, type Role } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
+import { PersonChip } from "@/components/ui/person";
+import { disambiguate } from "@/lib/people";
 import { Button, ErrorText, Field, Input, Modal, PageTitle, Select, Table, Tabs } from "@/components/ui/form";
 import { api, apiList, fmtTime, qs } from "@/lib/api";
 import { can, useMe, type UserView } from "@/lib/session";
@@ -35,6 +37,7 @@ export function OrgPage() {
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [detail, setDetail] = useState<Row | null>(null);
   const members = useMembers(search, status);
+  const memberNames = disambiguate(members.data ?? []);
   const writable = can(me, "org:member:write");
   return (
     <div>
@@ -71,7 +74,7 @@ export function OrgPage() {
               {members.data?.map((u) => (
                 <tr key={u.id}>
                   <td>
-                    <div className="font-medium">{u.full_name}</div>
+                    <div className="font-medium"><PersonChip person={{ id: u.id, full_name: u.full_name, email: u.email }} label={memberNames.get(u.id)} /></div>
                     {u.title && <div className="text-xs text-muted-foreground">{u.title}</div>}
                   </td>
                   <td>{u.email}</td>
@@ -126,7 +129,7 @@ function OrgTree() {
   const q = useQuery({ queryKey: ["org", "tree"], queryFn: () => api<{ trees: { manager: TreeNode; leaders: TreeNode[]; direct: TreeNode[] }[]; outside: TreeNode[] }>("GET", "/org/tree") });
   const Person = ({ p }: { p: TreeNode }) => (
     <span>
-      {p.full_name} <span className="text-xs text-muted-foreground">({roleText(p)})</span> {p.status !== "active" && <StatusBadge s={p.status} />}
+      <PersonChip person={{ id: p.id, full_name: p.full_name, email: p.email }} /> <span className="text-xs text-muted-foreground">({roleText(p)})</span> {p.status !== "active" && <StatusBadge s={p.status} />}
     </span>
   );
   return (
