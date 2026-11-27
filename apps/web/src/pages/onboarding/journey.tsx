@@ -33,9 +33,9 @@ function FlagChip({ cp, x, y, onOpen }: { cp: ProgressCp; x: number; y: number; 
   const pop = useJustPassed(cp.status);
   return (
     <button type="button" onClick={onOpen} title={`${cp.name}: ${CP_STATUS[cp.status]?.label ?? ""}`} data-testid="onb-flag" data-status={cp.status}
-      className={cn("absolute inline-flex h-6 items-center gap-1 rounded-full border px-2 text-xs font-semibold", FLAG_TONE[CP_TONE[cp.status] ?? "neutral"], pop && "onb-pop")}
+      className={cn("absolute inline-flex min-h-6 items-start gap-1 rounded-2xl border px-2 py-[3px] text-left text-xs font-semibold leading-tight", FLAG_TONE[CP_TONE[cp.status] ?? "neutral"], pop && "onb-pop")}
       style={{ left: x - FLAG_W / 2, top: y, width: "auto", maxWidth: FLAG_W }}>
-      <Flag size={12} aria-hidden className="shrink-0" /><span className="truncate">{cp.name}</span>
+      <Flag size={12} aria-hidden className="mt-px shrink-0" /><span className="line-clamp-2 min-w-0 break-words">{cp.name}</span>
     </button>
   );
 }
@@ -120,7 +120,7 @@ function Road({ weeks, cps, curNo, who, self, onOpen }: { weeks: WeekInfo[]; cps
             </div>
           );
         })}
-        {flagRows.map(({ c, idx, row }) => <FlagChip key={c.id} cp={c} x={pts[idx]![0]} y={pts[idx]![1] + 38 + row * 28} onOpen={() => onOpen(weeks[idx]!.no)} />)}
+        {flagRows.map(({ c, idx, row }) => <FlagChip key={c.id} cp={c} x={pts[idx]![0]} y={pts[idx]![1] + 38 + row * 42} onOpen={() => onOpen(weeks[idx]!.no)} />)}
       </div>
     </div>
   );

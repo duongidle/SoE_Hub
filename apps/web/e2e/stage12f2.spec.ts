@@ -139,6 +139,11 @@ test("Org chart và Tài khoản mở được, không tràn ngang", async () =>
   if (p === "desktop") await expect(mp.getByRole("button", { name: "Thêm người" })).toBeVisible();
   else await expect(mp.getByRole("button", { name: "Thao tác của trang" })).toBeVisible(); // the page actions fold into "•••" under 640px
   await shot(mgr(), "org-table");
+  // The row actions stay in view (a phone shows name, email and role in one column instead of six).
+  const detail = mp.getByRole("button", { name: "Chi tiết" }).first();
+  await expect(detail).toBeVisible();
+  const box = (await detail.boundingBox())!;
+  expect(box.x + box.width, "Chi tiết nằm ngoài tầm nhìn").toBeLessThanOrEqual(mp.viewportSize()!.width);
   await mp.getByRole("tab", { name: "Dạng cây" }).click();
   await expect(mp.getByText("Cây của")).toBeVisible();
   await shot(mgr(), "org-tree");

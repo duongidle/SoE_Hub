@@ -18,6 +18,7 @@ interface Row {
 }
 const GROUPS = ["test", "mockup", "on_job", "qna", "daily", "other"];
 const GROUP_TONE: Record<string, Tone> = { passed: "ok", failed: "bad", running: "info", not_yet: "neutral" };
+const COLS = "lg:grid-cols-[minmax(170px,1.1fr)_minmax(220px,2fr)_150px_100px_70px_90px]";
 const FILTERS = { q: "", status: "active", team: "", plan: "" };
 
 /** The weeks of one plan as dots: past filled, the current week big with a ring, the coming ones hollow. */
@@ -62,12 +63,17 @@ export function FollowPage() {
         : res.isLoading ? <div className="flex flex-col gap-2" aria-busy="true"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><p className="sr-only">Đang tải...</p></div>
         : rows.length === 0 ? (filtered ? <FilteredEmptyState onClear={() => setF({ q: "", team: "", plan: "", status: "active" })} /> : <EmptyState title="Chưa có nhân sự nào đang onboard" hint="Gắn một lộ trình cho nhân sự ở mục Lộ trình." action={<Link to="/onboarding/lo-trinh" className="text-sm font-medium text-primary">Mở danh sách lộ trình</Link>} />)
         : (
+          <>
+          {/* Column titles (wide screens; narrow ones label each number inside the card). Same grid and the card's border + padding, so they line up. */}
+          <div aria-hidden data-testid="onb-follow-head" className={cn("mb-1 hidden gap-x-4 px-[17px] text-xs font-medium text-muted-foreground lg:grid", COLS)}>
+            <span>Nhân sự · lộ trình</span><span>Tiến độ theo tuần</span><span>Việc đã xong</span><span>Checkpoint</span><span>Việc trễ</span><span>Kết quả</span>
+          </div>
           <ul className="flex flex-col gap-2" data-testid="onb-follow-list">
             {rows.map((r) => {
               const groups = GROUPS.filter((g) => r.groups[g]);
               return (
                 <li key={r.plan_id} role="button" className="cursor-pointer rounded-card border border-border bg-card p-4 shadow-card transition-colors hover:border-primary-border hover:bg-primary-soft/30 focus-visible:outline-2 focus-visible:outline-primary" data-testid="onb-row" tabIndex={0} onClick={() => open(r)} onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) open(r); }}>
-                  <div className="grid items-center gap-x-4 gap-y-3 lg:grid-cols-[minmax(170px,1.1fr)_minmax(220px,2fr)_150px_100px_70px_90px]">
+                  <div className={cn("grid items-center gap-x-4 gap-y-3", COLS)}>
                     <div className="min-w-0">
                       <span className="inline-flex max-w-full items-center gap-1 font-medium" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                         <PersonChip person={{ id: r.staff_id, full_name: r.staff_name }} label={staffNames.get(r.staff_id)} />
@@ -90,6 +96,7 @@ export function FollowPage() {
               );
             })}
           </ul>
+          </>
         )}
     </div>
   );

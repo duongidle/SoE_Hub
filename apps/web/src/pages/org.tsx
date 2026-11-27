@@ -68,11 +68,9 @@ export function OrgPage() {
             <thead>
               <tr>
                 <th>Họ tên</th>
-                <th>Email</th>
-                <th>Vai trò</th>
-                <th>Manager</th>
-                <th>Cấp trên</th>
-                <th>Trạng thái</th>
+                <th className="hidden md:table-cell">Vai trò</th>
+                <th className="hidden md:table-cell">Manager · Cấp trên</th>
+                <th className="hidden md:table-cell">Trạng thái</th>
                 <th />
               </tr>
             </thead>
@@ -82,15 +80,22 @@ export function OrgPage() {
                   <td>
                     <div className="font-medium"><PersonChip person={{ id: u.id, full_name: u.full_name, email: u.email }} label={memberNames.get(u.id)} /></div>
                     {u.title && <div className="text-xs text-muted-foreground">{u.title}</div>}
+                    {/* The email sits under the name (a 1280px screen with the sidebar has no room for it as a column); on a phone the rest of the row follows, and the actions stay in view at the right. */}
+                    <div className="mt-0.5 text-xs text-muted-foreground [overflow-wrap:anywhere]">{u.email}</div>
+                    <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground md:hidden">
+                      <span>{roleText(u)}{u.manager_id === u.id ? " · gốc cây" : u.manager_name ? ` · Manager ${u.manager_name}` : ""}{u.leader_name ? ` · Cấp trên ${u.leader_name}` : ""}</span>
+                      <span><StatusBadge s={u.status} /></span>
+                    </div>
                   </td>
-                  <td>{u.email}</td>
-                  <td>{roleText(u)}</td>
-                  <td>{u.manager_id === u.id ? "(gốc cây)" : (u.manager_name ?? "—")}</td>
-                  <td>{u.leader_name ?? "—"}</td>
-                  <td>
+                  <td className="hidden md:table-cell">{roleText(u)}</td>
+                  <td className="hidden md:table-cell">
+                    <div>{u.manager_id === u.id ? "(gốc cây)" : (u.manager_name ?? "—")}</div>
+                    {u.leader_name && <div className="text-xs text-muted-foreground">Cấp trên: {u.leader_name}</div>}
+                  </td>
+                  <td className="hidden md:table-cell">
                     <StatusBadge s={u.status} />
                   </td>
-                  <td className="whitespace-nowrap">
+                  <td className="md:whitespace-nowrap">
                     <Button variant="ghost" onClick={() => setDetail(u)}>
                       Chi tiết
                     </Button>
@@ -104,7 +109,7 @@ export function OrgPage() {
               ))}
               {members.data?.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-muted-foreground">
+                  <td colSpan={5} className="text-muted-foreground">
                     Không có ai.
                   </td>
                 </tr>

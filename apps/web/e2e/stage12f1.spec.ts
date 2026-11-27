@@ -143,6 +143,8 @@ test("Leader: Theo dõi có dải lộ trình thu nhỏ mỗi người, mở tra
   await expect(row).toBeVisible();
   await expect(row.getByTestId("onb-miniroad")).toBeVisible();
   await expect(row.getByTestId("onb-row-progress")).toContainText("%");
+  // Column titles over the numbers (wide screens; a phone labels each number inside the card).
+  if (p === "desktop") await expect(lp.getByTestId("onb-follow-head")).toContainText("Checkpoint");
   await shot(sessions.find((s) => s.name === "lead")!, "theo-doi");
   await row.click();
   await expect(lp.getByTestId("onb-plan-view")).toBeVisible();
