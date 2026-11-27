@@ -146,6 +146,8 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   const [selection, setSelection] = useState<GridSelection>({ columns: CompactSelection.empty(), rows: CompactSelection.empty() });
   // The row-number handlers run from timers: they read the newest selection here, not the one of the render that made them.
   const selectionRef = useRef(selection);
+  /** When a row number was last released: the cell selection the grid reports for that same release is not wanted. */
+  const markerAt = useRef(0);
   const [tip, setTip] = useState<Tip | null>(null);
 
   const ctx: CellCtx = useMemo(() => ({ people: labels.people, linked: labels.linked, noAccess: labels.noAccess }), [labels]);
@@ -455,6 +457,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   // ---- selection, scroll, keyboard ------------------------------------------------------------------------------
   const onGridSelectionChange = useCallback(
     (s: GridSelection) => {
+      if (s.rows.length === 0 && s.current && performance.now() - markerAt.current < 250) return;
       selectionRef.current = s;
       setSelection(s);
       const ids = s.rows.toArray().map((i) => rowAtLine(i)?.id).filter((x): x is string => !!x);
@@ -638,7 +641,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   const pressed = useRef<{ row: number; mode: "open" | "replace" | "toggle" | "range" } | null>(null);
   const touch = useRef<{ row: number; timer: ReturnType<typeof setTimeout> | null } | null>(null);
   const markerHandlers = {
-    // The grid reads its selection on mouse up as well, so the action runs a moment after that (a short timer) and has the last word.
+    // The grid reads its selection on mouse up as well, so the action runs right after it (a timer of 0), and the cell selection the grid then reports for the same release is ignored (`markerAt`).
     onMouseDownCapture: (e: React.MouseEvent) => {
       const r = markerRowAt(e.clientX, e.clientY);
       if (r === null) return;
@@ -656,12 +659,13 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
       const p = pressed.current;
       pressed.current = null;
       if (!p) return;
+      markerAt.current = performance.now();
       setTimeout(() => {
         if (p.mode === "open") {
           const id = rowAtLine(p.row)?.id;
           if (id) onOpenRow(id);
         } else selectRow(p.row, p.mode);
-      }, 60);
+      }, 0);
     },
     onContextMenu: (e: React.MouseEvent) => {
       if (markerRowAt(e.clientX, e.clientY) !== null) e.preventDefault();

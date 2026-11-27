@@ -394,7 +394,9 @@ test("xoá dòng đã chọn có Hoàn tác; sửa hàng loạt", async () => {
   expect(await g.read(COL.name, 3)).toBe("Khách B");
 
   await g.clickMarker(0);
+  await expect(pg.getByRole("button", { name: "Sửa 1 dòng" })).toBeVisible();
   await g.clickMarker(1, { append: true });
+  await expect(pg.getByRole("button", { name: "Sửa 2 dòng" })).toBeVisible();
   await pg.getByRole("button", { name: "Sửa 2 dòng" }).click();
   const d = pg.getByRole("dialog", { name: "Sửa 2 dòng" });
   await chooseOption(d.getByLabel("Cột"), { label: "Giai đoạn" });
