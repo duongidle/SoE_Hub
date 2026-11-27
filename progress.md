@@ -23,6 +23,13 @@ Nguồn: ảnh `anh/soe_hub_dynamic_form_lark_ergonomic_edition.png`, `anh/soe_h
   - Test (mã 061da11): `pnpm typecheck` 0 lỗi; `pnpm lint` sạch; `vitest run apps packages` 116 file pass, 1393 pass / 0 fail / 10 skip (3 file skip, không đổi); e2e `stage7` + `stage12e1` + `stage9` (desktop) + `stage12e2` (desktop + phone): 17 pass, 0 fail, 13 skip (các spec chỉ desktop bỏ qua ở phone, chấm bài chỉ desktop). Ảnh: scratchpad `12e2/` (desktop-/phone- fill-top, fill-middle, fill-thanks, fill-error; desktop fill-page2, grading-1440, grading-800-drawer, responses-1440, picker-1440).
 - **12E xong 28/11.** Bước tiếp: rà phạm vi 12F (Onboarding) theo `kinh-nghiem-quyet-dinh.md`.
 
+## Đang làm: Stage 12F — Onboarding, Knowledge, AI Hub, các màn còn lại
+
+Mockup đã chốt: `de_xuat/onboarding_hanh_trinh.html` (Opus được tinh chỉnh); AI Hub: bố cục `soe_hub_knowledge_ai_hub.html` (bấm AI Hub) + nội dung `de_xuat/ai_hub_chuc_nang.html`; Knowledge: `soe_hub_knowledge_ai_hub.html`. Lối tắt: checkpoint → bài test/form.
+
+- [ ] **12F-1 (agent A, Onboarding):** Hành trình (con đường theo tuần, mốc, "bạn đang ở đây", mốc tiếp theo + việc còn thiếu, việc của tuần theo ngày, checkpoint so ngưỡng, lối tắt bài thu hoạch/Q&A/báo cáo ngày); Hôm nay; Kết quả của tôi (thẻ Đánh giá cuối); Leader: Theo dõi (mỗi người một dải lộ trình thu nhỏ + bảng), trang nhân sự, danh sách lộ trình, trình sửa lộ trình theo concept; 375px; e2e stage9 + spec mới.
+- [ ] **12F-2 (agent B, Knowledge/AI Hub/còn lại):** Knowledge (trang chủ, đọc, soạn, Bài của tôi), AI Hub (thư viện, ngăn kéo skill, tải lên, Skill của tôi), Duyệt bài, Org chart, Tài khoản, "Bài làm của tôi" (MyQuizPage); e2e 375px Knowledge/AI Hub; chạy cuối bước: vitest apps packages + e2e stage8, stage9, stage1, spec 12F.
+
 ## Danh sách sửa để 12G (Opus ghi khi rà, 28/11)
 
 - Quản lý Deal 1280px: thanh công cụ xuống hai dòng khi có nút "Thời gian" (ô tìm rơi xuống dòng 2).
