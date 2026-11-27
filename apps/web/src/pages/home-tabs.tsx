@@ -226,13 +226,15 @@ export function DashboardTabs() {
   );
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-card border border-border bg-card shadow-card" aria-label="Dashboard" data-testid="home-dashboards">
-      <div className="flex items-center gap-1 border-b border-border-soft px-3 pt-3">
-      <div role="tablist" aria-label="Dashboard" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+    <section className="min-w-0" aria-label="Dashboard" data-testid="home-dashboards">
+      <div className="flex items-center gap-1 border-b border-border-soft">
+      <div role="tablist" aria-label="Dashboard" className="flex min-w-0 flex-1 items-center gap-1">
+        {/* "Được chia sẻ" stays outside the scrolling part, so a long row of pinned tabs can never push it out of sight. */}
         <button type="button" role="tab" aria-selected={active === SHARED} onClick={() => select(SHARED)} className={cn(tabClass(active === SHARED), "shrink-0")} data-testid="home-tab-shared">
           <Users size={14} aria-hidden /> Được chia sẻ
         </button>
         {tabs.length > 0 && <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />}
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
             {tabs.map((t) => (
@@ -240,10 +242,11 @@ export function DashboardTabs() {
             ))}
           </SortableContext>
         </DndContext>
+        </div>
       </div>
         {canPin && <PinPicker pinned={new Set(tabs.map((t) => t.id))} onPin={(id) => void pin(id)} />}
       </div>
-      <div className="p-4">
+      <div className="pt-4">
         {tabsQ.isLoading ? (
           <Skeleton className="h-64 w-full" aria-busy="true" aria-label="Đang tải dashboard" />
         ) : tabsQ.error ? (

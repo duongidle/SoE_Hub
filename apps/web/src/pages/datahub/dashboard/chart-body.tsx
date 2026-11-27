@@ -2,6 +2,7 @@ import { formatPercent } from "@soe/shared";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { lazy, Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
 import { cartesianPicks, pickOf, toCartesian, toPivot, toSlices, type SeriesInput } from "@/lib/dashboard/chart-data";
@@ -305,6 +306,15 @@ function A11yTable({ caption, head, rows }: { caption: string; head: string[]; r
   );
 }
 
+/** The kind of number a KPI shows, as a small chip in a color by meaning (money, count, rate, days). It only names the number's format; nothing is computed. */
+const KPI_KIND: Record<FormatName, { label: string; tone: "primary" | "info" | "ai" | "warn" }> = {
+  money: { label: "Tiền", tone: "primary" },
+  number: { label: "Số lượng", tone: "info" },
+  compact: { label: "Số lượng", tone: "info" },
+  percent: { label: "Tỷ lệ", tone: "ai" },
+  days: { label: "Ngày", tone: "warn" },
+};
+
 function KpiCard({ chart, result, spark, format, onOpenRows }: { chart: ChartDef; result: QueryResult; spark: QueryResult | null; format: FormatName | null; onOpenRows?: () => void }) {
   void chart;
   const row = result.rows[0];
@@ -314,6 +324,7 @@ function KpiCard({ chart, result, spark, format, onOpenRows }: { chart: ChartDef
   const sp = spark?.rows ?? [];
   return (
     <div className="flex h-full min-h-0 flex-col justify-center gap-1.5 px-1">
+      <span className="flex"><Badge tone={KPI_KIND[format ?? "number"].tone} data-testid="kpi-kind">{KPI_KIND[format ?? "number"].label}</Badge></span>
       {onOpenRows ? (
         <button type="button" onClick={onOpenRows} className="w-full rounded text-left hover:bg-muted focus-visible:outline-2" aria-label={`${text}: xem các dòng tạo nên con số này`} data-testid="kpi-rows">
           <FitText text={text} />

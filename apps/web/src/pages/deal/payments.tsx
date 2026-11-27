@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PersonChip } from "@/components/ui/person";
 import { Link } from "@tanstack/react-router";
 import { formatCurrency, formatDate } from "@soe/shared";
-import { Plus, Trash2 } from "lucide-react";
+import { ArrowUpRight, Plus, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, errorMessage, Field, Input, Modal, Notice, PageTitle, Select, Table, Tabs, Textarea } from "@/components/ui/form";
@@ -14,6 +14,8 @@ import { dealKeys, getDealHome, type DealTable } from "@/lib/datahub/deal-api";
 import { adjustCommission, confirmPayments, matchCandidates, schedulePayments, unconfirmPayments, type Allocation, type MatchCandidate, type ScheduleItem } from "@/lib/datahub/payment-api";
 import type { Column, Row, TableDetail } from "@/lib/datahub/types";
 import { can, useMe } from "@/lib/session";
+import { useUrlState } from "@/lib/use-url-state";
+import { cn } from "@/lib/utils";
 
 /**
  * `/quan-ly-deal/thanh-toan`: payments by instalment (Module 4 mục 7, 16). Instalments with their views, the tool Ghép tiền về, unmatched transfers, the commission
@@ -46,6 +48,13 @@ const optionName = (col: Column | undefined, v: unknown): string => {
   const o = col?.config.options?.find((x) => x.id === id || x.name === id);
   return o?.name ?? (typeof id === "string" ? id : "");
 };
+/** Chip color by the meaning of a status the server wrote (instalment and commission ledger); a status it does not know stays grey. */
+type Tone = "ok" | "info" | "warn" | "bad" | "ai" | "muted";
+const STATUS_TONE: Record<string, Tone> = { "Đã về": "ok", "Về thiếu": "warn", "Quá hạn": "bad", "Sắp đến hạn": "warn", "Chưa đến hạn": "info", "Tạm tính": "warn", "Đã chốt": "ok", "Điều chỉnh": "ai" };
+const toneOf = (s: string): Tone => STATUS_TONE[s] ?? "muted";
+const SEG = (on: boolean) => cn("min-h-8 rounded-md px-3 text-[13px]", on ? "bg-card font-semibold text-primary shadow-card" : "text-muted-foreground hover:text-foreground");
+const TH_NUM = "text-right";
+const TD_NUM = "text-right tabular-nums";
 const today = () => new Date().toISOString().slice(0, 10);
 
 function useRelationLabels(tableId: string | undefined, column: string, ids: string[]) {
@@ -75,7 +84,10 @@ export function PaymentsPage() {
   const me = useMe().data;
   const { q, dots, receipts, ledger } = usePaymentTables();
   const manager = can(me, "deal:payment:write");
-  const [tab, setTab] = useState<Tab>("dot");
+  // The tab and the deal in focus live in the address, so a link from a deal row ("Xem đợt thanh toán", "Xem com") lands on the right tab, already cut to that deal.
+  const [sp, setSp] = useUrlState({ tab: "", deal: "" });
+  const tab: Tab = sp.tab === "match" || sp.tab === "ledger" ? sp.tab : "dot";
+  const setTab = (t: Tab) => setSp({ tab: t === "dot" ? "" : t });
   const [prefill, setPrefill] = useState<{ receiptId: string } | null>(null);
   if (q.isLoading) return <div className="flex flex-col gap-3" aria-busy="true" aria-label="Đang tải"><Skeleton className="h-8 w-64" /><Skeleton className="h-64 w-full" /></div>;
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được thanh toán" />;
@@ -83,15 +95,41 @@ export function PaymentsPage() {
   const items: { value: Tab; label: string }[] = [{ value: "dot", label: "Đợt thanh toán" }, ...(manager ? [{ value: "match" as const, label: "Ghép tiền về" }] : []), { value: "ledger", label: "Sổ com" }];
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3" data-testid="payments-page">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <PageTitle>Thanh toán và com</PageTitle>
-        <Link to="/quan-ly-deal" className="ml-auto inline-flex min-h-9 items-center rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">Về Quản lý Deal</Link>
-      </div>
+      <PageTitle actions={<Link to="/quan-ly-deal" className="inline-flex min-h-8 items-center rounded-control border border-border bg-card px-3 text-sm font-medium hover:bg-muted">Về Quản lý Deal</Link>}>Thanh toán và com</PageTitle>
       <Tabs value={tab} onChange={setTab} items={items} />
-      {tab === "dot" && <InstalmentsTab manager={manager} />}
+      {sp.deal && tab !== "match" && <DealFocusBar dealId={sp.deal} onClear={() => setSp({ deal: "" })} />}
+      {tab === "dot" && <InstalmentsTab manager={manager} dealId={sp.deal} />}
       {tab === "match" && manager && <MatchTab receiptsTable={receipts} prefill={prefill} onDone={() => setPrefill(null)} onPick={(id) => setPrefill({ receiptId: id })} />}
-      {tab === "ledger" && ledger && <LedgerTab manager={manager} myId={me?.user.id ?? ""} />}
+      {tab === "ledger" && ledger && <LedgerTab manager={manager} myId={me?.user.id ?? ""} dealId={sp.deal} />}
       {tab === "ledger" && !ledger && <EmptyState title="Chưa có Sổ com" hint="Bảng Sổ com chưa được dựng cho cây của bạn." />}
+    </div>
+  );
+}
+
+/** The deal a link from a deal row points at: its label and the ids of its instalments (read the same way the schedule dialog reads them). */
+function useDealFocus(dealId: string) {
+  const { dots, deals } = usePaymentTables();
+  const ds = useSchema(deals?.id);
+  return useQuery({
+    queryKey: ["deal-payments", "focus", dealId],
+    enabled: !!dealId && !!deals && !!dots && !!ds.table,
+    queryFn: async () => {
+      const row = (await fetchRowsByIds(deals!.id, [dealId]))[0];
+      if (!row) return { label: "", dotIds: [] as string[], found: false };
+      const label = [str(row.data[ds.key("ma_deal")]), str(row.data[ds.key("ten_cong_ty")])].filter(Boolean).join(" · ") || `Deal #${row.row_no ?? ""}`;
+      return { label, dotIds: idsOf(row.data[ds.key("dot_thanh_toan")]), found: true };
+    },
+  });
+}
+
+/** "Đang xem một deal" strip: the page is cut to one deal until the person clears it. */
+function DealFocusBar({ dealId, onClear }: { dealId: string; onClear: () => void }) {
+  const f = useDealFocus(dealId);
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-card border border-primary-border bg-primary-soft/60 px-3 py-2 text-sm" data-testid="deal-focus">
+      <span className="text-muted-foreground">Đang xem riêng deal</span>
+      <span className="font-semibold [overflow-wrap:anywhere]">{f.isLoading ? "…" : f.data?.found ? f.data.label : "không còn trong phạm vi của bạn"}</span>
+      <Button variant="ghost" className="ml-auto !min-h-8" data-testid="deal-focus-clear" onClick={onClear}><X size={14} aria-hidden /> Xem tất cả</Button>
     </div>
   );
 }
@@ -114,7 +152,7 @@ const DOT_PERIODS = [
 ] as const;
 type DotPeriod = (typeof DOT_PERIODS)[number]["value"];
 
-function InstalmentsTab({ manager }: { manager: boolean }) {
+function InstalmentsTab({ manager, dealId = "" }: { manager: boolean; dealId?: string }) {
   const qc = useQueryClient();
   const { dots, deals } = usePaymentTables();
   const s = useSchema(dots?.id);
@@ -122,20 +160,24 @@ function InstalmentsTab({ manager }: { manager: boolean }) {
   const [period, setPeriod] = useState<DotPeriod>("this_month");
   const [scheduling, setScheduling] = useState(false);
   const [undo, setUndo] = useState<Row | null>(null);
+  const focus = useDealFocus(dealId);
   const ngay = s.key("ngay_tien_ve");
   const rowsQ = useQuery({
-    queryKey: ["pay-rows", dots?.id, view, period],
-    enabled: !!dots && !!s.table,
+    queryKey: ["pay-rows", dots?.id, view, period, dealId, (focus.data?.dotIds ?? []).join(",")],
+    enabled: !!dots && !!s.table && (!dealId || !!focus.data),
     queryFn: async () => {
+      // One deal in focus: all of its instalments, whatever their status (a deal has a handful, the views are for the whole list).
+      if (dealId) return focus.data!.dotIds.length ? await fetchRowsByIds(dots!.id, focus.data!.dotIds) : [];
       const filter = view === "pending" ? { field: ngay, op: "is_empty" } : view === "month" ? { field: ngay, op: period } : undefined;
       return (await fetchRows(dots!.id, { filter, limit: 500 })).data;
     },
   });
   const rows = useMemo(() => {
     const all = rowsQ.data ?? [];
+    if (dealId) return [...all].sort((a, b) => (num(a.data[s.key("dot_so")]) ?? 0) - (num(b.data[s.key("dot_so")]) ?? 0));
     if (view !== "ai") return all;
     return all.filter((r) => optionName(s.col("nguon_nhap"), r.data[s.key("nguon_nhap")]) === "AI" && r.data[s.key("da_kiem")] !== true);
-  }, [rowsQ.data, view, s]);
+  }, [rowsQ.data, view, s, dealId]);
   const dealKey = s.key("deal");
   const labels = useRelationLabels(dots?.id, dealKey, rows.flatMap((r) => idsOf(r.data[dealKey])));
   const statusCol = s.table?.columns.find((c) => c.name === "Trạng thái" && c.type === "formula");
@@ -150,18 +192,21 @@ function InstalmentsTab({ manager }: { manager: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div role="group" aria-label="Chế độ xem" className="flex flex-wrap gap-1">
-          {DOT_VIEWS.map((v) => (
-            <button key={v.value} type="button" aria-pressed={view === v.value} data-testid={`dot-view-${v.value}`} onClick={() => setView(v.value)} className={`min-h-9 rounded-md border px-3 text-sm ${view === v.value ? "border-primary bg-primary/10 font-medium" : "border-border bg-card hover:bg-muted"}`}>
-              {v.label}
-            </button>
-          ))}
-        </div>
-        {view === "month" && (
+        {!dealId && (
+          <div role="group" aria-label="Chế độ xem" className="inline-flex flex-wrap gap-0.5 rounded-lg bg-muted p-0.5">
+            {DOT_VIEWS.map((v) => (
+              <button key={v.value} type="button" aria-pressed={view === v.value} data-testid={`dot-view-${v.value}`} onClick={() => setView(v.value)} className={SEG(view === v.value)}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {!dealId && view === "month" && (
           <Select aria-label="Kỳ của các đợt đã về" data-testid="dot-period" className="!w-auto" value={period} onChange={(e) => setPeriod(e.target.value as DotPeriod)}>
             {DOT_PERIODS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
           </Select>
         )}
+        {!rowsQ.isLoading && !rowsQ.error && <span className="text-xs text-muted-foreground" data-testid="dot-count">{rows.length} đợt</span>}
         {manager && deals && (
           <Button className="ml-auto" data-testid="open-schedule" onClick={() => setScheduling(true)}>
             <Plus size={16} aria-hidden /> Lập lịch cho deal
@@ -178,26 +223,26 @@ function InstalmentsTab({ manager }: { manager: boolean }) {
         <Table>
           <thead>
             <tr>
-              <th>Deal</th><th>Đợt</th><th>Pháp nhân</th><th>Hạn</th><th className="text-right">Dự kiến (chưa VAT)</th><th>Ngày tiền về</th><th className="text-right">Đã về (chưa VAT)</th><th>Trạng thái</th>{manager && <th />}
+              <th>Deal</th><th className={TH_NUM}>Đợt</th><th>Pháp nhân</th><th>Hạn</th><th className={TH_NUM}>Dự kiến (chưa VAT)</th><th>Ngày tiền về</th><th className={TH_NUM}>Đã về (chưa VAT)</th><th>Trạng thái</th>{manager && <th />}
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => {
-              const dealId = idsOf(r.data[dealKey])[0];
+              const dealOfRow = idsOf(r.data[dealKey])[0];
               const paid = str(r.data[ngay]) !== "";
               return (
                 <tr key={r.id} data-testid="dot-row">
-                  <td>{(dealId && labels.data?.get(dealId)) || "—"}</td>
-                  <td>{num(r.data[s.key("dot_so")]) ?? "—"}</td>
+                  <td className="font-medium">{(dealOfRow && labels.data?.get(dealOfRow)) || "—"}</td>
+                  <td className={TD_NUM}>{num(r.data[s.key("dot_so")]) ?? "—"}</td>
                   <td>{str(r.data[s.key("phap_nhan")]) || "—"}</td>
-                  <td>{formatDate(str(r.data[s.key("han")]))}</td>
-                  <td className="text-right">{money(r.data[s.key("so_tien_du_kien")])}</td>
-                  <td>{paid ? formatDate(str(r.data[ngay])) : "—"}</td>
-                  <td className="text-right">{paid ? money(r.data[s.key("so_tien_ve")]) : "—"}</td>
-                  <td data-testid="dot-status">{statusCol ? <Badge>{str(r.data[statusCol.key]) || "—"}</Badge> : "—"}</td>
+                  <td className="tabular-nums">{formatDate(str(r.data[s.key("han")]))}</td>
+                  <td className={TD_NUM}>{money(r.data[s.key("so_tien_du_kien")])}</td>
+                  <td className="tabular-nums">{paid ? formatDate(str(r.data[ngay])) : "—"}</td>
+                  <td className={TD_NUM}>{paid ? money(r.data[s.key("so_tien_ve")]) : "—"}</td>
+                  <td data-testid="dot-status">{statusCol ? <Badge tone={toneOf(str(r.data[statusCol.key]))}>{str(r.data[statusCol.key]) || "—"}</Badge> : "—"}</td>
                   {manager && (
                     <td className="text-right">
-                      {paid && <Button variant="secondary" data-testid="unconfirm" onClick={() => setUndo(r)}>Huỷ xác nhận</Button>}
+                      {paid && <Button variant="ghost" className="!min-h-8 !text-bad" data-testid="unconfirm" onClick={() => setUndo(r)}>Huỷ xác nhận</Button>}
                     </td>
                   )}
                 </tr>
@@ -486,11 +531,12 @@ function UnmatchedReceipts({ receiptsTable, onPick }: { receiptsTable?: DealTabl
 
 // ---- commission ledger ------------------------------------------------------------------------------------------------------
 
-function LedgerTab({ manager, myId }: { manager: boolean; myId: string }) {
+function LedgerTab({ manager, myId, dealId = "" }: { manager: boolean; myId: string; dealId?: string }) {
   const qc = useQueryClient();
   const { ledger } = usePaymentTables();
   const s = useSchema(ledger?.id);
-  const [mine, setMine] = useState(true);
+  // From a deal row the person wants every line of that deal they may see, not only their own.
+  const [mine, setMine] = useState(!dealId);
   const [period, setPeriod] = useState("");
   const [adj, setAdj] = useState<Row | null>(null);
   const q = useQuery({ queryKey: ["pay-rows", ledger?.id, "ledger"], enabled: !!ledger && !!s.table, queryFn: async () => (await fetchRows(ledger!.id, { limit: 500 })).data });
@@ -499,7 +545,8 @@ function LedgerTab({ manager, myId }: { manager: boolean; myId: string }) {
   const personOf = (r: Row) => idsOf(r.data[personKey])[0] ?? "";
   const all = q.data ?? [];
   const periods = [...new Set(all.map((r) => str(r.data[kyKey]).slice(0, 7)).filter(Boolean))].sort().reverse();
-  const rows = all.filter((r) => (!mine || personOf(r) === myId) && (!period || str(r.data[kyKey]).slice(0, 7) === period));
+  const dealKeyAll = s.key("deal");
+  const rows = all.filter((r) => (!mine || personOf(r) === myId) && (!period || str(r.data[kyKey]).slice(0, 7) === period) && (!dealId || idsOf(r.data[dealKeyAll]).includes(dealId)));
   const names = usePeopleNames(rows.map(personOf).filter(Boolean));
   const dotKey = s.key("dot");
   const dealKey = s.key("deal");
@@ -508,9 +555,9 @@ function LedgerTab({ manager, myId }: { manager: boolean; myId: string }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div role="group" aria-label="Phạm vi" className="flex gap-1">
+        <div role="group" aria-label="Phạm vi" className="inline-flex gap-0.5 rounded-lg bg-muted p-0.5">
           {[{ v: true, l: "Com của tôi" }, { v: false, l: "Tất cả trong phạm vi" }].map((o) => (
-            <button key={String(o.v)} type="button" aria-pressed={mine === o.v} data-testid={o.v ? "ledger-mine" : "ledger-all"} onClick={() => setMine(o.v)} className={`min-h-9 rounded-md border px-3 text-sm ${mine === o.v ? "border-primary bg-primary/10 font-medium" : "border-border bg-card hover:bg-muted"}`}>{o.l}</button>
+            <button key={String(o.v)} type="button" aria-pressed={mine === o.v} data-testid={o.v ? "ledger-mine" : "ledger-all"} onClick={() => setMine(o.v)} className={SEG(mine === o.v)}>{o.l}</button>
           ))}
         </div>
         <Select aria-label="Kỳ" value={period} onChange={(e) => setPeriod(e.target.value)} className="!w-auto">
@@ -520,20 +567,20 @@ function LedgerTab({ manager, myId }: { manager: boolean; myId: string }) {
       </div>
       {q.isLoading || s.q.isLoading ? <Skeleton className="h-40 w-full" /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được Sổ com" /> : rows.length === 0 ? <EmptyState title="Chưa có dòng com" hint="Com tạm tính xuất hiện khi Manager xác nhận tiền về của một đợt." /> : (
         <Table>
-          <thead><tr><th>Kỳ</th><th>Người</th><th>Deal</th><th className="text-right">% com</th><th className="text-right">Com</th><th>Trạng thái</th><th>Lý do</th>{manager && <th />}</tr></thead>
+          <thead><tr><th>Kỳ</th><th>Người</th><th>Deal</th><th className={TH_NUM}>% com</th><th className={TH_NUM}>Com</th><th>Trạng thái</th><th>Lý do</th>{manager && <th />}</tr></thead>
           <tbody>
             {rows.map((r) => {
               const pid = personOf(r);
               return (
                 <tr key={r.id} data-testid="ledger-row">
-                  <td>{str(r.data[kyKey]).slice(0, 7) || "—"}</td>
+                  <td className="tabular-nums">{str(r.data[kyKey]).slice(0, 7) || "—"}</td>
                   <td>{names.data?.get(pid) ? <PersonChip person={{ id: pid, full_name: names.data.get(pid)! }} /> : "—"}</td>
                   <td>{(idsOf(r.data[dealKey])[0] && dealLabels.data?.get(idsOf(r.data[dealKey])[0]!)) || "—"}</td>
-                  <td className="text-right">{typeof r.data[s.key("ty_le_com")] === "number" ? `${Math.round((r.data[s.key("ty_le_com")] as number) * 10000) / 100}%` : "—"}</td>
-                  <td className="text-right" data-testid="ledger-com">{money(r.data[s.key("com")])}</td>
-                  <td data-testid="ledger-status">{optionName(s.col("trang_thai_com"), r.data[s.key("trang_thai_com")]) || "—"}</td>
+                  <td className={TD_NUM}>{typeof r.data[s.key("ty_le_com")] === "number" ? `${Math.round((r.data[s.key("ty_le_com")] as number) * 10000) / 100}%` : "—"}</td>
+                  <td className={cn(TD_NUM, "font-medium")} data-testid="ledger-com">{money(r.data[s.key("com")])}</td>
+                  <td data-testid="ledger-status">{(() => { const st = optionName(s.col("trang_thai_com"), r.data[s.key("trang_thai_com")]); return st ? <Badge tone={toneOf(st)}>{st}</Badge> : "—"; })()}</td>
                   <td>{str(r.data[s.key("ly_do")]) || "—"}</td>
-                  {manager && <td className="text-right"><Button variant="secondary" data-testid="adjust" onClick={() => setAdj(r)}>Điều chỉnh</Button></td>}
+                  {manager && <td className="text-right"><Button variant="ghost" className="!min-h-8" data-testid="adjust" onClick={() => setAdj(r)}>Điều chỉnh</Button></td>}
                 </tr>
               );
             })}
@@ -588,10 +635,14 @@ export function DealPaymentsPanel({ dealRow, dealsTableId }: { dealRow: Row; dea
   if (!dots) return null;
   const label = str(dealRow.data[ds.key("ma_deal")]) || str(dealRow.data[ds.key("ten_cong_ty")]) || `Deal #${dealRow.row_no ?? ""}`;
   return (
-    <section className="flex flex-col gap-2 rounded-md border border-border p-3" aria-label="Các đợt thanh toán" data-testid="deal-payments">
+    <section className="flex flex-col gap-2 rounded-xl border border-border-soft bg-card p-3" aria-label="Các đợt thanh toán" data-testid="deal-payments">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Các đợt thanh toán</h3>
-        {manager && <Button variant="secondary" data-testid="panel-schedule" onClick={() => setScheduling(true)}>Lập lịch</Button>}
+        <div className="flex flex-wrap items-center gap-1">
+          <Link to="/quan-ly-deal/thanh-toan" search={{ deal: dealRow.id } as never} data-testid="panel-open-payments" className="inline-flex min-h-8 items-center gap-1 rounded-control px-2 text-[13px] font-medium text-primary hover:bg-primary-soft">Xem đợt thanh toán <ArrowUpRight size={13} aria-hidden /></Link>
+          <Link to="/quan-ly-deal/thanh-toan" search={{ tab: "ledger", deal: dealRow.id } as never} data-testid="panel-open-com" className="inline-flex min-h-8 items-center gap-1 rounded-control px-2 text-[13px] font-medium text-primary hover:bg-primary-soft">Xem com <ArrowUpRight size={13} aria-hidden /></Link>
+          {manager && <Button variant="secondary" data-testid="panel-schedule" onClick={() => setScheduling(true)}>Lập lịch</Button>}
+        </div>
       </div>
       {ids.length === 0 ? <p className="text-sm text-muted-foreground">Deal chưa có lịch thanh toán.</p> : q.isLoading ? <Skeleton className="h-12 w-full" /> : q.error ? <p className="text-sm text-bad">{errorMessage(q.error)}</p> : (
         <ul className="flex flex-col gap-1 text-sm">
@@ -600,7 +651,7 @@ export function DealPaymentsPanel({ dealRow, dealsTableId }: { dealRow: Row; dea
             return (
               <li key={r.id} data-testid="panel-dot" className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 border-t border-border pt-1 first:border-t-0 first:pt-0">
                 <span>Đợt {num(r.data[ps.key("dot_so")]) ?? "?"}: {money(r.data[ps.key("so_tien_du_kien")])}, hạn {formatDate(str(r.data[ps.key("han")]))}</span>
-                <span className="flex items-center gap-2">{statusCol && <Badge>{str(r.data[statusCol.key]) || "—"}</Badge>}<span className="text-muted-foreground" data-testid="panel-com">{com.length ? `Com của tôi ${formatCurrency(com.reduce((a, b) => a + b, 0))}` : "Com của tôi: —"}</span></span>
+                <span className="flex items-center gap-2">{statusCol && <Badge tone={toneOf(str(r.data[statusCol.key]))}>{str(r.data[statusCol.key]) || "—"}</Badge>}<span className="text-muted-foreground" data-testid="panel-com">{com.length ? `Com của tôi ${formatCurrency(com.reduce((a, b) => a + b, 0))}` : "Com của tôi: —"}</span></span>
               </li>
             );
           })}

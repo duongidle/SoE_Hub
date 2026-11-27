@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { CalendarCheck, MoreHorizontal, Pencil, Plus, Settings2, Trash2, Wallet } from "lucide-react";
+import { BarChart3, CalendarCheck, Check, ChevronDown, MoreHorizontal, Pencil, Plus, Settings2, Table2, Trash2, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Menu, MenuItem } from "@/components/ui/dropdown";
-import { Button, ConfirmDialog, ErrorText } from "@/components/ui/form";
+import { Badge } from "@/components/ui/badge";
+import { Button, ConfirmDialog, ErrorText, Input, PageTitle } from "@/components/ui/form";
+import { Popover } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, NoAccessState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -11,11 +13,14 @@ import { createTable, deleteTable, updateTable } from "@/lib/datahub/api";
 import { dealKeys, getDealHome, getPrefs, setPrefs, type DealTable } from "@/lib/datahub/deal-api";
 import { can, useMe } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { TableNameDialog } from "../datahub/detail";
+import { ScrollStrip, segCls, tabCls, TableNameDialog } from "../datahub/detail";
 import { TableView } from "../datahub/table-view";
 import { SharedPeriodContext, useSharedPeriodState } from "@/lib/datahub/deal-view";
-import { SharedPeriodBar } from "./period-bar";
+import { SharedPeriodBar, type PeriodScope } from "./period-bar";
 import { DealDashboard } from "./dashboard";
+
+/** The three pages next to the tables, as quiet buttons in the top bar (the page has no main button of its own: the table brings "Thêm dòng"). */
+const LINK_BTN = "inline-flex min-h-8 items-center gap-1.5 rounded-control border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-muted";
 
 /** `/quan-ly-deal/:tableId`: the tables of the menu Quản lý Deal (template tables first, then your own) and the open one. Module 4 mục 1.1, 16. */
 export function DealHomePage({ dashboard = false }: { dashboard?: boolean } = {}) {
@@ -46,32 +51,36 @@ function DealBody({ home, tableId, dashboard }: { home: { datahub_id: string | n
   const hasLeader = !!me?.user.leader_id || !!me?.user.manager_id;
   const isDealTable = (current?.template_kind ?? null) === "shared";
   const period = useSharedPeriodState();
+  const role = current?.role_set;
+  const scope: PeriodScope = dashboard ? "dashboard" : role === "deals" || role === "index" || role === "kpi" ? role : "other";
   return (
     <SharedPeriodContext.Provider value={period.value}>
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h1 className="sr-only">Quản lý Deal</h1>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {isDealTable && hasLeader && !roles.includes("manager") && <LeaderEditToggle />}
-          {home.tables.some((t) => t.role_set === "payments") && (
-            <Link to="/quan-ly-deal/thanh-toan" data-testid="open-payments-page" className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">
-              <Wallet size={16} aria-hidden /> Thanh toán và com
-            </Link>
-          )}
-          {can(me, "deal:payment:write") && (
-            <Link to="/quan-ly-deal/chot-ky" data-testid="open-period-page" className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">
-              <CalendarCheck size={16} aria-hidden /> Chốt kỳ
-            </Link>
-          )}
-          {canTemplate && (
-            <Link to="/quan-ly-deal/template" data-testid="open-template-page" className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">
-              <Settings2 size={16} aria-hidden /> Template
-            </Link>
-          )}
-        </div>
-      </div>
-      <SharedPeriodBar state={period} showRule={!dashboard && current?.role_set === "deals"} />
-      <DealTabs home={home} currentId={dashboard ? undefined : tableId} dashboard={dashboard} />
+      <PageTitle
+        actions={
+          <>
+            {home.tables.some((t) => t.role_set === "payments") && (
+              <Link to="/quan-ly-deal/thanh-toan" data-testid="open-payments-page" className={LINK_BTN}>
+                <Wallet size={16} aria-hidden /> Thanh toán và com
+              </Link>
+            )}
+            {can(me, "deal:payment:write") && (
+              <Link to="/quan-ly-deal/chot-ky" data-testid="open-period-page" className={LINK_BTN}>
+                <CalendarCheck size={16} aria-hidden /> Chốt kỳ
+              </Link>
+            )}
+            {canTemplate && (
+              <Link to="/quan-ly-deal/template" data-testid="open-template-page" className={LINK_BTN}>
+                <Settings2 size={16} aria-hidden /> Template
+              </Link>
+            )}
+          </>
+        }
+      >
+        Quản lý Deal
+      </PageTitle>
+      <SharedPeriodBar state={period} showRule={!dashboard && current?.role_set === "deals"} scope={scope} />
+      <DealTabs home={home} currentId={dashboard ? undefined : tableId} dashboard={dashboard} extra={isDealTable && hasLeader && !roles.includes("manager") ? <LeaderEditToggle /> : null} />
       {dashboard ? (
         period.loading ? <Skeleton className="h-64 w-full" /> : <DealDashboard home={home} period={period} />
       ) : home.tables.length === 0 ? (
@@ -100,14 +109,14 @@ function LeaderEditToggle() {
     onError: () => notify.error("Không lưu được. Thử lại."),
   });
   return (
-    <label className="flex min-h-9 items-center gap-2 text-sm">
+    <label className="flex min-h-8 shrink-0 items-center gap-2 text-[13px] text-muted-foreground">
       <input type="checkbox" className="h-4 w-4" data-testid="leader-can-edit" disabled={q.isLoading || m.isPending} checked={q.data?.leader_can_edit === true} onChange={(e) => m.mutate(e.target.checked)} />
       Cho phép leader sửa deal của tôi
     </label>
   );
 }
 
-function DealTabs({ home, currentId, dashboard }: { home: { datahub_id: string | null; tables: DealTable[] }; currentId?: string; dashboard: boolean }) {
+function DealTabs({ home, currentId, dashboard, extra }: { home: { datahub_id: string | null; tables: DealTable[] }; currentId?: string; dashboard: boolean; extra?: React.ReactNode }) {
   const qc = useQueryClient();
   const nav = useNavigate();
   const [dialog, setDialog] = useState<{ kind: "add" } | { kind: "rename"; t: DealTable } | { kind: "delete"; t: DealTable } | null>(null);
@@ -121,38 +130,52 @@ function DealTabs({ home, currentId, dashboard }: { home: { datahub_id: string |
       if (t.id === currentId) void nav({ to: "/quan-ly-deal" });
     },
   });
+  const hasDeals = home.tables.some((t) => t.role_set === "deals");
   return (
     <>
-      <div role="tablist" aria-label="Các bảng Quản lý Deal" className="flex items-center gap-1 overflow-x-auto border-b border-border">
-        {home.tables.some((t) => t.role_set === "deals") && (
-          <div className={cn("flex shrink-0 items-center border-b-2", dashboard ? "border-primary" : "border-transparent")}>
-            <Link to="/quan-ly-deal/dashboard" role="tab" aria-selected={dashboard} data-testid="deal-dashboard-tab" className={cn("px-3 py-3 text-sm sm:py-2", dashboard ? "font-medium" : "text-muted-foreground hover:text-foreground")}>
-              Dashboard
+      {/* The same strip as a datahub (12C): the "Dữ liệu | Dashboard" switch, "Bảng ▾ (n)", "+", then the tables as tabs that scroll sideways. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-1 sm:flex-nowrap">
+        {hasDeals && (
+          <div role="group" aria-label="Chế độ xem" className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">
+            <Link to="/quan-ly-deal" aria-current={dashboard ? undefined : "page"} className={segCls(!dashboard)}>
+              <Table2 size={14} aria-hidden /> Dữ liệu
+            </Link>
+            <Link to="/quan-ly-deal/dashboard" aria-current={dashboard ? "page" : undefined} data-testid="deal-dashboard-tab" className={segCls(dashboard)}>
+              <BarChart3 size={14} aria-hidden /> Dashboard
             </Link>
           </div>
         )}
-        {home.tables.map((t) => {
-          const on = t.id === currentId;
-          const mine = t.template_id === null;
-          return (
-            <div key={t.id} className={cn("flex shrink-0 items-center border-b-2", on ? "border-primary" : "border-transparent")}>
-              <Link to="/quan-ly-deal/$tableId" params={{ tableId: t.id }} role="tab" aria-selected={on} title={t.name} className={cn("max-w-48 truncate px-3 py-3 text-sm sm:py-2", on ? "font-medium" : "text-muted-foreground hover:text-foreground")}>
-                {t.name}
-              </Link>
-              {mine && on && (
-                <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn bảng ${t.name}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
-                  <MenuItem onSelect={() => setDialog({ kind: "rename", t })}><Pencil size={16} aria-hidden /> Đổi tên bảng</MenuItem>
-                  <MenuItem danger onSelect={() => setDialog({ kind: "delete", t })}><Trash2 size={16} aria-hidden /> Xoá bảng</MenuItem>
-                </Menu>
-              )}
-            </div>
-          );
-        })}
-        {home.datahub_id && (
-          <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "add" })}>
-            <Plus size={16} aria-hidden /> Thêm bảng
-          </Button>
+        {!dashboard && (
+          <div role="tablist" aria-label="Các bảng Quản lý Deal" className="flex min-w-0 basis-full items-center gap-1 sm:flex-1 sm:basis-0">
+            {home.datahub_id && (
+              <div className="flex shrink-0 items-center gap-1">
+                <Button variant="ghost" aria-label="Thêm bảng" title="Thêm bảng" className="!px-2" onClick={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /></Button>
+                <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
+              </div>
+            )}
+            <DealTableList home={home} currentId={currentId} />
+            <ScrollStrip activeKey={currentId}>
+              {home.tables.map((t) => {
+                const on = t.id === currentId;
+                const mine = t.template_id === null;
+                return (
+                  <div key={t.id} className={cn("flex shrink-0 items-center rounded-lg", on && "bg-primary-soft")}>
+                    <Link to="/quan-ly-deal/$tableId" params={{ tableId: t.id }} role="tab" aria-selected={on} title={t.name} className={cn(tabCls(on), "max-w-48 truncate bg-transparent", on && mine && "pr-1")}>
+                      <span className="truncate">{t.name}</span>
+                    </Link>
+                    {mine && on && (
+                      <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn bảng ${t.name}`} className="!min-h-8 !px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
+                        <MenuItem onSelect={() => setDialog({ kind: "rename", t })}><Pencil size={16} aria-hidden /> Đổi tên bảng</MenuItem>
+                        <MenuItem danger onSelect={() => setDialog({ kind: "delete", t })}><Trash2 size={16} aria-hidden /> Xoá bảng</MenuItem>
+                      </Menu>
+                    )}
+                  </div>
+                );
+              })}
+            </ScrollStrip>
+          </div>
         )}
+        {extra && <div className={cn("shrink-0", dashboard && "ml-auto")}>{extra}</div>}
       </div>
       {dialog?.kind === "add" && home.datahub_id && (
         <TableNameDialog
@@ -187,5 +210,31 @@ function DealTabs({ home, currentId, dashboard }: { home: { datahub_id: string |
         </>
       )}
     </>
+  );
+}
+
+/** "Bảng ▾ (n)": every table of the tree in one list (search when there are many), the open one marked; template tables carry the "Chung" chip. */
+function DealTableList({ home, currentId }: { home: { tables: DealTable[] }; currentId?: string }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const list = home.tables.filter((t) => t.name.toLowerCase().includes(q.trim().toLowerCase()));
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(""); }} label="Danh sách bảng" width="w-80" className="p-2"
+      trigger={<Button variant="secondary" aria-label={`Danh sách bảng, ${home.tables.length} bảng`} className="shrink-0 !px-2.5"><Table2 size={16} aria-hidden /> Bảng <ChevronDown size={14} aria-hidden /> <span className="rounded-full bg-muted px-1.5 text-xs leading-5 text-muted-foreground">{home.tables.length}</span></Button>}>
+      {home.tables.length > 6 && <Input aria-label="Tìm bảng" placeholder="Tìm bảng" value={q} onChange={(ev) => setQ(ev.target.value)} className="mb-2" autoComplete="off" />}
+      <ul className="flex flex-col gap-0.5">
+        {list.map((t) => (
+          <li key={t.id}>
+            <Link to="/quan-ly-deal/$tableId" params={{ tableId: t.id }} onClick={() => setOpen(false)} title={t.name} aria-current={t.id === currentId ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2 rounded-md px-2 text-sm hover:bg-primary-soft sm:min-h-9", t.id === currentId && "bg-primary-soft font-medium")}>
+              <Table2 size={16} aria-hidden className="shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{t.name}</span>
+              <Badge tone={t.template_id === null ? "muted" : "ok"}>{t.template_id === null ? "Riêng" : "Chung"}</Badge>
+              {t.id === currentId && <Check size={14} aria-hidden className="shrink-0 text-primary" />}
+            </Link>
+          </li>
+        ))}
+        {list.length === 0 && <li className="px-2 py-3 text-muted-foreground">Không có bảng nào khớp.</li>}
+      </ul>
+    </Popover>
   );
 }

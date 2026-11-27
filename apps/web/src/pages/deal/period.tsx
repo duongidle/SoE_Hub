@@ -36,10 +36,7 @@ export function PeriodPage() {
   if (!manager) return <NoAccessState title="Chỉ Manager chốt kỳ" hint="Chốt kỳ, mở lại kỳ và snapshot dự báo là việc của Manager trên cây của mình." />;
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3" data-testid="period-page">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <PageTitle>Chốt kỳ và dự báo</PageTitle>
-        <Link to="/quan-ly-deal" className="ml-auto inline-flex min-h-9 items-center rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">Về Quản lý Deal</Link>
-      </div>
+      <PageTitle actions={<Link to="/quan-ly-deal" className="inline-flex min-h-8 items-center rounded-control border border-border bg-card px-3 text-sm font-medium hover:bg-muted">Về Quản lý Deal</Link>}>Chốt kỳ và dự báo</PageTitle>
       <Tabs value={tab} onChange={setTab} items={[{ value: "close", label: "Chốt kỳ tháng" }, { value: "snapshot", label: "Snapshot dự báo" }]} />
       {tab === "close" ? <ClosePanel /> : <SnapshotPanel />}
     </div>
@@ -117,7 +114,7 @@ function ClosePanel() {
   const errorOf = (e: unknown): unknown => (e instanceof ApiError && e.details?.reason === "period_already_closed" ? new Error(`Kỳ ${monthLabel(month)} đã được chốt rồi. Tải lại trang để xem kết quả, hoặc mở lại kỳ nếu cần sửa.`) : e);
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-card border border-border bg-card px-4 py-3 shadow-card" data-testid="period-toolbar">
         <Field label="Tháng">
           <Input type="month" aria-label="Tháng chốt kỳ" data-testid="period-month" value={month} onChange={(e) => { setMonth(e.target.value); setPerson(null); close.reset(); confirmClose.reset(); setDone(null); }} className="!w-44" />
         </Field>
@@ -147,7 +144,7 @@ function ClosePanel() {
 
       {valid && (
         <section aria-label="Cần xử lý trước khi chốt" className="flex flex-col gap-2" data-testid="period-review">
-          <h2 className="text-base font-semibold">Cần xử lý trước khi chốt{review.data ? ` (${total})` : ""}</h2>
+          <h2 className="text-[15px] font-semibold">Cần xử lý trước khi chốt{review.data ? ` (${total})` : ""}</h2>
           {review.isLoading ? <Skeleton className="h-24 w-full" /> : review.error ? <ErrorState error={review.error} onRetry={() => void review.refetch()} title="Không tải được danh sách cần xử lý" /> : total === 0 ? (
             <p className="text-sm text-muted-foreground">Không còn mục nào.</p>
           ) : (
@@ -158,7 +155,7 @@ function ClosePanel() {
 
       {valid && (
         <section aria-label="Com theo người" className="flex flex-col gap-2" data-testid="period-com">
-          <h2 className="text-base font-semibold">Com theo người, {monthLabel(month)}</h2>
+          <h2 className="text-[15px] font-semibold">Com theo người, {monthLabel(month)}</h2>
           {com.isLoading ? <Skeleton className="h-24 w-full" /> : com.error ? <ErrorState error={com.error} onRetry={() => void com.refetch()} title="Không tải được com của kỳ" /> : (com.data?.people.length ?? 0) === 0 ? (
             <EmptyState title="Chưa có dòng com trong kỳ" hint="Com tạm tính xuất hiện khi xác nhận tiền về của một đợt." />
           ) : <ComByPerson month={month} data={com.data!} person={person} onPerson={setPerson} />}
@@ -166,7 +163,7 @@ function ClosePanel() {
       )}
 
       <section aria-label="Các kỳ đã chốt" className="flex flex-col gap-2">
-        <h2 className="text-base font-semibold">Các kỳ đã chốt</h2>
+        <h2 className="text-[15px] font-semibold">Các kỳ đã chốt</h2>
         {list.isLoading ? <Skeleton className="h-16 w-full" /> : list.error ? <ErrorState error={list.error} onRetry={() => void list.refetch()} title="Không tải được danh sách kỳ" /> : (list.data?.length ?? 0) === 0 ? <p className="text-sm text-muted-foreground">Chưa chốt kỳ nào.</p> : (
           <PeriodList rows={list.data!} onPick={(m) => { setMonth(m); setPerson(null); }} />
         )}
@@ -245,9 +242,9 @@ function ComByPerson({ month, data, person, onPerson }: { month: string; data: P
           {data.people.map((p) => (
             <tr key={p.person_id} data-testid="com-person">
               <td>{names.data?.get(p.person_id) ? <PersonChip person={{ id: p.person_id, full_name: names.data.get(p.person_id)! }} /> : "—"}{p.blank_lines > 0 && <Badge tone="warn" className="ml-2">{p.blank_lines} dòng trống</Badge>}</td>
-              <td className="text-right">{p.lines}</td>
-              <td className="text-right" data-testid="com-total">{formatCurrency(p.total)}</td>
-              <td className="text-right"><Button variant="secondary" aria-pressed={person === p.person_id} onClick={() => onPerson(person === p.person_id ? null : p.person_id)}>{person === p.person_id ? "Ẩn dòng" : "Xem dòng"}</Button></td>
+              <td className="text-right tabular-nums">{p.lines}</td>
+              <td className="text-right font-medium tabular-nums" data-testid="com-total">{formatCurrency(p.total)}</td>
+              <td className="text-right"><Button variant="ghost" className="!min-h-8" aria-pressed={person === p.person_id} onClick={() => onPerson(person === p.person_id ? null : p.person_id)}>{person === p.person_id ? "Ẩn dòng" : "Xem dòng"}</Button></td>
             </tr>
           ))}
         </tbody>
@@ -267,16 +264,16 @@ function PersonLines({ month, personId, name }: { month: string; personId: strin
   if (q.isLoading) return <Skeleton className="h-16 w-full" />;
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được dòng com" />;
   return (
-    <div className="rounded-md border border-border bg-card p-2" data-testid="com-lines" aria-label={`Dòng Sổ com của ${name}`}>
+    <div data-testid="com-lines" aria-label={`Dòng Sổ com của ${name}`}>
       <Table>
         <thead><tr><th>Deal</th><th>Trạng thái</th><th className="text-right">% com</th><th className="text-right">Com</th><th>Lý do</th></tr></thead>
         <tbody>
           {q.data!.lines.map((l) => (
             <tr key={l.id} data-testid="com-line">
               <td>{(l.deal_id && deals.data?.get(l.deal_id)) || "—"}</td>
-              <td>{l.status ?? "—"}</td>
-              <td className="text-right">{l.pct === null ? "—" : formatPercent(l.pct)}</td>
-              <td className="text-right">{l.com === null ? "Trống" : formatCurrency(l.com)}</td>
+              <td>{l.status ? <Badge tone={l.status === "Đã chốt" ? "ok" : l.status === "Điều chỉnh" ? "ai" : l.status === "Tạm tính" ? "warn" : "muted"}>{l.status}</Badge> : "—"}</td>
+              <td className="text-right tabular-nums">{l.pct === null ? "—" : formatPercent(l.pct)}</td>
+              <td className="text-right tabular-nums">{l.com === null ? <Badge tone="warn">Trống</Badge> : formatCurrency(l.com)}</td>
               <td>{l.reason ?? "—"}</td>
             </tr>
           ))}
@@ -295,9 +292,9 @@ function PeriodList({ rows, onPick }: { rows: { month: string; locked_at: string
         {rows.map((r) => (
           <tr key={r.month} data-testid="period-row">
             <td>{monthLabel(r.month)}</td>
-            <td>{formatDateTime(r.locked_at)}</td>
+            <td className="tabular-nums">{formatDateTime(r.locked_at)}</td>
             <td>{r.locked_by && names.data?.get(r.locked_by) ? <PersonChip person={{ id: r.locked_by, full_name: names.data.get(r.locked_by)! }} /> : "—"}</td>
-            <td className="text-right"><Button variant="secondary" onClick={() => onPick(r.month)}>Xem kỳ</Button></td>
+            <td className="text-right"><Button variant="ghost" className="!min-h-8" onClick={() => onPick(r.month)}>Xem kỳ</Button></td>
           </tr>
         ))}
       </tbody>
@@ -379,7 +376,7 @@ function SnapshotPanel() {
   if (!allowed) return <NoAccessState title="Chỉ Manager chụp snapshot" />;
   return (
     <div className="flex flex-col gap-4" data-testid="snapshot-panel">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-card border border-border bg-card px-4 py-3 shadow-card">
         <Field label="Ghi chú (không bắt buộc)"><Input aria-label="Ghi chú snapshot" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} className="!w-72" /></Field>
         <Button data-testid="snapshot-create" loading={create.isPending} onClick={() => create.mutate()}>Chụp snapshot dự báo</Button>
       </div>
@@ -393,10 +390,10 @@ function SnapshotPanel() {
               <tr key={s.id} data-testid="snapshot-row">
                 <td>{s.name} {s.auto && <Badge>Tự động</Badge>}</td>
                 <td>{s.quarter ?? "—"}</td>
-                <td>{formatDateTime(s.taken_at)}</td>
-                <td className="text-right">{s.row_count}</td>
+                <td className="tabular-nums">{formatDateTime(s.taken_at)}</td>
+                <td className="text-right tabular-nums">{s.row_count}</td>
                 <td>{s.note ?? "—"}</td>
-                <td className="text-right"><Button variant="secondary" aria-pressed={sel === s.id} data-testid="snapshot-compare" onClick={() => setSel(sel === s.id ? null : s.id)}>{sel === s.id ? "Ẩn so sánh" : "So sánh cuối quý"}</Button></td>
+                <td className="text-right"><Button variant="ghost" className="!min-h-8" aria-pressed={sel === s.id} data-testid="snapshot-compare" onClick={() => setSel(sel === s.id ? null : s.id)}>{sel === s.id ? "Ẩn so sánh" : "So sánh cuối quý"}</Button></td>
               </tr>
             ))}
           </tbody>
@@ -413,16 +410,16 @@ function ComparePanel({ id }: { id: string }) {
   if (q.error || !q.data) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không so sánh được" />;
   const c = q.data;
   return (
-    <section className="flex flex-col gap-3 rounded-md border border-border bg-card p-3" data-testid="snapshot-compare-panel" aria-label="So sánh snapshot với hiện tại">
+    <section className="flex flex-col gap-3" data-testid="snapshot-compare-panel" aria-label="So sánh snapshot với hiện tại">
       <p className="text-sm">Quý {c.quarter}: dự báo lúc chụp <strong>{formatCurrency(c.forecast)}</strong>, thực tế Won <strong>{formatCurrency(c.actual)}</strong>, độ chính xác <strong data-testid="accuracy">{c.accuracy === null ? "chưa có" : formatPercent(c.accuracy)}</strong>.</p>
       <Table>
         <thead><tr><th>Nhóm</th><th className="text-right">Số deal</th><th className="text-right">Dự báo</th><th className="text-right">Thực tế</th></tr></thead>
-        <tbody>{c.groups.map((g) => <tr key={g.group}><td>{GROUP_LABEL[g.group]}</td><td className="text-right">{g.count}</td><td className="text-right">{formatCurrency(g.forecast)}</td><td className="text-right">{formatCurrency(g.actual)}</td></tr>)}</tbody>
+        <tbody>{c.groups.map((g) => <tr key={g.group}><td>{GROUP_LABEL[g.group]}</td><td className="text-right tabular-nums">{g.count}</td><td className="text-right">{formatCurrency(g.forecast)}</td><td className="text-right">{formatCurrency(g.actual)}</td></tr>)}</tbody>
       </Table>
       {c.by_type.length > 0 && (
         <Table>
           <thead><tr><th>Loại deal</th><th className="text-right">Dự báo</th><th className="text-right">Thực tế</th><th className="text-right">Chính xác</th></tr></thead>
-          <tbody>{c.by_type.map((t) => <tr key={t.type}><td>{t.type}</td><td className="text-right">{formatCurrency(t.forecast)}</td><td className="text-right">{formatCurrency(t.actual)}</td><td className="text-right">{t.accuracy === null ? "—" : formatPercent(t.accuracy)}</td></tr>)}</tbody>
+          <tbody>{c.by_type.map((t) => <tr key={t.type}><td>{t.type}</td><td className="text-right">{formatCurrency(t.forecast)}</td><td className="text-right">{formatCurrency(t.actual)}</td><td className="text-right tabular-nums">{t.accuracy === null ? "—" : formatPercent(t.accuracy)}</td></tr>)}</tbody>
         </Table>
       )}
       <details>

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArchiveRestore, ArrowLeft, Archive, Lock, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { ArchiveRestore, ArrowLeft, Archive, Lock, Pencil, Plus, Search, Table2, Trash2, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
@@ -40,22 +40,24 @@ export function TemplatePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list, search.template]);
 
+  const [find, setFind] = useState("");
+  const shown = useMemo(() => list.filter((t) => t.name.toLowerCase().includes(find.trim().toLowerCase())), [list, find]);
   const groups = useMemo(() => {
-    const tree = list.filter((t) => t.scope === "tree");
+    const tree = shown.filter((t) => t.scope === "tree");
     const teams = new Map<string, Template[]>();
-    for (const t of list.filter((x) => x.scope === "team")) teams.set(t.leader_id ?? "", [...(teams.get(t.leader_id ?? "") ?? []), t]);
+    for (const t of shown.filter((x) => x.scope === "team")) teams.set(t.leader_id ?? "", [...(teams.get(t.leader_id ?? "") ?? []), t]);
     return { tree, teams: [...teams] };
-  }, [list]);
+  }, [shown]);
 
   if (listQ.isLoading) return <div className="flex flex-col gap-3" aria-busy="true"><Skeleton className="h-8 w-64" /><Skeleton className="h-64 w-full" /></div>;
   if (listQ.error) return <ErrorState error={listQ.error} onRetry={() => void listQ.refetch()} title="Không tải được danh sách template" />;
   const roles = me?.user.roles ?? [];
   const item = (t: Template) => (
     <li key={t.id}>
-      <button type="button" data-testid={`template-item`} aria-current={t.id === search.template ? "true" : undefined} onClick={() => select(t.id)} className={cn("flex w-full flex-col gap-0.5 rounded-md px-3 py-2 text-left hover:bg-muted", t.id === search.template && "bg-muted font-medium")}>
-        <span className="[overflow-wrap:anywhere]">{t.name}</span>
-        <span className="flex flex-wrap items-center gap-1 text-xs font-normal text-muted-foreground">
-          <Badge>{t.kind === "shared" ? "Chung" : "Riêng"}</Badge>
+      <button type="button" data-testid={`template-item`} aria-current={t.id === search.template ? "true" : undefined} onClick={() => select(t.id)} className={cn("flex w-full flex-col gap-1 rounded-xl border border-transparent px-3 py-2.5 text-left hover:bg-muted", t.id === search.template && "border-primary-border bg-primary-soft")}>
+        <span className={cn("text-sm [overflow-wrap:anywhere]", t.id === search.template ? "font-semibold text-primary" : "font-medium")}>{t.name}</span>
+        <span className="flex flex-wrap items-center gap-1.5 text-xs font-normal text-muted-foreground">
+          <Badge tone={t.kind === "shared" ? "ok" : "warn"}>{t.kind === "shared" ? "Chung" : "Riêng"}</Badge>
           {t.archived && <Badge>Đã lưu trữ</Badge>}
           {!t.can_edit && <span className="inline-flex items-center gap-0.5"><Lock size={12} aria-hidden /> Chỉ xem</span>}
           <span>{t.members} người</span>
@@ -65,22 +67,26 @@ export function TemplatePage() {
   );
   return (
     <div className="flex flex-col gap-4">
+      <PageTitle actions={<Button onClick={() => setCreating(true)}><Plus size={16} aria-hidden /> Tạo bảng template</Button>}>Template</PageTitle>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Link to="/quan-ly-deal" className="inline-flex min-h-9 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft size={16} aria-hidden /> Quản lý Deal</Link>
-        <PageTitle>Template</PageTitle>
-        <Button className="ml-auto" onClick={() => setCreating(true)}><Plus size={16} aria-hidden /> Tạo bảng template</Button>
+        <Link to="/quan-ly-deal" className="inline-flex min-h-8 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft size={16} aria-hidden /> Quản lý Deal</Link>
+        <p className="min-w-0 flex-1 basis-80 text-[13px] text-muted-foreground">Bảng và cột của template áp dụng ngay cho mọi người trong phạm vi. Cột riêng của từng người không bị ảnh hưởng. Bộ mặc định cho cây mới do Admin sửa ở Cài đặt hệ thống.</p>
       </div>
-      <p className="text-sm text-muted-foreground">Bảng và cột của template áp dụng ngay cho mọi người trong phạm vi. Cột riêng của từng người không bị ảnh hưởng. Bộ mặc định cho cây mới do Admin sửa ở Cài đặt hệ thống.</p>
       {list.length === 0 ? (
         <EmptyState title="Chưa có bảng template nào" hint={roles.includes("manager") || roles.includes("leader") ? "Tạo bảng template đầu tiên cho cây hoặc team của bạn." : undefined} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-[18rem_1fr]">
-          <nav aria-label="Bảng template" className="flex flex-col gap-3" data-testid="template-list">
+        <div className="grid items-start gap-4 md:grid-cols-[19rem_minmax(0,1fr)]">
+          <nav aria-label="Bảng template" className="flex flex-col gap-3 rounded-card border border-border bg-card p-3 shadow-card md:sticky md:top-0" data-testid="template-list">
+            <label className="relative block">
+              <Search size={14} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input aria-label="Tìm bảng trong cây" placeholder="Tìm bảng trong cây…" value={find} onChange={(e) => setFind(e.target.value)} autoComplete="off" className="!pl-9" />
+            </label>
+            {shown.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground">Không có bảng nào khớp.</p>}
             {groups.tree.length > 0 && (
-              <section><h2 className="mb-1 px-3 text-xs font-semibold uppercase text-muted-foreground">Cây của tôi</h2><ul className="flex flex-col">{groups.tree.map(item)}</ul></section>
+              <section><h2 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Cây của tôi</h2><ul className="flex flex-col gap-0.5">{groups.tree.map(item)}</ul></section>
             )}
             {groups.teams.map(([leader, ts]) => (
-              <section key={leader}><h2 className="mb-1 px-3 text-xs font-semibold uppercase text-muted-foreground">Team {leaderName(leader || null)}</h2><ul className="flex flex-col">{ts.map(item)}</ul></section>
+              <section key={leader}><h2 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Team {leaderName(leader || null)}</h2><ul className="flex flex-col gap-0.5">{ts.map(item)}</ul></section>
             ))}
           </nav>
           {search.template ? <TemplatePanel key={search.template} id={search.template} focusColumn={search.column} leaderName={leaderName} /> : null}
@@ -157,6 +163,16 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
   );
 }
 
+/** The chip color of a column type, by meaning (the same colors as a table and a chart). */
+function typeTone(type: string): "ok" | "info" | "warn" | "ai" | "primary" | "muted" {
+  if (type === "formula" || type === "lookup" || type === "rollup") return "ai";
+  if (type === "date" || type === "datetime" || type === "created_time" || type === "modified_time" || type === "field_modified") return "warn";
+  if (type === "single_select" || type === "multi_select") return "info";
+  if (type === "number" || type === "percent" || type === "currency" || type === "auto_number") return "ok";
+  if (type === "user") return "primary";
+  return "muted";
+}
+
 const LAYER_LABEL = { basic: "Cơ bản", role: "Theo vai trò", team: "Theo team" } as const;
 const ROLE_NAMES: Record<string, string> = { manager: "Manager", leader: "Leader", user: "User" };
 
@@ -176,6 +192,8 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
     await qc.invalidateQueries({ queryKey: dealKeys.home });
     if (tpl?.master_table_id) await qc.invalidateQueries({ queryKey: dhKeys.table(tpl.master_table_id) });
   };
+  const [layerTab, setLayerTab] = useState<"all" | "basic" | "role" | "team">("all");
+  const [colFind, setColFind] = useState("");
   const typeLabel = (t: string) => typesQ.data?.find((x) => x.type === t)?.label ?? t;
 
   if (q.isLoading) return <Skeleton className="h-64 w-full" />;
@@ -184,7 +202,9 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
   const isManager = (meQ.data?.user.roles ?? []).includes("manager");
   const canAddLayer = tpl.can_edit || tpl.leader_can_add_columns;
   const canEditCol = (c: Column) => tpl.can_edit || (c.layer === "team" && c.layer_ref === meId && tpl.leader_can_add_columns);
-  const byLayer = (l: "basic" | "role" | "team") => d.columns.filter((c) => c.layer === l);
+  const colMatch = (c: Column) => c.name.toLowerCase().includes(colFind.trim().toLowerCase());
+  const byLayer = (l: "basic" | "role" | "team") => d.columns.filter((c) => c.layer === l && colMatch(c));
+  const count = (l: "basic" | "role" | "team") => d.columns.filter((c) => c.layer === l).length;
   const teamGroups = [...new Set(byLayer("team").map((c) => c.layer_ref ?? ""))];
   const why = tpl.can_edit
     ? null
@@ -193,11 +213,11 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
       : "Bạn không có quyền sửa template này.";
 
   const columnRow = (c: Column) => (
-    <li key={c.id} data-testid="template-column" data-column={c.name} className={cn("flex flex-col gap-1 px-3 py-2 sm:flex-row sm:items-center", focusColumn === c.key && "bg-selected")}>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="font-medium [overflow-wrap:anywhere]">{c.name}</span>
+    <li key={c.id} data-testid="template-column" data-column={c.name} className={cn("flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center", focusColumn === c.key && "bg-selected")}>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="text-[15px] font-semibold [overflow-wrap:anywhere]">{c.name}</span>
         <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-          <Badge>{typeLabel(c.type)}</Badge>
+          <Badge tone={typeTone(c.type)}>{typeLabel(c.type)}</Badge>
           {c.storage === "person" && <span>Mỗi người một giá trị</span>}
           {c.role && <Badge tone="muted" data-testid="role-badge">Vai trò: {d.roles.find((r) => r.key === c.role)?.label ?? c.role}</Badge>}
           {c.autofill ? <span>Hệ thống tự điền, không ai sửa ô</span> : c.type === "formula" || c.type === "lookup" || c.type === "rollup" ? <span>Công thức, không ai sửa ô</span> : <span>{c.allow_edit ? "Thành viên sửa được ô" : "Chỉ người tạo bảng sửa ô"}</span>}
@@ -205,29 +225,30 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
         </span>
       </div>
       {canEditCol(c) && (
-        <span className="flex shrink-0 flex-wrap gap-1">
-          <Button variant="ghost" aria-label={`Sửa cột ${c.name}`} onClick={() => setDialog({ kind: "edit", col: c })}><Pencil size={16} aria-hidden /> Sửa</Button>
-          {tpl.can_edit && d.roles.length > 0 && <Button variant="ghost" aria-label={`Vai trò của cột ${c.name}`} onClick={() => setDialog({ kind: "role", col: c })}>Vai trò</Button>}
-          <Button variant="ghost" className="!text-bad" aria-label={`Bỏ cột ${c.name}`} onClick={() => setDialog({ kind: "delete", col: c })}><Trash2 size={16} aria-hidden /> Bỏ</Button>
+        <span className="flex shrink-0 flex-wrap gap-1.5">
+          <Button variant="secondary" className="!min-h-8 !px-3 text-[13px]" aria-label={`Sửa cột ${c.name}`} onClick={() => setDialog({ kind: "edit", col: c })}><Pencil size={14} aria-hidden /> Sửa</Button>
+          {tpl.can_edit && d.roles.length > 0 && <Button variant="secondary" className="!min-h-8 !px-3 text-[13px]" aria-label={`Vai trò của cột ${c.name}`} onClick={() => setDialog({ kind: "role", col: c })}>Vai trò</Button>}
+          <Button variant="secondary" className="!min-h-8 !px-3 text-[13px] !text-bad" aria-label={`Bỏ cột ${c.name}`} onClick={() => setDialog({ kind: "delete", col: c })}><Trash2 size={14} aria-hidden /> Bỏ</Button>
         </span>
       )}
     </li>
   );
   const section = (title: string, cols: Column[], extra?: React.ReactNode) => (
-    <section aria-label={title} className="flex flex-col gap-1">
-      <h3 className="text-sm font-semibold">{title}</h3>
+    <section aria-label={title} className="flex flex-col gap-1.5">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
       {extra}
-      {cols.length === 0 ? <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">Chưa có cột nào.</p> : <ul className="flex flex-col divide-y divide-border rounded-md border border-border">{cols.map(columnRow)}</ul>}
+      {cols.length === 0 ? <p className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">{colFind ? "Không có cột nào khớp." : "Chưa có cột nào."}</p> : <ul className="flex flex-col divide-y divide-border-soft overflow-hidden rounded-xl border border-border-soft">{cols.map(columnRow)}</ul>}
     </section>
   );
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-testid="template-panel">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-semibold [overflow-wrap:anywhere]">{tpl.name}</h2>
-        <Badge>{tpl.kind === "shared" ? "Bảng chung" : "Bảng riêng"}</Badge>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span aria-hidden className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary"><Table2 size={20} /></span>
+        <h2 className="min-w-0 text-xl font-semibold [overflow-wrap:anywhere]">{tpl.name}</h2>
+        <Badge tone={tpl.kind === "shared" ? "ok" : "warn"}>{tpl.kind === "shared" ? "Bảng chung" : "Bảng riêng"}</Badge>
         {tpl.archived && <Badge>Đã lưu trữ</Badge>}
-        <span className="inline-flex items-center gap-1 text-sm text-muted-foreground"><Users size={14} aria-hidden /> Áp dụng cho {tpl.members} người</span>
+        <span className="inline-flex items-center gap-1 rounded-full border border-border-soft bg-card px-2.5 py-0.5 text-xs text-muted-foreground"><Users size={14} aria-hidden /> Áp dụng cho {tpl.members} người</span>
         {tpl.can_edit && (
           <span className="ml-auto flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => setDialog({ kind: "rename" })}><Pencil size={16} aria-hidden /> Đổi tên</Button>
@@ -243,15 +264,26 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
 
       {tpl.can_edit && <TemplateSettings tpl={tpl} master={masterQ.data} isManager={isManager} onSaved={refresh} />}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-semibold">Cột của bảng</h3>
-        {canAddLayer && !tpl.archived && <Button onClick={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /> Thêm cột</Button>}
-      </div>
-      <div className="flex flex-col gap-4" data-testid="template-columns">
-        {section(LAYER_LABEL.basic, byLayer("basic"))}
-        {section(LAYER_LABEL.role, byLayer("role"))}
-        {section("Theo team (bản sửa của các team)", byLayer("team"), teamGroups.length ? <p className="text-xs text-muted-foreground">Team có cột riêng: {teamGroups.map((l) => leaderName(l || null)).join(", ")}.</p> : undefined)}
-      </div>
+      <section aria-label="Cột của bảng" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-card">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <h3 className="text-base font-semibold">Cột của bảng</h3>
+          <div role="group" aria-label="Lọc cột theo lớp" className="inline-flex flex-wrap items-center gap-0.5 rounded-lg bg-muted p-0.5">
+            {([["all", "Tất cả", d.columns.length], ["basic", LAYER_LABEL.basic, count("basic")], ["role", LAYER_LABEL.role, count("role")], ["team", LAYER_LABEL.team, count("team")]] as const).map(([k, label, n]) => (
+              <button key={k} type="button" aria-pressed={layerTab === k} onClick={() => setLayerTab(k)} className={cn("min-h-7 rounded-md px-2.5 text-[13px]", layerTab === k ? "bg-card font-semibold text-primary shadow-card" : "text-muted-foreground hover:text-foreground")}>{label} ({n})</button>
+            ))}
+          </div>
+          <label className="relative ml-auto block min-w-40 max-w-64 flex-1 basis-44">
+            <Search size={14} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input aria-label="Tìm tên cột" placeholder="Tìm tên cột…" value={colFind} onChange={(e) => setColFind(e.target.value)} autoComplete="off" className="!pl-9" />
+          </label>
+          {canAddLayer && !tpl.archived && <Button onClick={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /> Thêm cột</Button>}
+        </div>
+        <div className="flex flex-col gap-4" data-testid="template-columns">
+          {(layerTab === "all" || layerTab === "basic") && section(LAYER_LABEL.basic, byLayer("basic"))}
+          {(layerTab === "all" || layerTab === "role") && section(LAYER_LABEL.role, byLayer("role"))}
+          {(layerTab === "all" || layerTab === "team") && section("Theo team (bản sửa của các team)", byLayer("team"), teamGroups.length ? <p className="text-xs text-muted-foreground">Team có cột riêng: {teamGroups.map((l) => leaderName(l || null)).join(", ")}.</p> : undefined)}
+        </div>
+      </section>
 
       {dialog?.kind === "rename" && <TableNameDialog title="Đổi tên bảng template" submit="Lưu" initial={tpl.name} onClose={() => setDialog(null)} save={async (name) => { await updateTemplate(id, { name, ...(tpl.can_edit ? {} : {}) }); await refresh(); notify.ok("Đã lưu"); }} />}
       {dialog?.kind === "archive" && <ArchiveConfirm tpl={tpl} onClose={() => setDialog(null)} onDone={refresh} />}
@@ -277,8 +309,8 @@ function TemplateSettings({ tpl, master, isManager, onSaved }: { tpl: Template; 
   const curOn = on ?? split?.enabled ?? false;
   const curPrimary = primary === undefined ? (split?.primary ?? null) : primary;
   return (
-    <section aria-label="Quyền theo bảng" className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="template-settings">
-      <h3 className="text-sm font-semibold">Quyền theo bảng</h3>
+    <section aria-label="Quyền theo bảng" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-card" data-testid="template-settings">
+      <h3 className="text-base font-semibold">Quyền theo bảng</h3>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Quyền mặc định của thành viên">
           <Select aria-label="Quyền mặc định của thành viên" value={tpl.member_permission} onChange={(e) => run(() => updateTemplate(tpl.id, { member_permission: e.target.value as "view" | "edit_data" }), "Đã lưu quyền mặc định")}>

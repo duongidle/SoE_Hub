@@ -120,7 +120,7 @@ function TableList({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) 
 }
 
 /** The scrolling part of the strip: the open tab scrolls into view, a fade and an arrow on an edge show that tabs are hidden there. */
-function ScrollStrip({ children, activeKey }: { children: React.ReactNode; activeKey?: string }) {
+export function ScrollStrip({ children, activeKey }: { children: React.ReactNode; activeKey?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [edge, setEdge] = useState({ left: false, right: false });
   const measure = () => {
@@ -146,8 +146,8 @@ function ScrollStrip({ children, activeKey }: { children: React.ReactNode; activ
   );
 }
 
-const segCls = (on: boolean) => cn("inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-sm sm:min-h-7", on ? "bg-primary-soft font-medium text-primary" : "text-muted-foreground hover:text-foreground");
-const tabCls = (on: boolean) => cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm sm:min-h-8", on ? "bg-primary-soft font-medium text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground");
+export const segCls = (on: boolean) => cn("inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-sm sm:min-h-7", on ? "bg-primary-soft font-medium text-primary" : "text-muted-foreground hover:text-foreground");
+export const tabCls = (on: boolean) => cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm sm:min-h-8", on ? "bg-primary-soft font-medium text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground");
 
 /** The strip above a table: the "Dữ liệu | Dashboard" switch pinned on the left (the mode is in the address); in Dữ liệu then "+" and the tables as tabs that scroll sideways. */
 function TableTabs({ dh, currentId, dashboardOn }: { dh: DatahubBrief; currentId?: string; dashboardOn: boolean }) {
