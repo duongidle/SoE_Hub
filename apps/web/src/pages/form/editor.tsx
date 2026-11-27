@@ -1,5 +1,4 @@
 // The form editor (design module7 2): block bar, form canvas with drag and drop, property panel, autosave, publish.
-import { useTouchRecent } from "@/lib/home";
 import { closestCenter, DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -76,7 +75,6 @@ export function FormEditorPage() {
 
 function EditorInner({ id, d, refetch }: { id: string; d: FormDetail; refetch: () => void }) {
   const qc = useQueryClient();
-  useTouchRecent("form", id);
   const [tab, setTab] = useState<Tab>("edit");
   const [view, setView] = useState<"edit" | "desktop" | "phone">("edit");
   const [cfg, setCfg] = useState<FormConfig>(d.draft);

@@ -4,6 +4,7 @@ import { AppError } from "@soe/shared";
 import { defineCommand, defineQuery } from "../../core/registry";
 import { checkOnly, listMine, loadPost, POST_STATES, readPost, saveDraft, submit } from "../publish/engine";
 import { articleKind, ArticleFields, ARTICLE_TYPES, CATEGORIES } from "./kind";
+import { noteOpened } from "../home/recent";
 import { relatedArticles, searchArticles, suggestTags } from "./search";
 
 const Id = z.uuid();
@@ -59,6 +60,7 @@ export const knowledgeOperations = [
     http: { method: "GET", path: "/knowledge/articles/:id" },
     handler: async (ctx, i) => {
       const d = await readPost(ctx, k, i.id, { version: i.version, source: i.source });
+      await noteOpened(ctx, "article", i.id);
       const ids = articleKind.fileIds(d.content);
       const files = ids.length
         ? ((await ctx.db.execute(sql`SELECT id, filename, content_type, size_bytes FROM files WHERE /*scope:system*/ id = ANY(${`{${ids.join(",")}}`}::uuid[]) AND status = 'ready' AND deleted_at IS NULL`)).rows as Record<string, unknown>[])

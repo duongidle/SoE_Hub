@@ -10,6 +10,7 @@ import { Id, Ts } from "../datahub/shared";
 import { readSetting, type SettingDef } from "../system/settings-catalog";
 import { validateDefinition } from "./engine";
 import { dashFields } from "./dashboard-access";
+import { noteOpened } from "../home/recent";
 import type { Ctx } from "./context";
 
 export type Raw = Record<string, unknown>;
@@ -202,6 +203,7 @@ export const dashboardOperations = [
     http: { method: "GET", path: "/dashboards/:dashboard_id" },
     handler: async (ctx, i) => {
       const d = await loadDash(ctx, i.dashboard_id);
+      await noteOpened(ctx, "dashboard", i.dashboard_id);
       const charts = (await chartsOf(ctx, i.dashboard_id)).map(chartOut);
       return { ...dashOut(d), charts, ...(await dashExtras(ctx, i.dashboard_id, d, charts.map((c) => c.chart as unknown as ChartDef))) };
     },

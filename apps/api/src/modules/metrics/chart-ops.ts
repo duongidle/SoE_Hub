@@ -38,6 +38,7 @@ import {
 } from "./dashboard-ops";
 import { resolveSeries, runChart, seriesOverrides, specOf } from "./chart-run";
 import { runRowIds } from "./engine";
+import { noteOpened } from "../home/recent";
 
 const BOM = String.fromCharCode(0xfeff);
 const MAX_CSV_ROWS = 5000;
@@ -253,11 +254,12 @@ export const chartOperations = [
     permission: "system:whoami",
     aiAllowed: true,
     audit: "always",
-    input: z.object({ dashboard_id: Id }),
+    input: z.object({ dashboard_id: Id, recent: z.enum(["0", "1"]).optional().describe("`0` = không ghi vào \"Mở gần đây\" (xem trước trên trang Tổng quan).") }),
     output: DashFull,
     http: { method: "GET", path: "/dashboards/:dashboard_id/view" },
     handler: async (ctx, i) => {
       const v = await viewDash(ctx, i.dashboard_id);
+      if (i.recent !== "0") await noteOpened(ctx, "dashboard", i.dashboard_id);
       const cctx = computeCtx(ctx, v);
       const charts = (await chartsOf(ctx, i.dashboard_id)).map(chartOut);
       const prefs = await ctx.db.execute(sql`SELECT config FROM mt_dashboard_prefs WHERE /*scope*/ dashboard_id = ${i.dashboard_id}::uuid AND user_id = ${ctx.actor.userId}::uuid`);

@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTouchRecent } from "@/lib/home";
 import { Copy, Download, Image as ImageIcon, MoreHorizontal, Pencil, Plus, Rows3, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, ConfirmDialog } from "@/components/ui/form";
@@ -116,15 +115,14 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature,
   period?: { range: unknown; from: string | null; to: string | null } | null;
   /** Cohort charts of deals (`options.mature_cohort`): months after `through` are drawn pale; with `cut` the range stops at `through`. */
   mature?: { through: string | null; cut: boolean } | null;
-  /** Record this dashboard in the person's "Mở gần đây" when it is shown (off where it is only a preview, like the home page). */
+  /** The server notes the dashboard in the person's "Mở gần đây" when it is read; off where it is only a preview (the home page). */
   recent?: boolean;
   /** The viewer's title line ("Của ...; số liệu tính theo quyền của họ"); a host that prints its own header turns it off. */
   header?: boolean;
 }) {
   const qc = useQueryClient();
-  useTouchRecent("dashboard", recent ? dashboardId : null);
   const owner = mode === "owner";
-  const q = useQuery({ queryKey: owner ? dashKeys.one(dashboardId) : ["mt-dashboard-view", dashboardId], queryFn: () => (owner ? getDashboard(dashboardId) : viewDashboard(dashboardId)) });
+  const q = useQuery({ queryKey: owner ? dashKeys.one(dashboardId) : ["mt-dashboard-view", dashboardId], queryFn: () => (owner ? getDashboard(dashboardId) : viewDashboard(dashboardId, { recent })) });
   const [editing, setEditing] = useState<{ record: ChartRecord | null; type: ChartType; key: number } | null>(null);
   const [removing, setRemoving] = useState<ChartRecord | null>(null);
   const [rows, setRows] = useState<RowsTarget | null>(null);

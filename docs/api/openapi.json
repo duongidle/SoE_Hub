@@ -67846,6 +67846,20 @@
               "format": "uuid",
               "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
             }
+          },
+          {
+            "name": "recent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "`0` = không ghi vào \"Mở gần đây\" (xem trước trên trang Tổng quan).",
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "description": "`0` = không ghi vào \"Mở gần đây\" (xem trước trên trang Tổng quan)."
           }
         ],
         "responses": {
@@ -74890,170 +74904,9 @@
       }
     },
     "/api/v1/me/recent": {
-      "post": {
-        "operationId": "home.recent.touch",
-        "summary": "Ghi một mục vừa mở vào danh sách \"Mở gần đây\" của mình (tối đa 20, mới nhất trước). Chỉ ghi mục mình mở được.",
-        "tags": [
-          "home"
-        ],
-        "x-command-name": "home.recent.touch",
-        "x-ai-allowed": false,
-        "x-permission": "system:whoami",
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "description": "Gửi lại cùng khoá trong 24 giờ thì nhận lại kết quả cũ, không thực hiện lại.",
-            "schema": {
-              "type": "string",
-              "minLength": 8,
-              "maxLength": 200
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "datahub",
-                      "form",
-                      "dashboard",
-                      "article"
-                    ]
-                  },
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  }
-                },
-                "required": [
-                  "type",
-                  "id"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Thành công",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "data"
-                  ],
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "recorded": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "recorded"
-                      ],
-                      "additionalProperties": false
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Dữ liệu gửi lên không hợp lệ.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Phiên bản đã cũ: bản ghi đã bị người khác sửa. Tải lại rồi sửa tiếp.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Idempotency-Key đã dùng cho một yêu cầu khác.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gọi quá nhanh, thử lại sau.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Lỗi hệ thống.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          },
-          {
-            "sessionCookie": [],
-            "csrfHeader": []
-          }
-        ]
-      },
       "get": {
         "operationId": "home.recent.list",
-        "summary": "\"Mở gần đây\" của mình, mới nhất trước, kèm tên. Mục mình không còn quyền mở (hoặc đã xoá) bị lọc.",
+        "summary": "\"Mở gần đây\" của mình, mới nhất trước, kèm tên. Mục mình không còn quyền mở (hoặc đã xoá) bị lọc. Máy chủ tự ghi khi trang web đọc chi tiết datahub, form, dashboard, bài Knowledge.",
         "tags": [
           "home"
         ],

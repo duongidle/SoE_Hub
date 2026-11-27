@@ -1,8 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api, apiList } from "@/lib/api";
 
-/** Calls of the home page (stage 12D-1): pinned dashboard tabs and "Mở gần đây" live on the server, per person (`home.*`). */
+/** Calls of the home page (stage 12D-1): pinned dashboard tabs and "Mở gần đây" live on the server, per person (`home.*`). The server writes "Mở gần đây" itself when a page reads datahub, form, dashboard or article detail. */
 
 export type RecentType = "datahub" | "form" | "dashboard" | "article";
 export interface RecentItem {
@@ -37,7 +36,6 @@ export const listTabs = async () => (await apiList<PinnedTab>("/me/home/tabs")).
 export const listMyDashboards = async () => (await apiList<MyDashboard>("/dashboards/mine")).data;
 export const listRecent = async () => (await apiList<RecentItem>("/me/recent")).data;
 export const saveTabs = (ids: string[]) => api("PUT", "/me/prefs/home.dashboard_tabs", { value: ids });
-export const touchRecent = (type: RecentType, id: string) => api<{ recorded: boolean }>("POST", "/me/recent", { type, id }, { keepalive: true });
 
 /** Link of a recent item (only to places the person may open: the server already filtered the list). */
 export function recentLink(e: RecentItem): { to: string; params?: Record<string, string> } {
@@ -51,19 +49,6 @@ export function recentLink(e: RecentItem): { to: string; params?: Record<string,
     case "article":
       return { to: "/knowledge/$id", params: { id: e.id } };
   }
-}
-
-/**
- * Tells the server this item was just opened (once when the page shows it). Best effort: a failure changes nothing on the screen,
- * the list on the home page simply misses this entry. Pass `null` while the id is not known or the item should not be tracked.
- */
-export function useTouchRecent(type: RecentType, id: string | null | undefined) {
-  const qc = useQueryClient();
-  const m = useMutation({ mutationFn: () => touchRecent(type, id!), onSuccess: (r) => { if (r.recorded) void qc.invalidateQueries({ queryKey: homeKeys.recent }); } });
-  const { mutate } = m;
-  useEffect(() => {
-    if (id) mutate();
-  }, [type, id, mutate]);
 }
 
 export const useRecent = () => useQuery({ queryKey: homeKeys.recent, queryFn: listRecent });

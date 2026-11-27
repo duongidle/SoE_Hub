@@ -33,7 +33,8 @@ export const listSources = async (datahubId: string) => (await apiList<SavedSour
 export const saveMetric = (datahubId: string, metric: MetricJson) => api<SavedMetric>("POST", `/datahubs/${datahubId}/metrics`, { metric });
 export const saveSource = (datahubId: string, source: { name: string; table: string; joins?: unknown[] }) => api<SavedSource>("POST", `/datahubs/${datahubId}/metric-sources`, { source });
 
-export const viewDashboard = (id: string) => api<DashboardFull>("GET", `/dashboards/${id}/view`);
+/** `recent: false` keeps a preview (the home page) out of the person's "Mở gần đây". */
+export const viewDashboard = (id: string, o: { recent?: boolean } = {}) => api<DashboardFull>("GET", `/dashboards/${id}/view${o.recent === false ? "?recent=0" : ""}`);
 export const listSharedDashboards = async () => (await apiList<SharedDashboard>("/dashboards/shared")).data;
 export const updateDashboard = (id: string, version: number, patch: { name?: string; filters?: DashFilters | null; guest_visible?: boolean }) => api<DashboardBrief>("PATCH", `/dashboards/${id}`, { version, ...patch });
 export const saveMyFilters = (id: string, filters: DashFilters) => api("PUT", `/dashboards/${id}/my-filters`, { filters });

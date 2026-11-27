@@ -12,6 +12,7 @@ import { createTableIn } from "../datahub/structure";
 import { updateColumn } from "../datahub/columns";
 import { TableSchema } from "../datahub/table-schema";
 import { AUTO_INPUTS, ensureQuizColumns, isGraded, isManual } from "./quiz";
+import { noteOpened } from "../home/recent";
 import {
   AudienceSchema, FORM_ACCESS, FORM_STATUSES, Id, OptionsSchema, VERSION_COLUMN_NAME, fillable, formFromDb, latestConfig, liveColumns, loadFormRow, loadOwnForm, newCode,
   responseCount, stableJson, stateOf, tableAlive, type FormRow, type LiveColumn,
@@ -445,6 +446,7 @@ export const formManageOperations = [
     http: { method: "GET", path: "/forms/:form_id" },
     handler: async (ctx, i) => {
       const f = await loadOwnForm(ctx.db, ctx.actor.userId, i.form_id);
+      await noteOpened(ctx, "form", f.id);
       const cols = await liveColumns(ctx.db, f.tableId);
       const pub = await latestConfig(ctx.db, f);
       return { ...(await summary(ctx.db, f)), draft: f.draft, published: pub, disabled_question_ids: [...disabledIds(f.draft, cols, !!f.tableId)], max_columns: f.tableId ? cols.size : null };

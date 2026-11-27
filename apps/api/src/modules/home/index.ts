@@ -5,6 +5,7 @@ import type { Db } from "@soe/db";
 import { ownedBy } from "../../auth/access";
 import { registerOwnedTable } from "../../auth/query-guard";
 import { defineCommand, defineQuery } from "../../core/registry";
+import { asRecent, RECENT_TYPES, type RecentType } from "./recent";
 import type { HandlerCtx } from "../../core/types";
 import { loadDatahubAccess } from "../datahub/access";
 import { Id, Ts } from "../datahub/shared";
@@ -19,20 +20,9 @@ registerOwnedTable("user_prefs");
  * Per-person preferences (design module12 1, stage 12D-1): the pinned dashboard tabs of the home page and the "recent" list.
  * A person reads and writes only their own rows (`ownedBy`). Nothing here is open to AI connections (no menu in `ai-policy.ts`).
  */
-export const RECENT_MAX = 20;
-/** The same item opened again within this time does not rewrite the list (opening a page must stay cheap). */
-const RECENT_MIN_GAP_MS = 60_000;
 export const TABS_MAX = 20;
 
-export const RECENT_TYPES = ["datahub", "form", "dashboard", "article"] as const;
-export type RecentType = (typeof RECENT_TYPES)[number];
-export interface RecentEntry {
-  type: RecentType;
-  id: string;
-  at: string;
-}
-
-/** Keys a person may write with `home.prefs.set`. `recent` is kept by the server only (`home.recent.touch`). */
+/** Keys a person may write with `home.prefs.set`. `recent` is kept by the server only (`noteOpened`, called by the read commands). */
 export const PREF_SCHEMAS = {
   "home.dashboard_tabs": z.array(Id).max(TABS_MAX).describe("Id các dashboard của mình được ghim làm tab ở trang Tổng quan, theo thứ tự."),
 } as const;
@@ -51,9 +41,6 @@ async function writePref(db: Db, userId: string, key: string, value: unknown): P
   await db.execute(sql`INSERT INTO user_prefs (user_id, key, value) VALUES (${userId}::uuid, ${key}, ${JSON.stringify(value)}::jsonb)
     ON CONFLICT (user_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`);
 }
-
-const asRecent = (v: unknown): RecentEntry[] =>
-  (Array.isArray(v) ? v : []).filter((e): e is RecentEntry => !!e && typeof e === "object" && RECENT_TYPES.includes((e as RecentEntry).type) && typeof (e as RecentEntry).id === "string" && typeof (e as RecentEntry).at === "string");
 
 /** What the person may open right now, with the name to show. Uses each module's own access function; throws `not_found` / `forbidden` when they may not. */
 interface Resolved {
@@ -180,32 +167,9 @@ export const homeOperations = [
     },
   }),
 
-  defineCommand({
-    name: "home.recent.touch",
-    summary: "Ghi một mục vừa mở vào danh sách \"Mở gần đây\" của mình (tối đa 20, mới nhất trước). Chỉ ghi mục mình mở được.",
-    permission: "system:whoami",
-    aiAllowed: false,
-    audit: "none",
-    input: z.object({ type: z.enum(RECENT_TYPES), id: Id }),
-    output: z.object({ recorded: z.boolean() }),
-    http: { method: "POST", path: "/me/recent" },
-    handler: async (ctx, i) => {
-      await resolve(ctx, i.type, i.id);
-      const me = ctx.actor.userId;
-      // One row per person; the lock keeps two tabs opening at the same moment from overwriting each other.
-      await ctx.db.execute(sql`INSERT INTO user_prefs (user_id, key, value) VALUES (${me}::uuid, 'recent', '[]'::jsonb) ON CONFLICT (user_id, key) DO NOTHING`);
-      const cur = asRecent(((await ctx.db.execute(sql`SELECT value FROM user_prefs WHERE /*scope*/ user_id = ${me}::uuid AND key = 'recent' FOR UPDATE`)).rows[0] as { value: unknown } | undefined)?.value);
-      const head = cur[0];
-      if (head && head.type === i.type && head.id === i.id && Date.now() - Date.parse(head.at) < RECENT_MIN_GAP_MS) return { recorded: false };
-      const next = [{ type: i.type, id: i.id, at: new Date().toISOString() }, ...cur.filter((e) => !(e.type === i.type && e.id === i.id))].slice(0, RECENT_MAX);
-      await writePref(ctx.db, me, "recent", next);
-      return { recorded: true };
-    },
-  }),
-
   defineQuery({
     name: "home.recent.list",
-    summary: "\"Mở gần đây\" của mình, mới nhất trước, kèm tên. Mục mình không còn quyền mở (hoặc đã xoá) bị lọc.",
+    summary: "\"Mở gần đây\" của mình, mới nhất trước, kèm tên. Mục mình không còn quyền mở (hoặc đã xoá) bị lọc. Máy chủ tự ghi khi trang web đọc chi tiết datahub, form, dashboard, bài Knowledge.",
     permission: "system:whoami",
     aiAllowed: false,
     list: true,

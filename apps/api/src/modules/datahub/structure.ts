@@ -11,6 +11,7 @@ import { emitStructure, Id, STRUCTURE_EVENT, Ts } from "./shared";
 import { columnFromDb } from "./table-schema";
 import { isComputedType } from "./cell-values";
 import { displayConfig, OwnerIndex } from "./computed";
+import { noteOpened } from "../home/recent";
 import { columnTypeDef } from "./column-types";
 
 const LevelOut = z.enum(["owner", "edit_data", "view"]);
@@ -248,6 +249,7 @@ export const structureOperations = [
     http: { method: "GET", path: "/datahubs/:datahub_id" },
     handler: async (ctx, i) => {
       const acc = await loadDatahubAccess(ctx, i.datahub_id);
+      await noteOpened(ctx, "datahub", acc.id);
       const res = await ctx.db.execute(sql`SELECT d.*, u.full_name AS owner_name FROM dh_datahubs d JOIN users u ON u.id = d.owner_id WHERE /*scope*/ d.id = ${acc.id}::uuid`);
       const tables = await tablesOf(ctx.db, ctx.actor.userId, [acc.id]);
       return datahubOut(res.rows[0] as Raw, tables.get(acc.id) ?? [], ctx.actor.userId);

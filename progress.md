@@ -1,6 +1,6 @@
 # Tiến độ
 
-Cập nhật: 27/11/2026
+Cập nhật: 28/11/2026
 
 ## Trạng thái
 
@@ -15,7 +15,8 @@ Cập nhật: 27/11/2026
 
 Mockup đã chốt: `design/giao_dien_mau/de_xuat/tong_quan.html`; Deal: ảnh `anh/soe_hub_dashboard_deal.png`, `anh/soe_hub_cai_dat_template.png`. Lối tắt đã duyệt: `module12-giao-dien.md` mục 1. Quyết định 12C: "Sửa bố cục" dashboard giữ kéo thẻ trực tiếp (Opus quyết 28/11, không thêm công tắc).
 
-- [ ] **12D-1 (agent A, server + Tổng quan) — đang làm; server xong (bảng `user_prefs` mig 0037, `home.*` ở `apps/api/src/modules/home/`, test `home.test.ts` 10 pass), còn web Tổng quan + kiểm 12C:** bảng tuỳ chọn theo người (khoá–giá trị, dùng chung: tab dashboard ghim + thứ tự, "Mở gần đây"); ghi "mở gần đây" khi mở datahub/form/dashboard/bài Knowledge (tối đa 20, đọc thì lọc theo quyền hiện tại); trang Tổng quan theo mockup (khu dashboard dạng tab: "Được chia sẻ" + tab ghim, kéo đổi thứ tự; cột phải: Onboarding của tôi khi có lộ trình, Mở gần đây, Nhắc hẹn sắp tới, Thông báo chung); bỏ menu "Dashboard chia sẻ" (giữ route); thẻ tình trạng hệ thống chuyển sang Cài đặt (Admin). Kèm kiểm ảnh 12C: KPI dashboard đúng cỡ lớn, thanh công cụ Datahub hiện chữ ở 1280px, gauge nhãn không đè.
+- [x] **12D-1 XONG 28/11 (mã code: lấy `git log` dòng "12D-1: ghi mở gần đây ở máy chủ" bên dưới):** bảng `user_prefs` (migration 0037); lệnh `home.prefs.get/set`, `home.tabs.list`, `home.dashboards.mine`, `home.recent.list` (module `apps/api/src/modules/home/`); "Mở gần đây" do máy chủ tự ghi khi lệnh đọc chi tiết chạy từ web (`noteOpened`; `metrics.dashboard.view` thêm `recent=0`); trang Tổng quan theo mockup (tab "Được chia sẻ" + tab ghim kéo/menu đổi thứ tự lưu máy chủ, cột phải Onboarding/Mở gần đây/Nhắc hẹn/Thông báo chung, rỗng có nút); bỏ menu "Dashboard chia sẻ"; thẻ tình trạng hệ thống ở Cài đặt `/quan-tri/he-thong`. Kiểm ảnh 12C: KPI 44px đúng, gauge đúng; thanh công cụ Datahub ở 1280px chỉ hiện icon nên sửa (nhãn từ 56rem, ô tìm gấp thành kính lúp ở 58–72rem, một dòng). Chi tiết, lý do bỏ lệnh "ghi mở" từ web, bàn giao cho 12D-2: `module12-quyet-dinh-khi-code.md` mục 12D-1.
+  - Test: `pnpm typecheck` 0 lỗi; `pnpm lint` sạch; vitest (home, ban-do-code, openapi, registry, permissions, ai-connections, metrics-dashboard/share/access, notify, notify-digest-due, knowledge, form, datahub-access, mcp, http, apps/web) 25 file 488 pass / 0 fail / 0 skip; e2e desktop `stage1.spec` 16, `stage3c1` 9, `stage3c2` 7, `stage6` 4, `stage2c1` 15, `stage12d1` 4 pass, 0 fail, 0 skip. Ảnh: scratchpad `12d1/` (`desktop-pinned`, `desktop-empty`, `phone-pinned`, `phone-empty`, `chk-datahub-1280`, `chk-dashboard`). Spec `stage3c2` đổi lối vào danh sách chia sẻ (tab "Được chia sẻ").
 - [ ] **12D-2 (agent B, Deal web):** thanh kỳ ghi rõ "Kỳ của danh sách deal" và lọc theo cột nào, tách hẳn khỏi bộ lọc thời gian; trang Quản lý Deal theo ảnh mockup (thẻ KPI, forecast, dashboard Deals dùng nền bento của 12C); Template, Thanh toán và com, Chốt kỳ theo concept; lối tắt dòng deal → đợt thanh toán/com; Deal ở 375px; chạy cuối bước: vitest apps packages + e2e stage4-*.
 
 ## Đang làm: Stage 12C — Datahub (Dương 28/11: làm liền 12C→12F, không chờ duyệt giữa giai đoạn; không cần ảnh so sánh; đủ chức năng là được, tự do bố cục)

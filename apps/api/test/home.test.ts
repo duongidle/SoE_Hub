@@ -5,7 +5,7 @@ import { seedOrg, type Org } from "./fixtures";
 import { makeApp, type TestApp } from "./helpers";
 
 /**
- * Stage 12D-1: per-person preferences (pinned dashboard tabs) and "Mở gần đây". Invented data only.
+ * Stage 12D-1: per-person preferences (pinned dashboard tabs) and "Mở gần đây" (written by the read commands of the pages). Invented data only.
  * A person reads and writes only their own; a recent item the person may no longer open is filtered out when read.
  */
 let t: TestApp;
@@ -74,51 +74,72 @@ describe("pinned dashboard tabs (home.prefs, home.tabs.list)", () => {
   });
 });
 
-describe("recent (home.recent.touch, home.recent.list)", () => {
-  it("records what I open, newest first, one entry per item, at most 20", async () => {
-    expect((await a1("home.recent.touch", { type: "datahub", id: dhId })).recorded).toBe(true);
-    expect((await a1("home.recent.touch", { type: "form", id: formId })).recorded).toBe(true);
-    expect((await a1("home.recent.touch", { type: "dashboard", id: dashId })).recorded).toBe(true);
-    const list = (await a1("home.recent.list")).items as { type: string; id: string; name: string }[];
-    expect(list.map((e) => [e.type, e.id, e.name])).toEqual([["dashboard", dashId, "Dash một"], ["form", formId, "Form trang chủ"], ["datahub", dhId, "Bảng trang chủ"]]);
+describe("recent (written by the read commands, listed by home.recent.list)", () => {
+  let w1: ReturnType<typeof as>;
+  let w2: ReturnType<typeof as>;
+  beforeAll(() => {
+    w1 = as(t, org.userA1.id, "web");
+    w2 = as(t, org.userA2.id, "web");
+  });
+  const recent = async (who: ReturnType<typeof as>) => (await who("home.recent.list")).items as { type: string; id: string; name: string }[];
+
+  it("opening a page on the web records it, newest first, one entry per item, at most 20", async () => {
+    await w1("datahub.datahub.get", { datahub_id: dhId });
+    await w1("form.form.get", { form_id: formId });
+    await w1("metrics.dashboard.get", { dashboard_id: dashId });
+    expect((await recent(w1)).map((e) => [e.type, e.id, e.name])).toEqual([["dashboard", dashId, "Dash một"], ["form", formId, "Form trang chủ"], ["datahub", dhId, "Bảng trang chủ"]]);
     // opening the first one again straight away writes nothing; opening an older one moves it to the top
-    expect((await a1("home.recent.touch", { type: "dashboard", id: dashId })).recorded).toBe(false);
-    await a1("home.recent.touch", { type: "datahub", id: dhId });
-    expect(((await a1("home.recent.list")).items as { id: string }[]).map((e) => e.id)).toEqual([dhId, dashId, formId]);
+    await w1("metrics.dashboard.get", { dashboard_id: dashId });
+    await w1("datahub.datahub.get", { datahub_id: dhId });
+    expect((await recent(w1)).map((e) => e.id)).toEqual([dhId, dashId, formId]);
     // the stored list is capped at 20 (older entries fall off)
     const old = Array.from({ length: 30 }, (_v, n) => ({ type: "datahub", id: `01900000-0000-7000-8000-${String(n).padStart(12, "0")}`, at: "2026-01-01T00:00:00.000Z" }));
     await t.c.db.db.execute(sql`UPDATE user_prefs SET value = ${JSON.stringify(old)}::jsonb WHERE /*scope:system*/ user_id = ${org.userA1.id}::uuid AND key = 'recent'`);
-    await a1("home.recent.touch", { type: "form", id: formId });
+    await w1("form.form.get", { form_id: formId });
     const stored = (await t.c.db.db.execute(sql`SELECT value FROM user_prefs WHERE /*scope:system*/ user_id = ${org.userA1.id}::uuid AND key = 'recent'`)).rows[0] as { value: { id: string }[] };
     expect(stored.value).toHaveLength(20);
     expect(stored.value[0]!.id).toBe(formId);
   });
 
-  it("cannot record something I cannot open", async () => {
-    expect((await fails(a2("home.recent.touch", { type: "datahub", id: dhId }))).code).toBe("not_found");
-    expect((await fails(a2("home.recent.touch", { type: "form", id: formId }))).code).toBe("not_found");
-    expect((await a2("home.recent.list")).items).toEqual([]);
+  it("only the web counts as opening: an API or AI connection reading the same pages records nothing", async () => {
+    await t.c.db.db.execute(sql`DELETE FROM user_prefs WHERE /*scope:system*/ user_id = ${org.userA1.id}::uuid AND key = 'recent'`);
+    await a1("datahub.datahub.get", { datahub_id: dhId });
+    await a1("metrics.dashboard.get", { dashboard_id: dashId });
+    expect(await recent(a1)).toEqual([]);
   });
 
-  it("the list is private: the other person's list is their own", async () => {
-    await a2("home.recent.touch", { type: "dashboard", id: dashId }); // shared with a2 above
-    expect((await a2("home.recent.list")).items.map((e: { id: string }) => e.id)).toEqual([dashId]);
-    expect((await a1("home.recent.list")).items.every((e: { at: string }) => typeof e.at === "string")).toBe(true);
+  it("a preview of a dashboard (recent=0) is not recorded; a normal view is", async () => {
+    await w1("metrics.dashboard.view", { dashboard_id: dashId, recent: "0" });
+    expect(await recent(w1)).toEqual([]);
+    await w1("metrics.dashboard.view", { dashboard_id: dashId });
+    expect((await recent(w1)).map((e) => e.id)).toEqual([dashId]);
   });
 
-  it("an item whose right was withdrawn (share removed, dashboard or datahub gone) is filtered out when read, not shown by name", async () => {
+  it("nothing is recorded for a page the person cannot open (the read fails before it writes)", async () => {
+    expect((await fails(w2("datahub.datahub.get", { datahub_id: dhId }))).code).toBe("not_found");
+    expect((await fails(w2("form.form.get", { form_id: formId }))).code).toBe("not_found");
+    expect(await recent(w2)).toEqual([]);
+  });
+
+  it("the list is private: each person has their own", async () => {
+    await a1("metrics.dashboard.share.set", { dashboard_id: dashId, grantee_id: org.userA2.id });
+    await w2("metrics.dashboard.view", { dashboard_id: dashId });
+    expect((await recent(w2)).map((e) => e.id)).toEqual([dashId]);
+    expect((await recent(w1)).map((e) => e.id)).toEqual([dashId]); // from the previous test, not from a2
+  });
+
+  it("an item whose right was withdrawn (share removed, dashboard gone) is filtered out when read, not shown by name", async () => {
     const shares = (await a1("metrics.dashboard.share.list", { dashboard_id: dashId })).items as { id: string }[];
     for (const s of shares) await a1("metrics.dashboard.share.remove", { dashboard_id: dashId, share_id: s.id });
-    expect((await a2("home.recent.list")).items).toEqual([]);
-    // the owner's dashboard deleted: gone from the owner's list too
+    expect(await recent(w2)).toEqual([]);
     const d3 = (await a1("metrics.dashboard.create", { datahub_id: dhId, name: "Dash ba" })).id;
-    await a1("home.recent.touch", { type: "dashboard", id: d3 });
-    expect(ids(await a1("home.recent.list"))).toContain(d3);
+    await w1("metrics.dashboard.get", { dashboard_id: d3 });
+    expect((await recent(w1)).map((e) => e.id)).toContain(d3);
     await a1("metrics.dashboard.delete", { dashboard_id: d3 });
-    expect(ids(await a1("home.recent.list"))).not.toContain(d3);
+    expect((await recent(w1)).map((e) => e.id)).not.toContain(d3);
   });
 
-  it("an article: the reader needs the right to read it; the author sees their own draft", async () => {
+  it("an article: the author sees their own draft; another person cannot read it, so it is not recorded", async () => {
     const draft = await a1("knowledge.article.save", {
       title: "Bài trang chủ thử",
       summary: "Tóm tắt thử cho bài.",
@@ -128,9 +149,9 @@ describe("recent (home.recent.touch, home.recent.list)", () => {
       tags: ["deal"],
     });
     const post = draft.post_id as string;
-    expect((await a1("home.recent.touch", { type: "article", id: post })).recorded).toBe(true);
-    expect((await a1("home.recent.list")).items.find((e: { id: string }) => e.id === post)?.name).toBe("Bài trang chủ thử");
-    // another person cannot open an unpublished draft, so it is neither recorded nor listed
-    expect((await fails(a2("home.recent.touch", { type: "article", id: post }))).code).toBe("not_found");
+    await w1("knowledge.article.get", { id: post, source: "working" });
+    expect((await recent(w1)).find((e) => e.id === post)?.name).toBe("Bài trang chủ thử");
+    expect((await fails(w2("knowledge.article.get", { id: post }))).code).toBe("not_found");
+    expect((await recent(w2)).map((e) => e.id)).not.toContain(post);
   });
 });

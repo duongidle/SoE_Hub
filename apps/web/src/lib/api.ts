@@ -28,15 +28,14 @@ function readCookie(name: string): string | null {
 }
 
 /** Calls the REST API with the session cookie. Writes send the CSRF header (double submit). Returns `data`. */
-/** `keepalive`: the request is not cut when the page is left (a note that something was opened must still arrive). */
-export async function api<T = unknown>(method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown, opts: { keepalive?: boolean } = {}): Promise<T> {
+export async function api<T = unknown>(method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { accept: "application/json" };
   if (method !== "GET") {
     const csrf = readCookie("soe_csrf");
     if (csrf) headers["x-csrf-token"] = csrf;
   }
   if (body !== undefined) headers["content-type"] = "application/json";
-  const res = await fetch(`/api/v1${path}`, { method, headers, credentials: "same-origin", keepalive: opts.keepalive, body: body !== undefined ? JSON.stringify(body) : undefined });
+  const res = await fetch(`/api/v1${path}`, { method, headers, credentials: "same-origin", body: body !== undefined ? JSON.stringify(body) : undefined });
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, json as ErrorBody | null);
   return (json as { data: T }).data;

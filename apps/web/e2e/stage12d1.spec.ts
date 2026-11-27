@@ -139,10 +139,8 @@ test("ghim dashboard của mình thành tab, đổi thứ tự bằng menu, gi�
   await ph.expectNoHorizontalOverflow();
   await shot(ph, "phone-pinned.png");
   // "Mở dashboard" goes to the editable one
-  const noted = pg.waitForResponse((r) => r.url().endsWith("/me/recent") && r.request().method() === "POST");
   await pg.getByTestId("home-open-dashboard").click();
   await expect(pg).toHaveURL(new RegExp(`/datahub/${hubId}/dashboard/${dashB}$`));
-  await noted;
   // un-pin
   await pg.goto("/");
   await pg.getByRole("tab", { name: NAME_B }).click();
@@ -154,33 +152,25 @@ test("ghim dashboard của mình thành tab, đổi thứ tự bằng menu, gi�
 
 test("Mở gần đây: ghi khi mở datahub và dashboard, mục bị xoá thì biến mất; nhắc hẹn và thông báo chung hiện ở cột phải", async () => {
   const pg = owner.page;
-  // the page tells the server it was opened; wait for the answer before leaving (a request cut by navigation is a different thing)
-  const noted = () => pg.waitForResponse((r) => r.url().endsWith("/me/recent") && r.request().method() === "POST");
-  let wait = noted();
+  // the server notes what the person opens when the page reads it (the datahub, then a dashboard of it)
   await pg.goto(`/datahub/${hubId}`);
   await expect(pg.getByRole("tab", { name: "Deals" }).first()).toBeVisible();
-  await wait;
-  await expect.poll(async () => (await ownerApi.call<{ id: string }[]>("GET", "/me/recent")).some((e) => e.id === hubId)).toBe(true);
-  wait = noted();
   await pg.goto(`/datahub/${hubId}/dashboard/${dashB}`);
   await expect(pg.getByText(`Tổng của ${NAME_B}`)).toBeVisible();
-  await wait;
-  await expect.poll(async () => (await ownerApi.call<{ id: string }[]>("GET", "/me/recent"))[0]?.id).toBe(dashB);
+  await expect.poll(async () => (await ownerApi.call<{ id: string }[]>("GET", "/me/recent")).map((x) => x.id)).toEqual(expect.arrayContaining([hubId, dashB]));
   const due = new Date(Date.now() + 36 * 3600_000).toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
   await ownerApi.call("POST", "/reminders", { content: `Gọi lại khách ${RUN}`, due_at: `${due}T09:00`, repeat: "none" });
   await pg.goto("/");
   const recent = pg.getByTestId("home-recent").getByTestId("recent-item");
-  await expect(recent.first()).toContainText(NAME_B);
+  await expect(recent.filter({ hasText: NAME_B })).toHaveCount(1);
   await expect(recent.filter({ hasText: `Lead Q4 ${RUN}` })).toHaveCount(1);
   await expect(pg.getByTestId("home-reminders").getByTestId("home-reminder").filter({ hasText: `Gọi lại khách ${RUN}` })).toBeVisible();
   await pg.getByTestId("home-new-reminder").click();
   await expect(pg.getByRole("dialog", { name: "Nhắc mới" })).toBeVisible();
   await pg.keyboard.press("Escape");
   // a recent item opens its page
-  wait = noted();
   await recent.filter({ hasText: NAME_B }).click();
   await expect(pg).toHaveURL(new RegExp(`/datahub/${hubId}/dashboard/${dashB}$`));
-  await wait;
   // a deleted dashboard is not listed any more
   await pg.goto("/");
   await ownerApi.call("DELETE", `/dashboards/${dashB}`);
