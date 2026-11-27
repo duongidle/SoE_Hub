@@ -168,7 +168,7 @@ function TableTabs({ dh, currentId, dashboardOn }: { dh: DatahubBrief; currentId
 
   return (
     <>
-      <div className="flex min-w-0 items-center gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1 sm:flex-nowrap">
         <Link to="/datahub" className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground sm:min-h-8 sm:min-w-8" aria-label="Về danh sách datahub" title="Về danh sách datahub">
           <ArrowLeft size={16} aria-hidden />
         </Link>
@@ -183,7 +183,7 @@ function TableTabs({ dh, currentId, dashboardOn }: { dh: DatahubBrief; currentId
           </div>
         )}
         {!dashboardOn && (
-        <div role="tablist" aria-label="Các bảng" className="flex min-w-0 flex-1 items-center gap-1">
+        <div role="tablist" aria-label="Các bảng" className="flex min-w-0 basis-full items-center gap-1 sm:flex-1 sm:basis-0">
           {owner && (
             <div className="flex shrink-0 items-center gap-1">
               <Menu trigger={<Button variant="ghost" aria-label="Thêm bảng" title="Thêm bảng" className="!px-2"><Plus size={16} aria-hidden /></Button>} align="start">

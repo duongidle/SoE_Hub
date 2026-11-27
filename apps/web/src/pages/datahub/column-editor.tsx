@@ -326,7 +326,7 @@ export function ColumnEditor({ table, column, onClose, adapter, confirmText, not
               <input type="checkbox" className="h-5 w-5" checked={updateFormulas} onChange={(e) => setUpdateFormulas(e.target.checked)} data-testid="option-impact-update" />
               Cập nhật cả các công thức này
             </label>
-            <div className="flex flex-wrap justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
               <Button variant="secondary" onClick={() => setImpact(null)}>Quay lại</Button>
               <Button loading={busy} onClick={() => void applyWithFormulas()} data-testid="option-impact-save">Lưu cột</Button>
             </div>

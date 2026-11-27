@@ -226,7 +226,7 @@ export function ImportDialog({ target, onClose, onImported }: { target: ImportTa
               </Field>
             )}
             <ErrorText error={analyze.error} />
-            <div className="flex flex-wrap justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
               <Button variant="secondary" onClick={onClose}>Huỷ</Button>
               <Button onClick={() => analyze.mutate()} loading={analyze.isPending} disabled={(tab === "file" && !file) || (tab === "link" && !link.trim()) || (tab === "text" && !text.trim())}>
                 <Upload size={16} aria-hidden /> Đọc dữ liệu
@@ -258,7 +258,7 @@ export function ImportDialog({ target, onClose, onImported }: { target: ImportTa
             <MappingStep plans={picked} all={plans} patch={(i, p) => patch(plans.indexOf(picked[i]!), p)} target={target} isOwner={isOwner} />
             {problem && <p role="alert" className="text-sm text-bad">{problem}</p>}
             <ErrorText error={preview.error} />
-            <div className="flex flex-wrap justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
               <Button variant="secondary" onClick={() => setStep(2)}><ArrowLeft size={16} aria-hidden /> Quay lại</Button>
               <Button onClick={() => preview.mutate()} loading={preview.isPending} disabled={!!problem}>Kiểm tra <ArrowRight size={16} aria-hidden /></Button>
             </div>
@@ -286,7 +286,7 @@ export function ImportDialog({ target, onClose, onImported }: { target: ImportTa
               </section>
             ))}
             <ErrorText error={start.error} />
-            <div className="flex flex-wrap justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
               <Button variant="secondary" onClick={() => setStep(3)}><ArrowLeft size={16} aria-hidden /> Sửa cách ghép</Button>
               <Button onClick={() => start.mutate()} loading={start.isPending} disabled={!preview.data.ok}>Bắt đầu nhập</Button>
             </div>
@@ -299,7 +299,7 @@ export function ImportDialog({ target, onClose, onImported }: { target: ImportTa
             {run.data?.status === "failed" && <p role="alert" className="text-sm text-bad">Việc nhập bị dừng. {run.data.error}</p>}
             {run.data?.status === "cancelled" && <p role="status" className="text-sm">Đã huỷ. Các dòng đã nhập vẫn ở trong bảng.</p>}
             {run.data && run.data.status !== "pending" && <RunReport reports={((run.data.report as { sheets?: ImportSheetReport[] } | null)?.sheets ?? []) as ImportSheetReport[]} done={run.data.status === "done"} datahubId={run.data.datahub_id ?? target.datahub?.id ?? null} />}
-            <div className="flex flex-wrap justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
               {running ? <Button variant="secondary" onClick={() => void cancelJob(runId!)}>Huỷ nhập</Button> : <Button onClick={onClose}>Đóng</Button>}
             </div>
           </>
@@ -364,7 +364,7 @@ function SheetsStep({ plans, current, setCurrent, patch, jobId, onNext, onBack }
           <p className="text-xs text-muted-foreground">Hiện 20 dòng đầu. Dòng được tô đậm là dòng tiêu đề.</p>
         </section>
       )}
-      <div className="flex flex-wrap justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
         <Button variant="secondary" onClick={onBack}><ArrowLeft size={16} aria-hidden /> Quay lại</Button>
         <Button onClick={onNext} disabled={!plans.some((s) => s.include)}>Ghép cột <ArrowRight size={16} aria-hidden /></Button>
       </div>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, ConfirmDialog } from "@/components/ui/form";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState, ErrorState } from "@/components/ui/states";
+import { ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { createChart, dashKeys, deleteChart, getChartCsv, getDashboard, resetMyFilters, saveLayout, saveMyFilters, updateDashboard, viewDashboard } from "@/lib/dashboard/api";
 import { crossFiltersOf } from "@/lib/dashboard/chart-data";
@@ -15,6 +15,7 @@ import type { DatahubBrief } from "@/lib/datahub/types";
 import { liveBus, type LiveSignal } from "@/lib/session";
 import { ChartBody, useChartData } from "./chart-body";
 import { ChartConfigPanel } from "./chart-config";
+import { EmptyDashboard } from "./empty-dashboard";
 import { FilterBar } from "./filter-bar";
 import { DashboardGrid, type GridCard } from "./grid";
 import type { ChartExport } from "./echart";
@@ -23,6 +24,19 @@ import { RowsDialog, downloadText } from "./rows-dialog";
 const DEFAULT_LAYOUT = { x: 0, y: 0, w: 6, h: 5 };
 /** Types drawn on an ECharts canvas: they can be saved as a picture. */
 const CANVAS_TYPES = new Set<ChartType>(["column", "bar", "line", "area", "combo", "pie", "donut", "bullet", "gauge", "funnel", "boxplot", "histogram", "scatter", "matrix", "heatmap", "waterfall", "ranking", "cohort"]);
+
+/** The tables a chart reads, for the small line under its title (only sources named by a table id or table; saved metrics say nothing). */
+function sourceNames(chart: ChartRecord["chart"], dh: DatahubBrief | undefined): string {
+  if (!dh) return "";
+  const names = new Set<string>();
+  for (const s of chart.series) {
+    const src = s.metric?.source;
+    const id = typeof src === "string" ? src : src?.table;
+    const t = id ? dh.tables.find((x) => x.id === id) : undefined;
+    if (t) names.add(t.name);
+  }
+  return [...names].join(", ");
+}
 
 interface RowsTarget {
   chartId: string;
@@ -266,6 +280,7 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature 
         layout: r.chart.layout ?? DEFAULT_LAYOUT,
         min: minSizeOf(r.chart.type),
         title: chartTitle(r.chart, i),
+        subtitle: sourceNames(r.chart, dh),
         menu: (
           <CardMenu
             record={r}
@@ -298,7 +313,7 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature 
           />
         ),
       })),
-    [q.data, datahubId, filtersFor, viewFilters, mature, picks, owner, dup, pickChart],
+    [q.data, datahubId, filtersFor, viewFilters, mature, picks, owner, dup, pickChart, dh],
   );
 
   if (q.isLoading) return <Skeleton className="h-64 w-full" aria-busy="true" aria-label="Đang tải dashboard" />;
@@ -309,22 +324,29 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature 
     return i < 0 ? [] : [{ chartId, title: chartTitle(d.charts[i]!.chart, i), pick }];
   });
   const defaults = d.default_filters ?? {};
+  const trailing = (
+    <>
+      <span className="text-sm text-muted-foreground">{d.charts.length} biểu đồ</span>
+      {owner && (
+        <Menu trigger={<Button data-testid="add-chart"><Plus size={16} aria-hidden /> Thêm biểu đồ</Button>}>
+          {CHART_TYPES.map((t) => (
+            <MenuItem key={t} onSelect={() => setEditing({ record: null, type: t as ChartType, key: Date.now() })}>{TYPE_LABELS[t]}</MenuItem>
+          ))}
+        </Menu>
+      )}
+    </>
+  );
 
   return (
     <div className={editing ? "shrink-0 lg:pr-[30rem]" : "shrink-0"}>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h2 className="min-w-0 text-lg font-semibold [overflow-wrap:anywhere]">{d.name}</h2>
-        <span className="text-sm text-muted-foreground">{d.charts.length} biểu đồ</span>
-        {!owner && <span className="text-sm text-muted-foreground" data-testid="dash-owner">Của {d.owner_name ?? "người khác"} · {d.datahub_name}. Số liệu tính theo quyền của họ.</span>}
-        {owner && (
-          <Menu trigger={<Button className="ml-auto" data-testid="add-chart"><Plus size={16} aria-hidden /> Thêm biểu đồ</Button>}>
-            {CHART_TYPES.map((t) => (
-              <MenuItem key={t} onSelect={() => setEditing({ record: null, type: t as ChartType, key: Date.now() })}>{TYPE_LABELS[t]}</MenuItem>
-            ))}
-          </Menu>
-        )}
-      </div>
-      {d.charts.length > 0 && (
+      {!owner && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <h2 className="min-w-0 text-lg font-semibold [overflow-wrap:anywhere]">{d.name}</h2>
+          <span className="text-sm text-muted-foreground" data-testid="dash-owner">Của {d.owner_name ?? "người khác"} · {d.datahub_name}. Số liệu tính theo quyền của họ.</span>
+        </div>
+      )}
+      {owner && <h2 className="sr-only">{d.name}</h2>}
+      {d.charts.length > 0 ? (
         <FilterBar
           fields={d.fields}
           value={filters ?? defaults}
@@ -337,10 +359,13 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature 
           picks={pickList}
           onClearPick={(id) => setPicks((p) => { const { [id]: _g, ...rest } = p; void _g; return rest; })}
           onClearPicks={() => setPicks({})}
+          trailing={trailing}
         />
+      ) : (
+        owner && <div className="mb-4 flex items-center justify-end gap-3 rounded-card border border-border-soft bg-card p-2.5 shadow-sm">{trailing}</div>
       )}
       {d.charts.length === 0 ? (
-        <EmptyState title="Dashboard chưa có biểu đồ" hint={owner ? "Bấm Thêm biểu đồ, chọn loại, rồi chọn bảng và cách tính." : "Chủ dashboard chưa thêm biểu đồ nào."} />
+        <EmptyDashboard owner={owner} dh={dh} onPick={(t) => setEditing({ record: null, type: t, key: Date.now() })} />
       ) : (
         <>
           <h2 className="sr-only">Các biểu đồ</h2>

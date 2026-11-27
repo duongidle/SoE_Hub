@@ -102,7 +102,7 @@ export function ExportDialog({ table, query, visible, filtered, onClose }: { tab
               File chứa giá trị đã tính của cột công thức. {table.access === "owner" ? "File Excel có thêm một sheet \"Công thức\" liệt kê công thức từng cột." : "Bạn không được xem nội dung công thức nên file không có phần đó."}
             </p>
             <ErrorText error={start.error} />
-            <div className="flex flex-wrap justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
               <Button variant="secondary" onClick={onClose}>Huỷ</Button>
               <Button onClick={() => start.mutate()} loading={start.isPending}><Download size={16} aria-hidden /> Xuất file</Button>
             </div>
@@ -115,7 +115,7 @@ export function ExportDialog({ table, query, visible, filtered, onClose }: { tab
             {d?.status === "failed" && <p role="alert" className="text-sm text-bad">Không xuất được. {d.error}</p>}
             {dlError && <p role="alert" className="text-sm text-bad">{dlError}</p>}
             <ErrorText error={job.error} />
-            <div className="flex flex-wrap justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
               {running ? <Button variant="secondary" onClick={() => void cancelJob(jobId)}>Huỷ xuất</Button> : <Button variant="secondary" onClick={onClose}>Đóng</Button>}
               {d?.status === "done" && <Button onClick={retry}><Download size={16} aria-hidden /> Tải lại file</Button>}
             </div>

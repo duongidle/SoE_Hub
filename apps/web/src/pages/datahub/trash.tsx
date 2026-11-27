@@ -53,7 +53,7 @@ function RenameDialog({ kind, name, busy, error, onClose, onSubmit }: { kind: st
           <Input value={v} onChange={(e) => setV(e.target.value)} onBlur={() => setTouched(true)} autoFocus autoComplete="off" aria-invalid={!!err} />
         </Field>
         <ErrorText error={error} />
-        <div className="flex flex-wrap justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
           <Button variant="secondary" onClick={onClose}>Huỷ</Button>
           <Button type="submit" loading={busy}>Khôi phục với tên này</Button>
         </div>
@@ -196,7 +196,7 @@ export function TableTrashDialog({ tableId, onClose, onRestored }: { tableId: st
             )}
           </>
         ) : null}
-        <div className="flex justify-end">
+        <div className="flex justify-end border-t border-border-soft pt-4">
           <Button variant="secondary" onClick={onClose}>Đóng</Button>
         </div>
       </div>

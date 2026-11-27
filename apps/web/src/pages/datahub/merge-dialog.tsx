@@ -245,7 +245,7 @@ export function MergeDialog({ datahubId, existing, onClose }: { datahubId: strin
         </section>
 
         <ErrorText error={save.error} />
-        <div className="flex flex-wrap justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
           <Button variant="secondary" onClick={onClose}>Huỷ</Button>
           <Button type="submit" loading={save.isPending} disabled={!canSave} data-testid="merge-submit">{existing ? "Lưu cấu hình" : "Tạo bảng gộp"}</Button>
         </div>

@@ -11,6 +11,8 @@ export interface GridCard {
   layout: { x: number; y: number; w: number; h: number };
   min: { w: number; h: number };
   title: string;
+  /** Small line under the title: the table(s) the chart reads. */
+  subtitle?: string;
   /** Menu button of the card (view actions for everyone; Sửa, Nhân bản, Xoá for the owner). */
   menu: React.ReactNode;
   body: React.ReactNode;
@@ -92,8 +94,8 @@ export function DashboardGrid({ cards, onCommit, readOnly }: { cards: GridCard[]
           ? { position: "absolute", left: it.x * stepX, top: it.y * stepY, width: it.w * colW + (it.w - 1) * GAP, height: it.h * ROW_H + (it.h - 1) * GAP, transition: dragging ? "none" : undefined }
           : { height: Math.max(it.h, 3) * ROW_H + (Math.max(it.h, 3) - 1) * GAP, marginBottom: GAP };
         return (
-          <section key={c.id} style={style} data-chart-id={c.id} data-layout={`${it.x},${it.y},${it.w},${it.h}`} aria-label={c.title} className={cn("flex min-h-0 flex-col rounded-lg border border-border bg-card p-3 shadow-sm", dragging && "z-10 ring-2 ring-ring")}>
-            <header className="mb-1 flex shrink-0 items-center gap-1">
+          <section key={c.id} style={style} data-chart-id={c.id} data-layout={`${it.x},${it.y},${it.w},${it.h}`} aria-label={c.title} className={cn("flex min-h-0 flex-col rounded-card border border-border-soft bg-card p-4 shadow-card", dragging && "z-10 ring-2 ring-ring")}>
+            <header className="mb-2 flex shrink-0 items-start gap-1">
               {wide && !readOnly && (
                 <button
                   type="button"
@@ -109,7 +111,10 @@ export function DashboardGrid({ cards, onCommit, readOnly }: { cards: GridCard[]
                   <GripVertical size={16} aria-hidden />
                 </button>
               )}
-              <h3 className="min-w-0 flex-1 truncate text-sm font-semibold" title={c.title}>{c.title}</h3>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-semibold" title={c.title}>{c.title}</h3>
+                {c.subtitle && <p className="truncate text-xs text-muted-foreground" title={c.subtitle}>{c.subtitle}</p>}
+              </div>
               {c.menu}
             </header>
             <div className="min-h-0 flex-1">{c.body}</div>

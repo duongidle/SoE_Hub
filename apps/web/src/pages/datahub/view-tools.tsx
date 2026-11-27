@@ -86,12 +86,12 @@ function ToolButton({ icon, label, count, active, iconOnly, ...props }: React.Co
     <Button
       variant="secondary"
       title={label}
-      className={cn("max-w-full shrink-0 !px-2.5 @[72rem]:!px-3", active && "!border-primary-border !bg-primary-soft !text-primary", iconOnly && "@[72rem]:!px-2.5")}
+      className={cn("max-w-full shrink-0 !px-2.5 @[64rem]:!px-3", active && "!border-primary-border !bg-primary-soft !text-primary", iconOnly && "@[64rem]:!px-2.5")}
       aria-label={count ? `${label} ${formatNumber(count)}` : label}
       {...props}
     >
       {icon}
-      <span className={iconOnly ? "sr-only" : "hidden @[72rem]:inline"}>{label}</span>
+      <span className={iconOnly ? "sr-only" : "hidden @[64rem]:inline"}>{label}</span>
       {count ? <span className="rounded-full bg-primary px-1.5 text-xs leading-5 text-primary-foreground">{formatNumber(count)}</span> : null}
     </Button>
   );
@@ -101,7 +101,7 @@ const Label = ({ children }: { children: React.ReactNode }) => <p className="mb-
 
 function SearchBox({ value, onChange }: { value: string; onChange: (s: string) => void }) {
   return (
-    <div className="relative min-w-0 flex-1 basis-36 @[58rem]:w-44 @[58rem]:flex-none @[72rem]:w-60">
+    <div className="relative min-w-0 flex-1 basis-36 @[58rem]:w-44 @[58rem]:flex-none @[64rem]:w-60">
       <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
       <Input type="search" {...searchHotkeyProps} aria-label="Tìm trong bảng" placeholder="Tìm trong bảng (/)" value={value} onChange={(e) => onChange(e.target.value)} className="!pl-8" autoComplete="off" maxLength={200} />
     </div>

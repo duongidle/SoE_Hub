@@ -254,7 +254,7 @@ function BulkDialog({ table, columns, total, onClose, onDone }: { table: TableDe
         </label>
         {progress && <p role="status" className="text-sm">Đã xử lý {formatCount(progress.done, "nhóm")}, xoá {formatCount(progress.removed, "dòng")}…</p>}
         <ErrorText error={m.error ? new Error(errorMessage(m.error)) : null} />
-        <div className="flex flex-wrap justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-4">
           <Button variant="secondary" onClick={onClose} disabled={m.isPending}>Huỷ</Button>
           <Button variant="danger" loading={m.isPending} onClick={() => m.mutate()}>Xoá dòng thừa của {formatCount(total, "nhóm")}</Button>
         </div>

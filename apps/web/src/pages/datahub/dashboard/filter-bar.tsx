@@ -12,7 +12,7 @@ const show = (v: DashCondition["value"]) => (Array.isArray(v) ? v.join(", ") : v
  * charts. A change is saved as the viewer's own copy by the caller; "Về mặc định" drops that copy. The owner may also make the current
  * filters the default for everyone.
  */
-export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefault, exactText, rangeLocked, picks, onClearPick, onClearPicks }: {
+export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefault, exactText, rangeLocked, picks, onClearPick, onClearPicks, trailing }: {
   fields: FilterField[];
   value: DashFilters;
   onChange: (v: DashFilters) => void;
@@ -28,6 +28,8 @@ export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefa
   picks: { chartId: string; title: string; pick: PickInfo }[];
   onClearPick: (chartId: string) => void;
   onClearPicks: () => void;
+  /** The end of the one-line bar: the count of charts and the main button of the page ("Thêm biểu đồ"). */
+  trailing?: React.ReactNode;
 }) {
   const conds = value.conditions ?? [];
   const [field, setField] = useState("");
@@ -51,19 +53,18 @@ export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefa
     onChange(next.length ? { ...rest, conditions: next } : rest);
   };
   const tok = rangeToken(value.range);
-  const active = (!rangeLocked && !!value.range) || conds.length > 0;
 
   return (
-    <section aria-label="Bộ lọc chung" className="mb-3 flex flex-col gap-2 rounded-lg border border-border bg-card p-3" data-testid="filter-bar">
-      <div className="flex flex-wrap items-end gap-2">
+    <section aria-label="Bộ lọc chung" className="mb-4 flex flex-col gap-2 rounded-card border border-border-soft bg-card p-2.5 shadow-sm" data-testid="filter-bar">
+      <div className="flex flex-wrap items-center gap-2">
         {rangeLocked ? (
-          <p className="flex flex-col gap-1 text-sm" data-testid="filter-range-locked">
-            <span className="font-medium">Khoảng thời gian</span>
-            <span className="flex min-h-9 items-center text-muted-foreground">Theo kỳ chung ở đầu trang</span>
+          <p className="flex min-h-9 items-center gap-2 text-sm" data-testid="filter-range-locked">
+            <span className="sr-only">Khoảng thời gian</span>
+            <span className="text-muted-foreground">Theo kỳ chung ở đầu trang</span>
           </p>
         ) : (
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Khoảng thời gian</span>
+          <span className="sr-only">Khoảng thời gian</span>
           <Select value={tok} onChange={(e) => setRange(e.target.value)} aria-label="Khoảng thời gian chung" className="w-auto min-w-44" data-testid="filter-range">
             {RANGES.map((r) => <option key={r.token} value={r.token}>{r.label}</option>)}
             {tok === "custom" && <option value="custom">Tuỳ chỉnh (giữ nguyên)</option>}
@@ -71,9 +72,9 @@ export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefa
         </label>
         )}
         {fields.length > 0 && (
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">Lọc theo cột</span>
+              <span className="sr-only">Lọc theo cột</span>
               <Select value={field} onChange={(e) => { setField(e.target.value); setText(""); }} aria-label="Cột để lọc" className="w-auto min-w-40" data-testid="filter-field">
                 <option value="">Chọn cột…</option>
                 {fields.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}
@@ -93,16 +94,17 @@ export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefa
               </Select>
             )}
             {f?.kind === "text" && (
-              <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) add({ field: f.name, op: exactText ? "eq" : "contains", value: text.trim() }); }}>
+              <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) add({ field: f.name, op: exactText ? "eq" : "contains", value: text.trim() }); }}>
                 <Input value={text} onChange={(e) => setText(e.target.value)} aria-label={`Từ cần tìm trong ${f.name}`} placeholder={exactText ? "Đúng giá trị…" : "Chứa chữ…"} className="min-w-40" data-testid="filter-value" />
                 <Button type="submit" variant="secondary" disabled={!text.trim()}><Plus size={16} aria-hidden /> Thêm</Button>
               </form>
             )}
           </div>
         )}
-        <div className="ml-auto flex flex-wrap gap-2">
-          {onSaveDefault && <Button variant="secondary" onClick={onSaveDefault} disabled={!custom} data-testid="filter-save-default"><Save size={16} aria-hidden /> Lưu làm mặc định</Button>}
-          <Button variant="secondary" onClick={onReset} disabled={!custom} data-testid="filter-reset"><RotateCcw size={16} aria-hidden /> Về mặc định</Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {onSaveDefault && <Button variant="ghost" onClick={onSaveDefault} disabled={!custom} data-testid="filter-save-default"><Save size={16} aria-hidden /> Lưu làm mặc định</Button>}
+          <Button variant="ghost" onClick={onReset} disabled={!custom} data-testid="filter-reset"><RotateCcw size={16} aria-hidden /> Về mặc định</Button>
+          {trailing}
         </div>
       </div>
       {(conds.length > 0 || picks.length > 0) && (
@@ -122,7 +124,6 @@ export function FilterBar({ fields, value, onChange, custom, onReset, onSaveDefa
           {picks.length > 1 && <li><Button variant="ghost" onClick={onClearPicks}>Bỏ mọi lọc chéo</Button></li>}
         </ul>
       )}
-      {!active && picks.length === 0 && <p className="text-xs text-muted-foreground">Chọn khoảng thời gian hoặc cột để lọc mọi biểu đồ. Bấm vào một cột, điểm hay phần của biểu đồ để lọc các biểu đồ còn lại.</p>}
     </section>
   );
 }

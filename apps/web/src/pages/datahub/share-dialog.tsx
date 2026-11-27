@@ -78,7 +78,7 @@ export function ShareDialog({ dh, onClose }: { dh: DatahubBrief; onClose: () => 
           <ErrorText error={change.error ?? revoke.error ?? askRevoke.error} />
         </section>
         <SplitOptions dh={dh} />
-        <div className="flex justify-end">
+        <div className="flex justify-end border-t border-border-soft pt-4">
           <Button variant="secondary" onClick={onClose}>Đóng</Button>
         </div>
       </div>

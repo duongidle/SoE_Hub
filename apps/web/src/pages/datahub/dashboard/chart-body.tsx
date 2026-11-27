@@ -313,7 +313,7 @@ function KpiCard({ chart, result, spark, format, onOpenRows }: { chart: ChartDef
   const change = row.change_pct;
   const sp = spark?.rows ?? [];
   return (
-    <div className="flex h-full min-h-0 flex-col justify-center gap-1 px-1">
+    <div className="flex h-full min-h-0 flex-col justify-center gap-1.5 px-1">
       {onOpenRows ? (
         <button type="button" onClick={onOpenRows} className="w-full rounded text-left hover:bg-muted focus-visible:outline-2" aria-label={`${text}: xem các dòng tạo nên con số này`} data-testid="kpi-rows">
           <FitText text={text} />
@@ -348,7 +348,7 @@ function KpiCard({ chart, result, spark, format, onOpenRows }: { chart: ChartDef
   );
 }
 
-const FIT_SIZES = [32, 28, 24, 21, 18, 16, 14];
+const FIT_SIZES = [44, 40, 36, 32, 28, 24, 21, 18, 16, 14];
 
 /** The big number of a KPI card: the largest size at which the whole number fits on one line (a number is never cut or broken). */
 function FitText({ text }: { text: string }) {
@@ -362,6 +362,7 @@ function FitText({ text }: { text: string }) {
       const room = el.clientWidth;
       if (!room) return;
       let pick = FIT_SIZES[FIT_SIZES.length - 1]!;
+      const before = s.style.fontSize;
       for (const px of FIT_SIZES) {
         s.style.fontSize = `${px}px`;
         if (s.scrollWidth <= room) {
@@ -369,7 +370,8 @@ function FitText({ text }: { text: string }) {
           break;
         }
       }
-      s.style.fontSize = "";
+      // Put the size back: when the pick equals the state React does not render again, and a cleared style would leave the number at the page size.
+      s.style.fontSize = before;
       setSize(pick);
     };
     fit();

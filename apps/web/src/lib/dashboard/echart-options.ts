@@ -7,11 +7,20 @@ import type { ChartDef, FormatName, PickInfo } from "./types";
 /** ECharts options for the cartesian and pie charts. Pure apart from reading the design tokens; the numbers are the server's. */
 
 /** Categorical palette: distinguishable by lightness as well as hue (not a red/green pair), readable on the card background. */
-export const PALETTE = ["#2f5d9e", "#e07b39", "#2a9d8f", "#8e5fbf", "#c9a227", "#c4484f", "#5a8f3d", "#6b7a8c"];
+export const PALETTE = ["#4f46e5", "#10b981", "#f59e0b", "#3b82f6", "#8b5cf6", "#f43f5e", "#14b8a6", "#94a3b8"];
 
 export const escapeHtml = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 const axisFormat = (fmt: FormatName | null): FormatName => (fmt === "percent" || fmt === "days" ? fmt : "compact");
+
+/**
+ * A column of a value so small that it is under one pixel high cannot be clicked, so cross filtering would skip it. Giving the series a
+ * minimum bar size keeps every column a target. A zero stays flat (no bar is drawn for a real zero), so a series with a zero keeps its
+ * natural size. Only the picture changes: the value and the tooltip are the server's.
+ */
+function hitArea(values: (number | null)[]): Record<string, unknown> {
+  return values.some((v) => v === 0) ? {} : { barMinHeight: 4, barMinWidth: 4 };
+}
 
 function base() {
   const text = token("--foreground");
@@ -66,7 +75,7 @@ export function cartesianOption({ chart, data, format, compare, picks, matureThr
       type: isLine ? "line" : "bar",
       ...(chart.type === "combo" ? { yAxisIndex: s.axis === "right" ? 1 : 0 } : {}),
       ...(stackName ? { stack: stackName } : {}),
-      ...(isLine ? { smooth: !!o.smooth, symbolSize: 6, ...(chart.type === "area" ? { areaStyle: { opacity: 0.25 } } : {}) } : { barMaxWidth: 40 }),
+      ...(isLine ? { smooth: !!o.smooth, symbolSize: 6, ...(chart.type === "area" ? { areaStyle: { opacity: 0.25 } } : {}) } : { barMaxWidth: 40, ...hitArea(values) }),
       data: values.map((v, k) => (v === null ? null : { value: v, real: real(k), pick: picks?.[i]?.[k], ...(pale[k] ? { itemStyle: { color, opacity: 0.35 } } : {}) })),
       ...(i === 0 && firstPale >= 0 && !horizontal
         ? { markArea: { silent: true, itemStyle: { color: t.muted, opacity: 0.12 }, label: { show: true, position: "insideTop", color: t.muted, fontSize: 11 }, data: [[{ name: "Tạm tính, chưa chín", xAxis: data.categories[firstPale] }, { xAxis: data.categories[data.categories.length - 1] }]] } }

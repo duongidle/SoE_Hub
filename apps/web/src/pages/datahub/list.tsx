@@ -136,7 +136,7 @@ function DatahubCard({ dh, mine, onRename, onDelete }: { dh: DatahubBrief; mine:
           </span>
           <span className="min-w-0 flex-1 pr-8">
             <span className="block text-base font-semibold leading-snug [overflow-wrap:anywhere]">{dh.name}</span>
-            {dh.description ? <span className="mt-0.5 line-clamp-2 block text-sm text-muted-foreground [overflow-wrap:anywhere]">{dh.description}</span> : <span className="mt-0.5 block text-sm text-faint">Chưa có mô tả</span>}
+            {dh.description ? <span className="mt-0.5 line-clamp-2 block text-sm text-muted-foreground [overflow-wrap:anywhere]">{dh.description}</span> : null}
           </span>
         </span>
       </Link>

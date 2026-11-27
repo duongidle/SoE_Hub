@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, Textarea } from "@/components/ui/form";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tip } from "@/components/ui/tooltip";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
@@ -201,13 +202,13 @@ export function DashboardArea({ dh, dashboardId }: { dh: DatahubBrief; dashboard
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Không tải được danh sách dashboard" />;
 
   return (
-    <div className="flex shrink-0 flex-col gap-3">
-      <div role="tablist" aria-label="Dashboard" className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border">
+    <div className="flex shrink-0 flex-col gap-3 rounded-card border border-border-soft bg-workspace p-4 [background-image:radial-gradient(var(--border)_1px,transparent_1px)] [background-size:20px_20px]" data-testid="dashboard-canvas">
+      <div role="tablist" aria-label="Dashboard" className="flex shrink-0 items-center gap-1 overflow-x-auto pb-1">
         {list.map((d, i) => {
           const on = d.id === dashboardId;
           return (
-            <div key={d.id} className={cn("flex shrink-0 items-center border-b-2", on ? "border-primary" : "border-transparent")}>
-              <Link to="/datahub/$datahubId/dashboard/$dashboardId" params={{ datahubId: dh.id, dashboardId: d.id }} role="tab" aria-selected={on} className={cn("max-w-48 truncate px-3 py-3 text-sm sm:py-2", on ? "font-medium" : "text-muted-foreground hover:text-foreground")} title={d.name}>{d.name}</Link>
+            <div key={d.id} className={cn("flex shrink-0 items-center rounded-lg", on ? "bg-primary-soft" : "hover:bg-card")}>
+              <Link to="/datahub/$datahubId/dashboard/$dashboardId" params={{ datahubId: dh.id, dashboardId: d.id }} role="tab" aria-selected={on} className={cn("max-w-48 truncate px-3 py-3 text-sm sm:py-1.5", on ? "font-semibold text-primary" : "text-muted-foreground hover:text-foreground")} title={d.name}>{d.name}</Link>
               {on && (
                 <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn dashboard ${d.name}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
                   <MenuItem onSelect={() => setDialog({ kind: "rename", d })}><Pencil size={16} aria-hidden /> Đổi tên</MenuItem>
@@ -223,9 +224,11 @@ export function DashboardArea({ dh, dashboardId }: { dh: DatahubBrief; dashboard
             </div>
           );
         })}
-        <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "new" })}><Plus size={16} aria-hidden /> Dashboard mới</Button>
-        <Button variant="ghost" className="shrink-0" onClick={() => setDialog({ kind: "import" })} data-testid="import-json"><FileUp size={16} aria-hidden /> Nhập JSON</Button>
-        <Button variant="ghost" className="ml-auto shrink-0" onClick={() => setDialog({ kind: "trash" })}><Trash size={16} aria-hidden /> Thùng rác{trash.data?.length ? ` (${trash.data.length})` : ""}</Button>
+        <Tip label="Dashboard mới"><Button variant="ghost" className="shrink-0 !px-2" aria-label="Dashboard mới" onClick={() => setDialog({ kind: "new" })}><Plus size={16} aria-hidden /></Button></Tip>
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          <Tip label="Nhập dashboard từ JSON"><Button variant="ghost" className="!px-2" aria-label="Nhập JSON" onClick={() => setDialog({ kind: "import" })} data-testid="import-json"><FileUp size={16} aria-hidden /></Button></Tip>
+          <Tip label="Thùng rác dashboard"><Button variant="ghost" className="!px-2" aria-label={`Thùng rác${trash.data?.length ? ` (${trash.data.length})` : ""}`} onClick={() => setDialog({ kind: "trash" })}><Trash size={16} aria-hidden />{trash.data?.length ? <span className="text-xs">{trash.data.length}</span> : null}</Button></Tip>
+        </span>
       </div>
 
       {list.length === 0 ? (

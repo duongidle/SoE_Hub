@@ -441,7 +441,7 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
       <EmptyState
         title="Bảng chưa có dòng nào"
         hint={canWrite ? "Thêm dòng đầu tiên, hoặc dán dữ liệu từ Excel hay Google Sheets." : "Người có quyền sửa chưa thêm dòng nào."}
-        action={canWrite ? <Button onClick={() => void addRow()}><Plus size={16} aria-hidden /> Thêm dòng đầu tiên</Button> : undefined}
+        action={canWrite ? <Button variant="secondary" onClick={() => void addRow()}><Plus size={16} aria-hidden /> Thêm dòng đầu tiên</Button> : undefined}
       />
     );
   } else {

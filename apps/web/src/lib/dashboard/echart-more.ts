@@ -296,12 +296,17 @@ export function cohortOption(v: CohortView, format: FormatName | null): Record<s
 export function gaugeOption(args: { value: number; min: number; max: number; percent: boolean; format: FormatName | null }): Record<string, unknown> {
   const t = base();
   const text = (x: number) => (args.percent ? `${formatValue(x, "number")}%` : fmt(x, args.format));
+  // The number in the middle must fit inside the arc: a long number is shortened ("12,6 tỷ") and drawn smaller, always on the centre line.
+  const long = text(args.value).length > 8;
+  const centre = (x: number) => (long && !args.percent ? formatValue(x, "compact") : text(x));
   return {
     textStyle: t.textStyle,
     animation: false,
     series: [
       {
         type: "gauge",
+        center: ["50%", "55%"],
+        splitNumber: 4,
         min: args.min,
         max: args.max,
         radius: "92%",
@@ -310,9 +315,9 @@ export function gaugeOption(args: { value: number; min: number; max: number; per
         pointer: { show: false },
         axisTick: { show: false },
         splitLine: { show: false },
-        axisLabel: { color: t.muted, distance: 22, fontSize: 11, formatter: (x: number) => (args.percent ? `${formatValue(x, "number")}%` : formatValue(x, "compact")) },
+        axisLabel: { color: t.muted, distance: 18, fontSize: 10, formatter: (x: number) => (args.percent ? `${formatValue(x, "number")}%` : formatValue(x, "compact")) },
         anchor: { show: false },
-        detail: { valueAnimation: false, fontSize: 24, fontWeight: 600, offsetCenter: [0, "20%"], color: t.text, formatter: (x: number) => text(x) },
+        detail: { valueAnimation: false, fontSize: long ? 20 : 24, fontWeight: 600, width: 120, align: "center", offsetCenter: [0, "8%"], color: t.text, formatter: (x: number) => centre(x) },
         data: [{ value: args.value }],
       },
     ],
