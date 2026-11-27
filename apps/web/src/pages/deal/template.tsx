@@ -67,7 +67,7 @@ export function TemplatePage() {
   );
   return (
     <div className="flex flex-col gap-4">
-      <PageTitle actions={<Button onClick={() => setCreating(true)}><Plus size={16} aria-hidden /> Tạo bảng template</Button>}>Template</PageTitle>
+      <PageTitle actions={<Button variant="secondary" onClick={() => setCreating(true)}><Plus size={16} aria-hidden /> Tạo bảng template</Button>}>Template</PageTitle>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Link to="/quan-ly-deal" className="inline-flex min-h-8 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft size={16} aria-hidden /> Quản lý Deal</Link>
         <p className="min-w-0 flex-1 basis-80 text-[13px] text-muted-foreground">Bảng và cột của template áp dụng ngay cho mọi người trong phạm vi. Cột riêng của từng người không bị ảnh hưởng. Bộ mặc định cho cây mới do Admin sửa ở Cài đặt hệ thống.</p>

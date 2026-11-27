@@ -60,12 +60,13 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
         <ColorsButton columns={columns} config={config} change={change} />
         {dateCols.length > 0 && <TimeButton columns={columns} dateCols={dateCols} config={config} change={change} />}
         <div className="ml-auto flex min-w-0 shrink items-center gap-1.5 @max-[58rem]:w-full">
-          {extra}
           <SearchBox value={search} onChange={onSearch} />
           <RowHeightButton value={rowHeight} change={change} />
           {more}
         </div>
       </div>
+      {/* The table's own toggles (Deals: "Theo kỳ chung", quick filters) have a line of their own, so the search stays with the tools. */}
+      <div className="flex flex-wrap items-center gap-2 empty:hidden">{extra}</div>
       <ActiveChips columns={columns} config={config} change={change} />
       {dead.total > 0 && (
         <div role="alert" className="flex flex-wrap items-center gap-2 rounded-md bg-warn/15 px-3 py-2 text-sm">
@@ -82,7 +83,7 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
 // ------------------------------------------------------------------------------------------------ pieces
 
 /** A tool of the toolbar: icon and label (the label folds away when the toolbar is narrow), the number of settings it holds, a tint while any applies. */
-function ToolButton({ icon, label, count, active, iconOnly, ...props }: React.ComponentProps<"button"> & { icon: React.ReactNode; label: string; count?: number; active?: boolean; iconOnly?: boolean }) {
+function ToolButton({ icon, label, count, active, iconOnly, late, ...props }: React.ComponentProps<"button"> & { icon: React.ReactNode; label: string; count?: number; active?: boolean; iconOnly?: boolean; /** Lesser tool: its label shows only when the toolbar is wide enough for ALL labels and the search on ONE line (a 1280px screen with the sidebar has room for the main four). */ late?: boolean }) {
   return (
     <Button
       variant="ghost"
@@ -92,7 +93,7 @@ function ToolButton({ icon, label, count, active, iconOnly, ...props }: React.Co
       {...props}
     >
       {icon}
-      <span className={iconOnly ? "sr-only" : "hidden @[56rem]:inline"}>{label}</span>
+      <span className={iconOnly ? "sr-only" : late ? "hidden @[68rem]:inline" : "hidden @[56rem]:inline"}>{label}</span>
       {count ? <span className="text-xs font-semibold">{formatNumber(count)}</span> : null}
     </Button>
   );
@@ -225,7 +226,7 @@ function GroupButton({ columns, config, change }: { columns: Column[]; config: V
     change({ group_aggs: Object.keys(next).length ? next : undefined });
   };
   return (
-    <Popover label="Nhóm dòng" width="w-[32rem]" trigger={<ToolButton icon={<Group size={16} aria-hidden />} label="Nhóm" count={group.length} active={group.length > 0} />}>
+    <Popover label="Nhóm dòng" width="w-[32rem]" trigger={<ToolButton icon={<Group size={16} aria-hidden />} label="Nhóm" late count={group.length} active={group.length > 0} />}>
       <div className="flex flex-col gap-2">
         {group.length === 0 && <p className="text-muted-foreground">Chưa nhóm. Chọn một cột để gom các dòng cùng giá trị lại với nhau.</p>}
         {group.map((g, i) => {
@@ -359,7 +360,7 @@ let ruleSeq = 0;
 function ColorsButton({ columns, config, change }: { columns: Column[]; config: ViewConfig; change: Change }) {
   const n = config.colors?.length ?? 0;
   return (
-    <Popover label="Tô màu theo điều kiện" width="w-[36rem]" trigger={<ToolButton icon={<PaintBucket size={16} aria-hidden />} label="Tô màu" count={n} active={n > 0} />}>
+    <Popover label="Tô màu theo điều kiện" width="w-[36rem]" trigger={<ToolButton icon={<PaintBucket size={16} aria-hidden />} label="Tô màu" late count={n} active={n > 0} />}>
       <ColorRules columns={columns} saved={config.colors ?? []} onChange={(rules) => change({ colors: rules.length ? rules : undefined })} />
     </Popover>
   );
@@ -446,7 +447,7 @@ function TimeButton({ columns, dateCols, config, change }: { columns: Column[]; 
     set({ ...tf, range: currentPeriod(unit, info.data) });
   };
   return (
-    <Popover label="Lọc theo thời gian" width="w-[28rem]" trigger={<ToolButton icon={<CalendarRange size={16} aria-hidden />} label="Thời gian" active={!!tf} />}>
+    <Popover label="Lọc theo thời gian" width="w-[28rem]" trigger={<ToolButton icon={<CalendarRange size={16} aria-hidden />} label="Thời gian" late active={!!tf} />}>
       <div className="flex flex-col gap-3">
         <div>
           <Label>Khoảng thời gian</Label>
