@@ -11,6 +11,12 @@ Cập nhật: 28/11/2026
 - **Git:** `main` và `dev` đã push tới abe3d39 (23/11).
 - **Việc dời:** thiết kế đã chốt nhưng dời → `design/update_v1.md`; giao diện → `design/stage12.md`.
 
+## Danh sách sửa để 12G (Opus ghi khi rà, 28/11)
+
+- Quản lý Deal 1280px: thanh công cụ xuống hai dòng khi có nút "Thời gian" (ô tìm rơi xuống dòng 2).
+- Template Deal: hai nút đặc màu cùng màn ("Tạo bảng template" trên top bar và "Thêm cột") — còn một nút chính.
+- Lối tắt "Xem com" lọc trong 500 dòng Sổ com đầu (12D-2, không thêm API): deal có com ngoài 500 dòng sẽ thiếu mà không báo. Sửa tận gốc: lọc theo deal ở server (tham số lọc của lệnh đọc dòng sẵn có, hoặc thêm), hoặc ít nhất báo "đang xem 500 dòng đầu".
+
 ## Đang làm: Stage 12D — Tổng quan và Quản lý Deal (Dương: làm liền tới 12F)
 
 Mockup đã chốt: `design/giao_dien_mau/de_xuat/tong_quan.html`; Deal: ảnh `anh/soe_hub_dashboard_deal.png`, `anh/soe_hub_cai_dat_template.png`. Lối tắt đã duyệt: `module12-giao-dien.md` mục 1. Quyết định 12C: "Sửa bố cục" dashboard giữ kéo thẻ trực tiếp (Opus quyết 28/11, không thêm công tắc).
