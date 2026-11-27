@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Hub · SoE HUB</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:"SoE Number";src:local("Roboto");unicode-range:U+0030-0039}
+:root{--canvas:#F4F5FA;--work:#F8F9FC;--side:#FAF9FE;--ink:#1E1B3A;--muted:#646A82;--faint:#94A3B8;--line:#E2E8F0;--line2:#ECEEF5;--pri:#4F46E5;--pri-h:#4338CA;--pri-soft:#EEF0FF;--pri-b:#C7D2FE}
+body{font-family:"SoE Number","Be Vietnam Pro",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;
+background:radial-gradient(circle at 12% 8%,rgba(165,180,252,.30),transparent 36%),radial-gradient(circle at 88% 12%,rgba(167,243,208,.24),transparent 38%),var(--canvas)}
+.num{font-variant-numeric:tabular-nums}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 20px -4px rgba(30,27,58,.05),0 1px 3px rgba(30,27,58,.03)}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:10px;font-size:14px;font-weight:500;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.btn:hover{border-color:var(--pri-b)}
+.btn-pri{background:var(--pri);border-color:var(--pri);color:#fff}.btn-pri:hover{background:var(--pri-h)}
+.chip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid}
+.ok{background:#ECFDF5;color:#047857;border-color:#A7F3D0}.info{background:#EFF6FF;color:#1D4ED8;border-color:#BFDBFE}
+.warn{background:#FFFBEB;color:#B45309;border-color:#FDE68A}.bad{background:#FFF1F2;color:#BE123C;border-color:#FECDD3}
+.ai{background:#F5F3FF;color:#6D28D9;border-color:#DDD6FE}.neutral{background:#F8FAFC;color:#475569;border-color:#E2E8F0}
+.seg{display:inline-flex;padding:3px;border-radius:10px;background:#F1F2F8}.seg a{padding:5px 12px;border-radius:8px;font-size:14px;color:var(--muted);font-weight:500}
+.seg a.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(30,27,58,.08)}
+.nav a{display:flex;align-items:center;gap:10px;height:38px;padding:0 12px;border-radius:10px;font-size:14px;color:var(--muted);position:relative}
+.nav a:hover{background:#F1F2F8;color:var(--ink)}
+.nav a.on{background:var(--pri-soft);color:var(--pri);font-weight:600}.nav a.on::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--pri)}
+.nav i,.nav svg{width:18px;height:18px}
+svg.lucide{width:16px;height:16px;stroke-width:2}
+.scroll{overscroll-behavior-y:contain}
+@media (max-width:1023px){aside.side{display:none}}
+@media (max-width:767px){.shell{margin:0!important;border-radius:0!important;height:100dvh!important}}
+</style></head><body class="h-screen p-2.5 sm:p-3.5 flex">
+<div class="shell flex-1 bg-white rounded-[20px] flex overflow-hidden" style="box-shadow:0 20px 50px -12px rgba(30,27,58,.08),0 0 0 1px rgba(226,232,240,.9)">
+<aside class="side w-[220px] shrink-0 flex flex-col justify-between border-r" style="background:var(--side);border-color:var(--line2)">
+ <div class="p-3">
+  <div class="flex items-center gap-2.5 px-1 py-1.5 mb-3">
+   <div class="w-9 h-9 rounded-[10px] grid place-items-center text-white font-bold text-[14px]" style="background:var(--pri)">SH</div>
+   <div class="leading-tight"><div class="font-bold text-[15px]">SoE HUB</div><div class="text-[11.5px]" style="color:var(--muted)">Solution of Excellence</div></div>
+  </div>
+  <nav class="nav flex flex-col gap-0.5 pl-3 -ml-0"><a href="#" class=""><i data-lucide="layout-grid"></i>Tổng quan</a><a href="#" class=""><i data-lucide="database"></i>Datahub</a><a href="#" class=""><i data-lucide="briefcase"></i>Quản lý Deal</a><a href="#" class=""><i data-lucide="file-text"></i>Dynamic Form</a><a href="#" class=""><i data-lucide="route"></i>Onboarding</a><a href="#" class=""><i data-lucide="book-open"></i>Knowledge</a><a href="#" class="on"><i data-lucide="sparkles"></i>AI Hub</a><a href="#" class=""><i data-lucide="badge-check"></i>Duyệt bài</a><a href="#" class=""><i data-lucide="network"></i>Org chart</a></nav>
+ </div>
+ <div class="p-3 border-t" style="border-color:var(--line2)"><nav class="nav pl-3 flex flex-col gap-0.5"><a href="#"><i data-lucide="settings"></i>Cài đặt</a><a href="#"><i data-lucide="log-out"></i>Đăng xuất</a></nav></div>
+</aside>
+<div class="flex-1 min-w-0 flex flex-col" style="background:var(--work)">
+ <header class="h-12 shrink-0 flex items-center justify-between px-5 border-b" style="background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-color:var(--line2)">
+  <div class="flex items-center gap-2 text-[14px] min-w-0"><span style="color:var(--muted)">AI Hub</span><i data-lucide="chevron-right" style="color:var(--faint)"></i><span class="font-semibold truncate">Thư viện skill</span></div>
+  <div class="flex items-center gap-2"><a href="#" class="btn"><i data-lucide="upload"></i>Tải skill lên</a>
+   <button class="relative w-9 h-9 grid place-items-center rounded-[10px] hover:bg-slate-100" aria-label="Thông báo"><i data-lucide="bell"></i><span class="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold text-white grid place-items-center" style="background:#E11D48">3</span></button>
+   <div class="flex items-center gap-2 pl-1"><div class="w-8 h-8 rounded-full grid place-items-center text-[12px] font-bold" style="background:var(--pri-soft);color:var(--pri)">MA</div><span class="text-[14px] font-medium hidden sm:inline">Minh An</span></div>
+  </div>
+ </header>
+ <main class="scroll flex-1 overflow-y-auto">
+<div class="px-5 pt-4 pb-8 max-w-[1280px] mx-auto">
+ <div class="card p-4">
+  <div class="flex flex-col lg:flex-row gap-3 lg:items-center">
+   <label class="flex-1 flex items-center gap-2.5 h-11 px-3.5 rounded-[12px] border bg-white" style="border-color:var(--line)">
+    <i data-lucide="search" style="color:var(--muted)"></i><input class="flex-1 outline-none text-[15px] bg-transparent" placeholder="Tìm skill theo tên, mô tả hoặc #thẻ (không dấu cũng được)"><kbd class="text-[11px] px-1.5 py-0.5 rounded border" style="color:var(--muted);border-color:var(--line)">/</kbd>
+   </label>
+   <div class="seg shrink-0"><a href="#" class="on">Tất cả</a><a href="#">Skill của tôi <span class="num">3</span></a></div>
+  </div>
+  <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+   <div class="flex flex-wrap gap-1"><a href="#" class="px-3 h-8 inline-flex items-center rounded-[10px] text-[14px] font-semibold" style="background:var(--pri-soft);color:var(--pri)">Tất cả</a><a href="#" class="px-3 h-8 inline-flex items-center rounded-[10px] text-[14px] " style="color:var(--muted)">Sales</a><a href="#" class="px-3 h-8 inline-flex items-center rounded-[10px] text-[14px] " style="color:var(--muted)">Data</a><a href="#" class="px-3 h-8 inline-flex items-center rounded-[10px] text-[14px] " style="color:var(--muted)">Tài liệu</a><a href="#" class="px-3 h-8 inline-flex items-center rounded-[10px] text-[14px] " style="color:var(--muted)">Lập trình</a><a href="#" class="px-3 h-8 inline-flex items-center rounded-[10px] text-[14px] " style="color:var(--muted)">Khác</a></div>
+   <div class="h-5 w-px hidden md:block" style="background:var(--line)"></div>
+   <div class="flex flex-wrap items-center gap-1.5 text-[13px]"><span style="color:var(--muted)">Dùng với</span><a href="#" class="chip info" style="height:26px;font-weight:500">Claude Code</a><a href="#" class="chip neutral" style="height:26px;font-weight:500">Claude Desktop</a><a href="#" class="chip neutral" style="height:26px;font-weight:500">claude.ai</a></div>
+  </div>
+ </div>
+
+ <div class="mt-5 flex items-center justify-between"><h2 class="text-[15px] font-semibold">Mới duyệt tuần này</h2><span class="text-[13px] num" style="color:var(--muted)">24 skill</span></div>
+ <div class="mt-3 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+ <a href="#" onclick="event.preventDefault();document.getElementById('drawer').style.display='flex'" class="card p-4 flex flex-col gap-3 hover:-translate-y-0.5 transition-transform">
+   <div class="flex items-start gap-3">
+    <span class="w-10 h-10 rounded-[12px] grid place-items-center shrink-0 chip ok" style="height:40px;padding:0"><i data-lucide="handshake" style="width:18px;height:18px"></i></span>
+    <div class="min-w-0 flex-1"><div class="font-semibold text-[15px] truncate" style="font-family:ui-monospace,Menlo,monospace">bant-qualifier</div>
+     <div class="text-[12px] num" style="color:var(--muted)">Sales · v1.3.0 · Hà Tùng</div></div>
+    <span class="flex items-center gap-1 text-[12px] num shrink-0" style="color:var(--muted)"><i data-lucide="download" style="width:13px;height:13px"></i>128</span>
+   </div>
+   <p class="text-[14px] leading-relaxed line-clamp-2" style="color:#3B3F57">Chấm BANT cho một deal từ ghi chú cuộc gọi, gợi ý câu hỏi còn thiếu. Dùng khi vừa gọi khách xong.</p>
+   <div class="mt-auto flex items-center justify-between pt-2 border-t" style="border-color:var(--line2)">
+    <div class="flex gap-1"><span class="chip neutral" style="height:20px;font-size:11px;font-weight:500">Claude Code</span><span class="chip neutral" style="height:20px;font-size:11px;font-weight:500">claude.ai</span></div>
+    <span class="text-[13px] font-medium flex items-center gap-1" style="color:var(--pri)">Cài đặt<i data-lucide="arrow-right" style="width:13px;height:13px"></i></span>
+   </div>
+  </a><a href="#" onclick="event.preventDefault();document.getElementById('drawer').style.display='flex'" class="card p-4 flex flex-col gap-3 hover:-translate-y-0.5 transition-transform " style="">
+   <div class="flex items-start gap-3">
+    <span class="w-10 h-10 rounded-[12px] grid place-items-center shrink-0 chip info" style="height:40px;padding:0"><i data-lucide="file-text" style="width:18px;height:18px"></i></span>
+    <div class="min-w-0 flex-1"><div class="font-semibold text-[15px] truncate" style="font-family:ui-monospace,Menlo,monospace">proposal-writer</div>
+     <div class="text-[12px] num" style="color:var(--muted)">Tài liệu · v2.0.1 · Linh Nguyễn</div></div>
+    <span class="flex items-center gap-1 text-[12px] num shrink-0" style="color:var(--muted)"><i data-lucide="download" style="width:13px;height:13px"></i>96</span>
+   </div>
+   <p class="text-[14px] leading-relaxed line-clamp-2" style="color:#3B3F57">Soạn đề xuất giải pháp Base theo mẫu của team từ thông tin deal. Dùng khi khách xin báo giá.</p>
+   <div class="mt-auto flex items-center justify-between pt-2 border-t" style="border-color:var(--line2)">
+    <div class="flex gap-1"><span class="chip neutral" style="height:20px;font-size:11px;font-weight:500">claude.ai</span><span class="chip neutral" style="height:20px;font-size:11px;font-weight:500">Desktop</span></div>
+    <span class="text-[13px] font-medium flex items-center gap-1" style="color:var(--pri)">Cài đặt<i data-lucide="arrow-right" style="width:13px;height:13px"></i></span>
+   </div>
+  </a><a href="#" onclick="event.preventDefault();document.getElementById('drawer').style.display='flex'" class="card p-4 flex flex-col gap-3 hover:-translate-y-0.5 transition-transform " style="">
+   <div class="flex items-start gap-3">
+    <span class="w-10 h-10 rounded-[12px] grid place-items-center shrink-0 chip ai" style="height:40px;padding:0"><i data-lucide="database" style="width:18px;height:18px"></i></span>
+    <div class="min-w-0 flex-1"><div class="font-semibold text-[15px] truncate" style="font-family:ui-monospace,Menlo,monospace">datahub-query</div>
+     <div class="text-[12px] num" style="color:var(--muted)">Data · v1.1.0 · Minh An</div></div>
+    <span class="flex items-center gap-1 text-[12px] num shrink-0" style="color:var(--muted)"><i data-lucide="download" style="width:13px;height:13px"></i>74</span>
+   </div>
+   <p class="text-[14px] leading-relaxed line-clamp-2" style="color:#3B3F57">Viết truy vấn đọc Datahub qua MCP, tóm tắt số liệu theo kỳ. Dùng khi cần số nhanh.</p>
+   <div class="mt-auto flex items-center justify-between pt-2 border-t" style="border-color:var(--line2)">
+    <div class="flex gap-1"><span class="chip neutral" style="height:20px;font-size:11px;font-weight:500">Claude Code</span><span class="chip neutral" style="height:20px;font-size:11px;font-weight:500">Desktop</span></div>
+    <span class="text-[13px] font-medium flex items-center gap-1" style="color:var(--pri)">Cài đặt<i data-lucide="arrow-right" style="width:13px;height:13px"></i></span>
+   </div>
+  </a><a href="#" onclick="event.preventDefault();document.getElementById('drawer').style.display='flex'" class="card p-4 flex flex-col gap-3 hover:-translate-y-0.5 transition-transform " style="">
+   <div class="flex items-start gap-3">
+    <span class="w-10 h-10 rounded-[12px] grid place-items-center shrink-0 chip info" style="height:40px;padding:0"><i data-lucide="file-text" style="width:18px;height:18px"></i></span>
+    <div class="min-w-0 flex-1"><div class="font-semibold text-[15px] truncate" style="font-family:ui-monospace,Menlo,monospace">meeting-notes-vi</div>
+     <div class="text-[12px] num" style="color:var(--muted)">Tài liệu · v1.0.4 · Bảo Ngọc</div></div>
+    <span class="flex items-center gap-1 text-[12px] num shrink-0" style="color:var(--muted)"><i data-lucide="download" style="width:13px;height:13px"></i>61</span>
+   </div>
+   <p class="text-[14px] leading-relaxed line-clamp-2" style="color:#3B3F57">Tóm tắt biên bản họp tiếng Việt thành việc cần làm có người và hạn.</p>
+   <div class="mt-auto flex items-center justify-between pt-2 border-t" style="border-color:var(--line2)">
+    <div class="flex gap-1"><span class="chip neutral" style="height:20px;font-size:11px;font-weight:500">claude.ai</span></div>
+    <span class="text-[13px] font-medium flex items-center gap-1" style="color:var(--pri)">Cài đặt<i data-lucide="arrow-right" style="width:13px;height:13px"></i></span>
+   </div>
+  </a><a href="#" onclick="event.preventDefault();document.getElementById('drawer').style.display='flex'" class="card p-4 flex flex-col gap-3 hover:-translate-y-0.5 transition-transform " style="">
+   <div class="flex items-start gap-3">
+    <span class="w-10 h-10 rounded-[12px] grid place-items-center shrink-0 chip ok" style="height:40px;padding:0"><i data-lucide="handshake" style="width:18px;height:18px"></i></span>
+    <div class="min-w-0 flex-1"><div class="font-semibold text-[15px] truncate" style="font-family:ui-monospace,Menlo,monospace">sizing-calculator</div>
+     <div class="text-[12px] num" style="color:var(--muted)">Sales · v0.9.2 · Quốc Bảo</div></div>
+    <span class="flex items-center gap-1 text-[12px] num shrink-0" style="color:var(--muted)"><i data-lucide="download" style="width:13px;height:13px"></i>43</span>
+   </div>
+   <p class="text-[14px] leading-relaxed line-clamp-2" style="color:#3B3F57">Ước số license và module cho khách theo số nhân sự và phòng ban.</p>
+   <div class="mt-auto flex items-center justify-between pt-2 border-t" style="border-color:var(--line2)">
+    <div class="flex gap-1"><span class="chip neutral" style="height:20px;font-size:11px;font-weight:500">Claude Code</span></div>
+    <span class="text-[13px] font-medium flex items-center gap-1" style="color:var(--pri)">Cài đặt<i data-lucide="arrow-right" style="width:13px;height:13px"></i></span>
+   </div>
+  </a><a href="#" onclick="event.preventDefault();document.getElementById('drawer').style.display='flex'" class="card p-4 flex flex-col gap-3 hover:-translate-y-0.5 transition-transform " style="">
+   <div class="flex items-start gap-3">
+    <span class="w-10 h-10 rounded-[12px] grid place-items-center shrink-0 chip warn" style="height:40px;padding:0"><i data-lucide="code-2" style="width:18px;height:18px"></i></span>
+    <div class="min-w-0 flex-1"><div class="font-semibold text-[15px] truncate" style="font-family:ui-monospace,Menlo,monospace">form-builder-json</div>
+     <div class="text-[12px] num" style="color:var(--muted)">Lập trình · v1.2.0 · Minh An</div></div>
+    <span class="flex items-center gap-1 text-[12px] num shrink-0" style="color:var(--muted)"><i data-lucide="download" style="width:13px;height:13px"></i>38</span>
+   </div>
+   <p class="text-[14px] leading-relaxed line-clamp-2" style="color:#3B3F57">Dựng JSON form Dynamic Form từ mô tả, kiểm tra trước khi nhập.</p>
+   <div class="mt-auto flex items-center justify-between pt-2 border-t" style="border-color:var(--line2)">
+    <div class="flex gap-1"><span class="chip neutral" style="height:20px;font-size:11px;font-weight:500">Claude Code</span><span class="chip neutral" style="height:20px;font-size:11px;font-weight:500">Desktop</span></div>
+    <span class="text-[13px] font-medium flex items-center gap-1" style="color:var(--pri)">Cài đặt<i data-lucide="arrow-right" style="width:13px;height:13px"></i></span>
+   </div>
+  </a>
+ </div>
+</div>
+
+<div id="drawer" style="display:none" class="fixed inset-y-3.5 right-3.5 w-[520px] max-w-[calc(100vw-28px)] bg-white rounded-l-[20px] border-l flex flex-col" style="border-color:var(--line);box-shadow:-24px 0 60px -20px rgba(30,27,58,.18)">
+ <div class="px-5 h-14 flex items-center justify-between border-b shrink-0" style="border-color:var(--line2)">
+  <div class="flex items-center gap-2 min-w-0"><span class="chip ok" style="height:24px">Sales</span><span class="font-semibold truncate" style="font-family:ui-monospace,Menlo,monospace">bant-qualifier</span><span class="text-[12px] num" style="color:var(--muted)">v1.3.0</span></div>
+  <button class="w-8 h-8 grid place-items-center rounded-[10px] hover:bg-slate-100" aria-label="Đóng" onclick="document.getElementById('drawer').style.display='none'"><i data-lucide="x"></i></button>
+ </div>
+ <div class="scroll flex-1 overflow-y-auto p-5 space-y-5">
+  <p class="text-[14px] leading-relaxed">Chấm BANT cho một deal từ ghi chú cuộc gọi, gợi ý câu hỏi còn thiếu. Dùng khi vừa gọi khách xong.</p>
+  <div class="flex flex-wrap gap-2 text-[13px]" style="color:var(--muted)"><span class="flex items-center gap-1.5"><span class="w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold ok" style="border:0">HT</span>Hà Tùng</span>·<span class="num">128 lượt tải</span>·<span class="num">duyệt 25/11/2026</span></div>
+  <div>
+   <div class="seg"><a href="#" class="on">Cài đặt</a><a href="#">SKILL.md</a><a href="#">Tệp (4)</a><a href="#">Phiên bản</a></div>
+   <div class="mt-3 space-y-3">
+    <div class="rounded-[14px] border p-4" style="border-color:var(--line)">
+     <div class="flex items-center justify-between"><div class="font-semibold text-[14px] flex items-center gap-2"><i data-lucide="terminal"></i>Claude Code</div><button class="btn" style="height:30px"><i data-lucide="copy"></i>Sao chép lệnh</button></div>
+     <pre class="mt-3 text-[12.5px] leading-relaxed rounded-[10px] p-3 overflow-x-auto" style="background:#0F172A;color:#E2E8F0;font-family:ui-monospace,Menlo,monospace">mkdir -p ~/.claude/skills/bant-qualifier &amp;&amp; \
+unzip bant-qualifier-1.3.0.zip -d ~/.claude/skills/bant-qualifier</pre>
+    </div>
+    <div class="rounded-[14px] border p-4" style="border-color:var(--line)">
+     <div class="font-semibold text-[14px] flex items-center gap-2"><i data-lucide="monitor"></i>Claude Desktop · claude.ai</div>
+     <ol class="mt-2 text-[13.5px] space-y-1 list-decimal pl-5" style="color:#3B3F57"><li>Tải gói zip ở nút bên dưới.</li><li>Mở Cài đặt → Capabilities → Skills, chọn "Tải skill lên".</li></ol>
+    </div>
+    <div class="rounded-[14px] p-4 flex gap-3" style="background:var(--pri-soft)"><i data-lucide="sparkles" style="color:var(--pri);width:18px;height:18px"></i><div class="text-[13.5px]">Đang nối SoE HUB qua MCP? Bảo AI: <b>"cài skill bant-qualifier"</b>, nó tự lấy bằng <code class="text-[12px]">skill_get</code>.</div></div>
+   </div>
+  </div>
+  <div>
+   <div class="text-[13px] font-semibold mb-2">Cấu trúc gói</div>
+   <div class="text-[13px] rounded-[12px] border divide-y" style="border-color:var(--line);font-family:ui-monospace,Menlo,monospace">
+    <div class="px-3 py-2 flex items-center gap-2" style="border-color:var(--line2)"><i data-lucide="file-text" style="color:var(--muted)"></i>SKILL.md</div><div class="px-3 py-2 flex items-center gap-2" style="border-color:var(--line2)"><i data-lucide="file-text" style="color:var(--muted)"></i>references/bant-guide.md</div><div class="px-3 py-2 flex items-center gap-2" style="border-color:var(--line2)"><i data-lucide="file-text" style="color:var(--muted)"></i>references/question-bank.md</div><div class="px-3 py-2 flex items-center gap-2" style="border-color:var(--line2)"><i data-lucide="file-code" style="color:var(--muted)"></i>scripts/score.py</div>
+   </div>
+  </div>
+ </div>
+ <div class="px-5 py-3 border-t flex justify-between items-center shrink-0" style="border-color:var(--line2)"><a href="#" class="text-[13px] font-medium" style="color:var(--muted)">Xem lịch sử phiên bản</a><button class="btn btn-pri"><i data-lucide="download"></i>Tải gói zip</button></div>
+</div></main>
+</div></div>
+<script>lucide.createIcons();</script></body></html>
