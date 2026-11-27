@@ -1,29 +1,40 @@
-import { Link } from "@tanstack/react-router";
-import { ROLE_LABELS, type Role } from "@soe/shared";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMe } from "@/lib/session";
-import { HealthCard } from "./health-card";
+import { DashboardTabs } from "./home-tabs";
+import { AnnouncementSide, OnboardingSide, RecentSide, RemindersSide } from "./home-side";
 
+const TZ = "Asia/Ho_Chi_Minh";
+
+/** "Chào buổi chiều" by the hour in Vietnam. */
+export function greetingFor(now: Date): string {
+  const h = Number(now.toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", hour12: false }).slice(0, 2));
+  return h < 11 ? "Chào buổi sáng" : h < 13 ? "Chào buổi trưa" : h < 18 ? "Chào buổi chiều" : "Chào buổi tối";
+}
+
+/** "Thứ Năm 27/11/2026" */
+export function dateLine(now: Date): string {
+  const weekday = now.toLocaleDateString("vi-VN", { timeZone: TZ, weekday: "long" });
+  const [y, m, d] = now.toLocaleDateString("en-CA", { timeZone: TZ }).split("-");
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${d}/${m}/${y}`;
+}
+
+/** Tổng quan (design module12 mockup `de_xuat/tong_quan.html`): one greeting line, the dashboard tabs, and a right column of what to do next. */
 export function Home() {
   const me = useMe().data;
+  const now = new Date();
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Xin chào, {me?.user.full_name}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Vai trò: {me?.user.roles.map((r) => ROLE_LABELS[r as Role] ?? r).join(", ")}</p>
-      </div>
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Việc thường dùng</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
-            <Link to="/thong-bao" className="text-primary underline">Hộp thông báo</Link>
-            <Link to="/tai-khoan" className="text-primary underline">Đổi mật khẩu, thiết bị đăng nhập</Link>
-            <Link to="/tai-khoan/token" className="text-primary underline">Kết nối AI</Link>
-          </CardContent>
-        </Card>
-        <HealthCard />
+    <div className="mx-auto w-full max-w-[1320px]">
+      <h1 className="sr-only">Xin chào, {me?.user.full_name}</h1>
+      <p className="mb-3 text-sm text-muted-foreground" data-testid="home-greeting">
+        {greetingFor(now)}, <b className="text-foreground">{me?.user.full_name}</b> · {dateLine(now)}
+      </p>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <DashboardTabs />
+        <div className="flex flex-col gap-4">
+          <OnboardingSide />
+          <RecentSide />
+          <RemindersSide />
+          <AnnouncementSide />
+        </div>
       </div>
     </div>
   );

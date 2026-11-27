@@ -8,7 +8,7 @@ export function SystemPage() {
   const q = useQuery({ queryKey: ["health"], queryFn: fetchHealth, retry: false });
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle>Hệ thống</PageTitle>
+      <PageTitle>Tình trạng hệ thống</PageTitle>
       <div className="grid gap-6 md:grid-cols-2">
         <HealthCard />
         <Card>

@@ -340,7 +340,7 @@ test("chia sẻ dashboard: người nhận thấy số mà không có quyền b�
 
   const vp = viewer.page;
   await vp.goto("/");
-  await vp.getByRole("link", { name: "Dashboard chia sẻ" }).first().click();
+  await vp.getByRole("tab", { name: "Được chia sẻ" }).click(); // the shared list is the first tab of the home page (12D-1)
   await vp.getByTestId("shared-dashboard").filter({ hasText: "Chia sẻ thử" }).click();
   await expect(vp.getByTestId("dash-owner")).toContainText(`Của Chủ 3C2 ${p} ${RUN}`);
   await expect(cardOf(vp, "Tổng riêng của chủ").getByTestId("kpi-value")).toHaveText("2.150");

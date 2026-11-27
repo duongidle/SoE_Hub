@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTouchRecent } from "@/lib/home";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import type { JSONContent } from "@tiptap/react";
 import { useState } from "react";
@@ -29,6 +30,7 @@ export function ArticlePage() {
   const qc = useQueryClient();
   const [confirm, setConfirm] = useState<"unpublish" | "archive" | null>(null);
   const q = useQuery({ queryKey: ["knowledge", "article", id], queryFn: () => api<ArticleDetail>("GET", `/knowledge/articles/${id}`) });
+  useTouchRecent("article", q.data ? id : null);
   const rel = useQuery({ queryKey: ["knowledge", "related", id], queryFn: () => api<{ items: ArticleCard[] }>("GET", `/knowledge/articles/${id}/related`) });
   const act = useMutation({
     mutationFn: (op: "unpublish" | "archive") => api("POST", `/posts/${id}/${op}`, {}),

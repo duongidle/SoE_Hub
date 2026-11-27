@@ -32,7 +32,6 @@ export const router = createRouter({
   scrollToTopSelectors: ["[data-scroll-restoration-id='shell-main']"],
   routeTree: rootRoute.addChildren([
     r("/", Home),
-    r("/he-thong", SystemPage),
     r("/dang-nhap", LoginPage),
     r("/dang-ky", () => <CodeFlowPage purpose="activate" />),
     r("/quen-mat-khau", () => <CodeFlowPage purpose="reset" />),
@@ -89,6 +88,7 @@ export const router = createRouter({
     r("/quan-tri/chuyen-giao", TransferPage),
     r("/quan-tri/datahub-gioi-han", DatahubLimitsPage),
     r("/quan-tri/cai-dat", SettingsPage),
+    r("/quan-tri/he-thong", SystemPage),
     r("/quan-tri/template-deal", DealDefaultsPage),
   ]),
 });

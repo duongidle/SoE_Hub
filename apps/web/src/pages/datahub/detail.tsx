@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTouchRecent } from "@/lib/home";
 import { PersonChip } from "@/components/ui/person";
 import { Link, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, Layers, MoreHorizontal, Pencil, Plus, Share2, Table2, Trash2, Upload } from "lucide-react";
@@ -29,6 +30,8 @@ export function DatahubPage() {
   const nav = useNavigate();
   const q = useQuery({ queryKey: dhKeys.datahub(datahubId), queryFn: () => getDatahub(datahubId), retry: (n, e) => !(e instanceof ApiError) && n < 2 });
   const dh = q.data;
+  // A dashboard opened inside the datahub is recorded as the dashboard itself, not as the datahub.
+  useTouchRecent("datahub", dh && !onDashboard ? dh.id : null);
 
   // No table in the address: open the first one (the address then holds the table, so the link can be sent).
   useEffect(() => {

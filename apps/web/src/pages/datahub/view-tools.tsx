@@ -87,12 +87,12 @@ function ToolButton({ icon, label, count, active, iconOnly, ...props }: React.Co
     <Button
       variant="ghost"
       title={label}
-      className={cn("max-w-full sm:!min-h-8 shrink-0 !px-2.5 sm:!py-0 @[64rem]:!px-3", active && "!bg-primary-soft !text-primary", iconOnly && "@[64rem]:!px-2.5")}
+      className={cn("max-w-full sm:!min-h-8 shrink-0 !px-2.5 sm:!py-0", active && "!bg-primary-soft !text-primary")}
       aria-label={count ? `${label} ${formatNumber(count)}` : label}
       {...props}
     >
       {icon}
-      <span className={iconOnly ? "sr-only" : "hidden @[64rem]:inline"}>{label}</span>
+      <span className={iconOnly ? "sr-only" : "hidden @[56rem]:inline"}>{label}</span>
       {count ? <span className="text-xs font-semibold">{formatNumber(count)}</span> : null}
     </Button>
   );
@@ -102,11 +102,30 @@ const Divider = () => <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-bor
 
 const Label = ({ children }: { children: React.ReactNode }) => <p className="mb-1 text-xs font-medium text-muted-foreground">{children}</p>;
 
+/**
+ * One search box. From 72rem it is a full input; between 58rem and 72rem (a 1280px screen with the sidebar open) it folds to the magnifier,
+ * keeps the toolbar on ONE line and opens over its left neighbours while it has focus or text; narrower it takes a line of its own.
+ */
 function SearchBox({ value, onChange }: { value: string; onChange: (s: string) => void }) {
   return (
-    <div className="relative min-w-0 flex-1 basis-36 @[58rem]:w-44 @[58rem]:flex-none @[64rem]:w-60">
-      <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-      <Input type="search" {...searchHotkeyProps} aria-label="Tìm trong bảng" placeholder="Tìm trong bảng (/)" value={value} onChange={(e) => onChange(e.target.value)} className="sm:!min-h-8 !border-transparent !bg-muted !pl-8" autoComplete="off" maxLength={200} />
+    <div className="relative min-w-0 flex-1 basis-36 @[58rem]:h-8 @[58rem]:w-9 @[58rem]:flex-none @[72rem]:w-60">
+      <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 z-20 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        type="search"
+        {...searchHotkeyProps}
+        aria-label="Tìm trong bảng"
+        placeholder="Tìm trong bảng (/)"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(
+          "sm:!min-h-8 !border-transparent !bg-muted !pl-8",
+          "@[58rem]:!absolute @[58rem]:right-0 @[58rem]:top-0 @[58rem]:!w-9 @[58rem]:cursor-pointer @[58rem]:placeholder:text-transparent @[58rem]:focus:z-10 @[58rem]:focus:!w-60 @[58rem]:focus:cursor-text @[58rem]:focus:!border-border @[58rem]:focus:!bg-card @[58rem]:focus:shadow-md @[58rem]:focus:placeholder:text-muted-foreground",
+          "@[72rem]:!static @[72rem]:!w-full @[72rem]:cursor-text @[72rem]:placeholder:text-muted-foreground @[72rem]:focus:!w-full @[72rem]:focus:shadow-none",
+          value && "@[58rem]:!w-60 @[58rem]:!border-border @[58rem]:placeholder:text-muted-foreground @[58rem]:z-10",
+        )}
+        autoComplete="off"
+        maxLength={200}
+      />
     </div>
   );
 }

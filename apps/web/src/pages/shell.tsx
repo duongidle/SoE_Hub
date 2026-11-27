@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Ellipsis, BookOpen, Briefcase, ChartColumn, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Database, FileText, FolderInput, LayoutDashboard, LogOut, Menu, Network, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
+import { Ellipsis, BookOpen, Briefcase, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Database, FileText, FolderInput, LayoutDashboard, LogOut, Menu, Network, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { Brand, BRAND_NAME } from "@/components/brand";
@@ -29,7 +29,6 @@ const NAV: NavItem[] = [
   { to: "/knowledge", label: "Knowledge", icon: BookOpen, permission: "knowledge:article:read" },
   { to: "/ai-hub", label: "AI Hub", icon: Sparkles, permission: "aihub:skill:read" },
   { to: "/duyet", label: "Duyệt bài", icon: ClipboardCheck, permission: "knowledge:article:review|aihub:skill:review" },
-  { to: "/dashboard", label: "Dashboard chia sẻ", icon: ChartColumn, permission: null },
   { to: "/to-chuc", label: "Org chart", icon: Network, permission: "org:member:read" },
 ];
 
@@ -44,6 +43,7 @@ export const SETTINGS_LINKS: { to: string; label: string; hint: string; permissi
   { to: "/quan-tri/chuyen-giao", label: "Chuyển giao", hint: "Chuyển dữ liệu của một người sang người khác", permission: "data:transfer" },
   { to: "/quan-tri/datahub-gioi-han", label: "Giới hạn Datahub", hint: "Giới hạn dòng, cột, dung lượng", permission: "system:setting:write" },
   { to: "/quan-tri/cai-dat", label: "Cài đặt hệ thống", hint: "Thiết lập chung của hệ thống", permission: "system:setting:write" },
+  { to: "/quan-tri/he-thong", label: "Tình trạng hệ thống", hint: "API, cơ sở dữ liệu, worker", permission: "system:setting:write" },
   { to: "/quan-tri/template-deal", label: "Template Quản lý Deal", hint: "Mặc định của bảng Deals", permission: "system:setting:write" },
 ];
 
@@ -70,6 +70,7 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
   { prefix: "/quan-tri/chuyen-giao", permission: "data:transfer" },
   { prefix: "/quan-tri/datahub-gioi-han", permission: "system:setting:write" },
   { prefix: "/quan-tri/cai-dat", permission: "system:setting:write" },
+  { prefix: "/quan-tri/he-thong", permission: "system:setting:write" },
   { prefix: "/quan-tri/template-deal", permission: "system:setting:write" },
 ];
 
@@ -92,6 +93,8 @@ function crumbs(path: string): string[] {
   if (setting) return ["Cài đặt", setting.label];
   const item = NAV.filter((n) => (n.to === "/" ? path === "/" : path === n.to || path.startsWith(`${n.to}/`))).sort((x, y) => y.to.length - x.to.length)[0];
   if (item) return [item.label];
+  // The shared-dashboard list moved into the home page (its first tab); the route stays for old links.
+  if (path === "/dashboard" || path.startsWith("/dashboard/")) return ["Tổng quan", "Dashboard được chia sẻ"];
   if (path === "/nhac-hen") return ["Thông báo", "Nhắc hẹn"];
   if (path === "/thong-bao-chung") return ["Thông báo", "Thông báo chung"];
   if (path.startsWith("/thong-bao")) return ["Thông báo"];

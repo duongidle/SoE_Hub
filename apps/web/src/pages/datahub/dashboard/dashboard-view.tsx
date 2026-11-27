@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTouchRecent } from "@/lib/home";
 import { Copy, Download, Image as ImageIcon, MoreHorizontal, Pencil, Plus, Rows3, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, ConfirmDialog } from "@/components/ui/form";
@@ -107,7 +108,7 @@ function CardMenu({ record, index, datahubId, filters, pick, owner, onEdit, onDu
  * One dashboard: the grid of charts, the common filters, cross filtering, the rows behind a number, and (for the owner) editing.
  * `mode = "viewer"` is for a person it was shared with, or a Guest: the same page without any editing.
  */
-export function DashboardView({ dh, dashboardId, mode = "owner", period, mature }: {
+export function DashboardView({ dh, dashboardId, mode = "owner", period, mature, recent = true, header = true }: {
   dh?: DatahubBrief;
   dashboardId: string;
   mode?: "owner" | "viewer";
@@ -115,8 +116,13 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature 
   period?: { range: unknown; from: string | null; to: string | null } | null;
   /** Cohort charts of deals (`options.mature_cohort`): months after `through` are drawn pale; with `cut` the range stops at `through`. */
   mature?: { through: string | null; cut: boolean } | null;
+  /** Record this dashboard in the person's "Mở gần đây" when it is shown (off where it is only a preview, like the home page). */
+  recent?: boolean;
+  /** The viewer's title line ("Của ...; số liệu tính theo quyền của họ"); a host that prints its own header turns it off. */
+  header?: boolean;
 }) {
   const qc = useQueryClient();
+  useTouchRecent("dashboard", recent ? dashboardId : null);
   const owner = mode === "owner";
   const q = useQuery({ queryKey: owner ? dashKeys.one(dashboardId) : ["mt-dashboard-view", dashboardId], queryFn: () => (owner ? getDashboard(dashboardId) : viewDashboard(dashboardId)) });
   const [editing, setEditing] = useState<{ record: ChartRecord | null; type: ChartType; key: number } | null>(null);
@@ -339,7 +345,7 @@ export function DashboardView({ dh, dashboardId, mode = "owner", period, mature 
 
   return (
     <div className={editing ? "shrink-0 lg:pr-[30rem]" : "shrink-0"}>
-      {!owner && (
+      {!owner && header && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h2 className="min-w-0 text-lg font-semibold [overflow-wrap:anywhere]">{d.name}</h2>
           <span className="text-sm text-muted-foreground" data-testid="dash-owner">Của {d.owner_name ?? "người khác"} · {d.datahub_name}. Số liệu tính theo quyền của họ.</span>
