@@ -60,3 +60,11 @@ Dương báo: trên Mac, vuốt hai ngón để quay lại trang chỉ chạy kh
 - **12B-2, ranh giới giữ nguyên luật nghiệp vụ:** gắn lộ trình giữ ô Nhân sự là một `Select` (một người, luật chỉ vai trò User trong cây; server chỉ nhận `staff_id`), tên có phân biệt trùng; ô Người theo dõi thành nhiều người (server nhận mảng `followers`) lọc client theo vai trò Leader/Manager khi biết vai trò. Thông báo chung: người lẻ dùng `PeopleField`; hai nhóm "Cả cây của"/"Team của" giữ checkbox. Cột Người dùng nhiều người: nút "Thêm người" mở `PeoplePicker` (chỉ thành viên bảng qua `tableId`) và nút "Thêm (n)" mới thêm vào danh sách; dùng chung cho grid và panel dòng.
 - **12B-2, chỗ chưa dùng thẻ người:** chỉ thay chỗ có sẵn id người: danh sách thành viên và cây org, giới hạn người dùng, nhật ký (người thực hiện), chủ datahub, lộ trình/theo dõi onboarding, thanh toán/chốt kỳ Deal, panel dòng Datahub (người và lịch sử). Không có id nên giữ chữ: chủ dashboard chia sẻ, người gửi thông báo, Guest cấp dữ liệu, token tài khoản, người chấm bài, tiêu đề hộp thoại, chào ở trang chủ/shell. `Select` (tên + email trong nhãn) giữ cho chọn một người.
 - **12B-2, hộp xuất Datahub:** ô tick "Thêm cột email cạnh cột người dùng" (ẩn với Guest và khi xuất dòng nhóm); Bruno `export-create.bru` thêm `user_emails`.
+
+## 12B-3 Không chồng tiêu đề (28/11)
+
+- Một chỗ: `apps/web/src/lib/page-chrome.tsx` (`PageChromeContext`, `useCrumbs(name)`). Shell cấp context; ngoài shell (không có context) `PageTitle` vẽ như cũ.
+- `PageTitle` có context và children là chuỗi: h1 luôn `sr-only` (kể cả khi khác breadcrumb), chuỗi đó thành mắt cuối của breadcrumb khi khác mắt cuối của menu. Trang Cài đặt không thêm mắt (đã có nhãn). Nếu breadcrumb gốc chỉ là tên thương hiệu (đường dẫn menu không biết) thì tiêu đề thay luôn.
+- Nút `actions` portal vào `#topbar-actions` (hàng trước chuông). Không đổi tên nút. Dưới 640px khung này ẩn, nút "•••" (hiện khi có actions) mở thành bảng dưới top bar, bấm nút hay link trong bảng thì đóng. Dùng portal vào node luôn gắn nên trạng thái trang không mất khi bảng đóng.
+- Giữ nguyên thanh công cụ riêng của trang Datahub mở (Nhập dữ liệu, Chia sẻ) và trang Deal: chỉ h1 thành sr-only; Datahub mở đưa tên datahub vào breadcrumb.
+- Tiêu đề trang nội dung (bài Knowledge, skill AI Hub, "Xin chào") giữ hiện vì là nội dung, không trùng breadcrumb.
