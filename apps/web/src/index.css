@@ -211,6 +211,9 @@ a {
 .overlay-fade { animation: fade-in 150ms ease-out; }
 
 /* A scroll area inside the page keeps its scroll to itself (a grid must not drag the page). */
+.contain-scroll-y {
+  overscroll-behavior-y: contain;
+}
 .contain-scroll {
   overscroll-behavior: contain;
 }

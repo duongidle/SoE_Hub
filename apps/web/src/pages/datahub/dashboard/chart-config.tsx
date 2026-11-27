@@ -520,7 +520,7 @@ export function ChartConfigPanel({ dh, dashboardId, record, startType, siblings,
   const t = draft.type;
 
   return (
-    <aside role="complementary" aria-label="Cấu hình biểu đồ" className="contain-scroll fixed inset-y-0 right-0 z-40 flex w-full max-w-[30rem] flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4 shadow-xl" data-testid="chart-config">
+    <aside role="complementary" aria-label="Cấu hình biểu đồ" className="contain-scroll-y fixed inset-y-0 right-0 z-40 flex w-full max-w-[30rem] flex-col gap-4 overflow-y-auto border-l border-border bg-card p-4 shadow-xl" data-testid="chart-config">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">{record ? "Sửa biểu đồ" : "Thêm biểu đồ"}</h2>
         <Button variant="ghost" onClick={() => void close()} aria-label="Đóng cấu hình" className="!px-2"><X size={20} aria-hidden /></Button>

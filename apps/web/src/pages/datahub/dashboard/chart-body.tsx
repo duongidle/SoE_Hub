@@ -75,7 +75,7 @@ export interface ChartBodyProps {
 
 export function ChartBody({ chart, datahubId, chartId, version, filters, onPick, exportRef, onOpenRows, matureThrough }: ChartBodyProps) {
   const q = useChartData(chart, { datahubId, chartId, version, filters });
-  if (chart.type === "note") return <p className="contain-scroll h-full overflow-auto whitespace-pre-wrap px-1 text-sm [overflow-wrap:anywhere]">{chart.text?.trim() || "Ô ghi chú trống."}</p>;
+  if (chart.type === "note") return <p className="contain-scroll-y h-full overflow-auto whitespace-pre-wrap px-1 text-sm [overflow-wrap:anywhere]">{chart.text?.trim() || "Ô ghi chú trống."}</p>;
   if (!chart.series.length) return <ChartMessage title="Chưa chọn số liệu" hint="Mở cấu hình để chọn bảng, cột và cách tính." />;
   if (q.isError && !q.data) return errorView(q.error);
   if (q.isPending || !q.data) return <Skeleton className="h-full w-full" aria-busy="true" aria-label="Đang tải biểu đồ" />;

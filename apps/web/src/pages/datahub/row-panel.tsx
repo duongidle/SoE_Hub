@@ -70,7 +70,7 @@ export function RowPanel({ session, rowId, level, onClose }: { session: TableSes
               </button>
             ))}
           </div>
-          <div className="contain-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="contain-scroll-y min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {loadError ? (
               <ErrorState error={loadError} title="Không mở được dòng" />
             ) : !row ? (

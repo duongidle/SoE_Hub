@@ -29,7 +29,7 @@ export function Drawer({ title, open, onClose, children, dirty, wide, footer }: 
               <X size={20} aria-hidden />
             </Button>
           </div>
-          <div className="contain-scroll min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
+          <div className="contain-scroll-y min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
           {footer && <div className="border-t border-border-soft px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{footer}</div>}
           {asking && (
             <div role="alertdialog" aria-label="Bỏ thay đổi?" className="flex flex-wrap items-center justify-between gap-2 border-t border-warn-border bg-warn-bg p-3 text-sm">

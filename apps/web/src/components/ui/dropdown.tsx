@@ -8,7 +8,7 @@ export function Menu({ trigger, children, align = "end" }: { trigger: React.Reac
     <D.Root>
       <D.Trigger asChild>{trigger}</D.Trigger>
       <D.Portal>
-        <D.Content align={align} sideOffset={4} className="contain-scroll z-[60] min-w-44 max-w-xs rounded-xl border border-border bg-card p-1 text-sm shadow-md">
+        <D.Content align={align} sideOffset={4} className="contain-scroll-y z-[60] min-w-44 max-w-xs rounded-xl border border-border bg-card p-1 text-sm shadow-md">
           {children}
         </D.Content>
       </D.Portal>

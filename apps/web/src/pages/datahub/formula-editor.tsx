@@ -166,7 +166,7 @@ export function FormulaEditor({ table, column, value, onChange, resultType, onRe
           {sug.items.length === 0 ? (
             <p className="px-3 py-2 text-muted-foreground">Đang tải danh sách cột…</p>
           ) : (
-            <ul id={listId} role="listbox" aria-label="Gợi ý" className="contain-scroll max-h-48 overflow-y-auto p-1">
+            <ul id={listId} role="listbox" aria-label="Gợi ý" className="contain-scroll-y max-h-48 overflow-y-auto p-1">
               {sug.items.map((s, i) => (
                 <li key={`${s.kind}-${s.label}`} role="option" aria-selected={i === active}>
                   <button type="button" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(i)} onMouseMove={() => setActive(i)} className={cn("flex min-h-9 w-full items-baseline gap-2 rounded px-2 py-1 text-left", i === active && "bg-muted")}>
@@ -260,7 +260,7 @@ function FunctionPicker({ fns, loading, onPick }: { fns: FnInfo[]; loading: bool
   return (
     <Popover label="Chèn hàm" fixedSide open={open} onOpenChange={setOpen} width="w-[30rem]" trigger={<Button variant="secondary"><Sigma size={16} aria-hidden /> Chèn hàm</Button>}>
       <Input aria-label="Tìm hàm" placeholder="Tìm hàm theo tên hoặc việc cần làm" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" />
-      <div className="contain-scroll mt-2 max-h-72 overflow-y-auto">
+      <div className="contain-scroll-y mt-2 max-h-72 overflow-y-auto">
         {loading && <Skeleton className="h-24" />}
         {!loading && shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">Không có hàm nào khớp.</p>}
         {groups.map((g) => (

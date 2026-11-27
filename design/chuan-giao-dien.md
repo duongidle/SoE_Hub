@@ -119,7 +119,7 @@ Dữ liệu luôn lưu id tài khoản nên không nhầm; rủi ro là hiển t
 - 375px không được tràn ngang cả trang; bảng rộng thì cuộn trong bảng. Đoạn văn dài (Knowledge) giới hạn 65–75 ký tự mỗi dòng.
 - Thẻ meta: `width=device-width, initial-scale=1, viewport-fit=cover`. Không dùng `user-scalable=no` hay `maximum-scale=1`.
 - CSS nền cho điện thoại: `-webkit-tap-highlight-color: transparent` ở `html`; nút và link có `touch-action: manipulation` và `user-select: none` (không đặt `user-select: none` lên nội dung); ô nhập 16px.
-- Chiều cao toàn màn hình dùng `100dvh` cho khung app, không dùng `100vh`. Thanh cố định ở đỉnh/đáy có `env(safe-area-inset-*)`. Khung cuộn bên trong có `overscroll-behavior: contain`.
+- Chiều cao toàn màn hình dùng `100dvh` cho khung app, không dùng `100vh`. Thanh cố định ở đỉnh/đáy có `env(safe-area-inset-*)`. Khung cuộn bên trong chỉ cuộn dọc thì chỉ chặn trục dọc (`.contain-scroll-y` = `overscroll-behavior-y: contain`), để trục ngang vẫn nhường cho cử chỉ vuốt hai ngón quay lại trang của trình duyệt; chỉ vùng cuộn ngang thật (bảng rộng, grid) mới chặn cả hai trục (`.contain-scroll`).
 - Trang công khai (form) phải thử thêm trên điện thoại thật hoặc ít nhất 375px với bàn phím ảo mở; điều gì chỉ xác minh được trên máy thật thì ghi vào `progress.md`.
 
 ## Chuyển động

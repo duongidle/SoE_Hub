@@ -51,7 +51,7 @@ export function SelectPicker({ options, value, multi, onChange, onDone, onCancel
   return (
     <div ref={ref} tabIndex={-1} onKeyDown={onKey} className="w-64 max-w-[calc(100vw-2rem)] rounded-md border border-border bg-card p-2 text-sm shadow-md outline-none">
       {options.length > 8 && <Input aria-label="Tìm lựa chọn" placeholder="Tìm lựa chọn" value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} className="mb-2" autoFocus />}
-      <div role="listbox" aria-multiselectable={multi} aria-label="Lựa chọn" className="contain-scroll flex max-h-60 flex-col gap-0.5 overflow-y-auto">
+      <div role="listbox" aria-multiselectable={multi} aria-label="Lựa chọn" className="contain-scroll-y flex max-h-60 flex-col gap-0.5 overflow-y-auto">
         {shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">Không có lựa chọn nào khớp.</p>}
         {shown.map((o, i) => {
           const on = value.includes(o.id);
@@ -106,7 +106,7 @@ export function PersonPicker({ value, valueName, onDone, onCancel, autoFocus = t
     <div onKeyDown={onKey} className="w-72 max-w-[calc(100vw-2rem)] rounded-md border border-border bg-card p-2 text-sm shadow-md">
       {value && <p className="mb-2 px-1 text-muted-foreground [overflow-wrap:anywhere]">Đang chọn: <span className="text-foreground">{valueName ?? "…"}</span></p>}
       <Input aria-label="Tìm người" placeholder="Gõ tên hoặc email" value={q} onChange={(e) => setQ(e.target.value)} autoFocus={autoFocus} />
-      <div role="listbox" aria-label="Người" className="contain-scroll mt-2 flex max-h-56 flex-col gap-0.5 overflow-y-auto">
+      <div role="listbox" aria-label="Người" className="contain-scroll-y mt-2 flex max-h-56 flex-col gap-0.5 overflow-y-auto">
         {q.trim() && !busy && list.length === 0 && <p className="px-2 py-3 text-muted-foreground">{tableId ? "Không có thành viên nào khớp. Chủ bảng cần chia sẻ bảng cho người này trước." : "Không tìm thấy ai."}</p>}
         {list.map((p, i) => (
           <button key={p.id} type="button" role="option" aria-selected={p.id === value} onClick={() => onDone(p)} onMouseMove={() => setActive(i)} className={cn("flex min-h-11 flex-col items-start justify-center rounded px-2 py-1 text-left sm:min-h-9", i === active && "bg-muted")}>

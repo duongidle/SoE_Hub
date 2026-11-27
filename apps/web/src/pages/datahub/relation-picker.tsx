@@ -103,7 +103,7 @@ export function RelationPicker({ tableId, column, selected, multiple, onToggle, 
         aria-label="Dòng của bảng được liên kết"
         aria-multiselectable={multiple}
         onScroll={(e) => setTop(e.currentTarget.scrollTop)}
-        className="contain-scroll relative mt-2 overflow-y-auto"
+        className="contain-scroll-y relative mt-2 overflow-y-auto"
         style={{ height: Math.min(VIEW_H, Math.max(ITEM_H * 2, rows.length * ITEM_H)) }}
       >
         {query.isLoading ? (

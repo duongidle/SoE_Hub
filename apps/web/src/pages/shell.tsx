@@ -114,7 +114,7 @@ function SideNav({ items, collapsed, label, onLogout, settingsActive }: { items:
   const text = collapsed ? "sr-only" : "truncate";
   return (
     <nav aria-label={label} className="flex min-h-0 flex-1 flex-col px-3 pb-3">
-      <div className="contain-scroll flex flex-1 flex-col gap-0.5 overflow-y-auto">
+      <div className="contain-scroll-y flex flex-1 flex-col gap-0.5 overflow-y-auto">
         {items.map((n) => (
           <Link key={n.to} to={n.to} activeOptions={{ exact: n.to === "/" }} title={collapsed ? n.label : undefined} className={cn(linkBase, linkActive, collapsed && "justify-center px-0")}>
             <n.icon size={18} aria-hidden className="shrink-0" />
@@ -261,7 +261,7 @@ export function Shell() {
           </Dialog.Portal>
 
           <div className="flex min-w-0 flex-1 flex-col bg-workspace">
-            <div data-scroll-restoration-id="shell-main" className={cn("contain-scroll flex min-h-0 flex-1 flex-col", wide ? "overflow-hidden" : "overflow-y-auto")}>
+            <div data-scroll-restoration-id="shell-main" className={cn("contain-scroll-y flex min-h-0 flex-1 flex-col", wide ? "overflow-hidden" : "overflow-y-auto")}>
               <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b border-border-soft bg-card/85 px-3 backdrop-blur-md sm:px-5">
                 <Dialog.Trigger asChild>
                   <Button variant="ghost" className="shrink-0 !px-2 lg:hidden" aria-label="Mở menu" aria-expanded={open}>

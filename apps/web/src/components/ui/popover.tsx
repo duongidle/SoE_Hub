@@ -21,7 +21,7 @@ export function Popover({ trigger, children, label, align = "start", width = "w-
           avoidCollisions={!fixedSide}
           // Opened from inside a dialog, the modal dialog turns pointer events off for everything outside it; the panel must still be clickable.
           style={{ pointerEvents: "auto" }}
-          className={cn("contain-scroll z-[60] max-h-[min(80dvh,var(--radix-popover-content-available-height))] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-border bg-card p-3 text-sm shadow-md outline-none", width, className)}
+          className={cn("contain-scroll-y z-[60] max-h-[min(80dvh,var(--radix-popover-content-available-height))] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-border bg-card p-3 text-sm shadow-md outline-none", width, className)}
         >
           {children}
         </P.Content>
@@ -38,7 +38,7 @@ export function PointPopover({ at, label, children, onClose, className }: { at: 
         <span aria-hidden className="pointer-events-none fixed h-px w-px" style={{ left: at?.x ?? 0, top: at?.y ?? 0 }} />
       </P.Anchor>
       <P.Portal>
-        <P.Content aria-label={label} align="start" sideOffset={4} collisionPadding={8} className={cn("contain-scroll z-[60] max-h-[min(80dvh,var(--radix-popover-content-available-height))] min-w-52 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-border bg-card p-1 text-sm shadow-md outline-none", className)}>
+        <P.Content aria-label={label} align="start" sideOffset={4} collisionPadding={8} className={cn("contain-scroll-y z-[60] max-h-[min(80dvh,var(--radix-popover-content-available-height))] min-w-52 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-border bg-card p-1 text-sm shadow-md outline-none", className)}>
           {children}
         </P.Content>
       </P.Portal>

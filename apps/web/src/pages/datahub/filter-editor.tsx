@@ -193,7 +193,7 @@ function ValueInput({ col, kind, cond, names, set, onBlur, id }: { col: Column; 
     const options = optionsOf(col);
     if (LIST_OPS.has(cond.op)) {
       return (
-        <fieldset className="contain-scroll flex max-h-40 w-full flex-col gap-1 overflow-y-auto rounded-md border border-border p-2">
+        <fieldset className="contain-scroll-y flex max-h-40 w-full flex-col gap-1 overflow-y-auto rounded-md border border-border p-2">
           <legend className="px-1 text-xs text-muted-foreground">Chọn một hoặc nhiều</legend>
           {options.length === 0 && <span className="text-muted-foreground">Cột chưa có lựa chọn nào.</span>}
           {options.map((o) => (

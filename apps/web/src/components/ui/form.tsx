@@ -112,7 +112,7 @@ export function Modal({ title, open, onClose, children, dirty, wide }: { title: 
         <Dialog.Overlay className="overlay-fade fixed inset-0 z-50 bg-foreground/30 backdrop-blur-[2px]" />
         <Dialog.Content
           aria-describedby={undefined}
-          className={cn("contain-scroll fixed bottom-0 left-1/2 z-50 max-h-[90dvh] w-full -translate-x-1/2 overflow-y-auto rounded-t-card border border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-lg sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 sm:rounded-card", wide ? "max-w-2xl" : "max-w-lg")}
+          className={cn("contain-scroll-y fixed bottom-0 left-1/2 z-50 max-h-[90dvh] w-full -translate-x-1/2 overflow-y-auto rounded-t-card border border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-lg sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 sm:rounded-card", wide ? "max-w-2xl" : "max-w-lg")}
         >
           <div className="mb-4 flex items-center justify-between gap-2">
             <Dialog.Title className="text-lg font-semibold tracking-tight text-foreground [overflow-wrap:anywhere]">{title}</Dialog.Title>

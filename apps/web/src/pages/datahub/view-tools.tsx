@@ -214,7 +214,7 @@ function GroupButton({ columns, config, change }: { columns: Column[]; config: V
         {group.length > 0 && (
           <div className="mt-2 border-t border-border pt-3">
             <Label>Dòng tổng của mỗi nhóm (số dòng luôn hiện)</Label>
-            <ul className="contain-scroll flex max-h-52 flex-col gap-1 overflow-y-auto">
+            <ul className="contain-scroll-y flex max-h-52 flex-col gap-1 overflow-y-auto">
               {columns.filter((c) => kindOf(c) !== null && kindOf(c) !== "set").map((c) => (
                 <li key={c.key} className="flex items-center justify-between gap-2">
                   <span className="min-w-0 [overflow-wrap:anywhere]">{c.name}</span>
@@ -258,7 +258,7 @@ function ColumnsButton({ columns, config, change, hiddenCount }: { columns: Colu
           <Label>Hiện, ẩn, đổi thứ tự và cố định cột</Label>
           {hidden.size > 0 && <Button variant="ghost" onClick={() => change({ hidden: undefined })}>Hiện tất cả</Button>}
         </div>
-        <ul className="contain-scroll flex max-h-72 flex-col gap-1 overflow-y-auto">
+        <ul className="contain-scroll-y flex max-h-72 flex-col gap-1 overflow-y-auto">
           {order.map((k, i) => {
             const c = byKey.get(k)!;
             const on = !hidden.has(k);
