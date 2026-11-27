@@ -34,6 +34,13 @@ Mockup đã chốt: `de_xuat/onboarding_hanh_trinh.html` (Opus được tinh ch�
   - Test (mã code d59b232): `pnpm typecheck` 0 lỗi; `pnpm lint` sạch; `vitest run apps packages` 116 file pass, 1393 pass / 0 fail / 10 skip (3 file skip, không đổi; lượt đầu 1 fail là test bản đồ code vì một đường dẫn thiếu thư mục, đã sửa tài liệu, chạy lại test đó pass); e2e `pnpm test:e2e e2e/stage1 stage8 stage9 stage12f1 stage12f2` (desktop + phone): 36 pass, 4 skip (spec chỉ desktop), 1 fail: `stage1` test 78 "Admin thấy menu quản trị" ở **phone** (hết giờ ở bước bấm "Cài đặt" trong menu điện thoại). Lỗi này **có sẵn**: chạy lại trên mã 46f8454 (trước 12F-2) vẫn fail y vậy; chưa từng chạy stage1 ở phone trong Stage 12. Desktop stage1 pass. `stage12f2` 8 pass (desktop + phone). Ảnh: scratchpad `12f2/` (desktop-/phone-: knowledge-home, knowledge-read, aihub-list, aihub-drawer, review, org-table, org-tree, account).
   - Sửa kèm: `ConfirmDialog` bọc message bằng div thay vì p (lỗi console "div trong p"). Không làm: tim/lưu bài, "Đóng góp tích cực" (không có dữ liệu).
 
+## Đang làm: Stage 12G — Kiểm thử cuối Stage 12
+
+Theo `design/kiem-thu.md` mục 1 (Stage 12 kiểm kỹ giao diện, không áp mục 2) + `chuan-giao-dien.md` (bộ skill, break-ui) + `module12-giao-dien.md` "Kiểm thử 12G thêm" (so cỡ/màu chữ với mockup). Sau 12G: push main, rồi Opus viết đề xuất Module 11 (Dương 28/11).
+
+- [ ] **12G-1 (agent A, chức năng):** sửa mục "Danh sách sửa để 12G" (Xem com lọc ở server, stage1 phone menu Cài đặt, thanh công cụ Deal 1280px, Template một nút chính, Theo dõi onboarding tiêu đề cột + nhãn checkpoint, Org chart 375px); rồi `DH_EQUIV_EDITS=2500 pnpm test` toàn bộ + cả bộ e2e desktop + phone luồng chính; sửa lỗi tới sạch; đi luồng thật theo vai trò (Admin, Manager, Leader, Member, Guest) không lỗi console/network.
+- [ ] **12G-2 (agent B, giao diện):** so cỡ chữ/màu chữ với mockup và thang chuẩn (sửa ở token/thành phần chung); `impeccable` audit + harden + clarify + polish ~10 màn chính; `break-ui` dữ liệu xấu nhất ~10 màn chính; `ui-ux-pro-max` quick-reference 1–3, 8; `mobile-native` baseline cho trang công khai; sửa; chạy lại spec bị ảnh hưởng; Bruno đủ cho endpoint mới Stage 12.
+
 ## Danh sách sửa để 12G (Opus ghi khi rà, 28/11)
 
 - Test `stage1` "Admin thấy menu quản trị" ở phone hết giờ (có sẵn, trước 12F-2): helper `menuLink` ở `e2e/helpers.ts` mở menu điện thoại rồi bấm "Cài đặt" lặp 6 lần; sửa ở 12G (tìm nguyên nhân, không skip).
