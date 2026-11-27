@@ -165,7 +165,7 @@ test.describe("4.7B1 Template: vai trò nhiều cột", () => {
     // The role dialog of one of them names the other holders and says nobody lets go.
     await panel.getByRole("button", { name: "Vai trò của cột Leading 47" }).click();
     const d = page.getByRole("dialog", { name: /Vai trò của cột "Leading 47"/ });
-    const option = d.getByRole("option", { name: /Người tham gia/ });
+    const option = d.getByRole("combobox", { name: "Vai trò" }); // the select shows the chosen role with the holders of it
     await expect(option).toContainText("đang gắn cho cột");
     await expect(option).toContainText("Associate 47");
     await expect(option).not.toContainText("Leading 47");

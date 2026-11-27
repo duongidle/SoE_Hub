@@ -2,8 +2,8 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * An on/off setting as a sliding switch (a real checkbox underneath, so a screen reader and the keyboard treat it as one, and
- * its label names it). `hint` is the small grey line under the label.
+ * An on/off setting as a sliding switch (a real checkbox underneath, laid transparently over the track, so a screen reader, the keyboard
+ * and a test treat it as a checkbox named by its label). `hint` is the small grey line under the label.
  */
 export function Switch({ checked, onChange, label, hint, disabled, className }: { checked: boolean; onChange: (v: boolean) => void; label: React.ReactNode; hint?: React.ReactNode; disabled?: boolean; className?: string }) {
   return (
@@ -12,11 +12,13 @@ export function Switch({ checked, onChange, label, hint, disabled, className }: 
         <span className="block font-medium text-foreground">{label}</span>
         {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
       </span>
-      <input type="checkbox" className="peer sr-only" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-      <span
-        aria-hidden
-        className="relative mt-0.5 h-6 w-10 shrink-0 rounded-full bg-border transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-primary peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
-      />
+      <span className="relative mt-0.5 h-6 w-10 shrink-0">
+        <input type="checkbox" className="peer absolute inset-0 z-10 m-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full bg-border transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-primary peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
+        />
+      </span>
     </label>
   );
 }
