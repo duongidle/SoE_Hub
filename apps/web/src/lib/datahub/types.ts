@@ -124,6 +124,12 @@ export interface Person {
   id: string;
   full_name: string;
   email: string | null;
+  /** active = đang làm; locked = đã nghỉ; inactive = chưa kích hoạt. Server always sends it. */
+  status?: string;
+  /** Roles, team (name and Leader id) of the person: null when the person is outside the viewer's org tree. */
+  roles?: string[] | null;
+  team?: string | null;
+  team_id?: string | null;
   /** Only when the lookup names a table: false = not the owner or a member of it ("không còn quyền"). */
   member?: boolean;
 }

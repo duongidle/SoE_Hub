@@ -83,7 +83,9 @@ export const restoreRowsBatch = (tableId: string, rowIds: string[]) => api<{ row
 export const getHistory = (tableId: string, rowId: string, cursor?: string | null) => api<{ items: HistoryItem[]; next_cursor: string | null }>("GET", `/tables/${tableId}/rows/${rowId}/history${qs({ limit: 30, cursor })}`);
 
 /** With `tableId`, `q` suggests only the owner and members of that table, and `ids` also say who is still a member. */
-export const lookupPeople = (opts: { ids?: string[]; q?: string; tableId?: string }) => api<Person[]>("GET", `/datahub/people${qs({ ids: opts.ids?.join(","), q: opts.q, table_id: opts.tableId })}`);
+export const lookupPeople = (opts: { ids?: string[]; q?: string; tableId?: string; teamId?: string }) => api<Person[]>("GET", `/datahub/people${qs({ ids: opts.ids?.join(","), q: opts.q, table_id: opts.tableId, team_id: opts.teamId })}`);
+/** Teams (Leader and head count) inside the viewer's org tree, for "chọn cả team". Members: `lookupPeople({ teamId })`. */
+export const listTeams = () => api<{ id: string; name: string; member_count: number }[]>("GET", "/datahub/people/teams");
 export const relationLabels = (tableId: string, column: string, ids: string[]) => api<{ id: string; row_no: number; label: string }[]>("GET", `/tables/${tableId}/relation-labels${qs({ column, ids: ids.join(",") })}`);
 
 export type { Column };

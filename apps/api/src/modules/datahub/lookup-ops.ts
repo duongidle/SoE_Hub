@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { AppError } from "@soe/shared";
 import { defineCommand, defineQuery } from "../../core/registry";
+import { scopeSql } from "../../auth/access";
 import { loadTableAccess, readableRows } from "./access";
 import { resolveLinkTarget } from "./link-targets";
 import { restoreRows } from "./rows";
@@ -12,6 +13,19 @@ import { assertColumnKey } from "./types";
 const uuidArray = (ids: string[]) => `{${ids.join(",")}}`;
 const likeEscape = (s: string) => s.replace(/[\\%_]/g, (m) => `\\${m}`);
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+const PersonOut = z.object({
+  id: Id,
+  full_name: z.string(),
+  email: z.string().nullable(),
+  status: z.string().describe("active = đang làm; locked = đã nghỉ (khoá); inactive = chưa kích hoạt."),
+  roles: z.array(z.string()).nullable().describe("Vai trò; null khi người này ngoài cây tổ chức của bạn."),
+  team_id: Id.nullable().describe("Mã Leader của team (Leader thì là chính họ); null khi không có team hoặc ngoài cây của bạn."),
+  team: z.string().nullable().describe("Tên Leader của team; null khi không có team hoặc ngoài cây của bạn."),
+  member: z.boolean().optional().describe("Chỉ có khi gửi `table_id`: người này là chủ hoặc thành viên của bảng."),
+});
+
 const RowBrief = z.object({ id: Id, row_no: z.number().int().optional(), version: z.number().int().optional(), data: z.record(z.string(), z.unknown()) });
 
 /**
@@ -21,39 +35,81 @@ const RowBrief = z.object({ id: Id, row_no: z.number().int().optional(), version
 export const lookupOperations = [
   defineQuery({
     name: "datahub.people.lookup",
-    summary: "Tìm người để chọn vào cột Người dùng, hoặc đổi mã người thành tên: theo `ids` hoặc theo `q` (tên hoặc email).",
+    summary: "Tìm người để chọn vào cột Người dùng, hoặc đổi mã người thành tên: theo `ids`, theo `q` (tên hoặc email) hoặc theo `team_id` (cả team).",
     description:
-      "Chỉ người đang hoạt động trong org chart. Tối đa 200 `ids` một lần; `q` trả tối đa `limit` người (mặc định 20). " +
-      "Có `table_id`: `q` chỉ gợi ý chủ bảng và thành viên của bảng (ô Người dùng chỉ nhận thành viên), còn `ids` vẫn đổi mã ra tên cho mọi người kèm `member` (false = \"không còn quyền\"). Không có `table_id`: dùng để chọn người khi chia sẻ.",
+      "Chỉ người đang hoạt động trong org chart (trừ khi tra theo `ids`). Tối đa 200 `ids` một lần; `q` trả tối đa `limit` người (mặc định 20). " +
+      "`team_id` (mã Leader, lấy từ `datahub.people.teams`) trả cả team đang làm việc, Leader và thành viên, tối đa 200 người, chỉ những người trong cây bạn thấy. " +
+      "Có `table_id`: `q` và `team_id` chỉ trả chủ bảng và thành viên của bảng (ô Người dùng chỉ nhận thành viên), còn `ids` vẫn đổi mã ra tên cho mọi người kèm `member` (false = \"không còn quyền\"). Không có `table_id`: dùng để chọn người khi chia sẻ. " +
+      "Mỗi người kèm `status` (active = đang làm, locked/inactive = đã nghỉ hoặc chưa kích hoạt). `roles`, `team`, `team_id` chỉ có khi người đó nằm trong cây tổ chức của bạn (cùng phạm vi xem org chart), ngoài cây thì null.",
     permission: "datahub:datahub:use",
     aiAllowed: true,
     input: z.object({
       ids: z.string().max(8000).optional().describe("Các mã người, ngăn cách bằng dấu phẩy."),
       q: z.string().trim().max(100).optional(),
+      team_id: Id.optional().describe("Mã Leader của team cần lấy cả team."),
       limit: z.coerce.number().int().min(1).max(50).default(20),
       table_id: Id.optional().describe("Bảng có ô Người dùng đang chọn: giới hạn gợi ý ở thành viên của bảng."),
     }),
-    output: z.array(z.object({ id: Id, full_name: z.string(), email: z.string().nullable(), member: z.boolean().optional().describe("Chỉ có khi gửi `table_id`: người này là chủ hoặc thành viên của bảng.") })),
+    output: z.array(PersonOut),
     http: { method: "GET", path: "/datahub/people" },
     handler: async (ctx, i) => {
       const ids = (i.ids ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
       if (ids.length > 200) throw new AppError("validation_error", "Tối đa 200 mã người mỗi lần.");
-      if (ids.some((x) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(x))) throw new AppError("validation_error", "Mã người không hợp lệ.");
+      if (ids.some((x) => !UUID_RE.test(x))) throw new AppError("validation_error", "Mã người không hợp lệ.");
       const where = [sql`u.kind = 'person'`];
       const acc = i.table_id ? await loadTableAccess(ctx, i.table_id) : null;
       // Members of a table: its owner and everyone it is shared with (the whole datahub or this table).
       const member = acc
         ? sql`(u.id = ${acc.datahub.ownerId}::uuid OR EXISTS (SELECT 1 FROM dh_shares s WHERE /*scope*/ s.datahub_id = ${acc.datahub.id}::uuid AND (s.table_id IS NULL OR s.table_id = ${acc.tableId}::uuid) AND s.grantee_id = u.id))`
         : null;
-      if (ids.length) where.push(sql`u.id = ANY(${uuidArray(ids)}::uuid[])`);
-      else {
+      const scope = await ctx.access.scope("org");
+      let limit = i.limit;
+      if (ids.length) {
+        where.push(sql`u.id = ANY(${uuidArray(ids)}::uuid[])`);
+        limit = 200;
+      } else if (i.team_id) {
+        if (!UUID_RE.test(i.team_id)) throw new AppError("validation_error", "Mã team không hợp lệ.");
+        // Only people inside the viewer's own org scope: a team outside it comes back empty.
+        where.push(sql`u.status = 'active'`, sql`(u.id = ${i.team_id}::uuid OR m.leader_id = ${i.team_id}::uuid)`, scopeSql(sql`u.id`, scope));
+        if (member) where.push(member);
+        limit = 200;
+      } else {
         if (!i.q) return [];
         const like = `%${likeEscape(i.q)}%`;
         where.push(sql`u.status = 'active'`, sql`(soe_unaccent(lower(u.full_name)) LIKE soe_unaccent(lower(${like})) ESCAPE '\\' OR lower(u.email) LIKE lower(${like}) ESCAPE '\\')`);
         if (member) where.push(member);
       }
-      const res = await ctx.db.execute(sql`SELECT u.id, u.full_name, u.email${member ? sql`, ${member} AS member` : sql``} FROM users u WHERE ${sql.join(where, sql` AND `)} ORDER BY u.full_name LIMIT ${ids.length ? 200 : i.limit}`);
-      return res.rows as { id: string; full_name: string; email: string | null; member?: boolean }[];
+      const inScope = scope.all ? sql`true` : scope.userIds.length ? sql`u.id = ANY(${uuidArray(scope.userIds)}::uuid[])` : sql`false`;
+      const res = await ctx.db.execute(sql`SELECT u.id, u.full_name, u.email, u.status, u.roles, ${inScope} AS in_scope, tu.id AS team_id, tu.full_name AS team${member ? sql`, ${member} AS member` : sql``}
+        FROM users u
+        LEFT JOIN org_memberships m ON m.user_id = u.id AND m.valid_to IS NULL
+        LEFT JOIN users tu ON tu.id = CASE WHEN 'leader' = ANY(u.roles) THEN u.id ELSE m.leader_id END
+        WHERE ${sql.join(where, sql` AND `)} ORDER BY u.full_name, u.id LIMIT ${limit}`);
+      // Role and team are org chart facts: shown only for people inside the viewer's own org scope (same rule as org.member.get).
+      return (res.rows as { id: string; full_name: string; email: string | null; status: string; roles: string[]; in_scope: boolean; team_id: string | null; team: string | null; member?: boolean }[]).map(({ in_scope, roles, team_id, team, ...r }) => ({
+        ...r,
+        roles: in_scope ? roles : null,
+        team_id: in_scope ? team_id : null,
+        team: in_scope ? team : null,
+      }));
+    },
+  }),
+
+  defineQuery({
+    name: "datahub.people.teams",
+    summary: "Danh sách team (Leader kèm số người đang làm) trong cây tổ chức của bạn, để chọn cả team vào một ô nhiều người.",
+    description: "Chỉ team có Leader nằm trong phạm vi xem org chart của bạn (Admin thấy tất cả, người khác thấy cây của mình). `member_count` gồm Leader. Lấy thành viên bằng `datahub.people.lookup` với `team_id`.",
+    permission: "datahub:datahub:use",
+    aiAllowed: true,
+    input: z.object({}),
+    output: z.array(z.object({ id: Id, name: z.string(), member_count: z.number().int() })),
+    http: { method: "GET", path: "/datahub/people/teams" },
+    handler: async (ctx) => {
+      const scope = await ctx.access.scope("org");
+      const res = await ctx.db.execute(sql`SELECT l.id, l.full_name AS name,
+          1 + (SELECT count(*)::int FROM org_memberships m JOIN users x ON x.id = m.user_id WHERE m.leader_id = l.id AND m.valid_to IS NULL AND m.user_id <> l.id AND x.status = 'active' AND x.kind = 'person' AND ${scopeSql(sql`x.id`, scope)}) AS member_count
+        FROM users l WHERE l.kind = 'person' AND l.status = 'active' AND 'leader' = ANY(l.roles) AND ${scopeSql(sql`l.id`, scope)} ORDER BY l.full_name, l.id`);
+      return res.rows as { id: string; name: string; member_count: number }[];
     },
   }),
 

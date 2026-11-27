@@ -42,6 +42,8 @@ export interface ExportParams {
   time_filter?: unknown;
   /** Columns to export, by name or key, in this order (the visible columns of a view). Empty = all columns. */
   columns?: string[];
+  /** Add a column with the email right after each person column (Người dùng, Người tạo, Người sửa). Not for guests. */
+  user_emails?: boolean;
   /** Summary export (design module4 section 19b): one line per group of the view with its row count and totals, not the rows. */
   groups_only?: boolean;
   group?: { field: string; dir?: "asc" | "desc" }[];
@@ -49,6 +51,8 @@ export interface ExportParams {
 }
 
 interface Col {
+  /** Set on the extra email column: the person column it follows (its cells are read from that column's key). */
+  emailOf?: string;
   key: string;
   name: string;
   type: string;
@@ -77,8 +81,25 @@ type Cell = { kind: "empty" } | { kind: "text"; v: string } | { kind: "number"; 
 
 interface Lookups {
   users: Map<string, string>;
+  emails: Map<string, string>;
   links: Map<string, string>;
   files: Map<string, string>;
+}
+
+const PERSON_TYPES = ["user", "created_by", "modified_by"];
+
+/** Puts an email column right after each person column. */
+function withEmailColumns(cols: Col[]): Col[] {
+  return cols.flatMap((c) => (PERSON_TYPES.includes(c.type) ? [c, { key: `__email_${c.key}`, name: `${c.name} (email)`, type: "text", config: {}, emailOf: c.key }] : [c]));
+}
+
+/** The cell of one column for one row; the extra email column lists the emails of the people in the column it follows. */
+function cellOf(col: Col, data: Raw, lk: Lookups): Cell {
+  if (!col.emailOf) return toCell(col, data[col.key], lk);
+  const v = data[col.emailOf];
+  if (v === null || v === undefined || v === "") return { kind: "empty" };
+  const emails = userIdsOf(v).map((id) => lk.emails.get(id) ?? "");
+  return emails.some(Boolean) ? { kind: "text", v: emails.join(", ") } : { kind: "empty" };
 }
 
 /** One cell as plain, typed content. Used by all three formats so they always agree. */
@@ -229,8 +250,11 @@ async function loadLookups(db: Db, cols: Col[], rows: Raw[], ownerId: string, ta
   }
   void tableAccessScope;
   if (need.users.size) {
-    const res = await db.execute(sql`SELECT id, full_name FROM users WHERE id = ANY(${uuidArray([...need.users])}::uuid[])`);
-    for (const r of res.rows as { id: string; full_name: string }[]) lk.users.set(r.id, r.full_name);
+    const res = await db.execute(sql`SELECT id, full_name, email FROM users WHERE id = ANY(${uuidArray([...need.users])}::uuid[])`);
+    for (const r of res.rows as { id: string; full_name: string; email: string | null }[]) {
+      lk.users.set(r.id, r.full_name);
+      if (r.email) lk.emails.set(r.id, r.email);
+    }
   }
   for (const [target, ids] of need.links) {
     if (ids.size === 0) continue;
@@ -398,6 +422,10 @@ async function runExport(env: JobEnv, job: JobRow): Promise<void> {
         cols = groupOut.cols;
         if (groupOut.truncated) groupsTruncated = true;
       }
+      // Emails come after the people were chosen (columns of the view), never for groups and never for guests.
+      const emailCols = !!p.user_emails && !p.groups_only && !acc.guest;
+      const dataKeys = cols.map((c) => c.key);
+      if (emailCols) cols = withEmailColumns(cols);
       let sink: SheetSink;
       let sheet: ExcelJS.Worksheet | null = null;
       if (xlsx) {
@@ -424,15 +452,15 @@ async function runExport(env: JobEnv, job: JobRow): Promise<void> {
       else sink = jsonSink(file, { exportedBy: who?.full_name ?? "", exportedAt, datahub: datahubName, table: t.name });
       await sink.header(cols);
 
-      const lk: Lookups = { users: new Map(), links: new Map(), files: new Map() };
+      const lk: Lookups = { users: new Map(), emails: new Map(), links: new Map(), files: new Map() };
       const hasVirtual = cols.some((c) => ["row_id", "created_time", "created_by", "modified_time", "modified_by"].includes(c.type));
-      const fields = p.columns?.length || hasVirtual ? cols.map((c) => c.key).join(",") : undefined;
+      const fields = p.columns?.length || hasVirtual ? dataKeys.join(",") : undefined;
       let cursor: string | undefined;
       let n = 0;
       if (groupOut) {
         const rows = groupOut.lines.map((l) => ({ data: Object.fromEntries(l.cells.map((v, i) => [cols[i]!.key, v])) }));
         await loadLookups(env.db, cols, rows as unknown as Raw[], acc.datahub.ownerId, () => sql``, lk);
-        for (const r of rows) await sink.row(cols.map((c) => toCell(c, r.data[c.key], lk)), cols);
+        for (const r of rows) await sink.row(cols.map((c) => cellOf(c, r.data, lk)), cols);
         n = rows.length;
         done += n;
         await patchJob(env.db, job.id, { progressDone: Math.min(done, Math.max(total, done)), progressTotal: Math.max(total, done) });
@@ -445,7 +473,7 @@ async function runExport(env: JobEnv, job: JobRow): Promise<void> {
         for (const r of rows) {
           const data = r.data as Raw;
           await sink.row(
-            cols.map((c) => toCell(c, data[c.key], lk)),
+            cols.map((c) => cellOf(c, data, lk)),
             cols,
           );
         }
@@ -534,6 +562,7 @@ export const exportOperations = [
         search: z.string().max(200).optional(),
         time_filter: jsonParam(TimeFilterSchema),
         columns: z.array(z.string().min(1).max(100)).max(200).optional(),
+        user_emails: z.boolean().optional().describe("Thêm cột email ngay sau mỗi cột người (Người dùng, Người tạo, Người sửa). Không dùng cho Guest và không có khi xuất tổng hợp."),
         groups_only: z.boolean().optional().describe("Xuất dạng tổng hợp: mỗi dòng là một nhóm của view (cột nhóm, Số dòng, các cột tổng), không xuất từng dòng. Cần `table_id` và `group`."),
         group: jsonParam(z.array(z.object({ field: z.string().min(1).max(100), dir: z.enum(["asc", "desc"]).optional() })).min(1).max(MAX_GROUP_LEVELS)),
         aggs: jsonParam(z.record(z.string().max(100), z.enum(GROUP_FNS))),
@@ -551,6 +580,7 @@ export const exportOperations = [
         const acc = await loadTableAccess(ctx, i.table_id, "view", { guest: "export" });
         datahubId = acc.datahub.id;
         tableId = acc.tableId;
+        if (acc.guest && i.user_emails) throw new AppError("validation_error", "Guest không xuất được cột email.", { reason: "guest_email" });
         if (acc.guest && i.search) throw new AppError("validation_error", "Guest không dùng được ô tìm kiếm. Lọc theo cột được cấp.", { reason: "guest_search" });
         // Validate filter/sort/columns now so a mistake is an immediate 400, not a failed job.
         const schema = await TableSchema.load(ctx.db, acc);
@@ -564,7 +594,7 @@ export const exportOperations = [
       } else {
         datahubId = (await loadDatahubAccess(ctx, i.datahub_id!)).id;
       }
-      const params: ExportParams = { format: i.format, ...(i.table_id ? { table_id: i.table_id } : { datahub_id: i.datahub_id }), filter: i.filter as FilterNode | undefined, sort: i.sort, search: i.search, time_filter: i.time_filter, columns: i.columns, ...(i.groups_only ? { groups_only: true, group: i.group, aggs: i.aggs } : {}) };
+      const params: ExportParams = { format: i.format, ...(i.table_id ? { table_id: i.table_id } : { datahub_id: i.datahub_id }), filter: i.filter as FilterNode | undefined, sort: i.sort, search: i.search, time_filter: i.time_filter, columns: i.columns, ...(i.user_emails ? { user_emails: true } : {}), ...(i.groups_only ? { groups_only: true, group: i.group, aggs: i.aggs } : {}) };
       const [job] = await ctx.db
         .insert(dhJobs)
         .values({ kind: "export", status: "pending", ownerId: ctx.actor.userId, datahubId, tableId, params: JSON.parse(JSON.stringify(params)) })

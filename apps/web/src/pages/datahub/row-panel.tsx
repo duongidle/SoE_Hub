@@ -253,7 +253,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
           <span id={id} className="min-h-9 py-1.5 text-sm [overflow-wrap:anywhere]">{uid ? `${ctx.people.get(uid) ?? "…"}${ctx.noAccess?.has(uid) ? ` (${NO_ACCESS})` : ""}` : "—"}</span>
           <Button variant="secondary" onClick={() => setPerson((v) => !v)}>{person ? "Đóng" : "Đổi người"}</Button>
         </div>
-        {person && <PersonPicker tableId={session.table.id} value={uid} valueName={uid ? ctx.people.get(uid) : undefined} onCancel={() => setPerson(false)} onDone={(p) => { setPerson(false); if (p) session.labels.learnPerson(p.id, p.full_name); void save(p?.id ?? null); }} />}
+        {person && <PersonPicker tableId={session.table.id} value={uid} valueName={uid ? ctx.people.get(uid) : undefined} onCancel={() => setPerson(false)} onDone={(p) => { setPerson(false); if (p) session.labels.learnPerson(p.id, p.full_name, p.email); void save(p?.id ?? null); }} />}
       </div>
     );
   } else if (type === "long_text") {

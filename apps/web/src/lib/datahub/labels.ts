@@ -1,3 +1,4 @@
+import { disambiguate, type PersonInfo } from "@/lib/people";
 import { lookupPeople, relationLabels } from "./api";
 
 /**
@@ -6,6 +7,13 @@ import { lookupPeople, relationLabels } from "./api";
  */
 export class LabelCache {
   readonly people = new Map<string, string>();
+  /** Emails of the people above (when the server sent them). */
+  readonly emails = new Map<string, string>();
+  /**
+   * What the grid draws for each person: the name, or "Tên (vana.nt)" when two people of this table share a name. Copy, search and paste
+   * keep using `people` (the plain name); only drawing uses this.
+   */
+  readonly shown = new Map<string, string>();
   readonly linked = new Map<string, string>();
   /** People found by id who are neither the owner nor a member of the table. */
   readonly noAccess = new Set<string>();
@@ -37,8 +45,18 @@ export class LabelCache {
   }
 
   /** A person is known (picked from the list, or loaded elsewhere). */
-  learnPerson(id: string, name: string): void {
+  learnPerson(id: string, name: string, email?: string | null): void {
     this.people.set(id, name);
+    if (email) this.emails.set(id, email);
+    this.rebuildShown();
+  }
+
+  private rebuildShown(): void {
+    const list: PersonInfo[] = [];
+    for (const [id, name] of this.people) if (name !== "—" && name !== "…") list.push({ id, full_name: name, email: this.emails.get(id) });
+    const text = disambiguate(list);
+    this.shown.clear();
+    for (const [id, name] of this.people) this.shown.set(id, text.get(id) ?? name);
   }
 
   /** A linked row is known (picked from the list). */
@@ -65,10 +83,12 @@ export class LabelCache {
           .then((list) => {
             list.forEach((p) => {
               this.people.set(p.id, p.full_name);
+              if (p.email) this.emails.set(p.id, p.email);
               if (p.member === false) this.noAccess.add(p.id);
             });
             // An id that is not a person any more shows a dash instead of "…" forever.
             ids.filter((x) => !this.people.has(x)).forEach((x) => this.people.set(x, "—"));
+            this.rebuildShown();
           })
           .catch(() => ids.forEach((x) => this.requested.delete(x))),
       );

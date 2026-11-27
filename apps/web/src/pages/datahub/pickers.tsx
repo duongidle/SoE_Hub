@@ -135,3 +135,4 @@ export function RatingPicker({ value, max, onPick }: { value: number | null; max
     </div>
   );
 }
+export { PeoplePicker } from "@/components/ui/people-picker";

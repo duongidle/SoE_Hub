@@ -3,7 +3,7 @@ import "@glideapps/glide-data-grid/dist/index.css";
 import { formatCount, formatNumber } from "@soe/shared";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { notify } from "@/components/ui/toast";
-import { NO_ACCESS, cellError, cellValue, displayText, editText, ERROR_HELP, attrsOf, entriesOf, nameKey, optionsOf, parseCellText, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
+import { NO_ACCESS, cellError, cellValue, displayText, editText, ERROR_HELP, attrsOf, entriesOf, nameKey, optionsOf, parseCellText, peopleText, pickerEditable, readOnlyReason, typeOf, type CellCtx } from "@/lib/datahub/cells";
 import { planPaste } from "@/lib/datahub/paste";
 import type { CellEdit, TableSession } from "@/lib/datahub/session";
 import type { Column, Level, Row } from "@/lib/datahub/types";
@@ -225,13 +225,14 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
             const list = entriesOf(v);
             list.forEach((e) => labels.wantPerson(e.id));
             // Looking at the people of a deal is allowed even when the cell cannot be edited.
-            const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: true, copyData: text === "—" ? "" : text, data: { t: "persons", col, value: list, text: text === "—" ? "" : text, names: labels.people, readonly: ro, tableId: session.table.id }, themeOverride: tint };
+            const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: true, copyData: text === "—" ? "" : text, data: { t: "persons", col, value: list, text: text === "—" ? "" : text, shownText: peopleText(col, v, { ...ctx, people: labels.shown }), names: labels.people, readonly: ro, tableId: session.table.id }, themeOverride: tint };
             return cell;
           }
           const id = typeof v === "string" ? v : null;
           if (id) labels.wantPerson(id);
           const name = id ? (labels.people.get(id) ?? "…") : "";
-          const shown = id && labels.noAccess.has(id) ? `${name} (${NO_ACCESS})` : name;
+          const drawn = id ? (labels.shown.get(id) ?? name) : "";
+          const shown = id && labels.noAccess.has(id) ? `${drawn} (${NO_ACCESS})` : drawn;
           const cell: SoeCell = { kind: GridCellKind.Custom, allowOverlay: !ro, copyData: name, data: { t: "person", id, name: shown, readonly: ro, tableId: session.table.id }, themeOverride: tint };
           return cell;
         }
@@ -255,7 +256,8 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
       return {
         kind: GridCellKind.Text,
         data: editText(col, row),
-        displayData: text,
+        // created by / modified by draw the name told apart from a namesake; copy keeps the plain name.
+        displayData: type === "created_by" || type === "modified_by" ? displayText(col, row, { ...ctx, people: labels.shown }) : text,
         allowOverlay: true,
         readonly: ro,
         contentAlign: NUMERIC.has(type) ? "right" : undefined,

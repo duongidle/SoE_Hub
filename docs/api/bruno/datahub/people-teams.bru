@@ -1,0 +1,20 @@
+meta {
+  name: datahub.people.teams
+  type: http
+  seq: 46
+}
+
+get {
+  url: {{baseUrl}}/api/v1/datahub/people/teams
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Danh sách team (Leader kèm số người đang làm) trong cây tổ chức của bạn, để chọn cả team vào một ô nhiều người.
+  Quyền: `datahub:datahub:use`.
+}

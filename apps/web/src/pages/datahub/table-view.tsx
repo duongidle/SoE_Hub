@@ -579,7 +579,7 @@ function BulkValue({ col, text, setText, picked, setPicked, session }: { col: Co
     case "rating":
       return <RatingPicker value={typeof picked === "number" ? picked : null} max={col.config.max ?? 5} onPick={(n) => setPicked(n)} />;
     case "user":
-      return <PersonPicker tableId={session.table.id} value={typeof picked === "string" ? picked : null} valueName={typeof picked === "string" ? session.labels.people.get(picked) : undefined} autoFocus={false} onDone={(p) => { if (p) session.labels.learnPerson(p.id, p.full_name); setPicked(p?.id ?? null); }} />;
+      return <PersonPicker tableId={session.table.id} value={typeof picked === "string" ? picked : null} valueName={typeof picked === "string" ? session.labels.people.get(picked) : undefined} autoFocus={false} onDone={(p) => { if (p) session.labels.learnPerson(p.id, p.full_name, p.email); setPicked(p?.id ?? null); }} />;
     default:
       return (
         <Field label="Giá trị" hint={col.type === "date" ? "Dạng dd/mm/yyyy." : col.type === "datetime" ? "Dạng dd/mm/yyyy hh:mm." : col.type === "percent" ? "Ví dụ 12,5%." : "Để trống để xoá giá trị."}>

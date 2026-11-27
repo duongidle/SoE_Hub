@@ -161,6 +161,28 @@ describe("export: values, formats", () => {
   });
 });
 
+describe("export: user_emails", () => {
+  it("adds an email column right after each person column (csv, xlsx, with a column list) and not for the default export", async () => {
+    const x = await seed();
+    const csv = await a("datahub.export.create", { table_id: x.tableId, format: "csv", user_emails: true });
+    await runJob(a, csv.id);
+    const text = (await resultBytes(csv.id)).toString("utf8");
+    const lines = text.slice(1).split("\r\n");
+    expect(lines[0]).toBe("Tên,Doanh thu,Tỉ lệ,Ngày ký,Giờ gọi,Đã gửi,Giai đoạn,Nhãn,Phụ trách,Phụ trách (email),Gấp đôi");
+    expect(lines[1]).toContain(`${org.userA2.name},${org.userA2.email},246913578024690`);
+    const sub = await a("datahub.export.create", { table_id: x.tableId, format: "xlsx", user_emails: true, columns: ["Tên", "Phụ trách"] });
+    await runJob(a, sub.id);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await resultBytes(sub.id)) as never);
+    const ws = wb.getWorksheet("Bảng 1")!;
+    expect(ws.getRow(1).values).toEqual([undefined, "Tên", "Phụ trách", "Phụ trách (email)"]);
+    expect(ws.getRow(2).getCell(3).value).toBe(org.userA2.email);
+    const plain = await a("datahub.export.create", { table_id: x.tableId, format: "csv" });
+    await runJob(a, plain.id);
+    expect((await resultBytes(plain.id)).toString("utf8")).not.toContain("(email)");
+  });
+});
+
 describe("export: permissions", () => {
   it("owner, viewer (no formula text), editor; strangers, Admin, Guest are refused; job belongs to the asker", async () => {
     const x = await seed();

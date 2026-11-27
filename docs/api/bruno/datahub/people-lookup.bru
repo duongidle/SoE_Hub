@@ -13,6 +13,7 @@ get {
 params:query {
   ~ids: ids
   ~q: q
+  ~team_id: team_id
   ~table_id: table_id
   ~limit: 20
 }
@@ -22,6 +23,6 @@ headers {
 }
 
 docs {
-  Tìm người để chọn vào cột Người dùng, hoặc đổi mã người thành tên: theo `ids` hoặc theo `q` (tên hoặc email).
+  Tìm người để chọn vào cột Người dùng, hoặc đổi mã người thành tên: theo `ids`, theo `q` (tên hoặc email) hoặc theo `team_id` (cả team).
   Quyền: `datahub:datahub:use`.
 }

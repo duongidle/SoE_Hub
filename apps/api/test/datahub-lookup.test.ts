@@ -30,6 +30,46 @@ describe("datahub.people.lookup", () => {
   });
 });
 
+describe("datahub.people.lookup: card fields and teams", () => {
+  it("returns status, and roles and team only for people inside the viewer's org tree", async () => {
+    const rows = (await owner("datahub.people.lookup", { ids: [org.leaderA.id, org.userB1.id, org.userA2.id].join(",") })) as { id: string; email: string | null; status: string; roles: string[] | null; team: string | null; team_id: string | null }[];
+    const by = (id: string) => rows.find((r) => r.id === id)!;
+    // Tree A (the viewer's): role and team visible; a Leader is their own team.
+    expect(by(org.leaderA.id)).toMatchObject({ status: "active", roles: ["leader"], team_id: org.leaderA.id, team: org.leaderA.name });
+    expect(by(org.userA2.id)).toMatchObject({ roles: ["user"], team_id: null, team: null }); // directly under the Manager: no team
+    // Tree B: email as before, but no role or team.
+    expect(by(org.userB1.id)).toMatchObject({ email: org.userB1.email, status: "active", roles: null, team_id: null, team: null });
+    const inB = as(t, org.userB1.id);
+    const seen = (await inB("datahub.people.lookup", { ids: org.userA1.id })) as { team: string | null; roles: string[] | null }[];
+    expect(seen[0]).toMatchObject({ roles: null, team: null });
+    const asAdmin = (await as(t, org.admin.id)("datahub.people.lookup", { ids: org.userB1.id })) as { team: string | null; roles: string[] | null }[];
+    expect(asAdmin[0]).toMatchObject({ roles: ["user"], team: org.leaderB.name });
+  });
+
+  it("team_id returns the whole team inside the viewer's tree; teams lists them", async () => {
+    const mine = (await owner("datahub.people.lookup", { team_id: org.leaderA.id })) as { id: string; team_id: string }[];
+    expect(mine.map((p) => p.id).sort()).toEqual([org.leaderA.id, org.userA1.id].sort());
+    expect(mine.every((p) => p.team_id === org.leaderA.id)).toBe(true);
+    expect(await owner("datahub.people.lookup", { team_id: org.leaderB.id })).toEqual([]); // another tree: nothing
+    const teams = (await owner("datahub.people.teams", {})) as { id: string; name: string; member_count: number }[];
+    expect(teams).toEqual([{ id: org.leaderA.id, name: org.leaderA.name, member_count: 2 }]);
+    const all = (await as(t, org.admin.id)("datahub.people.teams", {})) as { id: string }[];
+    expect(all.map((x) => x.id)).toEqual(expect.arrayContaining([org.leaderA.id, org.leaderB.id]));
+    expect((await fails(owner("datahub.people.lookup", { team_id: "không-phải-uuid" }))).code).toBe("validation_error");
+  });
+
+  it("with table_id, team_id keeps only the owner and members of the table", async () => {
+    const x = await makeTable(owner, { columns: [{ name: "Ai", type: "user" }] });
+    const only = (await owner("datahub.people.lookup", { team_id: org.leaderA.id, table_id: x.tableId })) as { id: string }[];
+    expect(only.map((p) => p.id)).toEqual([org.userA1.id]); // the owner; the Leader is not a member yet
+  });
+
+  it("Guest cannot look people up at all", async () => {
+    expect((await fails(as(t, org.guestSale.id)("datahub.people.lookup", { ids: org.userA1.id }))).code).toBe("forbidden");
+    expect((await fails(as(t, org.guestSale.id)("datahub.people.teams", {}))).code).toBe("forbidden");
+  });
+});
+
 describe("datahub.relation.labels", () => {
   it("returns the first text column of the target row, or #row_no; hides it from people without access", async () => {
     const cust = await makeTable(owner, { name: "Khách hàng", columns: [{ name: "Tên khách", type: "text" }] });

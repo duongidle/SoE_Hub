@@ -104,8 +104,11 @@ async function openDatahub(s: Session, tableId?: string): Promise<void> {
 }
 async function share(page: Page, who: string, scope: string, permission: string): Promise<void> {
   const d = dialog(page, /^Chia sẻ/);
-  await d.getByRole("combobox", { name: "Tìm người" }).fill(who);
-  await d.getByRole("option", { name: new RegExp(who) }).getByRole("button").click();
+  await d.getByRole("button", { name: "Chọn người" }).click();
+  const pk = page.getByTestId("people-picker");
+  await pk.getByLabel("Tìm người").fill(who);
+  await pk.getByRole("option", { name: new RegExp(who) }).click();
+  await pk.getByRole("button", { name: /^Xong/ }).click();
   await chooseOption(d.getByLabel("Phạm vi chia sẻ"), { label: scope });
   await chooseOption(d.getByLabel("Quyền chia sẻ"), { label: permission });
   await d.getByRole("button", { name: "Chia sẻ", exact: true }).click();
@@ -124,10 +127,13 @@ test("chia sẻ: chủ chia sẻ Xem cả datahub và Sửa một bảng; quyề
   await expect(d.getByText("Chưa chia sẻ cho ai")).toBeVisible();
 
   // Nobody found: says so. The owner is not offered to themselves.
-  await d.getByRole("combobox", { name: "Tìm người" }).fill("zzzkhongco");
-  await expect(d.getByText("Không tìm thấy người nào.")).toBeVisible();
-  await d.getByRole("combobox", { name: "Tìm người" }).fill(`Chủ 4C ${p}`);
-  await expect(d.getByText("Không tìm thấy người nào.")).toBeVisible();
+  await d.getByRole("button", { name: "Chọn người" }).click();
+  const pk = pg.getByTestId("people-picker");
+  await pk.getByLabel("Tìm người").fill("zzzkhongco");
+  await expect(pk.getByText("Không tìm thấy ai.")).toBeVisible();
+  await pk.getByLabel("Tìm người").fill(`Chủ 4C ${p}`);
+  await expect(pk.getByText("Không tìm thấy ai.")).toBeVisible();
+  await pk.getByRole("button", { name: "Huỷ" }).click();
 
   await share(pg, `Người Xem 4C ${p}`, "Cả datahub (kể cả bảng tạo sau)", "Xem");
   await toast(pg, "Đã chia sẻ cho");
@@ -332,4 +338,35 @@ test("Admin: đặt giới hạn riêng cho một người, giới hạn có tá
   // A person without the right does not see the page.
   await owner.page.goto("/quan-tri/datahub-gioi-han");
   await expect(owner.page.getByRole("heading", { level: 1, name: "Giới hạn Datahub theo người" })).toHaveCount(0);
+});
+
+test("chia sẻ nhiều người một lần; thẻ người hiện email, trạng thái; chọn cả team", async () => {
+  const dh2 = await ownerApi.call<{ id: string }>("POST", "/datahubs", { name: `Nhiều người ${p}` });
+  const pg = owner.page;
+  await pg.goto(`/datahub/${dh2.id}`);
+  await pg.getByRole("button", { name: "Chia sẻ" }).first().click();
+  const d = dialog(pg, /^Chia sẻ/);
+  await d.getByRole("button", { name: "Chọn người" }).click();
+  const pk = pg.getByTestId("people-picker");
+  // The email is always on the second line.
+  await pk.getByLabel("Tìm người").fill(`4C ${p}`);
+  const xem = pk.getByRole("option", { name: new RegExp(`Người Xem 4C ${p}`) });
+  await expect(xem).toContainText("@");
+  await xem.click();
+  await pk.getByRole("option", { name: new RegExp(`Người Sửa 4C ${p}`) }).click();
+  await expect(pk.getByRole("button", { name: /^Xong \(2\)/ })).toBeVisible();
+  await owner.shot("people-picker-multi");
+  await pk.getByRole("button", { name: /^Xong \(2\)/ }).click();
+  await expect(d.getByTestId("share-picked").getByTestId("person-chip")).toHaveCount(2);
+  await d.getByRole("button", { name: "Chia sẻ cho 2 người" }).click();
+  await toast(pg, "Đã chia sẻ cho 2 người");
+  await expect(d.getByTestId("share-row")).toHaveCount(2);
+  // Hover opens the card: email and status, the fields the server allows.
+  await d.getByTestId("share-row").first().getByTestId("person-chip").hover();
+  const card = pg.getByTestId("person-card");
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("@");
+  await expect(card).toContainText("Đang làm");
+  await owner.shot("person-card");
+  await pg.keyboard.press("Escape");
 });

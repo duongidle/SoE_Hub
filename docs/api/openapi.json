@@ -42985,8 +42985,8 @@
     "/api/v1/datahub/people": {
       "get": {
         "operationId": "datahub.people.lookup",
-        "summary": "Tìm người để chọn vào cột Người dùng, hoặc đổi mã người thành tên: theo `ids` hoặc theo `q` (tên hoặc email).",
-        "description": "Chỉ người đang hoạt động trong org chart. Tối đa 200 `ids` một lần; `q` trả tối đa `limit` người (mặc định 20). Có `table_id`: `q` chỉ gợi ý chủ bảng và thành viên của bảng (ô Người dùng chỉ nhận thành viên), còn `ids` vẫn đổi mã ra tên cho mọi người kèm `member` (false = \"không còn quyền\"). Không có `table_id`: dùng để chọn người khi chia sẻ.",
+        "summary": "Tìm người để chọn vào cột Người dùng, hoặc đổi mã người thành tên: theo `ids`, theo `q` (tên hoặc email) hoặc theo `team_id` (cả team).",
+        "description": "Chỉ người đang hoạt động trong org chart (trừ khi tra theo `ids`). Tối đa 200 `ids` một lần; `q` trả tối đa `limit` người (mặc định 20). `team_id` (mã Leader, lấy từ `datahub.people.teams`) trả cả team đang làm việc, Leader và thành viên, tối đa 200 người, chỉ những người trong cây bạn thấy. Có `table_id`: `q` và `team_id` chỉ trả chủ bảng và thành viên của bảng (ô Người dùng chỉ nhận thành viên), còn `ids` vẫn đổi mã ra tên cho mọi người kèm `member` (false = \"không còn quyền\"). Không có `table_id`: dùng để chọn người khi chia sẻ. Mỗi người kèm `status` (active = đang làm, locked/inactive = đã nghỉ hoặc chưa kích hoạt). `roles`, `team`, `team_id` chỉ có khi người đó nằm trong cây tổ chức của bạn (cùng phạm vi xem org chart), ngoài cây thì null.",
         "tags": [
           "datahub"
         ],
@@ -43013,6 +43013,18 @@
               "type": "string",
               "maxLength": 100
             }
+          },
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Mã Leader của team cần lấy cả team.",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "description": "Mã Leader của team cần lấy cả team."
           },
           {
             "name": "limit",
@@ -43068,6 +43080,44 @@
                               "null"
                             ]
                           },
+                          "status": {
+                            "type": "string",
+                            "description": "active = đang làm; locked = đã nghỉ (khoá); inactive = chưa kích hoạt."
+                          },
+                          "roles": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Vai trò; null khi người này ngoài cây tổ chức của bạn."
+                          },
+                          "team_id": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Mã Leader của team (Leader thì là chính họ); null khi không có team hoặc ngoài cây của bạn."
+                          },
+                          "team": {
+                            "description": "Tên Leader của team; null khi không có team hoặc ngoài cây của bạn.",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "member": {
                             "description": "Chỉ có khi gửi `table_id`: người này là chủ hoặc thành viên của bảng.",
                             "type": "boolean"
@@ -43076,7 +43126,127 @@
                         "required": [
                           "id",
                           "full_name",
-                          "email"
+                          "email",
+                          "status",
+                          "roles",
+                          "team_id",
+                          "team"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu gửi lên không hợp lệ.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập hoặc chưa xác định được người dùng.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu hoặc sai mã chống giả mạo (CSRF). Tải lại trang rồi thử lại.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gọi quá nhanh, thử lại sau.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi hệ thống.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/datahub/people/teams": {
+      "get": {
+        "operationId": "datahub.people.teams",
+        "summary": "Danh sách team (Leader kèm số người đang làm) trong cây tổ chức của bạn, để chọn cả team vào một ô nhiều người.",
+        "description": "Chỉ team có Leader nằm trong phạm vi xem org chart của bạn (Admin thấy tất cả, người khác thấy cây của mình). `member_count` gồm Leader. Lấy thành viên bằng `datahub.people.lookup` với `team_id`.",
+        "tags": [
+          "datahub"
+        ],
+        "x-command-name": "datahub.people.teams",
+        "x-ai-allowed": true,
+        "x-permission": "datahub:datahub:use",
+        "responses": {
+          "200": {
+            "description": "Thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "member_count": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "member_count"
                         ],
                         "additionalProperties": false
                       }
@@ -55689,6 +55859,10 @@
                       "minLength": 1,
                       "maxLength": 100
                     }
+                  },
+                  "user_emails": {
+                    "description": "Thêm cột email ngay sau mỗi cột người (Người dùng, Người tạo, Người sửa). Không dùng cho Guest và không có khi xuất tổng hợp.",
+                    "type": "boolean"
                   },
                   "groups_only": {
                     "description": "Xuất dạng tổng hợp: mỗi dòng là một nhóm của view (cột nhóm, Số dòng, các cột tổng), không xuất từng dòng. Cần `table_id` và `group`.",

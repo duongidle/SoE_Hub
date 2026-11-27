@@ -45,3 +45,13 @@ Cải thiện trải nghiệm thuần giao diện (Dương cho phép, `module12-
 ## Overscroll ngang (28/11/2026)
 
 Dương báo: trên Mac, vuốt hai ngón để quay lại trang chỉ chạy khi chuột ở nền ngoài khung app. Nguyên nhân: `.contain-scroll` đặt `overscroll-behavior: contain` cả hai trục trên vùng cuộn chính của Shell và mọi khung cuộn dọc, nên trình duyệt không nhận cử chỉ quay lại. Sửa: thêm `.contain-scroll-y` (`overscroll-behavior-y: contain`, trục x để auto) cho mọi khung chỉ cuộn dọc (Shell main và sidebar, drawer, popover, dropdown, hộp thoại form, các danh sách chọn, panel dòng, panel cấu hình biểu đồ, ô ghi chú). Giữ `.contain-scroll` (cả hai trục) chỉ ở vùng cuộn ngang thật: `dashboard/data-views.tsx` (2 chỗ) và `dashboard/rows-dialog.tsx` (bảng rộng). Grid Datahub tự đặt `overscrollX/Y = 0`.
+
+## 12B (28/11/2026)
+
+- **12B-1, quyền xem thông tin người (Sonnet tự chọn theo quy định có sẵn, Opus rà):** `email` trong `datahub.people.lookup` đã trả cho mọi thành viên từ trước (để chọn người chia sẻ), giữ nguyên. `roles`, `team`, `team_id` là dữ kiện org chart nên theo đúng phạm vi `org` của `org.member.get` (Admin tất cả, người khác cây của mình): ngoài cây thì null, thẻ không hiện dòng đó. `status` ai cũng thấy (đã lộ qua tra theo `ids`). Guest không có `datahub:datahub:use` nên không gọi được. Không nới quyền nào.
+- **Team:** mã team = mã Leader (Leader là thành viên team của chính họ; người chưa có Leader, dưới thẳng Manager, không có team). `datahub.people.teams` liệt kê, `lookup({team_id})` lấy thành viên đang làm trong cây người xem, tối đa 200, có `table_id` thì chỉ thành viên bảng.
+- **Trạng thái:** server trả mã (`active`/`locked`/`inactive`); web gọi "Đang làm", "Đã nghỉ", "Chưa kích hoạt" (`statusLabel`).
+- **Phân biệt trùng tên:** `disambiguate` lấy phần trước @ của email; trùng cả phần đó thì cả email; không có email thì giữ tên. Phạm vi "cùng danh sách" = người đã biết của bảng (`LabelCache`). Grid vẽ tên phân biệt; copy/dán/tìm vẫn dùng tên thường để không đổi dữ liệu sao chép.
+- **Thẻ người:** hover chuột 250ms mở, rời 200ms đóng; chạm/Enter mở; không chiếm focus. Chưa có ảnh nên avatar là chữ cái đầu của hai từ cuối. `components/ui/person.tsx` gọi `lookupPeople` của datahub (một API duy nhất trả người), chưa có API riêng ngoài datahub.
+- **Chia sẻ datahub:** `AddShare` chuyển sang `PeoplePicker`: chọn nhiều người một lần, cùng phạm vi và quyền, gửi lần lượt; người lỗi giữ lại trong danh sách kèm lỗi. E2e `stage2c4` sửa theo (nút "Chọn người", `people-picker`) và thêm một test.
+- **Export:** `user_emails` thêm cột email cho Người dùng, Người tạo, Người sửa (xuất tổng hợp thì không). UI nút chọn thuộc 12B-2.

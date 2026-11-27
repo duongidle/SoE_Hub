@@ -17,7 +17,7 @@ export type SoeData =
   | { t: "select"; ids: string[]; options: SelectOption[]; multi: boolean; readonly: boolean }
   | { t: "rating"; value: number | null; max: number; readonly: boolean }
   | { t: "person"; id: string | null; name: string; readonly: boolean; tableId: string }
-  | { t: "persons"; col: Column; value: PersonEntry[]; text: string; names: ReadonlyMap<string, string>; readonly: boolean; tableId: string }
+  | { t: "persons"; col: Column; value: PersonEntry[]; text: string; shownText: string; names: ReadonlyMap<string, string>; readonly: boolean; tableId: string }
   | { t: "relation"; ids: string[]; names: string[]; multiple: boolean; readonly: boolean; tableId: string; column: string; learn: (id: string, label: string) => void }
   | { t: "files"; ids: string[]; max: number; readonly: boolean; tableId: string };
 export type SoeCell = CustomCell<SoeData>;
@@ -198,7 +198,7 @@ export const soeRenderer: CustomRenderer<SoeCell> = {
     } else if (d.t === "persons") {
       ctx.textAlign = "left";
       ctx.fillStyle = d.text ? theme.textDark : theme.textLight;
-      ctx.fillText(d.text ? fitText(ctx, d.text, rect.width - padX * 2) : "—", rect.x + padX, midY + 1);
+      ctx.fillText(d.text ? fitText(ctx, d.shownText, rect.width - padX * 2) : "—", rect.x + padX, midY + 1);
     } else if (d.t === "person") {
       ctx.fillStyle = theme.textDark;
       ctx.textAlign = "left";
