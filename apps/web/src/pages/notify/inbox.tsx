@@ -1,14 +1,16 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bell, Pin } from "lucide-react";
+import { Bell, Pin, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button, ErrorText, PageTitle, Select, Tabs } from "@/components/ui/form";
+import { Button, ErrorText, Modal, PageTitle, Select, Tabs } from "@/components/ui/form";
 import { Popover } from "@/components/ui/popover";
 import { EmptyState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { api, apiList, fmtTime, qs, type Page } from "@/lib/api";
 import { can, type Me } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { AnnouncementsPanel, ComposeForm, type AnnTab } from "./announcements";
+import { ReminderForm, RemindersPanel } from "./reminders";
 
 export interface NotificationRow {
   id: string;
@@ -91,7 +93,13 @@ function Groups({ rows, onOpened }: { rows: NotificationRow[]; onOpened?: () => 
 export function BellButton({ me }: { me: Me }) {
   const enabled = can(me, "notification:read");
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"all" | "unread">("all");
+  const [tab, setTab] = useState<"notif" | "reminder" | "announce">("notif");
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [annTab, setAnnTab] = useState<AnnTab>("received");
+  const [plus, setPlus] = useState(false);
+  const [create, setCreate] = useState<"reminder" | "announce" | null>(null);
+  const canRemind = can(me, "notification:manage");
+  const canAnnounce = can(me, "notification:announce");
   const mark = useMarkRead();
   const count = useQuery({ queryKey: ["unread"], queryFn: () => api<{ unread: number }>("GET", "/notifications/unread-count"), enabled, retry: false });
   const list = useQuery({ queryKey: ["notifications", "bell"], queryFn: () => apiList<NotificationRow>(`/notifications${qs({ limit: 20 })}`), enabled, retry: false });
@@ -114,7 +122,7 @@ export function BellButton({ me }: { me: Me }) {
     }
   }, [list.data, nav]);
 
-  const rows = (list.data?.data ?? []).filter((r) => tab === "all" || !r.read_at);
+  const rows = (list.data?.data ?? []).filter((r) => !unreadOnly || !r.read_at);
   const trigger = (
     <button type="button" aria-label={`Thông báo, ${n} chưa đọc`} className="relative inline-flex min-h-9 min-w-9 items-center justify-center rounded-md hover:bg-muted">
       <Bell size={18} />
@@ -125,17 +133,49 @@ export function BellButton({ me }: { me: Me }) {
       )}
     </button>
   );
+  const tabs = [{ value: "notif" as const, label: "Thông báo" }, ...(canRemind ? [{ value: "reminder" as const, label: "Nhắc hẹn" }] : []), { value: "announce" as const, label: "Thông báo chung" }];
+  const pick = (what: "reminder" | "announce") => {
+    setPlus(false);
+    setOpen(false);
+    setCreate(what);
+  };
   return (
-    <Popover trigger={trigger} label="Thông báo" align="end" width="w-[26rem]" open={open} onOpenChange={setOpen}>
-      <div className="flex items-center justify-between gap-2 pb-2">
-        <Tabs value={tab} onChange={setTab} items={[{ value: "all", label: "Tất cả" }, { value: "unread", label: "Chưa đọc" }]} />
-      </div>
-      {list.isLoading ? <p className="text-muted-foreground">Đang tải...</p> : rows.length === 0 ? <p className="py-4 text-center text-muted-foreground">Không có thông báo.</p> : <Groups rows={rows} onOpened={() => setOpen(false)} />}
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2">
-        <Button variant="ghost" disabled={n === 0 || mark.isPending} onClick={() => mark.mutate({ all: true })}>Đánh dấu tất cả đã đọc</Button>
-        <Link to="/thong-bao" onClick={() => setOpen(false)} className="text-sm text-primary underline">Xem tất cả</Link>
-      </div>
-    </Popover>
+    <>
+      <Popover trigger={trigger} label="Thông báo" align="end" width="w-[28rem]" open={open} onOpenChange={(o) => { setOpen(o); if (!o) setPlus(false); }}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1"><Tabs value={tab} onChange={setTab} items={tabs} /></div>
+          {(canRemind || canAnnounce) && (
+            <div className="relative shrink-0">
+              <Button variant="secondary" aria-label="Tạo mới" aria-expanded={plus} onClick={() => setPlus((v) => !v)} className="!px-2"><Plus size={18} aria-hidden /></Button>
+              {plus && (
+                <div role="menu" aria-label="Tạo mới" className="absolute right-0 top-full z-10 mt-1 flex w-52 flex-col rounded-lg border border-border bg-card p-1 shadow-md">
+                  {canRemind && <button type="button" role="menuitem" onClick={() => pick("reminder")} className="rounded-md px-3 py-2 text-left text-sm hover:bg-primary-soft">Tạo nhắc hẹn</button>}
+                  {canAnnounce && <button type="button" role="menuitem" onClick={() => pick("announce")} className="rounded-md px-3 py-2 text-left text-sm hover:bg-primary-soft">Tạo thông báo chung</button>}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {tab === "notif" && (
+          <>
+            <div className="mb-2 flex justify-end"><Button variant="ghost" aria-pressed={unreadOnly} onClick={() => setUnreadOnly((v) => !v)}>{unreadOnly ? "Xem tất cả" : "Chỉ chưa đọc"}</Button></div>
+            {list.isLoading ? <p className="text-muted-foreground">Đang tải...</p> : rows.length === 0 ? <p className="py-4 text-center text-muted-foreground">Không có thông báo.</p> : <Groups rows={rows} onOpened={() => setOpen(false)} />}
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2">
+              <Button variant="ghost" disabled={n === 0 || mark.isPending} onClick={() => mark.mutate({ all: true })}>Đánh dấu tất cả đã đọc</Button>
+              <Link to="/thong-bao" onClick={() => setOpen(false)} className="text-sm text-primary underline">Xem tất cả</Link>
+            </div>
+          </>
+        )}
+        {tab === "reminder" && canRemind && <RemindersPanel showNew={false} />}
+        {tab === "announce" && <AnnouncementsPanel tab={annTab} onTab={setAnnTab} />}
+      </Popover>
+      <Modal title="Tạo nhắc hẹn" open={create === "reminder"} onClose={() => setCreate(null)}>
+        <ReminderForm onDone={() => { setCreate(null); setTab("reminder"); setOpen(true); }} />
+      </Modal>
+      <Modal title="Tạo thông báo chung" open={create === "announce"} onClose={() => setCreate(null)}>
+        <ComposeForm onSent={() => { setCreate(null); setAnnTab("sent"); setTab("announce"); setOpen(true); }} />
+      </Modal>
+    </>
   );
 }
 

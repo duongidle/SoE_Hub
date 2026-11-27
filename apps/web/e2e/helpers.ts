@@ -101,9 +101,9 @@ export class Session {
   async menuLink(label: string) {
     if (Session.SETTINGS_ONLY.includes(label)) {
       await (await this.menuNav()).getByRole("link", { name: "Cài đặt", exact: true }).click();
-      await expect(this.page).toHaveURL(/\/cai-dat$/);
-      await expect(this.page.getByRole("heading", { name: "Cài đặt", exact: true })).toBeVisible();
-      return this.page.getByRole("main").getByRole("link", { name: label, exact: true });
+      const side = this.page.getByRole("navigation", { name: "Menu cài đặt" });
+      await expect(side).toBeVisible();
+      return side.getByRole("link", { name: label, exact: true });
     }
     return (await this.menuNav()).getByRole("link", { name: label, exact: true });
   }

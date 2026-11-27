@@ -12,7 +12,7 @@ interface Sent { id: string; title: string; body: string; important: boolean; re
 interface Received { id: string; title: string; body: string; important: boolean; sender: string; read: boolean; created_at: string }
 const ids = (m: Member[], f: (m: Member) => boolean) => m.filter(f).map((x) => x.id);
 
-function Compose({ onSent }: { onSent: () => void }) {
+export function ComposeForm({ onSent }: { onSent: () => void }) {
   const me = useMe().data!;
   const qc = useQueryClient();
   const admin = me.user.roles.includes("admin");
@@ -39,10 +39,7 @@ function Compose({ onSent }: { onSent: () => void }) {
   const noTarget = !all && !trees.length && !teams.length && !people.length;
   const shown = list.filter((m) => !search || `${m.full_name} ${m.email ?? ""}`.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
   return (
-    <Card>
-      <CardHeader><CardTitle>Soạn thông báo</CardTitle></CardHeader>
-      <CardContent>
-        <form className="flex flex-col gap-3 text-sm" onSubmit={(e) => { e.preventDefault(); if (title.trim() && !noTarget) send.mutate(); }}>
+    <form className="flex flex-col gap-3 text-sm" onSubmit={(e) => { e.preventDefault(); if (title.trim() && !noTarget) send.mutate(); }}>
           <Field label="Tiêu đề" required><Input value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} data-testid="ann-title" /></Field>
           <Field label="Nội dung"><Textarea rows={4} value={body} maxLength={5000} onChange={(e) => setBody(e.target.value)} data-testid="ann-body" /></Field>
           <label className="flex items-center gap-2"><input type="checkbox" checked={important} onChange={(e) => setImportant(e.target.checked)} /> Quan trọng (ghim đầu hộp thông báo, hiện toast)</label>
@@ -56,9 +53,7 @@ function Compose({ onSent }: { onSent: () => void }) {
           </fieldset>
           <ErrorText error={send.error} />
           <div><Button type="submit" loading={send.isPending} disabled={!title.trim() || noTarget} data-testid="ann-send">Gửi</Button></div>
-        </form>
-      </CardContent>
-    </Card>
+    </form>
   );
 }
 
@@ -84,18 +79,16 @@ function SentItem({ a }: { a: Sent }) {
   );
 }
 
-export function AnnouncementsPage() {
-  const me = useMe().data;
-  const canSend = can(me, "notification:announce");
-  const [tab, setTab] = useState<"sent" | "received">(canSend ? "sent" : "received");
+export type AnnTab = "sent" | "received";
+
+/** The two lists: what reached me, and (for who may announce) what I sent. Used by the bell and by the page. */
+export function AnnouncementsPanel({ tab, onTab }: { tab: AnnTab; onTab: (t: AnnTab) => void }) {
+  const canSend = can(useMe().data, "notification:announce");
   const sent = useQuery({ queryKey: ["announcements", "sent"], enabled: canSend && tab === "sent", queryFn: () => api<Sent[]>("GET", "/announcements/sent") });
   const got = useQuery({ queryKey: ["announcements", "received"], enabled: tab === "received", queryFn: () => api<Received[]>("GET", "/announcements/received") });
-  const [compose, setCompose] = useState(false);
   return (
     <div>
-      <PageTitle actions={canSend ? <Button onClick={() => setCompose((v) => !v)} data-testid="ann-new">{compose ? "Đóng" : "Soạn mới"}</Button> : undefined}>Thông báo chung</PageTitle>
-      {compose && canSend && <div className="mb-4"><Compose onSent={() => { setCompose(false); setTab("sent"); }} /></div>}
-      <Tabs value={tab} onChange={setTab} items={[...(canSend ? [{ value: "sent" as const, label: "Đã gửi" }] : []), { value: "received" as const, label: "Đã nhận" }]} />
+      {canSend && <Tabs value={tab} onChange={onTab} items={[{ value: "received" as const, label: "Đã nhận" }, { value: "sent" as const, label: "Đã gửi" }]} />}
       <ErrorText error={sent.error ?? got.error} />
       {tab === "sent" ? (
         <>{sent.data?.length === 0 && <EmptyState title="Chưa gửi thông báo chung nào" />}<ul className="flex flex-col gap-2">{sent.data?.map((a) => <SentItem key={a.id} a={a} />)}</ul></>
@@ -109,6 +102,24 @@ export function AnnouncementsPage() {
             </li>
           ))}</ul></>
       )}
+    </div>
+  );
+}
+
+export function AnnouncementsPage() {
+  const canSend = can(useMe().data, "notification:announce");
+  const [tab, setTab] = useState<AnnTab>(canSend ? "sent" : "received");
+  const [compose, setCompose] = useState(false);
+  return (
+    <div>
+      <PageTitle actions={canSend ? <Button onClick={() => setCompose((v) => !v)} data-testid="ann-new">{compose ? "Đóng" : "Soạn mới"}</Button> : undefined}>Thông báo chung</PageTitle>
+      {compose && canSend && (
+        <Card className="mb-4">
+          <CardHeader><CardTitle>Soạn thông báo</CardTitle></CardHeader>
+          <CardContent><ComposeForm onSent={() => { setCompose(false); setTab("sent"); }} /></CardContent>
+        </Card>
+      )}
+      <AnnouncementsPanel tab={tab} onTab={setTab} />
     </div>
   );
 }

@@ -71,7 +71,8 @@ export function RemindMeButton({ object }: { object: NonNullable<Reminder["objec
   );
 }
 
-export function RemindersPage() {
+/** The reminder list (upcoming / done). Used by the bell and by the page. */
+export function RemindersPanel({ showNew = true }: { showNew?: boolean } = {}) {
   const qc = useQueryClient();
   const [tab, setTab] = useState<"upcoming" | "done">("upcoming");
   const [creating, setCreating] = useState(false);
@@ -82,7 +83,7 @@ export function RemindersPage() {
   const rm = useMutation({ mutationFn: (id: string) => api("DELETE", `/reminders/${id}`), onSuccess: () => { setDel(null); refresh(); } });
   return (
     <div>
-      <PageTitle actions={<><Link to="/thong-bao" className="inline-flex min-h-9 items-center px-3 text-sm text-primary underline">Thông báo</Link><Button onClick={() => setCreating(true)} data-testid="new-reminder"><BellPlus size={16} aria-hidden /> Nhắc mới</Button></>}>Nhắc hẹn</PageTitle>
+      {showNew && <div className="mb-3 flex justify-end"><Button onClick={() => setCreating(true)} data-testid="new-reminder"><BellPlus size={16} aria-hidden /> Nhắc mới</Button></div>}
       <Tabs value={tab} onChange={setTab} items={[{ value: "upcoming", label: "Sắp tới" }, { value: "done", label: "Đã xong" }]} />
       <ErrorText error={q.error ?? act.error ?? rm.error} />
       {q.data?.length === 0 && <EmptyState title={tab === "done" ? "Chưa có nhắc hẹn nào xong" : "Chưa có nhắc hẹn"} hint="Bấm Nhắc mới, hoặc Nhắc tôi ở chi tiết deal hay dòng." />}
@@ -110,6 +111,15 @@ export function RemindersPage() {
       </ul>
       <Modal title="Nhắc mới" open={creating} onClose={() => setCreating(false)}><ReminderForm onDone={() => setCreating(false)} /></Modal>
       {del && <ConfirmDialog title="Xoá nhắc hẹn?" message={`"${del.content}"${del.repeat !== "none" ? " (cả chuỗi lặp)" : ""}`} confirmLabel="Xoá" busy={rm.isPending} onClose={() => setDel(null)} onConfirm={() => rm.mutate(del.id)} />}
+    </div>
+  );
+}
+
+export function RemindersPage() {
+  return (
+    <div>
+      <PageTitle actions={<Link to="/thong-bao" className="inline-flex min-h-9 items-center px-3 text-sm text-primary underline">Thông báo</Link>}>Nhắc hẹn</PageTitle>
+      <RemindersPanel />
     </div>
   );
 }

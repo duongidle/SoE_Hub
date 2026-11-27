@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import * as Dialog from "@radix-ui/react-dialog";
-import { BookOpen, Briefcase, ChartColumn, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Clock, Database, FileText, FolderInput, LayoutDashboard, LogOut, Megaphone, Menu, Network, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
+import { BookOpen, Briefcase, ChartColumn, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Database, FileText, FolderInput, LayoutDashboard, LogOut, Menu, Network, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Brand, BRAND_NAME } from "@/components/brand";
 import { Button } from "@/components/ui/form";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { can, useLiveUpdates, useMe } from "@/lib/session";
 import { BellButton } from "./notify/inbox";
+import { SettingsLayout } from "./settings";
 
 const PUBLIC_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
 
@@ -26,8 +27,6 @@ const NAV: NavItem[] = [
   { to: "/ai-hub", label: "AI Hub", icon: Sparkles, permission: "aihub:skill:read" },
   { to: "/duyet", label: "Duyệt bài", icon: ClipboardCheck, permission: "knowledge:article:review|aihub:skill:review" },
   { to: "/dashboard", label: "Dashboard chia sẻ", icon: ChartColumn, permission: null },
-  { to: "/nhac-hen", label: "Nhắc hẹn", icon: Clock, permission: "notification:manage" },
-  { to: "/thong-bao-chung", label: "Thông báo chung", icon: Megaphone, permission: "notification:announce" },
   { to: "/to-chuc", label: "Org chart", icon: Network, permission: "org:member:read" },
 ];
 
@@ -76,13 +75,22 @@ export const canAny = (me: Parameters<typeof can>[0], permission: string) => per
 const isPublic = (path: string) => PUBLIC_PATHS.includes(path);
 const requiredPermission = (path: string) => ROUTE_PERMISSIONS.find((r) => path === r.prefix || path.startsWith(`${r.prefix}/`))?.permission ?? null;
 
+/** The settings entry a path belongs to (longest match), or null. `/tai-khoan/*` (tokens, notification settings) belongs to Cài đặt too. */
+export function settingsLinkFor(path: string) {
+  const hit = SETTINGS_LINKS.filter((s) => path === s.to || path.startsWith(`${s.to}/`)).sort((x, y) => y.to.length - x.to.length)[0];
+  return hit ?? null;
+}
+export const isSettingsPath = (path: string) => path === "/cai-dat" || settingsLinkFor(path) !== null;
+
 /** Breadcrumb from the path: the menu item it belongs to (longest prefix), under "Cài đặt" for settings pages. */
 function crumbs(path: string): string[] {
   if (path === "/cai-dat") return ["Cài đặt"];
-  const setting = SETTINGS_LINKS.find((s) => path === s.to || path.startsWith(`${s.to}/`));
+  const setting = settingsLinkFor(path);
   if (setting) return ["Cài đặt", setting.label];
   const item = NAV.filter((n) => (n.to === "/" ? path === "/" : path === n.to || path.startsWith(`${n.to}/`))).sort((x, y) => y.to.length - x.to.length)[0];
   if (item) return [item.label];
+  if (path === "/nhac-hen") return ["Thông báo", "Nhắc hẹn"];
+  if (path === "/thong-bao-chung") return ["Thông báo", "Thông báo chung"];
   if (path.startsWith("/thong-bao")) return ["Thông báo"];
   return [BRAND_NAME];
 }
@@ -100,7 +108,7 @@ const linkBase = "relative flex min-h-10 items-center gap-3 rounded-control px-3
 const linkActive = "[&.active]:bg-primary-soft [&.active]:font-semibold [&.active]:text-primary [&.active]:before:absolute [&.active]:before:-left-3 [&.active]:before:top-2 [&.active]:before:bottom-2 [&.active]:before:w-[3px] [&.active]:before:rounded-full [&.active]:before:bg-primary [&.active]:before:content-['']";
 
 /** The menu list; the sidebar on a wide screen and the drawer on a narrow one use the same markup. */
-function SideNav({ items, collapsed, label, onLogout }: { items: NavItem[]; collapsed: boolean; label: string; onLogout?: () => void }) {
+function SideNav({ items, collapsed, label, onLogout, settingsActive }: { items: NavItem[]; collapsed: boolean; label: string; onLogout?: () => void; settingsActive?: boolean }) {
   const text = collapsed ? "sr-only" : "truncate";
   return (
     <nav aria-label={label} className="flex min-h-0 flex-1 flex-col px-3 pb-3">
@@ -113,7 +121,7 @@ function SideNav({ items, collapsed, label, onLogout }: { items: NavItem[]; coll
         ))}
       </div>
       <div className="mt-2 flex flex-col gap-0.5 border-t border-border-soft pt-2">
-        <Link to="/cai-dat" title={collapsed ? "Cài đặt" : undefined} className={cn(linkBase, linkActive, collapsed && "justify-center px-0")}>
+        <Link to="/cai-dat" title={collapsed ? "Cài đặt" : undefined} className={cn(linkBase, linkActive, settingsActive && "active", collapsed && "justify-center px-0")}>
           <Settings size={18} aria-hidden className="shrink-0" />
           <span className={text}>Cài đặt</span>
         </Link>
@@ -226,7 +234,7 @@ export function Shell() {
               <ChevronsRight size={18} aria-hidden />
             </button>
           )}
-          <SideNav items={items} collapsed={collapsed} label="Menu chính" onLogout={logout} />
+          <SideNav items={items} collapsed={collapsed} label="Menu chính" onLogout={logout} settingsActive={isSettingsPath(shown)} />
         </aside>
 
         <Dialog.Root open={open} onOpenChange={(o) => setOpenPath(o ? path : null)}>
@@ -239,7 +247,7 @@ export function Shell() {
                   <Brand />
                 </Link>
               </div>
-              <SideNav items={items} collapsed={false} label="Menu điện thoại" />
+              <SideNav items={items} collapsed={false} label="Menu điện thoại" settingsActive={isSettingsPath(shown)} />
             </Dialog.Content>
           </Dialog.Portal>
 
@@ -270,7 +278,7 @@ export function Shell() {
                   </Button>
                 </div>
               </header>
-              <main id="noi-dung" tabIndex={-1} className={wide ? "flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : <Outlet />}</main>
+              <main id="noi-dung" tabIndex={-1} className={wide ? "flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : isSettingsPath(shown) ? <SettingsLayout me={me} path={shown}><Outlet /></SettingsLayout> : <Outlet />}</main>
             </div>
           </div>
         </Dialog.Root>

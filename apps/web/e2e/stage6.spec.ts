@@ -113,6 +113,35 @@ test("Leader gửi thông báo chung cho team: thành viên thấy, người g�
   await expect(up.getByTestId("notification-item").filter({ hasText: title })).toHaveCount(0);
 });
 
+test("Chuông có ba tab và nút +: Leader tạo được cả hai loại, thành viên chỉ tạo nhắc hẹn; menu không còn mục riêng", async () => {
+  const lp = leadS.page;
+  await lp.goto("/");
+  await expect(await leadS.hasMenu("Nhắc hẹn")).toBe(false);
+  await expect(await leadS.hasMenu("Thông báo chung")).toBe(false);
+  await bell(leadS).click();
+  const panel = lp.getByRole("dialog", { name: "Thông báo" });
+  for (const name of ["Thông báo", "Nhắc hẹn", "Thông báo chung"]) await expect(panel.getByRole("tab", { name, exact: true })).toBeVisible();
+  await panel.getByRole("tab", { name: "Thông báo chung" }).click();
+  await expect(panel.getByRole("tab", { name: "Đã gửi" })).toBeVisible();
+  await panel.getByRole("button", { name: "Tạo mới" }).click();
+  await expect(panel.getByRole("menuitem", { name: "Tạo nhắc hẹn" })).toBeVisible();
+  await expect(panel.getByRole("menuitem", { name: "Tạo thông báo chung" })).toBeVisible();
+  const content = `Nhắc từ chuông ${p}`;
+  await panel.getByRole("menuitem", { name: "Tạo nhắc hẹn" }).click();
+  const d = lp.getByRole("dialog", { name: "Tạo nhắc hẹn" });
+  await d.getByLabel("Nội dung").fill(content);
+  await d.getByPlaceholder("dd/mm/yyyy hh:mm").fill(vnAfter(600));
+  await d.getByRole("button", { name: "Đặt nhắc" }).click();
+  await expect(lp.getByRole("dialog", { name: "Thông báo" }).getByTestId("reminder-item").filter({ hasText: content })).toBeVisible();
+
+  const up = userS.page;
+  await up.goto("/");
+  await bell(userS).click();
+  await up.getByRole("dialog", { name: "Thông báo" }).getByRole("button", { name: "Tạo mới" }).click();
+  await expect(up.getByRole("menuitem", { name: "Tạo nhắc hẹn" })).toBeVisible();
+  await expect(up.getByRole("menuitem", { name: "Tạo thông báo chung" })).toHaveCount(0);
+});
+
 test("Cài đặt thông báo: tắt một loại không bắt buộc, loại bắt buộc bị khoá", async () => {
   const page = userS.page;
   await page.goto("/tai-khoan/thong-bao");
