@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ArchiveRestore, ArrowLeft, Archive, Lock, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, Select } from "@/components/ui/form";
+import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -67,7 +67,7 @@ export function TemplatePage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Link to="/quan-ly-deal" className="inline-flex min-h-9 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft size={16} aria-hidden /> Quản lý Deal</Link>
-        <h1 className="text-xl font-semibold sm:text-2xl">Template</h1>
+        <PageTitle>Template</PageTitle>
         <Button className="ml-auto" onClick={() => setCreating(true)}><Plus size={16} aria-hidden /> Tạo bảng template</Button>
       </div>
       <p className="text-sm text-muted-foreground">Bảng và cột của template áp dụng ngay cho mọi người trong phạm vi. Cột riêng của từng người không bị ảnh hưởng. Bộ mặc định cho cây mới do Admin sửa ở Cài đặt hệ thống.</p>

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageTitle } from "@/components/ui/form";
 import { fetchHealth } from "@/lib/api";
 import { HealthCard } from "./health-card";
 
@@ -7,7 +8,7 @@ export function SystemPage() {
   const q = useQuery({ queryKey: ["health"], queryFn: fetchHealth, retry: false });
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Hệ thống</h1>
+      <PageTitle>Hệ thống</PageTitle>
       <div className="grid gap-6 md:grid-cols-2">
         <HealthCard />
         <Card>

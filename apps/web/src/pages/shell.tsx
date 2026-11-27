@@ -1,12 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import * as Dialog from "@radix-ui/react-dialog";
-import { BookOpen, Briefcase, ChartColumn, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Database, FileText, FolderInput, LayoutDashboard, LogOut, Menu, Network, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Ellipsis, BookOpen, Briefcase, ChartColumn, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Database, FileText, FolderInput, LayoutDashboard, LogOut, Menu, Network, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { Brand, BRAND_NAME } from "@/components/brand";
 import { Button } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
+import { PageChromeContext } from "@/lib/page-chrome";
 import { api } from "@/lib/api";
 import { can, useLiveUpdates, useMe } from "@/lib/session";
 import { useSearchHotkey } from "@/lib/search-hotkey";
@@ -160,6 +161,13 @@ export function Shell() {
   const [openPath, setOpenPath] = useState<string | null>(null);
   const open = openPath === path;
   const [collapsed, setCollapsed] = useState(readCollapsed);
+  // Page-owned parts of the top bar: the last breadcrumb and the slot for the page's action buttons.
+  const [leaf, setLeaf] = useState<string | null>(null);
+  const [actionsEl, setActionsEl] = useState<HTMLElement | null>(null);
+  const [actionCount, setActionCount] = useState(0);
+  const [actionsOpenPath, setActionsOpenPath] = useState<string | null>(null);
+  const actionsOpen = actionsOpenPath === path;
+  const chrome = useMemo(() => ({ setLeaf, addActions: (d: number) => setActionCount((c) => c + d), actionsEl }), [actionsEl]);
   const toggleCollapsed = () => {
     setCollapsed((c) => {
       try {
@@ -219,7 +227,9 @@ export function Shell() {
 
   // An open table fills the window (the grid scrolls inside it); other pages are a centered column that scrolls.
   const wide = shown.startsWith("/datahub/") || shown.startsWith("/du-lieu-duoc-cap/") || (shown.startsWith("/quan-ly-deal") && shown !== "/quan-ly-deal/template");
-  const trail = crumbs(shown);
+  const baseTrail = crumbs(shown);
+  // A name the menu does not know (datahub, form...) ends the breadcrumb; settings pages already carry their label.
+  const trail = !leaf || isSettingsPath(shown) || baseTrail[baseTrail.length - 1] === leaf ? baseTrail : baseTrail[0] === BRAND_NAME ? [leaf] : [...baseTrail, leaf];
   const initials = me.user.full_name.split(/\s+/).filter(Boolean).slice(-2).map((w) => w[0]).join("").toUpperCase();
   return (
     <div className="h-dvh md:p-3">
@@ -277,6 +287,21 @@ export function Shell() {
                   ))}
                 </nav>
                 <div className="ml-auto flex items-center gap-1">
+                  {actionCount > 0 && (
+                    <Button variant="ghost" className="shrink-0 !px-2 sm:hidden" aria-label="Thao tác của trang" aria-expanded={actionsOpen} onClick={() => setActionsOpenPath(actionsOpen ? null : path)}>
+                      <Ellipsis size={20} aria-hidden />
+                    </Button>
+                  )}
+                  {/* Wide: a row before the bell. Narrow: a panel under the bar, opened by the "..." button (a click on a button inside closes it). */}
+                  <div
+                    id="topbar-actions"
+                    ref={setActionsEl}
+                    onClick={(e) => { if ((e.target as HTMLElement).closest("button, a")) setActionsOpenPath(null); }}
+                    className={cn(
+                      "items-center gap-2 sm:mr-1 sm:flex",
+                      actionsOpen ? "fixed inset-x-2 top-14 z-30 flex flex-col items-stretch rounded-card border border-border bg-card p-2 shadow-lg sm:static sm:flex-row sm:items-center sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none" : "hidden",
+                    )}
+                  />
                   <BellButton me={me} />
                   <Link to="/tai-khoan" className="inline-flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-primary-soft" aria-label="Tài khoản của tôi">
                     <span aria-hidden className="inline-flex size-7 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">{initials || <UserRound size={14} />}</span>
@@ -287,7 +312,7 @@ export function Shell() {
                   </Button>
                 </div>
               </header>
-              <main id="noi-dung" tabIndex={-1} className={wide ? "flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : isSettingsPath(shown) ? <SettingsLayout me={me} path={shown}><Outlet /></SettingsLayout> : <Outlet />}</main>
+              <PageChromeContext.Provider value={chrome}><main id="noi-dung" tabIndex={-1} className={wide ? "flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : isSettingsPath(shown) ? <SettingsLayout me={me} path={shown}><Outlet /></SettingsLayout> : <Outlet />}</main></PageChromeContext.Provider>
             </div>
           </div>
         </Dialog.Root>

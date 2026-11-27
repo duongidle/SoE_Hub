@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { SHARE_PERMISSION_LABELS } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal } from "@/components/ui/form";
+import { useCrumbs } from "@/lib/page-chrome";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, NoAccessState } from "@/components/ui/states";
@@ -53,6 +54,7 @@ export function DatahubPage() {
 }
 
 function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; tableId?: string; current?: TableBrief; dashboard: { id?: string } | null }) {
+  useCrumbs(dh.name);
   const [sharing, setSharing] = useState(false);
   const [importing, setImporting] = useState(false);
   // What a person may import into: the owner any normal table; a member only tables they edit and where the owner allows adding rows in bulk.
@@ -63,7 +65,7 @@ function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; ta
         <Link to="/datahub" className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground sm:min-h-9 hover:text-foreground" aria-label="Về danh sách datahub">
           <ArrowLeft size={16} aria-hidden /> Datahub
         </Link>
-        <h1 className="min-w-0 text-xl font-semibold [overflow-wrap:anywhere] sm:text-2xl">{dh.name}</h1>
+        <h1 className="sr-only">{dh.name}</h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {importTables.length > 0 && (
             <Button variant="secondary" onClick={() => setImporting(true)}><Upload size={16} aria-hidden /> Nhập dữ liệu</Button>

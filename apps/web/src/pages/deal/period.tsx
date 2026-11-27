@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from "@soe/shared";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, Notice, Table, Tabs, Textarea } from "@/components/ui/form";
+import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, Notice, PageTitle, Table, Tabs, Textarea } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, NoAccessState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -37,7 +37,7 @@ export function PeriodPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3" data-testid="period-page">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h1 className="min-w-0 text-xl font-semibold sm:text-2xl">Chốt kỳ và dự báo</h1>
+        <PageTitle>Chốt kỳ và dự báo</PageTitle>
         <Link to="/quan-ly-deal" className="ml-auto inline-flex min-h-9 items-center rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">Về Quản lý Deal</Link>
       </div>
       <Tabs value={tab} onChange={setTab} items={[{ value: "close", label: "Chốt kỳ tháng" }, { value: "snapshot", label: "Snapshot dự báo" }]} />

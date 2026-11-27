@@ -4,6 +4,8 @@ import * as React from "react";
 import { ERROR_CODES, type ErrorCode } from "@soe/shared";
 import { ApiError, parseVnDateTime } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { createPortal } from "react-dom";
+import { useCrumbs, usePageChrome } from "@/lib/page-chrome";
 
 export function Button({ className, variant = "primary", loading, disabled, children, ...props }: React.ComponentProps<"button"> & { variant?: "primary" | "secondary" | "danger" | "ghost"; loading?: boolean }) {
   const styles = {
@@ -81,11 +83,32 @@ export function Notice({ children }: { children: React.ReactNode }) {
   return <p className="rounded-md border border-ok-border bg-ok-bg px-3 py-2 text-sm text-ok">{children}</p>;
 }
 
+/**
+ * Page title. Inside the shell the breadcrumb already names the page, so the h1 stays only for screen readers (sr-only)
+ * and the title becomes the last breadcrumb when the menu does not already say it. `actions` move to the top bar.
+ */
 export function PageTitle({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) {
+  const chrome = usePageChrome();
+  const text = typeof children === "string" ? children : null;
+  useCrumbs(text);
+  const add = chrome?.addActions;
+  const has = !!actions;
+  React.useLayoutEffect(() => {
+    if (!add || !has) return;
+    add(1);
+    return () => add(-1);
+  }, [add, has]);
+  const slot = chrome?.actionsEl ?? null;
+  if (chrome && text !== null) {
+    return <>
+      <h1 className="sr-only">{children}</h1>
+      {actions && slot ? createPortal(actions, slot) : null}
+    </>;
+  }
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{children}</h1>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && (slot ? createPortal(actions, slot) : <div className="flex flex-wrap gap-2">{actions}</div>)}
     </div>
   );
 }

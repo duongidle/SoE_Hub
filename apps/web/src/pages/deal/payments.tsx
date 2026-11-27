@@ -5,7 +5,7 @@ import { formatCurrency, formatDate } from "@soe/shared";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ConfirmDialog, ErrorText, errorMessage, Field, Input, Modal, Notice, Select, Table, Tabs, Textarea } from "@/components/ui/form";
+import { Button, ConfirmDialog, ErrorText, errorMessage, Field, Input, Modal, Notice, PageTitle, Select, Table, Tabs, Textarea } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -84,7 +84,7 @@ export function PaymentsPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3" data-testid="payments-page">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h1 className="min-w-0 text-xl font-semibold sm:text-2xl">Thanh toán và com</h1>
+        <PageTitle>Thanh toán và com</PageTitle>
         <Link to="/quan-ly-deal" className="ml-auto inline-flex min-h-9 items-center rounded-md border border-border bg-card px-3 text-sm hover:bg-muted">Về Quản lý Deal</Link>
       </div>
       <Tabs value={tab} onChange={setTab} items={items} />

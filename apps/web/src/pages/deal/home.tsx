@@ -50,7 +50,7 @@ function DealBody({ home, tableId, dashboard }: { home: { datahub_id: string | n
     <SharedPeriodContext.Provider value={period.value}>
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h1 className="min-w-0 text-xl font-semibold sm:text-2xl">Quản lý Deal</h1>
+        <h1 className="sr-only">Quản lý Deal</h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {isDealTable && hasLeader && !roles.includes("manager") && <LeaderEditToggle />}
           {home.tables.some((t) => t.role_set === "payments") && (
