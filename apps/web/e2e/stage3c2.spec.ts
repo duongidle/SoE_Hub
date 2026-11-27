@@ -335,6 +335,7 @@ test("chia sẻ dashboard: người nhận thấy số mà không có quyền b�
   await pk.getByRole("button", { name: /^Xong/ }).click();
   await dlg.getByTestId("dshare-add").click();
   await expect(dlg.getByTestId("dshare-row")).toContainText(`Người xem 3C2 ${p} ${RUN}`);
+  await owner.shot("12b2-dashboard-share");
   await dlg.getByRole("button", { name: "Đóng", exact: true }).last().click();
 
   const vp = viewer.page;

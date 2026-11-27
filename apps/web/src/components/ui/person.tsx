@@ -9,12 +9,10 @@ import { cn } from "@/lib/utils";
 export { disambiguate } from "@/lib/people";
 export type { PersonInfo } from "@/lib/people";
 
-/** Round avatar: the initials (no photo yet). Decorative: the name is always written next to it. */
+/** Round avatar: the initials (no photo yet), drawn by CSS so they are not part of the text (copying or searching a name never picks them up). Decorative: the name is always written next to it. */
 export function Avatar({ name, size = "sm", className }: { name: string; size?: "sm" | "md"; className?: string }) {
   return (
-    <span aria-hidden className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-primary-soft font-semibold text-primary", size === "sm" ? "size-5 text-[10px]" : "size-9 text-sm", className)}>
-      {initialsOf(name) || "?"}
-    </span>
+    <span aria-hidden data-initials={initialsOf(name) || "?"} className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-primary-soft font-semibold text-primary before:content-[attr(data-initials)]", size === "sm" ? "size-5 text-[10px]" : "size-9 text-sm", className)} />
   );
 }
 

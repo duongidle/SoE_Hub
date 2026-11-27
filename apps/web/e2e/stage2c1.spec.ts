@@ -165,6 +165,7 @@ test("menu Datahub, danh sách: tạo, đổi tên, xoá và hoàn tác; 4 trạ
   await viewer.page.reload();
   await expect(viewer.page.getByRole("tab", { name: /Được chia sẻ với tôi/ })).toHaveAttribute("aria-selected", "true");
   await expect(viewer.page.getByText(`Chủ: Đặng Thị Ngọc Hân ${p}`)).toBeVisible();
+  await viewer.shot("12b2-datahub-owner-chip");
   await expect(viewer.page.getByText("Xem", { exact: true }).first()).toBeVisible();
   await expect(viewer.page.getByRole("button", { name: /Tuỳ chọn cho/ })).toHaveCount(0);
   await expect(viewer.page.getByRole("button", { name: "Tạo datahub" })).toBeVisible();
