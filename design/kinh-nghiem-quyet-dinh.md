@@ -38,7 +38,7 @@ File này ghi cách đi tới những quyết định vừa tiết kiệm token,
 
 12. **Chia việc cho agent vừa sức, và tự theo dõi.**
     - Mỗi agent tối đa khoảng 5 việc. Nhiều hơn thì tách agent ngay từ lúc lập kế hoạch.
-    - Opus tự kiểm số lượt của agent. Tới khoảng 100 lượt mà còn nhiều việc thì nhắn agent dừng ở commit gần nhất và bàn giao. Không trông vào việc agent tự dừng.
+    - Opus tự kiểm số lượt của agent. Tới khoảng 200 lượt (Dương nới từ 100 ngày 27/11/2026) mà còn nhiều việc thì nhắn agent dừng ở commit gần nhất và bàn giao. Không trông vào việc agent tự dừng.
     - Ví dụ 4.7A: 9 việc trong một agent, chạy 193 lượt, tốn 54,8M token so với ước 17–23M.
 
 ## Cách làm trước mỗi bước con
