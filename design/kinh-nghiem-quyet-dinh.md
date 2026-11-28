@@ -48,3 +48,5 @@ File này ghi cách đi tới những quyết định vừa tiết kiệm token,
 3. Ghi tổng token trước và sau khi rà.
 4. Đưa Dương những dòng đổi chức năng người dùng thấy. Dòng còn lại Opus tự quyết.
 5. Dương chốt rồi ghi phạm vi vào `progress.md`, đổi quy định nào thì ghi vào thiết kế, rồi mới giao Sonnet.
+
+- **Kiểm thử cuối stage: cả bộ chỉ chạy lại tối đa một lần** (Dương chốt 28/11/2026, rút từ 12G-1 mất gần 5 giờ vì chạy cả bộ e2e khoảng 5 lượt). Lượt cả bộ đầu tìm lỗi; sửa xong chỉ chạy lại đúng spec bị lỗi/bị sửa (`--repeat-each` khi chập chờn). Không chạy lại cả bộ sau mỗi lần sửa.
