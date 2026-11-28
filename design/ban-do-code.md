@@ -549,6 +549,9 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Thông báo: `feedback.new` (người xử lý: góp ý mới, người gửi nhắn lại) và `feedback.update` (người gửi: có trả lời, đổi trạng thái), khai ở `apps/api/src/modules/notification/catalog.ts` `NOTIFICATION_TYPES`, gửi trực tiếp bằng `notify.send` trong lệnh (cùng kiểu `post.*`). Chưa có `on` nên không hiện ở cài đặt thông báo.
 - Liệt kê theo quyền bổ sung: `apps/api/src/modules/org/operations.ts` `orgOperations` (lệnh `org.permission.holders`; cấp/gỡ vẫn là `org.permission.grant|revoke`).
 
+**Web (11B)**
+- Nút "?" `apps/web/src/pages/feedback/help.tsx` `HelpButton` (đặt ở `shell.tsx` trước chuông); form gửi `feedback/send.tsx` `SendFeedbackModal`; chi tiết, chip loại/trạng thái, ngăn kéo `feedback/common.tsx` `FeedbackDrawer({id, manage?})`; hai trang `feedback/lists.tsx` `MyFeedbackPage` (`/gop-y`), `FeedbackInboxPage` (`/quan-tri/feedback`). Phân quyền bổ sung: `apps/web/src/pages/permissions-extra.tsx` `ExtraPermissionsPage` (`/quan-tri/quyen-bo-sung`). Ba mục mới nằm trong `SETTINGS_LINKS` và `ROUTE_PERMISSIONS` (`shell.tsx`). Loại thông báo gửi thẳng mà vẫn cho tắt ở cài đặt: cờ `listed` (`notification/notify.ts`). E2e: `apps/web/e2e/stage11.spec.ts`.
+
 **Mẫu làm theo**
 - Danh sách keyset có lọc: lệnh `feedback.list` (`listPage` + `FieldMap`, mặc định mới nhất trước). Test: `apps/api/test/feedback.test.ts`.
 

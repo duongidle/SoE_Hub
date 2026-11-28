@@ -102,3 +102,12 @@ Một bước con, hai agent Sonnet:
 7. **Đổi trạng thái về chính nó** không tăng version, không báo. Có `row_history` (`historyTableId: "feedback"`) cho đổi trạng thái và rút lại.
 8. **`org.permission.holders`** (quyền `org:permission:grant`): mỗi quyền bổ sung kèm `can_manage`, `by_roles` (vai trò có sẵn quyền), `holders` (chỉ người được cấp, trong phạm vi `org`; `writable` theo `org_write`, Admin cấp quyền Admin được thì mọi người).
 9. Không thêm sự kiện SSE: trang web tự làm mới khi mở; thông báo đã có SSE riêng.
+
+11B (web, 28/11/2026):
+
+10. **Thông báo trong cài đặt:** thêm cờ `listed` ở `NotificationDef` (`notify.ts`): loại gửi thẳng (không có `on`) vẫn hiện ở trang cài đặt thông báo và tắt được; `feedback.new`, `feedback.update` đặt `listed`. `settings.get/set` đọc `d.on || d.listed`. Nhãn nhóm `feedback` = "Góp ý". Loại `post.*` giữ như cũ (chưa `listed`).
+11. **Hướng dẫn kết nối AI:** mục menu "?" mở `/tai-khoan/token`; trang đó thêm link ngoài tới `docs/ket-noi-ai.md` trên GitHub (repo public), chưa có trang trợ giúp riêng.
+12. **Form gửi:** loại chọn bằng ba nút radio (không bọc trong `<label>`, vì nút đầu sẽ lấy tên của cả nhãn); ảnh tải lên lúc bấm Gửi (không để lại ảnh mồ côi khi huỷ); dán ảnh bằng Ctrl+V trong form. Context: đường dẫn + query, user agent, `rộngxcao`.
+13. **Danh sách:** lọc + mở ngăn kéo qua URL (`?kind=&status=&id=`), nên link thông báo `?id=` mở đúng góp ý. "Tải thêm" theo `next_cursor`.
+14. **Phân quyền bổ sung:** thẻ theo quyền, "Thêm người" dùng `PeoplePicker` (không có chọn cả team, lọc theo `eligible_roles` khi biết vai trò), gỡ có xác nhận; quyền không cấp được thì ghi "Chỉ <vai trò> cấp quyền này" (từ `grantable_by`).
+15. Lỗi cũ thấy khi viết spec (không sửa): Guest bị 403 ở `GET /onboarding/plans?scope=mine` (shell) và `GET /deals/due-rules` (trang cài đặt thông báo); spec Guest cho phép 403 đúng đường dẫn đầu.
