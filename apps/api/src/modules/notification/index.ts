@@ -192,13 +192,13 @@ export const notificationOperations = [
     input: z.object({}),
     output: z.object({
       morning_digest: z.boolean(),
-      types: z.array(z.object({ type: z.string(), category: z.string(), mandatory: z.boolean(), enabled: z.boolean() })),
+      types: z.array(z.object({ type: z.string(), category: z.string(), label: z.string(), description: z.string(), mandatory: z.boolean(), enabled: z.boolean() })),
     }),
     http: { method: "GET", path: "/notifications/settings" },
     handler: async (ctx) => {
       const s = await readSettings(ctx.db, ctx.actor.userId);
       const off = new Set(s.disabledTypes);
-      return { morning_digest: s.morningDigest, types: notificationDefs().filter((d) => d.on).map((d) => ({ type: d.type, category: d.category, mandatory: !!d.mandatory, enabled: !!d.mandatory || !off.has(d.type) })) };
+      return { morning_digest: s.morningDigest, types: notificationDefs().filter((d) => d.on).map((d) => ({ type: d.type, category: d.category, label: d.label, description: d.description, mandatory: !!d.mandatory, enabled: !!d.mandatory || !off.has(d.type) })) };
     },
   }),
 

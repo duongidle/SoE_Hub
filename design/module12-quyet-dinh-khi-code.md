@@ -343,3 +343,9 @@ Chỉ web (`editor.tsx`, `sheet.tsx`, `props.tsx`, một dòng ở `renderer.tsx
 - **Không làm** (chưa có chức năng): "Xáo trộn thứ tự lựa chọn", tay nắm kéo lựa chọn (không kéo thả).
 - **Renderer**: chip "Câu n" ở trang điền và xem trước chỉ hiện ở Bài kiểm tra (`ctx.quiz`); trình soạn vẫn hiện số câu.
 - **Spec**: `stage7` và `stage12e1` đổi theo (chip trạng thái `form-state`, "Đã lưu nháp" khớp đầu chuỗi, mục lục qua tab `side-toc` rồi `side-props`, bỏ kiểm nút mở bảng).
+
+## 12H-10 Cài đặt thông báo và hộp thông báo
+- **Catalog**: `NotificationDef` thêm `label` và `description` (bắt buộc, typecheck ép đủ); lệnh `notification.settings.get` trả thêm hai trường. Tên lấy từ `module6-thong-bao.md` mục 3.2; mã kỹ thuật chỉ còn ở `title` tooltip. Quy định bắt buộc của Module 6 giữ nguyên.
+- **Trang `/tai-khoan/thong-bao`**: thẻ "Bản tin buổi sáng" ở đầu (công tắc; giờ 08:00 cố định nên chỉ ghi trong mô tả), mỗi mảng một thẻ có icon; loại tắt được là hàng công tắc (tên 13/600, mô tả 12px); loại bắt buộc gom một dòng "Luôn nhận: ..." cuối thẻ. Nhóm `form`, `library`, `onboarding` có tên riêng trong `GROUPS` của `settings.tsx` (không đụng `CATEGORY_LABEL` của hộp thông báo). Link "Thông báo" ở top bar thành nút có icon chuông.
+- **Hộp thông báo** (`inbox.tsx`): chưa đọc có chấm 8px, tiêu đề 600, nền #F5F6FF; đã đọc tiêu đề 500, nền trắng. Giờ tương đối `relTime` (hover xem giờ đầy đủ). "Chỉ chưa đọc" là chip bật/tắt kèm số chưa đọc; "Xem tất cả" ở chuông là link gạch khi rê; "Đánh dấu tất cả đã đọc" là nút chữ nhỏ.
+- **Spec**: `stage6` đổi "Không tắt được" thành "Luôn nhận:".

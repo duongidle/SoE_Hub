@@ -56,6 +56,8 @@ const vnTime = (iso: string): string =>
 defineNotification({
   type: NOTIFICATION_TYPES.authCode,
   category: "account",
+  label: "Yêu cầu mã kích hoạt hoặc đặt lại mật khẩu",
+  description: "Có người xin mã kích hoạt tài khoản hoặc đặt lại mật khẩu và bạn là người duyệt.",
   on: "auth.code.requested",
   mandatory: true,
   priority: "important",
@@ -76,6 +78,8 @@ defineNotification({
 defineNotification({
   type: NOTIFICATION_TYPES.datahubReconcile,
   category: "datahub",
+  label: "Đối soát Datahub phát hiện ô tính sai",
+  description: "Báo cho Admin khi việc đối soát ban đêm thấy ô công thức khác kết quả tính lại.",
   on: "datahub.reconcile.mismatch",
   mandatory: true,
   recipients: (ev) => (ev.payload as { recipient_ids: string[] }).recipient_ids,
@@ -95,6 +99,8 @@ defineNotification({
 defineNotification({
   type: NOTIFICATION_TYPES.datahubTemplateConflict,
   category: "datahub",
+  label: "Bảng hoặc cột của bạn bị đổi tên",
+  description: "Tên bảng hoặc cột của bạn trùng template nên được đổi tên, dữ liệu giữ nguyên.",
   on: "datahub.template.conflict",
   mandatory: true,
   recipients: (ev) => [(ev.payload as { recipient_id: string }).recipient_id],
@@ -120,6 +126,8 @@ const tokenInfo = async (db: Db, id: string): Promise<{ name: string; ownerName:
 defineNotification({
   type: NOTIFICATION_TYPES.aiRequested,
   category: "ai",
+  label: "Kết nối AI chờ duyệt",
+  description: "Có người xin kết nối AI mới, Admin vào duyệt.",
   on: "auth.token.requested",
   mandatory: true,
   priority: "important",
@@ -131,10 +139,12 @@ defineNotification({
   },
 });
 
-const decided = (type: string, status: "active" | "rejected" | "revoked", title: string, text: (name: string) => string, important = false) =>
+const decided = (type: string, label: string, description: string, status: "active" | "rejected" | "revoked", title: string, text: (name: string) => string, important = false) =>
   defineNotification({
     type,
     category: "ai",
+    label,
+    description,
     on: "auth.token.decided",
     mandatory: true,
     priority: important ? "important" : "normal",
@@ -142,13 +152,15 @@ const decided = (type: string, status: "active" | "rejected" | "revoked", title:
     object: (ev) => ({ type: "api_token", id: (ev.payload as { token_id: string }).token_id }),
     render: async (ev, _r, _by, _c, { db }) => ({ title, body: text((await tokenInfo(db, (ev.payload as { token_id: string }).token_id))?.name ?? ""), link: "/tai-khoan/token" }),
   });
-decided(NOTIFICATION_TYPES.aiApproved, "active", "Kết nối AI được duyệt", (n) => `Kết nối "${n}" đã được duyệt, dùng được ngay.`);
-decided(NOTIFICATION_TYPES.aiRejected, "rejected", "Kết nối AI bị từ chối", (n) => `Kết nối "${n}" bị từ chối. Xem lại và tạo kết nối khác nếu cần.`);
-decided(NOTIFICATION_TYPES.aiRevoked, "revoked", "Kết nối AI bị thu hồi", (n) => `Kết nối "${n}" đã bị thu hồi, không dùng được nữa.`, true);
+decided(NOTIFICATION_TYPES.aiApproved, "Kết nối AI được duyệt", "Kết nối AI của bạn đã được duyệt và dùng được ngay.", "active", "Kết nối AI được duyệt", (n) => `Kết nối "${n}" đã được duyệt, dùng được ngay.`);
+decided(NOTIFICATION_TYPES.aiRejected, "Kết nối AI bị từ chối", "Kết nối AI của bạn bị từ chối.", "rejected", "Kết nối AI bị từ chối", (n) => `Kết nối "${n}" bị từ chối. Xem lại và tạo kết nối khác nếu cần.`);
+decided(NOTIFICATION_TYPES.aiRevoked, "Kết nối AI bị thu hồi", "Kết nối AI của bạn bị thu hồi, không dùng được nữa.", "revoked", "Kết nối AI bị thu hồi", (n) => `Kết nối "${n}" đã bị thu hồi, không dùng được nữa.`, true);
 
 defineNotification({
   type: NOTIFICATION_TYPES.aiExpiring,
   category: "ai",
+  label: "Kết nối AI sắp hết hạn",
+  description: "Nhắc trước 7 ngày khi kết nối AI của bạn sắp hết hạn.",
   mandatory: true,
   render: () => null,
 });
@@ -176,6 +188,8 @@ export async function notifyExpiringConnections(db: Db): Promise<number> {
 defineNotification({
   type: NOTIFICATION_TYPES.accountLocked,
   category: "account",
+  label: "Tài khoản bị khoá tạm thời",
+  description: "Tài khoản của bạn bị khoá 15 phút vì nhập sai mật khẩu nhiều lần.",
   on: "auth.account.locked",
   mandatory: true,
   priority: "important",
@@ -265,14 +279,16 @@ async function computeParticipantChanges(ev: OutboxRow, db: Db): Promise<Partici
   return out;
 }
 
-for (const [kind, type, title, text] of [
-  ["added", NOTIFICATION_TYPES.dealParticipantAdded, "Bạn được thêm vào deal", (d: string) => `Bạn được thêm vào deal "${d}". Xem vai trò và tỉ lệ của bạn trong deal.`],
-  ["changed", NOTIFICATION_TYPES.dealParticipantChanged, "Vai trò hoặc tỉ lệ của bạn ở deal đã đổi", (d: string) => `Vai trò hoặc tỉ lệ của bạn ở deal "${d}" vừa được cập nhật.`],
-  ["removed", NOTIFICATION_TYPES.dealParticipantRemoved, "Bạn không còn trong deal", (d: string) => `Bạn đã được bỏ khỏi deal "${d}".`],
+for (const [kind, type, label, description, title, text] of [
+  ["added", NOTIFICATION_TYPES.dealParticipantAdded, "Bạn được thêm vào deal", "Có người thêm bạn làm người tham gia một deal.", "Bạn được thêm vào deal", (d: string) => `Bạn được thêm vào deal "${d}". Xem vai trò và tỉ lệ của bạn trong deal.`],
+  ["changed", NOTIFICATION_TYPES.dealParticipantChanged, "Vai trò hoặc tỉ lệ của bạn ở deal đổi", "Vai trò hoặc tỉ lệ chia com của bạn ở một deal vừa được cập nhật.", "Vai trò hoặc tỉ lệ của bạn ở deal đã đổi", (d: string) => `Vai trò hoặc tỉ lệ của bạn ở deal "${d}" vừa được cập nhật.`],
+  ["removed", NOTIFICATION_TYPES.dealParticipantRemoved, "Bạn không còn trong deal", "Bạn bị bỏ khỏi danh sách người tham gia một deal.", "Bạn không còn trong deal", (d: string) => `Bạn đã được bỏ khỏi deal "${d}".`],
 ] as const) {
   defineNotification({
     type,
     category: "deal",
+    label,
+    description,
     on: ["datahub.row.created", "datahub.row.updated"],
     mandatory: true,
     recipients: async (ev, { db }) => (await participantChanges(ev, db)).filter((c) => c.kind === kind).map((c) => ({ userId: c.userId, key: c.rowId, ctx: c })),
@@ -287,6 +303,8 @@ for (const [kind, type, title, text] of [
 defineNotification({
   type: NOTIFICATION_TYPES.kpiEditedAfterCommit,
   category: "deal",
+  label: "KPI thử việc bị sửa sau khi chốt",
+  description: "Manager sửa kế hoạch KPI thử việc của bạn sau khi đã chốt.",
   on: "datahub.row.updated",
   mandatory: true,
   recipients: async (ev, { db }) => {
@@ -325,6 +343,8 @@ const CELL_GROUP_MINUTES = 10;
 defineNotification({
   type: NOTIFICATION_TYPES.cellChanged,
   category: "datahub",
+  label: "Có người sửa ô bạn theo dõi",
+  description: "Ai đó đổi giá trị ở dòng deal mà bạn là Leading (Status, doanh thu dự kiến, ngày dự kiến chốt).",
   on: "datahub.row.updated",
   recipients: async (ev, { db }) => {
     const payload = ev.payload as RowEvent;
@@ -363,6 +383,8 @@ defineNotification({
 defineNotification({
   type: NOTIFICATION_TYPES.dealPaymentConfirmed,
   category: "deal",
+  label: "Xác nhận tiền về của deal",
+  description: "Tiền về được xác nhận cho một đợt thanh toán của deal bạn tham gia.",
   on: "deal.payment.confirmed",
   recipients: (ev) => (ev.payload as { deals: { deal_id: string; user_ids: string[]; payments: number }[] }).deals.flatMap((d) => d.user_ids.map((u) => ({ userId: u, key: d.deal_id, ctx: d }))),
   object: () => null,
@@ -378,6 +400,8 @@ defineNotification({
 defineNotification({
   type: NOTIFICATION_TYPES.datahubShared,
   category: "datahub",
+  label: "Datahub được chia sẻ với bạn",
+  description: "Có người chia sẻ datahub hoặc bảng cho bạn.",
   on: "datahub.share.changed",
   recipients: (ev) => [(ev.payload as { grantee_id: string }).grantee_id],
   object: (ev) => ({ type: "datahub", id: (ev.payload as { datahub_id: string }).datahub_id }),
@@ -397,6 +421,8 @@ defineNotification({
 defineNotification({
   type: NOTIFICATION_TYPES.dashboardShared,
   category: "datahub",
+  label: "Dashboard được chia sẻ với bạn",
+  description: "Có người chia sẻ dashboard cho bạn.",
   on: "metrics.dashboard.share.changed",
   recipients: (ev) => [(ev.payload as { grantee_id: string }).grantee_id],
   object: (ev) => ({ type: "dashboard", id: (ev.payload as { dashboard_id: string }).dashboard_id }),
@@ -412,9 +438,9 @@ defineNotification({
 
 // ---- Import and export jobs, reminders (sent directly, no event) -----------------------------------------------------------------------------
 
-defineNotification({ type: NOTIFICATION_TYPES.importDone, category: "datahub", render: () => null });
-defineNotification({ type: NOTIFICATION_TYPES.exportDone, category: "datahub", render: () => null });
-defineNotification({ type: NOTIFICATION_TYPES.reminderDue, category: "reminder", priority: "important", mandatory: true, selfNotify: true, render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.importDone, category: "datahub", label: "Nhập dữ liệu xong", description: "Kết quả khi file bạn nhập vào Datahub chạy xong hoặc có dòng lỗi.", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.exportDone, category: "datahub", label: "Xuất dữ liệu xong", description: "Báo khi file xuất lớn của bạn đã sẵn sàng.", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.reminderDue, category: "reminder", label: "Nhắc hẹn đến giờ", description: "Nhắc hẹn do chính bạn đặt đã đến giờ.", priority: "important", mandatory: true, selfNotify: true, render: () => null });
 
 interface JobRow {
   id: string;
@@ -457,27 +483,29 @@ export type { NotifyDeps };
 // ---- 6A2: morning digest, deal due reminders, announcements (sent directly with `notify.send`, no outbox event) ------------------------------
 
 /** Morning digest (design module6 5.5): one per person per day, can be switched off with the digest flag (not with the type list). */
-defineNotification({ type: NOTIFICATION_TYPES.morningDigest, category: "digest", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.morningDigest, category: "digest", label: "Bản tin buổi sáng", description: "Tóm tắt việc cần làm hôm nay, gửi lúc 08:00.", render: () => null });
 /** A due-date reminder of the tree's rules (6.4): the Manager's rule, so the people it names cannot switch it off. */
-defineNotification({ type: NOTIFICATION_TYPES.dealDue, category: "deal", mandatory: true, render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.dealDue, category: "deal", label: "Deal hoặc đợt thanh toán đến hạn", description: "Nhắc theo quy tắc hạn: deal quá ngày dự kiến chốt, đợt thanh toán đến hạn.", mandatory: true, render: () => null });
 /** A general announcement sent by hand (7): cannot be switched off. */
-defineNotification({ type: NOTIFICATION_TYPES.announcement, category: "announcement", mandatory: true, render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.announcement, category: "announcement", label: "Thông báo chung", description: "Thông báo từ Admin hoặc Manager gửi cho cả nhóm.", mandatory: true, render: () => null });
 
 // ---- 7A2: quiz (sent directly with `notify.send`, no outbox event) -----------------------------------------------------------------------
 /** A quiz response waits for a grader (design module7 7). */
-defineNotification({ type: NOTIFICATION_TYPES.formGradePending, category: "form", priority: "important", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.formGradePending, category: "form", label: "Bài làm chờ chấm", description: "Có người nộp bài cần bạn chấm điểm.", priority: "important", render: () => null });
 /** A quiz was graded and the person may see the score (design module7 7). */
-defineNotification({ type: NOTIFICATION_TYPES.formGraded, category: "form", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.formGraded, category: "form", label: "Bài của bạn đã được chấm", description: "Bài làm của bạn đã có điểm.", render: () => null });
 
 /** Knowledge / AI Hub posts (design module8 2): waiting for a reviewer, approved, returned with a reason. Sent by the post engine (`publish/engine.ts`). */
-defineNotification({ type: NOTIFICATION_TYPES.postPending, category: "library", priority: "important", render: () => null });
-defineNotification({ type: NOTIFICATION_TYPES.postApproved, category: "library", render: () => null });
-defineNotification({ type: NOTIFICATION_TYPES.postReturned, category: "library", priority: "important", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.postPending, category: "library", label: "Bài chờ duyệt", description: "Có bài Knowledge hoặc AI Hub chờ bạn duyệt.", priority: "important", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.postApproved, category: "library", label: "Bài của bạn được duyệt", description: "Bài bạn đăng đã được duyệt và xuất bản.", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.postReturned, category: "library", label: "Bài của bạn bị trả lại", description: "Bài bạn đăng bị trả lại kèm lý do để sửa.", priority: "important", render: () => null });
 
 /** A column a question writes to was deleted: the question is switched off and the owner must know (design module7 1.3, mandatory). */
 defineNotification({
   type: NOTIFICATION_TYPES.formQuestionOff,
   category: "form",
+  label: "Câu hỏi form bị tắt",
+  description: "Cột mà một câu hỏi ghi vào đã bị xoá nên câu hỏi bị tắt.",
   on: "datahub.column.deleted",
   mandatory: true,
   priority: "important",
@@ -509,6 +537,8 @@ defineNotification({
 defineNotification({
   type: NOTIFICATION_TYPES.onboardingDaily,
   category: "onboarding",
+  label: "Tiến độ onboarding trong ngày",
+  description: "Tóm tắt việc và checkpoint onboarding mà người bạn dẫn dắt vừa hoàn thành.",
   on: ["onboarding.item.ticked", "onboarding.checkpoint.passed"],
   mandatory: true,
   mergeKey: (ev) => `onb.daily|${(ev.payload as { staff_id: string }).staff_id}|${businessDate(ev.createdAt)}`,
@@ -529,6 +559,6 @@ defineNotification({
   },
 });
 /** Job-sent (no event): a work item reaches its reminder time, goes overdue, or a checkpoint of the week is still not met on Sunday evening. */
-defineNotification({ type: NOTIFICATION_TYPES.onboardingDue, category: "onboarding", priority: "important", mandatory: true, render: () => null });
-defineNotification({ type: NOTIFICATION_TYPES.onboardingOverdue, category: "onboarding", priority: "important", mandatory: true, render: () => null });
-defineNotification({ type: NOTIFICATION_TYPES.onboardingWeekMissed, category: "onboarding", priority: "important", mandatory: true, render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.onboardingDue, category: "onboarding", label: "Việc onboarding sắp đến hạn", description: "Nhắc việc onboarding sắp đến hạn.", priority: "important", mandatory: true, render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.onboardingOverdue, category: "onboarding", label: "Việc onboarding quá hạn", description: "Việc onboarding đã quá hạn.", priority: "important", mandatory: true, render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.onboardingWeekMissed, category: "onboarding", label: "Tuần onboarding bị lỡ", description: "Một tuần trong lộ trình onboarding không hoàn thành.", priority: "important", mandatory: true, render: () => null });

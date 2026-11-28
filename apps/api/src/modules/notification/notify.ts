@@ -32,6 +32,10 @@ export interface NotifyDeps {
 export interface NotificationDef {
   type: string;
   category: string;
+  /** Tên tiếng Việt hiện ở trang Cài đặt thông báo. */
+  label: string;
+  /** Một dòng giải thích loại này báo khi nào. */
+  description: string;
   /** Outbox event that triggers it. Omit for a type that is only sent directly with `notify.send`. */
   on?: string | string[];
   recipients?: (ev: OutboxRow, deps: NotifyDeps) => Target[] | Promise<Target[]>;

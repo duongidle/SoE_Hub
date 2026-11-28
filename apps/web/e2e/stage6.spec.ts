@@ -145,7 +145,7 @@ test("Chuông có ba tab và nút +: Leader tạo được cả hai loại, thà
 test("Cài đặt thông báo: tắt một loại không bắt buộc, loại bắt buộc bị khoá", async () => {
   const page = userS.page;
   await page.goto("/tai-khoan/thong-bao");
-  await expect(page.getByText("Không tắt được").first()).toBeVisible();
+  await expect(page.getByText("Luôn nhận:").first()).toBeVisible();
   const box = page.locator('input[type="checkbox"][data-testid^="type-"]:not([disabled])').first();
   await expect(box).toBeChecked();
   const id = await box.getAttribute("data-testid");

@@ -1,17 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { AlarmClock, Bell, BookOpen, Bot, ClipboardList, Database, GraduationCap, Handshake, Megaphone, Sunrise, UserRound, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, ErrorText, Input, Notice, PageTitle, Select } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { notify } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import { useMe } from "@/lib/session";
 import { CATEGORY_LABEL } from "./inbox";
 
-interface Settings {
-  morning_digest: boolean;
-  types: { type: string; category: string; mandatory: boolean; enabled: boolean }[];
-}
+interface TypeRow { type: string; category: string; label: string; description: string; mandatory: boolean; enabled: boolean }
+interface Settings { morning_digest: boolean; types: TypeRow[] }
+
+/** Nhóm theo mảng: tên, icon, thứ tự hiện (loại không có trong danh sách rơi xuống cuối với tên mã nhóm). */
+const GROUPS: Record<string, { label: string; icon: LucideIcon }> = {
+  account: { label: "Tài khoản", icon: UserRound },
+  datahub: { label: "Datahub", icon: Database },
+  deal: { label: "Quản lý Deal", icon: Handshake },
+  ai: { label: "Kết nối AI", icon: Bot },
+  form: { label: "Dynamic Form", icon: ClipboardList },
+  library: { label: "Knowledge và AI Hub", icon: BookOpen },
+  onboarding: { label: "Onboarding", icon: GraduationCap },
+  reminder: { label: "Nhắc hẹn", icon: AlarmClock },
+  announcement: { label: "Thông báo chung", icon: Megaphone },
+};
 
 function TypeSettings() {
   const qc = useQueryClient();
@@ -22,34 +35,63 @@ function TypeSettings() {
   });
   const data = q.data;
   const disabledAfter = (type: string, on: boolean) => data!.types.filter((t) => !t.mandatory && (t.type === type ? !on : !t.enabled)).map((t) => t.type);
-  const cats = [...new Set(data?.types.map((t) => t.category) ?? [])];
+  const cats = [...new Set(data?.types.map((t) => t.category) ?? [])].sort((x, y) => {
+    const order = Object.keys(GROUPS);
+    return (order.indexOf(x) + 1 || 99) - (order.indexOf(y) + 1 || 99);
+  });
   return (
-    <Card>
-      <CardHeader><CardTitle>Loại thông báo</CardTitle></CardHeader>
-      <CardContent className="flex flex-col gap-4 text-sm">
-        <ErrorText error={q.error ?? save.error} />
-        {data && (
-          <>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={data.morning_digest} onChange={(e) => save.mutate({ morning_digest: e.target.checked })} data-testid="digest-toggle" />
-              Bản tin buổi sáng (08:00, việc cần làm hôm nay)
-            </label>
-            {cats.map((c) => (
-              <div key={c} className="flex flex-col gap-1">
-                <h3 className="text-xs font-semibold uppercase text-muted-foreground">{CATEGORY_LABEL[c] ?? c}</h3>
-                {data.types.filter((t) => t.category === c).map((t) => (
-                  <label key={t.type} className="flex items-center gap-2">
-                    <input type="checkbox" checked={t.enabled} disabled={t.mandatory} data-testid={`type-${t.type}`} onChange={(e) => save.mutate({ disabled_types: disabledAfter(t.type, e.target.checked) })} />
-                    <span className="[overflow-wrap:anywhere]">{t.type}</span>
-                    {t.mandatory && <span className="text-xs text-muted-foreground">Không tắt được</span>}
-                  </label>
-                ))}
-              </div>
-            ))}
-          </>
-        )}
-      </CardContent>
-    </Card>
+    <>
+      <ErrorText error={q.error ?? save.error} />
+      {data && (
+        <>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Sunrise className="size-[18px]" aria-hidden /></span>
+              <Switch
+                className="flex-1"
+                label={<span className="text-[13px] font-semibold">Bản tin buổi sáng</span>}
+                hint={<span className="text-xs">Mỗi sáng 08:00 tóm tắt việc cần làm hôm nay của bạn.</span>}
+                checked={data.morning_digest}
+                onChange={(v) => save.mutate({ morning_digest: v })}
+                testid="digest-toggle"
+              />
+            </CardContent>
+          </Card>
+          {cats.map((c) => {
+            const g = GROUPS[c];
+            const Icon = g?.icon ?? Bell;
+            const rows = data.types.filter((t) => t.category === c);
+            const optional = rows.filter((t) => !t.mandatory);
+            const always = rows.filter((t) => t.mandatory);
+            return (
+              <Card key={c} data-testid={`group-${c}`}>
+                <CardHeader className="flex-row items-center gap-2">
+                  <Icon className="size-4 text-muted-foreground" aria-hidden />
+                  <CardTitle>{g?.label ?? CATEGORY_LABEL[c] ?? c}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col divide-y divide-border">
+                  {optional.map((t) => (
+                    <Switch
+                      key={t.type}
+                      label={<span className="text-[13px] font-semibold" title={t.type}>{t.label}</span>}
+                      hint={<span className="text-xs [overflow-wrap:anywhere]">{t.description}</span>}
+                      checked={t.enabled}
+                      onChange={(v) => save.mutate({ disabled_types: disabledAfter(t.type, v) })}
+                      testid={`type-${t.type}`}
+                    />
+                  ))}
+                  {always.length > 0 && (
+                    <p className="py-2 text-xs text-muted-foreground [overflow-wrap:anywhere]" data-testid={`always-${c}`}>
+                      <span className="font-medium text-foreground">Luôn nhận:</span> {always.map((t) => t.label).join(", ")}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </>
+      )}
+    </>
   );
 }
 
@@ -106,7 +148,7 @@ export function NotificationSettingsPage() {
   const me = useMe().data;
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle actions={<Link to="/thong-bao" className="inline-flex min-h-9 items-center px-3 text-sm text-primary underline">Thông báo</Link>}>Cài đặt thông báo</PageTitle>
+      <PageTitle actions={<Link to="/thong-bao" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-medium hover:bg-muted"><Bell className="size-4" aria-hidden />Thông báo</Link>}>Cài đặt thông báo</PageTitle>
       <TypeSettings />
       {me && <DueRules />}
     </div>

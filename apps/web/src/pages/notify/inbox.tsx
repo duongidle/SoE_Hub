@@ -62,16 +62,42 @@ function Item({ n, onOpened }: { n: NotificationRow; onOpened?: () => void }) {
     if (n.link) void nav({ href: n.link });
   };
   return (
-    <button type="button" data-testid="notification-item" onClick={open} className={cn("flex w-full flex-col gap-0.5 rounded-md border border-border p-3 text-left text-sm hover:bg-muted", n.read_at ? "bg-card" : "bg-primary/5")}>
+    <button type="button" data-testid="notification-item" onClick={open} className={cn("flex w-full flex-col gap-0.5 rounded-md border border-border p-3 text-left text-[13px] hover:bg-muted", n.read_at ? "bg-card" : "bg-[#F5F6FF]")}>
       <span className="flex items-start justify-between gap-2">
-        <span className={cn("[overflow-wrap:anywhere]", !n.read_at && "font-medium")}>
-          {isPinned(n) && <Pin size={12} aria-label="Ghim" className="mr-1 inline" />}
-          {n.title}
+        <span className={cn("flex items-start gap-2 [overflow-wrap:anywhere]", n.read_at ? "font-medium" : "font-semibold text-foreground")}>
+          {!n.read_at && <span aria-label="Chưa đọc" className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />}
+          <span>{isPinned(n) && <Pin size={12} aria-label="Ghim" className="mr-1 inline" />}
+          {n.title}</span>
         </span>
-        <span className="whitespace-nowrap text-xs text-muted-foreground">{fmtTime(n.created_at)}</span>
+        <span className="whitespace-nowrap text-xs text-muted-foreground" title={fmtTime(n.created_at)}>{relTime(n.created_at)}</span>
       </span>
       {n.body && <span className="text-muted-foreground [overflow-wrap:anywhere]">{n.body}</span>}
       {n.data?.code && <span className="font-mono text-lg tracking-widest">{n.data.code}</span>}
+    </button>
+  );
+}
+
+/** Thời gian ngắn: "5 phút trước", "2 giờ trước", "Hôm qua 08:00", "24/11 08:00" (giờ Việt Nam, không giây). */
+export function relTime(iso: string): string {
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  const hm = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
+  if (diff < 60_000) return "Vừa xong";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} phút trước`;
+  const day = vnDay(iso);
+  const today = vnDay(new Date().toISOString());
+  if (day === today) return `${Math.floor(diff / 3_600_000)} giờ trước`;
+  if (day === vnDay(new Date(Date.now() - 86_400_000).toISOString())) return `Hôm qua ${hm}`;
+  const [, m, dd] = day.split("-");
+  return `${dd}/${m} ${hm}`;
+}
+
+/** Chip bật/tắt "Chỉ chưa đọc" kèm số chưa đọc. */
+function UnreadChip({ on, count, onClick }: { on: boolean; count: number; onClick: () => void }) {
+  return (
+    <button type="button" aria-pressed={on} onClick={onClick} className={cn("inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium", on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground hover:bg-muted")}>
+      Chỉ chưa đọc
+      {count > 0 && <span className={cn("rounded-full px-1.5 text-[11px] font-semibold leading-4", on ? "bg-white/25" : "bg-primary/10 text-primary")}>{count > 99 ? "99+" : count}</span>}
     </button>
   );
 }
@@ -158,11 +184,11 @@ export function BellButton({ me }: { me: Me }) {
         </div>
         {tab === "notif" && (
           <>
-            <div className="mb-2 flex justify-end"><Button variant="ghost" aria-pressed={unreadOnly} onClick={() => setUnreadOnly((v) => !v)}>{unreadOnly ? "Xem tất cả" : "Chỉ chưa đọc"}</Button></div>
+            <div className="mb-2 flex justify-end"><UnreadChip on={unreadOnly} count={n} onClick={() => setUnreadOnly((v) => !v)} /></div>
             {list.isLoading ? <p className="text-muted-foreground">Đang tải...</p> : rows.length === 0 ? <p className="py-4 text-center text-muted-foreground">Không có thông báo.</p> : <Groups rows={rows} onOpened={() => setOpen(false)} />}
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2">
-              <Button variant="ghost" disabled={n === 0 || mark.isPending} onClick={() => mark.mutate({ all: true })}>Đánh dấu tất cả đã đọc</Button>
-              <Link to="/thong-bao" onClick={() => setOpen(false)} className="text-sm text-primary underline">Xem tất cả</Link>
+              <button type="button" disabled={n === 0 || mark.isPending} onClick={() => mark.mutate({ all: true })} className="text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50">Đánh dấu tất cả đã đọc</button>
+              <Link to="/thong-bao" onClick={() => setOpen(false)} className="text-sm text-primary hover:underline">Xem tất cả</Link>
             </div>
           </>
         )}
@@ -184,6 +210,7 @@ export function NotificationsPage() {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [category, setCategory] = useState("");
   const mark = useMarkRead();
+  const unread = useQuery({ queryKey: ["unread"], queryFn: () => api<{ unread: number }>("GET", "/notifications/unread-count"), retry: false });
   const q = useInfiniteQuery({
     queryKey: ["notifications", "page", unreadOnly, category],
     initialPageParam: "" as string,
@@ -198,7 +225,7 @@ export function NotificationsPage() {
           <>
             <Link to="/nhac-hen" className="inline-flex min-h-9 items-center rounded-md px-3 text-sm text-primary underline">Nhắc hẹn</Link>
             <Link to="/tai-khoan/thong-bao" className="inline-flex min-h-9 items-center rounded-md px-3 text-sm text-primary underline">Cài đặt</Link>
-            <Button variant="secondary" onClick={() => mark.mutate({ all: true })}>Đánh dấu tất cả đã đọc</Button>
+            <button type="button" onClick={() => mark.mutate({ all: true })} className="text-xs font-medium text-muted-foreground hover:text-foreground">Đánh dấu tất cả đã đọc</button>
           </>
         }
       >
@@ -209,7 +236,8 @@ export function NotificationsPage() {
           <option value="">Mọi nhóm</option>
           {Object.entries(CATEGORY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </Select>
-        <Button variant="secondary" aria-pressed={unreadOnly} onClick={() => setUnreadOnly((v) => !v)}>{unreadOnly ? "Xem tất cả" : "Chỉ chưa đọc"}</Button>
+        <UnreadChip on={unreadOnly} count={unread.data?.unread ?? 0} onClick={() => setUnreadOnly((v) => !v)} />
+        {unreadOnly && <button type="button" onClick={() => setUnreadOnly(false)} className="text-sm text-primary hover:underline">Xem tất cả</button>}
       </div>
       <ErrorText error={q.error ?? mark.error} />
       {rows.length === 0 && !q.isLoading ? <EmptyState title="Không có thông báo" /> : <Groups rows={rows} />}
