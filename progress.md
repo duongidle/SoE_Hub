@@ -21,7 +21,7 @@ Cập nhật: 28/11/2026
    - [x] **12H-2 Datahub/Deal** (xong 28/11; chi tiết `module12-quyet-dinh-khi-code.md` mục 12H-2; typecheck, lint sạch; e2e desktop `stage2c1` `stage4-3` `stage4-5` `stage4-6` `stage12d2` `stage12g1` pass / 0 fail / 0 skip, mã ghi ở commit 12H-2; ảnh scratchpad `12h-2/`): dải kỳ thành nút trên thanh công cụ + "Toàn bộ thời gian" (chỉ web); thanh công cụ một dòng ở 1280 và 1440, bỏ ô tick rời; chọn dòng bằng ô tick khi rê số thứ tự; ngăn kéo dòng theo mockup.
    - [x] **12H-3 Onboarding + rà tab toàn app** (xong 28/11, mã sửa code ghi ở commit 12H-3; chi tiết `module12-quyet-dinh-khi-code.md` mục 12H-3; typecheck sạch, lint chỉ còn file chụp tạm của 12H-2, e2e desktop `stage12f1` 3 + `stage9` 2 + `stage6` 4 + `stage7` 6 pass / 0 fail / 0 skip; ảnh scratchpad `12h-3/`): gọn khoảng một màn; huy hiệu checkpoint trên mốc thay nhãn; dải trên một hàng; danh sách tuần gọn. Rà toàn app theo quyết định 7–9 (không lồng tab, thùng rác là nút icon, bỏ tab/bộ lọc chỉ có một nhóm): chuông (Nhắc hẹn Sắp tới/Đã xong), Dynamic Form (Form của tôi/Thùng rác), và mọi chỗ khác tìm được.
 1. Stage 11 (Cài đặt + Feedback): Opus rà phạm vi theo `kinh-nghiem-quyet-dinh.md` rồi giao 11A (server) / 11B (web + kiểm thử gộp).
-2. Module 10 (Workspace): chờ Dương duyệt đề xuất.
+2. Module 10 (Workspace): chờ Dương duyệt đề xuất. Menu sidebar tên **"Workhub"** đã có (trang "đang phát triển", Dương 28/11); Module 10 code thì gắn vào đó.
 
 ## Còn nợ (lỗi và nợ kỹ thuật ngắn hạn)
 
