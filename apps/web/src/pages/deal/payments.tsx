@@ -52,7 +52,7 @@ const optionName = (col: Column | undefined, v: unknown): string => {
 type Tone = "ok" | "info" | "warn" | "bad" | "ai" | "muted";
 const STATUS_TONE: Record<string, Tone> = { "Đã về": "ok", "Về thiếu": "warn", "Quá hạn": "bad", "Sắp đến hạn": "warn", "Chưa đến hạn": "info", "Tạm tính": "warn", "Đã chốt": "ok", "Điều chỉnh": "ai" };
 const toneOf = (s: string): Tone => STATUS_TONE[s] ?? "muted";
-const SEG = (on: boolean) => cn("min-h-8 rounded-md px-3 text-[13px]", on ? "bg-card font-semibold text-primary shadow-card" : "text-muted-foreground hover:text-foreground");
+const SEG = (on: boolean) => cn("min-h-8 rounded-md px-3 text-sm", on ? "bg-card font-semibold text-primary shadow-card" : "text-muted-foreground hover:text-foreground");
 const TH_NUM = "text-right";
 const TD_NUM = "text-right tabular-nums";
 const today = () => new Date().toISOString().slice(0, 10);
@@ -665,8 +665,8 @@ export function DealPaymentsPanel({ dealRow, dealsTableId }: { dealRow: Row; dea
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Các đợt thanh toán</h3>
         <div className="flex flex-wrap items-center gap-1">
-          <Link to="/quan-ly-deal/thanh-toan" search={{ deal: dealRow.id } as never} data-testid="panel-open-payments" className="inline-flex min-h-8 items-center gap-1 rounded-control px-2 text-[13px] font-medium text-primary hover:bg-primary-soft">Xem đợt thanh toán <ArrowUpRight size={13} aria-hidden /></Link>
-          <Link to="/quan-ly-deal/thanh-toan" search={{ tab: "ledger", deal: dealRow.id } as never} data-testid="panel-open-com" className="inline-flex min-h-8 items-center gap-1 rounded-control px-2 text-[13px] font-medium text-primary hover:bg-primary-soft">Xem com <ArrowUpRight size={13} aria-hidden /></Link>
+          <Link to="/quan-ly-deal/thanh-toan" search={{ deal: dealRow.id } as never} data-testid="panel-open-payments" className="inline-flex min-h-8 items-center gap-1 rounded-control px-2 text-sm font-medium text-primary hover:bg-primary-soft">Xem đợt thanh toán <ArrowUpRight size={13} aria-hidden /></Link>
+          <Link to="/quan-ly-deal/thanh-toan" search={{ tab: "ledger", deal: dealRow.id } as never} data-testid="panel-open-com" className="inline-flex min-h-8 items-center gap-1 rounded-control px-2 text-sm font-medium text-primary hover:bg-primary-soft">Xem com <ArrowUpRight size={13} aria-hidden /></Link>
           {manager && <Button variant="secondary" data-testid="panel-schedule" onClick={() => setScheduling(true)}>Lập lịch</Button>}
         </div>
       </div>

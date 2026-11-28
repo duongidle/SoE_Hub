@@ -88,6 +88,9 @@
 
 /* Corners (Module 12 mục 3): frame 20, card 16, control 10. The Tailwind steps used across the app follow the same scale. */
 @theme {
+  /* Type scale (chuan-giao-dien): 12 / 14 / 16 / 20 / 24 / 30. text-lg is 20px, the same step as text-xl, so no class lands between steps. */
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.5;
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 16px;

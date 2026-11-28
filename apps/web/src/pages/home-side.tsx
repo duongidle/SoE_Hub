@@ -43,7 +43,7 @@ function Side({ title, action, children, testid }: { title: string; action?: Rea
   return (
     <section className="rounded-card border border-border bg-card p-4 shadow-card" data-testid={testid}>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[15px] font-semibold">{title}</h2>
+        <h2 className="text-base font-semibold">{title}</h2>
         {action}
       </div>
       <div className="mt-2">{children}</div>
@@ -51,7 +51,7 @@ function Side({ title, action, children, testid }: { title: string; action?: Rea
   );
 }
 
-const linkCls = "inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:underline";
+const linkCls = "inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline";
 
 /** Only for a person whose onboarding plan is running (the plan of someone else is not shown here). */
 export function OnboardingSide() {
@@ -73,7 +73,7 @@ export function OnboardingSide() {
       <div className="h-[3px] overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Tiến độ lộ trình" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <div className="h-full bg-[linear-gradient(90deg,var(--primary),var(--ok))]" style={{ width: `${pct}%` }} />
       </div>
-      <p className="mt-3 text-[13.5px]">
+      <p className="mt-3 text-sm">
         {plan.data ? (todo > 0 ? <>Hôm nay còn <b>{todo} việc</b></> : "Hôm nay không còn việc nào") : "Đang tải việc hôm nay..."}
         {next && <> · mốc <b>{next.name}</b>{next.week_no ? ` (tuần ${next.week_no})` : ""}</>}
       </p>
@@ -156,7 +156,7 @@ export function RemindersSide() {
           <Button variant="secondary" onClick={() => setCreating(true)}><BellPlus size={16} aria-hidden /> Tạo nhắc hẹn</Button>
         </div>
       ) : (
-        <ul className="space-y-2.5 text-[13.5px]">
+        <ul className="space-y-2.5 text-sm">
           {items.map((r) => (
             <li key={r.id} className="flex gap-3" data-testid="home-reminder">
               <Badge tone={vnDate(new Date(r.due_at)) === vnDate(now) ? "warn" : "info"} className="h-[22px] shrink-0 whitespace-nowrap tabular-nums">{whenLabel(r.due_at, now)}</Badge>
@@ -200,7 +200,7 @@ export function AnnouncementSide() {
           <Link to="/thong-bao" className={linkCls}>Mở hộp thông báo <ArrowRight size={13} aria-hidden /></Link>
         </div>
       ) : (
-        <div className="text-[13.5px]">
+        <div className="text-sm">
           <b>{latest.title}</b> {latest.important && <Badge tone="warn">Quan trọng</Badge>}
           <span className="text-muted-foreground"> · {latest.sender} · {dm(vnDate(new Date(latest.created_at)))}</span>
           {latest.body && <p className="mt-1 line-clamp-2 text-muted-foreground">{latest.body}</p>}

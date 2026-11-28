@@ -37,6 +37,9 @@ describe("person helpers", () => {
     expect(initialsOf("Nguyễn Văn An")).toBe("VA");
     expect(initialsOf("Hoa")).toBe("H");
     expect(initialsOf("")).toBe("");
+    expect(initialsOf("Thành viên 12G mwz")).toBe("GM");
+    expect(initialsOf("An 12")).toBe("A");
+    expect(initialsOf("2024")).toBe("");
     expect(statusLabel("active")).toBe("Đang làm");
     expect(statusLabel("locked")).toBe("Đã nghỉ");
     expect(statusLabel(undefined)).toBeNull();

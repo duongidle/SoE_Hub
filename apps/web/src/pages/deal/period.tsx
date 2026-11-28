@@ -144,7 +144,7 @@ function ClosePanel() {
 
       {valid && (
         <section aria-label="Cần xử lý trước khi chốt" className="flex flex-col gap-2" data-testid="period-review">
-          <h2 className="text-[15px] font-semibold">Cần xử lý trước khi chốt{review.data ? ` (${total})` : ""}</h2>
+          <h2 className="text-base font-semibold">Cần xử lý trước khi chốt{review.data ? ` (${total})` : ""}</h2>
           {review.isLoading ? <Skeleton className="h-24 w-full" /> : review.error ? <ErrorState error={review.error} onRetry={() => void review.refetch()} title="Không tải được danh sách cần xử lý" /> : total === 0 ? (
             <p className="text-sm text-muted-foreground">Không còn mục nào.</p>
           ) : (
@@ -155,7 +155,7 @@ function ClosePanel() {
 
       {valid && (
         <section aria-label="Com theo người" className="flex flex-col gap-2" data-testid="period-com">
-          <h2 className="text-[15px] font-semibold">Com theo người, {monthLabel(month)}</h2>
+          <h2 className="text-base font-semibold">Com theo người, {monthLabel(month)}</h2>
           {com.isLoading ? <Skeleton className="h-24 w-full" /> : com.error ? <ErrorState error={com.error} onRetry={() => void com.refetch()} title="Không tải được com của kỳ" /> : (com.data?.people.length ?? 0) === 0 ? (
             <EmptyState title="Chưa có dòng com trong kỳ" hint="Com tạm tính xuất hiện khi xác nhận tiền về của một đợt." />
           ) : <ComByPerson month={month} data={com.data!} person={person} onPerson={setPerson} />}
@@ -163,7 +163,7 @@ function ClosePanel() {
       )}
 
       <section aria-label="Các kỳ đã chốt" className="flex flex-col gap-2">
-        <h2 className="text-[15px] font-semibold">Các kỳ đã chốt</h2>
+        <h2 className="text-base font-semibold">Các kỳ đã chốt</h2>
         {list.isLoading ? <Skeleton className="h-16 w-full" /> : list.error ? <ErrorState error={list.error} onRetry={() => void list.refetch()} title="Không tải được danh sách kỳ" /> : (list.data?.length ?? 0) === 0 ? <p className="text-sm text-muted-foreground">Chưa chốt kỳ nào.</p> : (
           <PeriodList rows={list.data!} onPick={(m) => { setMonth(m); setPerson(null); }} />
         )}

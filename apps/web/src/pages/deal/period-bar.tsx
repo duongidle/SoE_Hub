@@ -56,7 +56,7 @@ export function SharedPeriodBar({ state, showRule, scope = "deals" }: { state: R
       <div className="flex min-w-0 items-center gap-2.5">
         <span aria-hidden className="inline-flex size-8 shrink-0 items-center justify-center rounded-control bg-card text-primary shadow-card"><CalendarRange size={16} /></span>
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold leading-tight text-foreground" data-testid="period-title">{text.title}</p>
+          <p className="text-sm font-semibold leading-tight text-foreground" data-testid="period-title">{text.title}</p>
           <p className="text-xs leading-snug text-muted-foreground" data-testid="period-sub">{text.sub}</p>
         </div>
       </div>

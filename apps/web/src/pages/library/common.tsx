@@ -202,7 +202,7 @@ export function CopyButton({ getText, children, className, variant = "secondary"
 export function CodeFrame({ children, label, className }: { children: React.ReactNode; label?: string; className?: string }) {
   return (
     <div className={cn("rounded-lg border border-border-soft bg-muted px-3 py-2", className)}>
-      {label && <div className="mb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</div>}
+      {label && <div className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</div>}
       <div className="font-mono text-xs leading-relaxed text-foreground/80 [overflow-wrap:anywhere]">{children}</div>
     </div>
   );

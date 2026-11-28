@@ -47,7 +47,7 @@ function CpCard({ cp, plan, manual, canConfirm, onConfirm, busy }: { cp: Progres
         {cp.conditions.map((c, i) => <CondLine key={i} c={c} />)}
       </ul>
       {manual && cp.confirmed_at && <p className="mt-1 text-sm text-ok">Leader đã xác nhận.</p>}
-      {links.length > 0 && <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">{links.map((l) => <a key={l.code} href={`/f/${l.code}`} target="_blank" rel="noreferrer" className="inline-flex min-h-6 items-center text-[13px] font-medium text-primary">{l.label}: {l.name}</a>)}</div>}
+      {links.length > 0 && <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">{links.map((l) => <a key={l.code} href={`/f/${l.code}`} target="_blank" rel="noreferrer" className="inline-flex min-h-6 items-center text-sm font-medium text-primary">{l.label}: {l.name}</a>)}</div>}
       {manual && canConfirm && (
         <Button className="mt-2" variant="secondary" loading={busy} onClick={onConfirm} data-testid="cp-confirm">{cp.confirmed_at ? "Bỏ xác nhận" : "Xác nhận"}</Button>
       )}

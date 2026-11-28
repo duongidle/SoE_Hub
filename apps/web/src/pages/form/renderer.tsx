@@ -154,7 +154,7 @@ function Render({ b, p, visible }: { b: Block; p: Ctx; visible: Set<string> }) {
         <section className="flex flex-col gap-4" data-group={b.id}>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-card border border-border bg-card/80 px-4 py-3">
             <div className="min-w-0">
-              {idx !== undefined && <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--form-accent)" }}>Phần {idx} / {p.groupTotal}</div>}
+              {idx !== undefined && <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--form-accent)" }}>Phần {idx} / {p.groupTotal}</div>}
               {b.title ? <h3 className="text-base font-semibold [overflow-wrap:anywhere]">{String(b.title)}</h3> : null}
             </div>
             <span className="text-xs text-muted-foreground">{n} câu</span>
@@ -336,7 +336,7 @@ export function FormRenderer(p: RendererProps) {
               );
             })}
           </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full bg-(--form-accent)" />Đã làm</span>
             <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border-2 border-(--form-accent)" />Đang xem</span>
             <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border border-border bg-muted" />Trống</span>

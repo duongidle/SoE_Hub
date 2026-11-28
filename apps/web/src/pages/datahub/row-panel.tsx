@@ -159,7 +159,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
 
   const id = `f-${col.id}`;
   const label = (
-    <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-[13px] font-medium text-muted-foreground">
+    <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-sm font-medium text-muted-foreground">
       <span className="[overflow-wrap:anywhere]">{col.name}{col.required && <span className="text-bad" aria-label="bắt buộc"> *</span>}</span>
       {busy && <span className="text-xs font-normal text-muted-foreground">Đang lưu...</span>}
     </label>

@@ -89,7 +89,7 @@ export function AiHubPage({ openId }: { openId?: string }) {
               <div className="flex flex-wrap gap-1">{s.clients.map((c) => <Badge key={c} tone="info">{CLIENT_LABEL[c] ?? c}</Badge>)}</div>
               {s.group && <span className="shrink-0 text-xs text-muted-foreground">{GROUP_LABEL[s.group] ?? s.group}</span>}
             </div>
-            <Link to="/ai-hub/$id" params={{ id: s.id }} search={(x: unknown) => x as never} className="font-mono text-[15px] font-semibold text-foreground [overflow-wrap:anywhere] hover:text-primary">{s.name}</Link>
+            <Link to="/ai-hub/$id" params={{ id: s.id }} search={(x: unknown) => x as never} className="font-mono text-base font-semibold text-foreground [overflow-wrap:anywhere] hover:text-primary">{s.name}</Link>
             <CodeFrame label="description" className="line-clamp-4 min-h-[4.5rem]">{s.snippet ? <Snippet html={s.snippet} /> : s.description}</CodeFrame>
             {s.tags.length > 0 && <div className="flex flex-wrap gap-1">{s.tags.slice(0, 4).map((t) => <Badge key={t}>#{t}</Badge>)}</div>}
             <div className="mt-auto flex items-center justify-between gap-2 border-t border-border-soft pt-2 text-xs text-muted-foreground">

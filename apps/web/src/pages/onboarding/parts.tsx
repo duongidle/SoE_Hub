@@ -30,14 +30,14 @@ export function TaskRow({ f, canTick, onTick, showDate }: { f: FlatOcc; canTick:
       </span>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
         <div className="flex min-w-0 flex-1 basis-48 items-start gap-2">
-          <Pill tone={KIND_TONE[item.kind] ?? "neutral"} className="mt-0.5 h-5 text-[11px]">{KIND_LABEL[item.kind] ?? item.kind}</Pill>
+          <Pill tone={KIND_TONE[item.kind] ?? "neutral"} className="mt-0.5 h-5 text-xs">{KIND_LABEL[item.kind] ?? item.kind}</Pill>
           <span className={cn("min-w-0 text-sm [overflow-wrap:anywhere]", done && "text-muted-foreground line-through")}>{item.name}</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {(showDate || late) && <span className={cn("num", late && "font-semibold text-bad")}>{late ? "Trễ · " : ""}{fmtDate(occ.on_date)}</span>}
           {item.due_time && <span className="num">hạn {item.due_time.slice(0, 5)}</span>}
-          {item.form_code && <a className={cn("inline-flex min-h-6 items-center gap-0.5 text-[13px] font-medium", done ? "text-muted-foreground" : "text-primary")} href={`/f/${item.form_code}`} target="_blank" rel="noreferrer" data-testid="occ-form">{formLabel}{item.form_name ? `: ${item.form_name}` : ""}<ArrowUpRight size={13} aria-hidden /></a>}
-          {item.link && <a className="inline-flex items-center gap-0.5 text-[13px] font-medium text-primary" href={item.link} target="_blank" rel="noreferrer">Mở link<ArrowUpRight size={13} aria-hidden /></a>}
+          {item.form_code && <a className={cn("inline-flex min-h-6 items-center gap-0.5 text-sm font-medium", done ? "text-muted-foreground" : "text-primary")} href={`/f/${item.form_code}`} target="_blank" rel="noreferrer" data-testid="occ-form">{formLabel}{item.form_name ? `: ${item.form_name}` : ""}<ArrowUpRight size={13} aria-hidden /></a>}
+          {item.link && <a className="inline-flex items-center gap-0.5 text-sm font-medium text-primary" href={item.link} target="_blank" rel="noreferrer">Mở link<ArrowUpRight size={13} aria-hidden /></a>}
         </div>
       </div>
     </li>
@@ -70,11 +70,11 @@ const hasBar = (c: CondResult) => c.type !== "manual" && c.threshold !== null &&
 
 /** A condition of a checkpoint: what is asked, the value now against the threshold, and a bar. */
 export function CondBar({ c }: { c: CondResult }) {
-  if (c.type === "manual") return <div className="flex items-center justify-between gap-2 text-[13px]"><span>{c.label}</span><Pill tone={c.met ? "ok" : "neutral"}>{c.met ? "Đã xác nhận" : "Chờ Leader"}</Pill></div>;
+  if (c.type === "manual") return <div className="flex items-center justify-between gap-2 text-sm"><span>{c.label}</span><Pill tone={c.met ? "ok" : "neutral"}>{c.met ? "Đã xác nhận" : "Chờ Leader"}</Pill></div>;
   const r = ratioOf(c);
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-2 text-[13px]">
+      <div className="flex items-baseline justify-between gap-2 text-sm">
         <span className="min-w-0 [overflow-wrap:anywhere]">{condLabel(c)}</span>
         <span className="num shrink-0 font-semibold">{fmtNum(c.value)} <span className="font-normal text-muted-foreground">{OPS[c.op] ?? "≥"} {fmtNum(c.threshold)}</span></span>
       </div>
@@ -106,7 +106,7 @@ export function CpWeekCard({ cp, plan, flash }: { cp: ProgressCp; plan: PlanFull
     <div className={cn("rounded-md", (pop || flash) && "onb-pop")} data-testid="onb-cp-week">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Flag size={14} aria-hidden className="text-muted-foreground" />
-        <span className="min-w-0 text-[13px] font-semibold [overflow-wrap:anywhere]">{cp.name}</span>
+        <span className="min-w-0 text-sm font-semibold [overflow-wrap:anywhere]">{cp.name}</span>
         <Pill tone={CP_TONE[cp.status] ?? "neutral"}>{(CP_STATUS[cp.status] ?? CP_STATUS.not_yet!).label}</Pill>
       </div>
       <div className="flex flex-col gap-3">
@@ -115,7 +115,7 @@ export function CpWeekCard({ cp, plan, flash }: { cp: ProgressCp; plan: PlanFull
       </div>
       {links.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-          {links.map((l) => <a key={l.code} href={`/f/${l.code}`} target="_blank" rel="noreferrer" className="inline-flex min-h-6 items-center gap-0.5 text-[13px] font-medium text-primary" data-testid="cp-link">{l.label}: {l.name}<ArrowUpRight size={13} aria-hidden /></a>)}
+          {links.map((l) => <a key={l.code} href={`/f/${l.code}`} target="_blank" rel="noreferrer" className="inline-flex min-h-6 items-center gap-0.5 text-sm font-medium text-primary" data-testid="cp-link">{l.label}: {l.name}<ArrowUpRight size={13} aria-hidden /></a>)}
         </div>
       )}
     </div>

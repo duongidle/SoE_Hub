@@ -40,9 +40,10 @@ export function disambiguate(people: readonly PersonInfo[]): Map<string, string>
   return out;
 }
 
-/** The last two words' first letters, upper case ("Nguyễn Văn An" -> "VA"). */
+/** The last two words' first letters, upper case ("Nguyễn Văn An" -> "VA"). A word with no letter (a number such as "12") is skipped, so "Thành viên 12G mwz" gives "VM", not "1M". */
 export function initialsOf(name: string): string {
-  return name.split(/\s+/).filter(Boolean).slice(-2).map((w) => Array.from(w)[0]!).join("").toUpperCase();
+  const words = name.split(/\s+/).filter((w) => /\p{L}/u.test(w));
+  return words.slice(-2).map((w) => Array.from(w.replace(/^[^\p{L}]+/u, ""))[0]!).join("").toUpperCase();
 }
 
 /** Status of a person in words: đang làm / đã nghỉ (khoá) / chưa kích hoạt. */

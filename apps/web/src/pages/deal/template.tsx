@@ -70,7 +70,7 @@ export function TemplatePage() {
       <PageTitle actions={<Button variant="secondary" onClick={() => setCreating(true)}><Plus size={16} aria-hidden /> Tạo bảng template</Button>}>Template</PageTitle>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Link to="/quan-ly-deal" className="inline-flex min-h-8 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft size={16} aria-hidden /> Quản lý Deal</Link>
-        <p className="min-w-0 flex-1 basis-80 text-[13px] text-muted-foreground">Bảng và cột của template áp dụng ngay cho mọi người trong phạm vi. Cột riêng của từng người không bị ảnh hưởng. Bộ mặc định cho cây mới do Admin sửa ở Cài đặt hệ thống.</p>
+        <p className="min-w-0 flex-1 basis-80 text-sm text-muted-foreground">Bảng và cột của template áp dụng ngay cho mọi người trong phạm vi. Cột riêng của từng người không bị ảnh hưởng. Bộ mặc định cho cây mới do Admin sửa ở Cài đặt hệ thống.</p>
       </div>
       {list.length === 0 ? (
         <EmptyState title="Chưa có bảng template nào" hint={roles.includes("manager") || roles.includes("leader") ? "Tạo bảng template đầu tiên cho cây hoặc team của bạn." : undefined} />
@@ -83,10 +83,10 @@ export function TemplatePage() {
             </label>
             {shown.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground">Không có bảng nào khớp.</p>}
             {groups.tree.length > 0 && (
-              <section><h2 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Cây của tôi</h2><ul className="flex flex-col gap-0.5">{groups.tree.map(item)}</ul></section>
+              <section><h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cây của tôi</h2><ul className="flex flex-col gap-0.5">{groups.tree.map(item)}</ul></section>
             )}
             {groups.teams.map(([leader, ts]) => (
-              <section key={leader}><h2 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Team {leaderName(leader || null)}</h2><ul className="flex flex-col gap-0.5">{ts.map(item)}</ul></section>
+              <section key={leader}><h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Team {leaderName(leader || null)}</h2><ul className="flex flex-col gap-0.5">{ts.map(item)}</ul></section>
             ))}
           </nav>
           {search.template ? <TemplatePanel key={search.template} id={search.template} focusColumn={search.column} leaderName={leaderName} /> : null}
@@ -215,7 +215,7 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
   const columnRow = (c: Column) => (
     <li key={c.id} data-testid="template-column" data-column={c.name} className={cn("flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center", focusColumn === c.key && "bg-selected")}>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <span className="text-[15px] font-semibold [overflow-wrap:anywhere]">{c.name}</span>
+        <span className="text-base font-semibold [overflow-wrap:anywhere]">{c.name}</span>
         <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           <Badge tone={typeTone(c.type)}>{typeLabel(c.type)}</Badge>
           {c.storage === "person" && <span>Mỗi người một giá trị</span>}
@@ -226,16 +226,16 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
       </div>
       {canEditCol(c) && (
         <span className="flex shrink-0 flex-wrap gap-1.5">
-          <Button variant="secondary" className="!min-h-8 !px-3 text-[13px]" aria-label={`Sửa cột ${c.name}`} onClick={() => setDialog({ kind: "edit", col: c })}><Pencil size={14} aria-hidden /> Sửa</Button>
-          {tpl.can_edit && d.roles.length > 0 && <Button variant="secondary" className="!min-h-8 !px-3 text-[13px]" aria-label={`Vai trò của cột ${c.name}`} onClick={() => setDialog({ kind: "role", col: c })}>Vai trò</Button>}
-          <Button variant="secondary" className="!min-h-8 !px-3 text-[13px] !text-bad" aria-label={`Bỏ cột ${c.name}`} onClick={() => setDialog({ kind: "delete", col: c })}><Trash2 size={14} aria-hidden /> Bỏ</Button>
+          <Button variant="secondary" className="!min-h-8 !px-3 text-sm" aria-label={`Sửa cột ${c.name}`} onClick={() => setDialog({ kind: "edit", col: c })}><Pencil size={14} aria-hidden /> Sửa</Button>
+          {tpl.can_edit && d.roles.length > 0 && <Button variant="secondary" className="!min-h-8 !px-3 text-sm" aria-label={`Vai trò của cột ${c.name}`} onClick={() => setDialog({ kind: "role", col: c })}>Vai trò</Button>}
+          <Button variant="secondary" className="!min-h-8 !px-3 text-sm !text-bad" aria-label={`Bỏ cột ${c.name}`} onClick={() => setDialog({ kind: "delete", col: c })}><Trash2 size={14} aria-hidden /> Bỏ</Button>
         </span>
       )}
     </li>
   );
   const section = (title: string, cols: Column[], extra?: React.ReactNode) => (
     <section aria-label={title} className="flex flex-col gap-1.5">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
       {extra}
       {cols.length === 0 ? <p className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">{colFind ? "Không có cột nào khớp." : "Chưa có cột nào."}</p> : <ul className="flex flex-col divide-y divide-border-soft overflow-hidden rounded-xl border border-border-soft">{cols.map(columnRow)}</ul>}
     </section>
@@ -269,7 +269,7 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
           <h3 className="text-base font-semibold">Cột của bảng</h3>
           <div role="group" aria-label="Lọc cột theo lớp" className="inline-flex flex-wrap items-center gap-0.5 rounded-lg bg-muted p-0.5">
             {([["all", "Tất cả", d.columns.length], ["basic", LAYER_LABEL.basic, count("basic")], ["role", LAYER_LABEL.role, count("role")], ["team", LAYER_LABEL.team, count("team")]] as const).map(([k, label, n]) => (
-              <button key={k} type="button" aria-pressed={layerTab === k} onClick={() => setLayerTab(k)} className={cn("min-h-7 rounded-md px-2.5 text-[13px]", layerTab === k ? "bg-card font-semibold text-primary shadow-card" : "text-muted-foreground hover:text-foreground")}>{label} ({n})</button>
+              <button key={k} type="button" aria-pressed={layerTab === k} onClick={() => setLayerTab(k)} className={cn("min-h-7 rounded-md px-2.5 text-sm", layerTab === k ? "bg-card font-semibold text-primary shadow-card" : "text-muted-foreground hover:text-foreground")}>{label} ({n})</button>
             ))}
           </div>
           <label className="relative ml-auto block min-w-40 max-w-64 flex-1 basis-44">

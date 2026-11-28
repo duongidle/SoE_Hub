@@ -68,7 +68,7 @@ function gridTheme(): Partial<Theme> {
     linkColor: token("--primary"),
     cellHorizontalPadding: 8,
     cellVerticalPadding: 4,
-    headerFontStyle: "600 13px",
+    headerFontStyle: "600 12px",
     baseFontStyle: "14px",
     markerFontStyle: "12px",
     fontFamily: FONT_STACK,
@@ -559,7 +559,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
       c.save();
       c.font = `${th.headerFontStyle} ${FONT_STACK}`;
       const nameW = c.measureText(col.name).width;
-      c.font = `11px ${FONT_STACK}`;
+      c.font = `12px ${FONT_STACK}`;
       const w = c.measureText(tag).width + 10;
       const x = rect.x + th.cellHorizontalPadding + nameW + 8;
       if (x + w < rect.x + rect.width - 30) {

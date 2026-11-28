@@ -143,11 +143,11 @@ function PinnedPane({ tab, menu }: { tab: PinnedTab; menu: React.ReactNode }) {
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="text-[15px] font-semibold [overflow-wrap:anywhere]">{tab.name}</span>
+          <span className="text-base font-semibold [overflow-wrap:anywhere]">{tab.name}</span>
           <Badge>{tab.datahub_name}</Badge>
         </div>
         <div className="flex items-center gap-1">
-          <Link to="/datahub/$datahubId/dashboard/$dashboardId" params={{ datahubId: tab.datahub_id, dashboardId: tab.id }} className="inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:underline" data-testid="home-open-dashboard">
+          <Link to="/datahub/$datahubId/dashboard/$dashboardId" params={{ datahubId: tab.datahub_id, dashboardId: tab.id }} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline" data-testid="home-open-dashboard">
             Mở dashboard <ArrowUpRight size={13} aria-hidden />
           </Link>
           {menu}

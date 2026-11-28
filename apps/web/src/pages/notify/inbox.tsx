@@ -127,7 +127,7 @@ export function BellButton({ me }: { me: Me }) {
     <button type="button" aria-label={`Thông báo, ${n} chưa đọc`} className="relative inline-flex min-h-9 min-w-9 items-center justify-center rounded-md hover:bg-muted">
       <Bell size={18} />
       {n > 0 && (
-        <span data-testid="bell-count" className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-bad px-1 text-center text-[10px] font-semibold leading-4 text-white">
+        <span data-testid="bell-count" className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-bad px-1 text-center text-xs font-semibold leading-4 text-white">
           {n > 99 ? "99+" : n}
         </span>
       )}

@@ -112,7 +112,7 @@ function ForecastPanel({ from, to, name }: { from: string | null; to: string | n
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <span aria-hidden className="size-2 rounded-full bg-primary" />
-          <h2 className="text-[15px] font-semibold">Forecast của team trong kỳ</h2>
+          <h2 className="text-base font-semibold">Forecast của team trong kỳ</h2>
           <Badge tone="muted">{name}</Badge>
         </div>
         <p className="text-xs text-muted-foreground">Cập nhật tự động từ bảng Deals và Đợt thanh toán</p>
@@ -121,15 +121,15 @@ function ForecastPanel({ from, to, name }: { from: string | null; to: string | n
         <>
           <dl className="mt-3 grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-ok-border bg-ok-bg px-4 py-3">
-              <dt className="flex items-center justify-between gap-2 text-[13px] text-muted-foreground">Đã ký, chờ tiền về <Badge tone="ok">Đã ký</Badge></dt>
+              <dt className="flex items-center justify-between gap-2 text-sm text-muted-foreground">Đã ký, chờ tiền về <Badge tone="ok">Đã ký</Badge></dt>
               <dd className="mt-1 text-xl font-semibold tabular-nums text-ok" data-testid="forecast-signed">{money(f.signed)}</dd>
             </div>
             <div className="rounded-xl border border-warn-border bg-warn-bg px-4 py-3">
-              <dt className="flex items-center justify-between gap-2 text-[13px] text-muted-foreground">Chưa ký <Badge tone="warn">Pipeline</Badge></dt>
+              <dt className="flex items-center justify-between gap-2 text-sm text-muted-foreground">Chưa ký <Badge tone="warn">Pipeline</Badge></dt>
               <dd className="mt-1 text-xl font-semibold tabular-nums text-warn" data-testid="forecast-unsigned">{money(f.unsigned)}</dd>
             </div>
             <div className="rounded-xl border border-info-border bg-info-bg px-4 py-3">
-              <dt className="flex items-center justify-between gap-2 text-[13px] text-muted-foreground">Tổng <Badge tone="info">Tổng</Badge></dt>
+              <dt className="flex items-center justify-between gap-2 text-sm text-muted-foreground">Tổng <Badge tone="info">Tổng</Badge></dt>
               <dd className="mt-1 text-xl font-semibold tabular-nums text-info" data-testid="forecast-total">{money(f.signed + f.unsigned)}</dd>
             </div>
           </dl>

@@ -109,7 +109,7 @@ function LeaderEditToggle() {
     onError: () => notify.error("Không lưu được. Thử lại."),
   });
   return (
-    <label className="flex min-h-8 shrink-0 items-center gap-2 text-[13px] text-muted-foreground">
+    <label className="flex min-h-8 shrink-0 items-center gap-2 text-sm text-muted-foreground">
       <input type="checkbox" className="h-4 w-4" data-testid="leader-can-edit" disabled={q.isLoading || m.isPending} checked={q.data?.leader_can_edit === true} onChange={(e) => m.mutate(e.target.checked)} />
       Cho phép leader sửa deal của tôi
     </label>

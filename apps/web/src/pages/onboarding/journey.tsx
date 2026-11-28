@@ -105,11 +105,11 @@ function Road({ weeks, cps, curNo, who, self, onOpen }: { weeks: WeekInfo[]; cps
             <div key={w.no}>
               <button type="button" onClick={() => onOpen(w.no)} data-testid="onb-week" data-state={w.state} aria-current={cur ? "step" : undefined}
                 aria-label={`Tuần ${w.no}: ${w.w.name}, ${STATE_LABEL[w.state]}`}
-                className={cn("absolute grid size-7 place-items-center rounded-full border-2 text-[11px] font-bold shadow-md motion-safe:transition-transform motion-safe:hover:scale-110", NODE[w.state])} style={{ left: x - 14, top: y - 14 }}>
+                className={cn("absolute grid size-7 place-items-center rounded-full border-2 text-xs font-bold shadow-md motion-safe:transition-transform motion-safe:hover:scale-110", NODE[w.state])} style={{ left: x - 14, top: y - 14 }}>
                 {cur && <span aria-hidden className="absolute -inset-[7px] rounded-full border-2 border-primary-border" />}
                 {w.state === "done" ? <Check size={14} strokeWidth={3} aria-hidden /> : w.state === "late" ? <AlertTriangle size={13} strokeWidth={2.5} aria-hidden /> : w.state === "break" ? <Coffee size={13} aria-hidden /> : <span className="num">{w.no}</span>}
               </button>
-              <div className="num absolute text-center text-[11px] text-muted-foreground" style={{ left: x - 16, width: 32, top: y + 18 }}>T{w.no}</div>
+              <div className="num absolute text-center text-xs text-muted-foreground" style={{ left: x - 16, width: 32, top: y + 18 }}>T{w.no}</div>
               {cur && (
                 <div className="absolute" style={{ left: x - 62, top: y - 54 }}>
                   <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-primary-border bg-card py-1 pl-1 pr-2.5 text-xs font-semibold shadow-md">
@@ -218,7 +218,7 @@ export function JourneyTab({ plan, prog, manage, canTick, canBreak, breakBusy, o
       <section className="grid gap-4 rounded-card border border-border bg-card p-5 shadow-card lg:grid-cols-[1fr_1.3fr_auto] lg:items-center" data-testid="onb-hero">
         <div className="min-w-0">
           <div className="text-xs font-semibold text-muted-foreground">{curNo ? "BẠN ĐANG Ở" : started ? "ĐÃ QUA TUẦN CUỐI" : "CHƯA BẮT ĐẦU"}</div>
-          <div className="mt-0.5 flex items-baseline gap-1.5"><span className="num text-[28px] font-semibold leading-none" data-testid="onb-hero-week">{curNo ? `Tuần ${curNo}` : started ? `Tuần ${N}` : "Sắp tới"}</span><span className="num text-base text-muted-foreground">/ {N}</span></div>
+          <div className="mt-0.5 flex items-baseline gap-1.5"><span className="num text-2xl font-semibold leading-none" data-testid="onb-hero-week">{curNo ? `Tuần ${curNo}` : started ? `Tuần ${N}` : "Sắp tới"}</span><span className="num text-base text-muted-foreground">/ {N}</span></div>
           <div className="mt-0.5 text-sm [overflow-wrap:anywhere]">{phase}{focus ? ` · ${focus.w.name}` : ""}</div>
           <ProgressBar className="mt-3 !h-[3px]" ratio={pct / 100} />
           <div className="num mt-1.5 text-xs text-muted-foreground" data-testid="onb-progress-summary">{pct}% việc đã xong ({done}/{flat.length}){plan.start_date ? ` · bắt đầu ${fmtDate(plan.start_date)}/${plan.start_date.slice(0, 4)}` : ""} · Checkpoint {prog?.checkpoints_passed ?? 0}/{cps.length}</div>
@@ -229,7 +229,7 @@ export function JourneyTab({ plan, prog, manage, canTick, canBreak, breakBusy, o
             <div className="min-w-0">
               <div className="text-xs font-semibold text-primary">MỐC TIẾP THEO{nextWeekInfo?.end ? ` · HẠN ${fmtDate(nextWeekInfo.end)}` : ""}</div>
               <div className="mt-0.5 text-base font-semibold [overflow-wrap:anywhere]">{next.name}</div>
-              <div className="mt-1 text-[13px] text-muted-foreground [overflow-wrap:anywhere]">{missing > 0 ? <>Còn <b className="text-foreground">{missing} {unmet.length ? "điều kiện" : "việc"}</b>: {missingText}.</> : "Mọi điều kiện đã đủ, chờ hệ thống ghi nhận."}</div>
+              <div className="mt-1 text-sm text-muted-foreground [overflow-wrap:anywhere]">{missing > 0 ? <>Còn <b className="text-foreground">{missing} {unmet.length ? "điều kiện" : "việc"}</b>: {missingText}.</> : "Mọi điều kiện đã đủ, chờ hệ thống ghi nhận."}</div>
             </div>
           </div>
         ) : <div className="rounded-lg bg-ok-bg p-4 text-sm text-ok" data-testid="onb-next">Đã qua hết các mốc checkpoint.</div>}
@@ -252,7 +252,7 @@ export function JourneyTab({ plan, prog, manage, canTick, canBreak, breakBusy, o
             <div className="min-w-0">
               <div className="num text-xs font-semibold text-primary">TUẦN {focusNo}{focus?.start && focus.end ? ` · ${fmtDate(focus.start)} – ${fmtDate(focus.end)}` : ""}</div>
               <h2 className="mt-0.5 text-base font-semibold [overflow-wrap:anywhere]">{focus?.w.name}</h2>
-              {focus?.w.goal && <p className="mt-0.5 text-[13px] text-muted-foreground [overflow-wrap:anywhere]">Mục tiêu: {focus.w.goal}</p>}
+              {focus?.w.goal && <p className="mt-0.5 text-sm text-muted-foreground [overflow-wrap:anywhere]">Mục tiêu: {focus.w.goal}</p>}
             </div>
             {weekOcc.length > 0 && <Pill tone="info" className="num">{weekOcc.filter((f) => f.occ.done_at).length}/{weekOcc.length} việc</Pill>}
           </div>
@@ -261,20 +261,20 @@ export function JourneyTab({ plan, prog, manage, canTick, canBreak, breakBusy, o
 
         <div className="flex flex-col gap-4">
           <section className="rounded-card border border-border bg-card p-5 shadow-card">
-            <h2 className="mb-3 text-[15px] font-semibold">Checkpoint tuần {focusNo}</h2>
+            <h2 className="mb-3 text-base font-semibold">Checkpoint tuần {focusNo}</h2>
             {focusCps.length === 0 ? <p className="text-sm text-muted-foreground">Tuần này không có checkpoint.</p> : <div className="flex flex-col gap-4">{focusCps.map((c) => <CpWeekCard key={c.id} cp={c} plan={plan} />)}</div>}
           </section>
           <section className="rounded-card border border-border bg-card p-5 shadow-card" data-testid="onb-past">
-            <h2 className="text-[15px] font-semibold">Các mốc đã qua</h2>
+            <h2 className="text-base font-semibold">Các mốc đã qua</h2>
             {past.length === 0 ? <p className="mt-2 text-sm text-muted-foreground">Chưa có mốc nào.</p> : (
-              <ul className="mt-2 divide-y divide-border-soft text-[13px]">
+              <ul className="mt-2 divide-y divide-border-soft text-sm">
                 {past.map((c) => <li key={c.id} className="flex items-center justify-between gap-2 py-2.5"><span className="min-w-0 [overflow-wrap:anywhere]">{c.week_no ? `T${c.week_no} · ` : ""}{c.name}</span><Pill tone={CP_TONE[c.status] ?? "neutral"}>{CP_STATUS[c.status]?.label}</Pill></li>)}
               </ul>
             )}
           </section>
           {tables.size > 0 && (
             <section className="rounded-card border border-border bg-card p-5 shadow-card" data-testid="onb-shortcuts">
-              <h2 className="text-[15px] font-semibold">Lối tắt</h2>
+              <h2 className="text-base font-semibold">Lối tắt</h2>
               <div className="mt-2 flex flex-col gap-1">
                 {[...tables.values()].map((t) => {
                   const I = ICON(t.kind, t.itemName);
