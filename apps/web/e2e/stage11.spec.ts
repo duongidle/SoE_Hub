@@ -39,6 +39,8 @@ test.beforeAll(async ({ browser }, info) => {
   adminS = await Session.open(browser, p, "admin");
   guestS = await Session.open(browser, p, "guest");
   userS = await Session.open(browser, p, "u1");
+  // The shell asks the Guest for onboarding plans (a known 403 of the menu check).
+  guestS.allow(403, /\/onboarding\/plans/);
   sessions = [adminS, guestS, userS];
   await adminS.login(email("admin"), PASSWORD());
   await guestS.login(email("guest"), PASSWORD());
@@ -115,7 +117,7 @@ test("Admin thấy ở Feedback, đổi trạng thái và nhắn", async () => {
   await expect(drawer.getByTestId("feedback-body")).toHaveText(TEXT);
   await expect(drawer.getByTestId("feedback-image")).toBeVisible();
   await expect(drawer.getByTestId("feedback-context")).toContainText("Cỡ màn hình");
-  await chooseOption(drawer.getByRole("button", { name: "Trạng thái" }), { label: "Đang xem" });
+  await chooseOption(drawer.getByRole("combobox", { name: "Trạng thái" }), { label: "Đang xem" });
   await expect(drawer.getByText("Đã đổi trạng thái").or(page.getByText("Đã đổi trạng thái"))).toBeVisible();
   await drawer.getByLabel("Nội dung tin nhắn").fill("Đã nhận, đang xem lỗi này.");
   await drawer.getByRole("button", { name: "Gửi trả lời" }).click();
@@ -171,8 +173,9 @@ test("Phân quyền bổ sung: Admin cấp Xử lý feedback, người đó th�
 });
 
 test("trang cài đặt thông báo có nhóm Góp ý", async () => {
-  const page = guestS.page;
+  const page = userS.page;
   await page.goto("/tai-khoan/thong-bao");
   await expect(page.getByTestId("type-feedback.update")).toBeVisible();
   await expect(page.getByTestId("group-feedback")).toContainText("Góp ý của bạn có cập nhật");
+  await userS.shot("11-notification-settings");
 });

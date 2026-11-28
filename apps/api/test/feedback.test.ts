@@ -134,6 +134,16 @@ describe("feedback: images", () => {
 });
 
 describe("feedback: thread and notifications", () => {
+  it("both types show in the notification settings and can be switched off by the person (11B)", async () => {
+    const s = (await userA2("notification.settings.get", {})) as { types: { type: string; category: string; enabled: boolean }[] };
+    expect(s.types.filter((x) => x.category === "feedback").map((x) => x.type).sort()).toEqual(["feedback.new", "feedback.update"]);
+    await userA2("notification.settings.set", { disabled_types: ["feedback.update"] });
+    const f = await send(userA2);
+    await admin("feedback.message.create", { feedback_id: f.id, body: "Đã nhận." });
+    expect(await notes(userA2, "feedback.update", f.id)).toBe(0);
+    await userA2("notification.settings.set", { disabled_types: [] });
+  });
+
   it("new feedback notifies every handler (not the sender); a reply and a status change notify the sender", async () => {
     const f = await send(userA1);
     expect(await notes(admin, "feedback.new", f.id)).toBe(1);
