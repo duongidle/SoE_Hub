@@ -1,12 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Columns3, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Drawer } from "@/components/ui/drawer";
+import * as Dialog from "@radix-ui/react-dialog";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, Select, Textarea } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/toast";
 import { Tip } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { changeColumnType, columnTypes, createColumn, dhKeys, optionImpact, previewTypeChange, updateColumn, type ColumnBody, type OptionImpact } from "@/lib/datahub/api";
 import { COMPUTED, ROLLUP_FUNCTIONS, TEXT_LIKE, buildBody, buildConfig, columnError, emptyAttr, type AttrDraft, convertibleTypes, describeConversion, draftFromColumn, emptyDraft, firstError, groupedTypes, hasNumberFormat, hasProperty, moveOption, nextColor, sampleLine, validateDraft, type ColumnDraft, type ConversionReport, type DraftErrors, type TypeInfo } from "@/lib/datahub/column-config";
 import { parseCellText, SYSTEM_TYPES } from "@/lib/datahub/cells";
@@ -196,22 +197,22 @@ export function ColumnEditor({ table, column, onClose, adapter, confirmText, not
 
   return (
     <>
-      <Drawer
+      <ColumnModal
         title={editing ? `Sửa cột "${column!.name}"` : "Thêm cột"}
-        open
+        formula={draft.type === "formula"}
         onClose={onClose}
         dirty={dirty && !busy}
-        width="sm:w-[480px]"
         footer={
-          <div className="flex items-center justify-between gap-2">
-            <Button variant="secondary" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" form="column-form" loading={busy}>{editing ? "Lưu cột" : "Thêm cột"}</Button>
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="secondary" onClick={onClose} className="!min-h-9 !px-4 !text-[13px]">Huỷ</Button>
+            <Button type="submit" form="column-form" loading={busy} className="!min-h-9 !px-5 !text-[13px]">{editing ? "Lưu cột" : "Thêm cột"}</Button>
           </div>
         }
       >
-        <form id="column-form" ref={form} className="flex flex-col gap-6" noValidate onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        <form id="column-form" ref={form} className="flex flex-col gap-4" noValidate onSubmit={(e) => { e.preventDefault(); void save(); }}>
           {notice}
-          <Section title="Cơ bản">
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
             <div data-field="name">
               <Field label="Tên cột" required error={shown("name")} hint="Không trùng tên cột khác trong bảng, không chứa [ hoặc ]. Công thức gọi cột bằng tên này.">
                 <Input value={draft.name} onChange={(e) => { set({ name: e.target.value }); setErrors((x) => ({ ...x, name: undefined })); }} maxLength={100} autoComplete="off" autoFocus {...fieldProps("name")} />
@@ -235,13 +236,14 @@ export function ColumnEditor({ table, column, onClose, adapter, confirmText, not
                 </Select>
               )}
             </Field>
+            </div>
 
             <TypeFields draft={draft} set={set} shown={shown} fieldProps={fieldProps} table={table} column={column} others={others} />
 
             <Field label="Mô tả" hint="Hiện cho người nhập dữ liệu khi sửa dòng.">
-              <Textarea rows={2} value={draft.description} maxLength={1000} onChange={(e) => set({ description: e.target.value })} />
+              <Textarea rows={2} placeholder="Nhập hướng dẫn ý nghĩa cột để thành viên dễ hiểu…" value={draft.description} maxLength={1000} onChange={(e) => set({ description: e.target.value })} />
             </Field>
-          </Section>
+          </div>
 
           {numberFormat && (
             <Section title="Định dạng">
@@ -299,7 +301,7 @@ export function ColumnEditor({ table, column, onClose, adapter, confirmText, not
 
           {formError ? <ErrorText error={formError} /> : null}
         </form>
-      </Drawer>
+      </ColumnModal>
       {asking && confirmText && (
         <ConfirmDialog title="Áp dụng thay đổi template?" message={<span data-testid="template-confirm">{confirmText}</span>} confirmLabel="Xác nhận" onClose={() => setAsking(false)} onConfirm={() => { confirmed.current = true; setAsking(false); void save(); }} />
       )}
@@ -577,9 +579,45 @@ function LookupFields({ draft, set, shown, table, others }: { draft: ColumnDraft
 /** A titled group of fields of the column drawer. */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-4">
-      <h3 className="border-b border-border-soft pb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+    <section className="flex flex-col gap-3 border-t border-border-soft pt-4">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
       {children}
     </section>
+  );
+}
+
+/** The column dialog of the mockup: a centered card (660px) with an icon and title in the header, a body that scrolls, a footer strip; asks before dropping unsaved changes. */
+function ColumnModal({ title, formula, onClose, dirty, footer, children }: { title: string; formula: boolean; onClose: () => void; dirty: boolean; footer: React.ReactNode; children: React.ReactNode }) {
+  const [asking, setAsking] = useState(false);
+  const tryClose = () => (dirty ? setAsking(true) : onClose());
+  return (
+    <Dialog.Root open onOpenChange={(o) => !o && tryClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="overlay-fade fixed inset-0 z-50 bg-slate-900/25 backdrop-blur-[2px]" />
+        <Dialog.Content aria-describedby={undefined} className="fade-up fixed left-1/2 top-1/2 z-50 flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-[660px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[20px] border border-border bg-card shadow-2xl">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-soft px-6 py-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span aria-hidden className={cn("flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-primary-soft text-primary", formula && "text-[14px] font-bold")}>{formula ? "ƒx" : <Columns3 size={16} />}</span>
+              <div className="min-w-0">
+                <Dialog.Title className="text-[15px] font-bold tracking-tight [overflow-wrap:anywhere]">{title}</Dialog.Title>
+                <p className="text-[11px] text-muted-foreground">Cấu hình thuộc tính, công thức tự động và kiểu hiển thị</p>
+              </div>
+            </div>
+            <Button variant="ghost" onClick={tryClose} aria-label="Đóng" className="shrink-0 !px-2"><X size={16} aria-hidden /></Button>
+          </div>
+          <div className="contain-scroll-y min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
+          <div className="shrink-0 border-t border-border-soft bg-muted/50 px-6 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">{footer}</div>
+          {asking && (
+            <div role="alertdialog" aria-label="Bỏ thay đổi?" className="flex flex-wrap items-center justify-between gap-2 border-t border-warn-border bg-warn-bg p-3 text-sm">
+              <span>Có thay đổi chưa lưu. Đóng và bỏ thay đổi?</span>
+              <span className="flex gap-2">
+                <Button variant="secondary" onClick={() => setAsking(false)}>Tiếp tục sửa</Button>
+                <Button variant="danger" onClick={() => { setAsking(false); onClose(); }}>Bỏ thay đổi</Button>
+              </span>
+            </div>
+          )}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

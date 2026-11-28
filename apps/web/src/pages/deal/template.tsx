@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { ArchiveRestore, ArrowLeft, Archive, Lock, Pencil, Plus, Search, Table2, Trash2, Users } from "lucide-react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { ArchiveRestore, Archive, ChevronDown, Info, Lock, Pencil, Plus, Search, ShieldCheck, Table2, Trash2, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
@@ -54,43 +54,52 @@ export function TemplatePage() {
   const roles = me?.user.roles ?? [];
   const item = (t: Template) => (
     <li key={t.id}>
-      <button type="button" data-testid={`template-item`} aria-current={t.id === search.template ? "true" : undefined} onClick={() => select(t.id)} className={cn("flex w-full flex-col gap-1 rounded-xl border border-transparent px-3 py-2.5 text-left hover:bg-muted", t.id === search.template && "border-primary-border bg-primary-soft")}>
-        <span className={cn("text-sm [overflow-wrap:anywhere]", t.id === search.template ? "font-medium text-primary" : "font-medium")}>{t.name}</span>
-        <span className="flex flex-wrap items-center gap-1.5 text-xs font-normal text-muted-foreground">
-          <Badge tone={t.kind === "shared" ? "ok" : "warn"}>{t.kind === "shared" ? "Chung" : "Riêng"}</Badge>
-          {t.archived && <Badge>Đã lưu trữ</Badge>}
-          {!t.can_edit && <span className="inline-flex items-center gap-0.5"><Lock size={12} aria-hidden /> Chỉ xem</span>}
-          <span>{t.members} người</span>
+      <button type="button" data-testid={`template-item`} aria-current={t.id === search.template ? "true" : undefined} onClick={() => select(t.id)} className={cn("flex w-full items-start justify-between gap-2 rounded-[11px] border border-transparent px-3 py-2.5 text-left transition-colors duration-[130ms] hover:bg-primary-soft/60", t.id === search.template && "border-primary-border bg-card shadow-2xs hover:bg-card")}>
+        <span className="flex min-w-0 flex-col gap-1">
+          <span className={cn("text-[13px] font-semibold [overflow-wrap:anywhere]", t.id === search.template && "text-primary")}>{t.name}</span>
+          <span className="flex flex-wrap items-center gap-1.5 text-[11px] font-normal text-muted-foreground">
+            <Badge tone={t.kind === "shared" ? "ok" : "warn"} className="!text-[11px] font-semibold">{t.kind === "shared" ? "Chung" : "Riêng"}</Badge>
+            {t.archived && <Badge className="!text-[11px]">Đã lưu trữ</Badge>}
+            {!t.can_edit && <span className="inline-flex items-center gap-0.5"><Lock size={12} aria-hidden /> Chỉ xem</span>}
+            <span>{t.members} người</span>
+          </span>
         </span>
+        {t.id === search.template && <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />}
       </button>
     </li>
   );
   return (
-    <div className="flex flex-col gap-4">
-      <PageTitle actions={<Button variant="secondary" onClick={() => setCreating(true)}><Plus size={16} aria-hidden /> Tạo bảng template</Button>}>Template</PageTitle>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Link to="/quan-ly-deal" className="inline-flex min-h-8 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft size={16} aria-hidden /> Quản lý Deal</Link>
-        <p className="min-w-0 flex-1 basis-80 text-sm text-muted-foreground">Bảng và cột của template áp dụng ngay cho mọi người trong phạm vi. Cột riêng của từng người không bị ảnh hưởng. Bộ mặc định cho cây mới do Admin sửa ở Cài đặt hệ thống.</p>
-      </div>
+    <div className="-mx-4 -my-4 flex min-h-0 flex-1 flex-col sm:-mx-6 lg:flex-row" data-testid="template-page">
+      <PageTitle actions={<Button onClick={() => setCreating(true)}><Plus size={14} aria-hidden /> Tạo bảng template</Button>}>Template</PageTitle>
       {list.length === 0 ? (
-        <EmptyState title="Chưa có bảng template nào" hint={roles.includes("manager") || roles.includes("leader") ? "Tạo bảng template đầu tiên cho cây hoặc team của bạn." : undefined} />
+        <div className="w-full p-4 sm:p-6"><EmptyState title="Chưa có bảng template nào" hint={roles.includes("manager") || roles.includes("leader") ? "Tạo bảng template đầu tiên cho cây hoặc team của bạn." : undefined} /></div>
       ) : (
-        <div className="grid items-start gap-4 md:grid-cols-[19rem_minmax(0,1fr)]">
-          <nav aria-label="Bảng template" className="flex flex-col gap-3 rounded-card border border-border bg-card p-3 shadow-card md:sticky md:top-0" data-testid="template-list">
-            <label className="relative block">
-              <Search size={14} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input aria-label="Tìm bảng trong cây" placeholder="Tìm bảng trong cây…" value={find} onChange={(e) => setFind(e.target.value)} autoComplete="off" className="!pl-9" />
-            </label>
-            {shown.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground">Không có bảng nào khớp.</p>}
-            {groups.tree.length > 0 && (
-              <section><h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cây của tôi</h2><ul className="flex flex-col gap-0.5">{groups.tree.map(item)}</ul></section>
-            )}
-            {groups.teams.map(([leader, ts]) => (
-              <section key={leader}><h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Team {leaderName(leader || null)}</h2><ul className="flex flex-col gap-0.5">{ts.map(item)}</ul></section>
-            ))}
+        <>
+          <nav aria-label="Bảng template" className="flex w-full shrink-0 flex-col border-b border-border-soft bg-muted/50 lg:min-h-0 lg:w-[248px] lg:border-b-0 lg:border-r" data-testid="template-list">
+            <div className="flex flex-col gap-3 border-b border-border-soft p-4">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Cây của tôi</h2>
+                <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary">{list.length} bảng</span>
+              </div>
+              <label className="relative block">
+                <Search size={14} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" />
+                <Input aria-label="Tìm bảng trong cây" placeholder="Tìm bảng trong cây…" value={find} onChange={(e) => setFind(e.target.value)} autoComplete="off" className="!min-h-8 !pl-8 !text-[12px]" />
+              </label>
+            </div>
+            <div className="flex max-h-72 flex-col gap-1 overflow-y-auto p-2 lg:max-h-none lg:flex-1">
+              {shown.length === 0 && <p className="px-2 py-3 text-[12px] text-muted-foreground">Không có bảng nào khớp.</p>}
+              {groups.tree.length > 0 && <ul className="flex flex-col gap-1">{groups.tree.map(item)}</ul>}
+              {groups.teams.map(([leader, ts]) => (
+                <section key={leader} className="flex flex-col gap-1"><h2 className="px-3 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Team {leaderName(leader || null)}</h2><ul className="flex flex-col gap-1">{ts.map(item)}</ul></section>
+              ))}
+            </div>
           </nav>
-          {search.template ? <TemplatePanel key={search.template} id={search.template} focusColumn={search.column} leaderName={leaderName} /> : null}
-        </div>
+          <div className="min-w-0 flex-1 p-4 sm:p-6 lg:overflow-y-auto">
+            <div className="mx-auto flex max-w-[920px] flex-col gap-4">
+              {search.template ? <TemplatePanel key={search.template} id={search.template} focusColumn={search.column} leaderName={leaderName} /> : null}
+            </div>
+          </div>
+        </>
       )}
       {creating && <CreateDialog onClose={() => setCreating(false)} onCreated={(t) => select(t.id)} />}
     </div>
@@ -213,75 +222,86 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
       : "Bạn không có quyền sửa template này.";
 
   const columnRow = (c: Column) => (
-    <li key={c.id} data-testid="template-column" data-column={c.name} className={cn("flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center", focusColumn === c.key && "bg-selected")}>
+    <li key={c.id} data-testid="template-column" data-column={c.name} className={cn("flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center", focusColumn === c.key && "bg-selected")}>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <span className="text-base font-semibold [overflow-wrap:anywhere]">{c.name}</span>
-        <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-          <Badge tone={typeTone(c.type)}>{typeLabel(c.type)}</Badge>
+        <span className="text-[14px] font-semibold [overflow-wrap:anywhere]">{c.name}</span>
+        <span className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground">
+          <Badge tone={typeTone(c.type)} className="!text-[11px] font-semibold">{typeLabel(c.type)}</Badge>
           {c.storage === "person" && <span>Mỗi người một giá trị</span>}
-          {c.role && <Badge tone="muted" data-testid="role-badge">Vai trò: {d.roles.find((r) => r.key === c.role)?.label ?? c.role}</Badge>}
+          {c.role && <Badge tone="muted" className="!text-[11px] font-medium text-foreground" data-testid="role-badge">Vai trò: {d.roles.find((r) => r.key === c.role)?.label ?? c.role}</Badge>}
           {c.autofill ? <span>Hệ thống tự điền, không ai sửa ô</span> : c.type === "formula" || c.type === "lookup" || c.type === "rollup" ? <span>Công thức, không ai sửa ô</span> : <span>{c.allow_edit ? "Thành viên sửa được ô" : "Chỉ người tạo bảng sửa ô"}</span>}
           {c.layer === "role" && <span>Hiện cho {(c.layer_roles ?? []).map((r) => ROLE_NAMES[r] ?? r).join(", ")}</span>}
         </span>
       </div>
       {canEditCol(c) && (
-        <span className="flex shrink-0 flex-wrap gap-1.5">
-          <Button variant="secondary" className="!min-h-8 !px-3 text-sm" aria-label={`Sửa cột ${c.name}`} onClick={() => setDialog({ kind: "edit", col: c })}><Pencil size={14} aria-hidden /> Sửa</Button>
-          {tpl.can_edit && d.roles.length > 0 && <Button variant="secondary" className="!min-h-8 !px-3 text-sm" aria-label={`Vai trò của cột ${c.name}`} onClick={() => setDialog({ kind: "role", col: c })}>Vai trò</Button>}
-          <Button variant="secondary" className="!min-h-8 !px-3 text-sm !text-bad" aria-label={`Bỏ cột ${c.name}`} onClick={() => setDialog({ kind: "delete", col: c })}><Trash2 size={14} aria-hidden /> Bỏ</Button>
+        <span className="flex shrink-0 flex-wrap gap-2">
+          <Button variant="secondary" className="!min-h-8 !px-2.5 !text-[12px]" aria-label={`Sửa cột ${c.name}`} onClick={() => setDialog({ kind: "edit", col: c })}><Pencil size={14} aria-hidden /> Sửa</Button>
+          {tpl.can_edit && d.roles.length > 0 && <Button variant="secondary" className="!min-h-8 !px-2.5 !text-[12px] !text-muted-foreground" aria-label={`Vai trò của cột ${c.name}`} onClick={() => setDialog({ kind: "role", col: c })}>Vai trò</Button>}
+          <Button variant="secondary" className="!min-h-8 !border-bad-border !bg-bad-bg !px-2.5 !text-[12px] !text-bad" aria-label={`Bỏ cột ${c.name}`} onClick={() => setDialog({ kind: "delete", col: c })}><Trash2 size={14} aria-hidden /> Bỏ</Button>
         </span>
       )}
     </li>
   );
   const section = (title: string, cols: Column[], extra?: React.ReactNode) => (
-    <section aria-label={title} className="flex flex-col gap-1.5">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+    <section aria-label={title}>
+      {layerTab === "all" && <h3 className="border-b border-border-soft bg-muted/50 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>}
       {extra}
-      {cols.length === 0 ? <p className="rounded-xl bg-muted px-3 py-2 text-sm text-muted-foreground">{colFind ? "Không có cột nào khớp." : "Chưa có cột nào."}</p> : <ul className="flex flex-col divide-y divide-border-soft overflow-hidden rounded-xl border border-border-soft">{cols.map(columnRow)}</ul>}
+      {cols.length === 0 ? <p className="px-5 py-3 text-[12px] text-muted-foreground">{colFind ? "Không có cột nào khớp." : "Chưa có cột nào."}</p> : <ul className="flex flex-col divide-y divide-border-soft">{cols.map(columnRow)}</ul>}
     </section>
   );
+  const tabLabel = layerTab === "all" ? "Mọi lớp" : LAYER_LABEL[layerTab];
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-testid="template-panel">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span aria-hidden className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary"><Table2 size={20} /></span>
-        <h2 className="min-w-0 text-xl font-semibold [overflow-wrap:anywhere]">{tpl.name}</h2>
-        <Badge tone={tpl.kind === "shared" ? "ok" : "warn"}>{tpl.kind === "shared" ? "Bảng chung" : "Bảng riêng"}</Badge>
-        {tpl.archived && <Badge>Đã lưu trữ</Badge>}
-        <span className="inline-flex items-center gap-1 rounded-full border border-border-soft bg-card px-2.5 py-0.5 text-xs text-muted-foreground"><Users size={14} aria-hidden /> Áp dụng cho {tpl.members} người</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <span aria-hidden className="inline-flex size-9 shrink-0 items-center justify-center rounded-[11px] border border-primary-border bg-primary-soft text-primary"><Table2 size={18} /></span>
+          <h2 className="min-w-0 text-[18px] font-bold tracking-tight [overflow-wrap:anywhere]">{tpl.name}</h2>
+          <Badge tone={tpl.kind === "shared" ? "ok" : "warn"} className="!text-[11px] font-semibold">{tpl.kind === "shared" ? "Bảng chung" : "Bảng riêng"}</Badge>
+          {tpl.archived && <Badge className="!text-[11px]">Đã lưu trữ</Badge>}
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"><Users size={12} aria-hidden /> Áp dụng cho {tpl.members} người</span>
+        </div>
         {tpl.can_edit && (
-          <span className="ml-auto flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => setDialog({ kind: "rename" })}><Pencil size={16} aria-hidden /> Đổi tên</Button>
+          <span className="flex flex-wrap gap-2">
+            <Button variant="secondary" className="!min-h-8 !text-[12px]" onClick={() => setDialog({ kind: "rename" })}><Pencil size={14} aria-hidden /> Đổi tên</Button>
             {tpl.archived ? (
-              <Button variant="secondary" onClick={() => void restoreTemplate(id).then(refresh).then(() => notify.ok("Đã khôi phục bảng template")).catch((e) => notify.error(String((e as Error).message)))}><ArchiveRestore size={16} aria-hidden /> Khôi phục</Button>
+              <Button variant="secondary" className="!min-h-8 !text-[12px]" onClick={() => void restoreTemplate(id).then(refresh).then(() => notify.ok("Đã khôi phục bảng template")).catch((e) => notify.error(String((e as Error).message)))}><ArchiveRestore size={14} aria-hidden /> Khôi phục</Button>
             ) : (
-              <Button variant="secondary" onClick={() => setDialog({ kind: "archive" })}><Archive size={16} aria-hidden /> Lưu trữ</Button>
+              <Button variant="secondary" className="!min-h-8 !text-[12px] !text-muted-foreground" onClick={() => setDialog({ kind: "archive" })}><Archive size={14} aria-hidden /> Lưu trữ</Button>
             )}
           </span>
         )}
       </div>
-      {why && <p role="status" data-testid="template-readonly-reason" className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm"><Lock size={16} aria-hidden className="mt-0.5 shrink-0" /><span>{why}</span></p>}
+      {why && <p role="status" data-testid="template-readonly-reason" className="flex items-start gap-2 rounded-[11px] border border-primary-border bg-muted/50 px-3 py-2.5 text-[12px] text-muted-foreground"><Lock size={14} aria-hidden className="mt-0.5 shrink-0 text-primary" /><span>{why}</span></p>}
 
       {tpl.can_edit && <TemplateSettings tpl={tpl} master={masterQ.data} isManager={isManager} onSaved={refresh} />}
 
-      <section aria-label="Cột của bảng" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-card">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <h3 className="text-base font-semibold">Cột của bảng</h3>
-          <div role="group" aria-label="Lọc cột theo lớp" className="inline-flex flex-wrap items-center gap-0.5 rounded-lg bg-muted p-0.5">
-            {([["all", "Tất cả", d.columns.length], ["basic", LAYER_LABEL.basic, count("basic")], ["role", LAYER_LABEL.role, count("role")], ["team", LAYER_LABEL.team, count("team")]] as const).map(([k, label, n]) => (
-              <button key={k} type="button" aria-pressed={layerTab === k} onClick={() => setLayerTab(k)} className={cn("min-h-7 rounded-md px-2.5 text-sm", layerTab === k ? "bg-card font-medium text-primary shadow-card" : "text-muted-foreground hover:text-foreground")}>{label} ({n})</button>
-            ))}
+      <section aria-label="Cột của bảng" className="overflow-hidden rounded-card border border-border bg-card shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-soft px-5 py-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-[15px] font-semibold">Cột của bảng</h3>
+            <div role="group" aria-label="Lọc cột theo lớp" className="inline-flex flex-wrap items-center gap-1 rounded-[9px] bg-muted p-0.5">
+              {([["all", "Tất cả", d.columns.length], ["basic", LAYER_LABEL.basic, count("basic")], ["role", LAYER_LABEL.role, count("role")], ["team", LAYER_LABEL.team, count("team")]] as const).map(([k, label, n]) => (
+                <button key={k} type="button" aria-pressed={layerTab === k} onClick={() => setLayerTab(k)} className={cn("min-h-7 rounded-[7px] px-2.5 text-[11px] transition-colors duration-[130ms]", layerTab === k ? "bg-card font-semibold text-primary shadow-2xs" : "font-medium text-muted-foreground hover:text-foreground")}>{label} ({n})</button>
+              ))}
+            </div>
           </div>
-          <label className="relative ml-auto block min-w-40 max-w-64 flex-1 basis-44">
-            <Search size={14} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input aria-label="Tìm tên cột" placeholder="Tìm tên cột…" value={colFind} onChange={(e) => setColFind(e.target.value)} autoComplete="off" className="!pl-9" />
-          </label>
-          {canAddLayer && !tpl.archived && <Button onClick={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /> Thêm cột</Button>}
+          <div className="flex items-center gap-2">
+            <label className="relative block w-44 sm:w-52">
+              <Search size={14} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" />
+              <Input aria-label="Tìm tên cột" placeholder="Tìm tên cột…" value={colFind} onChange={(e) => setColFind(e.target.value)} autoComplete="off" className="!min-h-8 !pl-8 !text-[12px]" />
+            </label>
+            {canAddLayer && !tpl.archived && <Button onClick={() => setDialog({ kind: "add" })}><Plus size={14} aria-hidden /> Thêm cột</Button>}
+          </div>
         </div>
-        <div className="flex flex-col gap-4" data-testid="template-columns">
+        <div className="flex items-center justify-between gap-2 border-b border-border-soft bg-muted/50 px-5 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <span>{tabLabel} · Áp dụng cho {tpl.members} thành viên</span>
+          <span className="hidden sm:inline">Thao tác cấu hình</span>
+        </div>
+        <div className="flex flex-col" data-testid="template-columns">
           {(layerTab === "all" || layerTab === "basic") && section(LAYER_LABEL.basic, byLayer("basic"))}
           {(layerTab === "all" || layerTab === "role") && section(LAYER_LABEL.role, byLayer("role"))}
-          {(layerTab === "all" || layerTab === "team") && section("Theo team (bản sửa của các team)", byLayer("team"), teamGroups.length ? <p className="text-xs text-muted-foreground">Team có cột riêng: {teamGroups.map((l) => leaderName(l || null)).join(", ")}.</p> : undefined)}
+          {(layerTab === "all" || layerTab === "team") && section("Theo team (bản sửa của các team)", byLayer("team"), teamGroups.length ? <p className="border-b border-border-soft px-5 py-2 text-[12px] text-muted-foreground">Team có cột riêng: {teamGroups.map((l) => leaderName(l || null)).join(", ")}.</p> : undefined)}
         </div>
       </section>
 
@@ -305,56 +325,79 @@ function TemplateSettings({ tpl, master, isManager, onSaved }: { tpl: Template; 
   const [keys, setKeys] = useState<string[] | null>(null);
   const [primary, setPrimary] = useState<string | null | undefined>(undefined);
   const [on, setOn] = useState<boolean | null>(null);
+  const [open, setOpen] = useState(false);
   const curKeys = keys ?? split?.key_columns.map((k) => k.key) ?? [];
   const curOn = on ?? split?.enabled ?? false;
   const curPrimary = primary === undefined ? (split?.primary ?? null) : primary;
+  const keyNames = curKeys.map((k) => userCols.find((c) => c.key === k)?.name ?? k);
+  const pill = "inline-flex h-7 items-center gap-1.5 rounded-[8px] border px-2.5 text-[11px] transition-colors duration-[130ms] disabled:cursor-not-allowed disabled:opacity-50";
   return (
-    <section aria-label="Quyền theo bảng" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-card" data-testid="template-settings">
-      <h3 className="text-base font-semibold">Quyền theo bảng</h3>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Quyền mặc định của thành viên">
-          <Select aria-label="Quyền mặc định của thành viên" value={tpl.member_permission} onChange={(e) => run(() => updateTemplate(tpl.id, { member_permission: e.target.value as "view" | "edit_data" }), "Đã lưu quyền mặc định")}>
-            <option value="view">Xem</option>
-            <option value="edit_data">Sửa dữ liệu (ở các cột cho phép sửa)</option>
-          </Select>
-        </Field>
-        {isManager && (
-          <label className="flex min-h-9 items-center gap-2 self-end text-sm">
-            <input type="checkbox" className="h-4 w-4" checked={tpl.leader_can_add_columns} onChange={(e) => run(() => updateTemplate(tpl.id, { leader_can_add_columns: e.target.checked }), e.target.checked ? "Leader được thêm cột team" : "Leader không thêm cột team nữa")} />
-            Leader được thêm cột team
-          </label>
-        )}
+    <section aria-label="Quyền theo bảng" className="overflow-hidden rounded-card border border-border bg-card shadow-2xs" data-testid="template-settings">
+      <div className="flex min-h-[52px] flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-3">
+          <h3 className="inline-flex shrink-0 items-center gap-1.5 text-[13px] font-bold">
+            <span aria-hidden className="flex size-6 items-center justify-center rounded-[7px] bg-primary-soft text-primary"><ShieldCheck size={14} /></span>
+            Quyền theo bảng
+          </h3>
+          <span aria-hidden className="hidden h-4 w-px bg-border sm:block" />
+          <div className="inline-flex items-center gap-1.5">
+            <span className="hidden text-[11px] text-muted-foreground md:inline">Quyền mặc định:</span>
+            <Select aria-label="Quyền mặc định của thành viên" value={tpl.member_permission} className="!min-h-7 !w-auto !text-[12px] font-semibold" onChange={(e) => run(() => updateTemplate(tpl.id, { member_permission: e.target.value as "view" | "edit_data" }), "Đã lưu quyền mặc định")}>
+              <option value="view">Xem</option>
+              <option value="edit_data">Sửa dữ liệu (ở các cột cho phép sửa)</option>
+            </Select>
+          </div>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {isManager && (
+            <button type="button" role="switch" aria-checked={tpl.leader_can_add_columns} aria-label="Leader được thêm cột team" onClick={() => run(() => updateTemplate(tpl.id, { leader_can_add_columns: !tpl.leader_can_add_columns }), !tpl.leader_can_add_columns ? "Leader được thêm cột team" : "Leader không thêm cột team nữa")} className={cn(pill, tpl.leader_can_add_columns ? "border-primary-border bg-primary-soft font-semibold text-primary" : "border-border bg-muted/60 font-medium text-muted-foreground hover:bg-muted")}>
+              <span aria-hidden className={cn("size-2 rounded-full", tpl.leader_can_add_columns ? "bg-primary" : "bg-faint")} />
+              <span>Leader thêm cột team</span>
+              <span className={cn("text-[11px] font-semibold", !tpl.leader_can_add_columns && "text-faint")}>{tpl.leader_can_add_columns ? "Bật" : "Tắt"}</span>
+            </button>
+          )}
+          {tpl.kind === "shared" && (
+            <button type="button" role="switch" aria-checked={curOn} aria-label="Khoá phân chia" disabled={userCols.length === 0 && !curOn} onClick={() => { setOn(!curOn); setOpen(true); }} className={cn(pill, curOn ? "border-primary-border bg-primary-soft font-semibold text-primary" : "border-border bg-muted/60 font-medium text-muted-foreground hover:bg-muted")}>
+              <span aria-hidden className={cn("size-2 rounded-full", curOn ? "bg-primary" : "bg-faint")} />
+              <span>Khoá phân chia: {curOn ? (keyNames.join(", ") || "chưa chọn cột") : "Tắt"}</span>
+            </button>
+          )}
+          {tpl.kind === "shared" && (
+            <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={cn(pill, "border-border bg-card font-semibold hover:bg-muted")}>
+              Chi tiết khoá <ChevronDown size={14} aria-hidden className={cn("text-muted-foreground transition-transform duration-150", open && "rotate-180")} />
+            </button>
+          )}
+        </div>
       </div>
-      {tpl.kind === "shared" && (
-        <div className="flex flex-col gap-2" data-testid="template-split">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input type="checkbox" className="h-4 w-4" checked={curOn} disabled={userCols.length === 0 && !curOn} onChange={(e) => setOn(e.target.checked)} />
-            Khoá phân chia: mỗi người chỉ thấy dòng có tên mình (và cấp dưới)
-          </label>
-          {userCols.length === 0 ? <p className="text-xs text-muted-foreground">Thêm một cột kiểu Người dùng để làm cột khoá (1–5 cột).</p> : curOn && (
+      {tpl.kind === "shared" && open && (
+        <div className="flex flex-col gap-3 border-t border-border-soft bg-muted/50 px-4 py-3" data-testid="template-split">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="min-w-0 flex-1 basis-80 text-[12px] text-muted-foreground"><strong className="font-semibold text-foreground">Phạm vi hiển thị dòng:</strong> mỗi người chỉ thấy dòng có tên mình (và cấp dưới) theo các cột khoá bên dưới ({curKeys.length}/5 cột).</p>
+            <Button className="!min-h-7 !px-3 !text-[11px]" disabled={!master || (on === null && keys === null && primary === undefined)} onClick={() => run(() => setShareOptions(tpl.master_table_id!, { key_split: curOn, key_columns: curOn ? curKeys : split?.key_columns.map((k) => k.key) ?? [], key_primary: curOn && curKeys.length > 1 ? curPrimary : null }).then(() => { setKeys(null); setOn(null); setPrimary(undefined); }), "Đã lưu khoá phân chia")}>Lưu khoá phân chia</Button>
+          </div>
+          {userCols.length === 0 ? <p className="text-[12px] text-muted-foreground">Thêm một cột kiểu Người dùng để làm cột khoá (1–5 cột).</p> : curOn ? (
             <>
-              <fieldset className="flex flex-wrap gap-3 text-sm">
-                <legend className="mb-1 text-xs text-muted-foreground">Cột khoá (tối đa 5)</legend>
+              <fieldset className="flex flex-wrap items-center gap-2">
+                <legend className="sr-only">Cột khoá (tối đa 5)</legend>
                 {userCols.map((c) => (
-                  <label key={c.id} className="flex items-center gap-1.5"><input type="checkbox" className="h-4 w-4" checked={curKeys.includes(c.key)} onChange={(e) => setKeys(e.target.checked ? [...curKeys, c.key].slice(0, 5) : curKeys.filter((k) => k !== c.key))} /> {c.name}</label>
+                  <label key={c.id} className={cn("inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-[8px] border px-2.5 text-[11px] font-semibold transition-colors", curKeys.includes(c.key) ? "border-primary-border bg-primary-soft text-primary" : "border-border bg-card text-muted-foreground")}>
+                    <input type="checkbox" className="size-3.5" checked={curKeys.includes(c.key)} onChange={(e) => setKeys(e.target.checked ? [...curKeys, c.key].slice(0, 5) : curKeys.filter((k) => k !== c.key))} /> {c.name}
+                  </label>
                 ))}
               </fieldset>
               {curKeys.length > 1 && (
                 <Field label="Cột khoá chính">
-                  <Select aria-label="Cột khoá chính" value={curPrimary ?? ""} onChange={(e) => setPrimary(e.target.value || null)}>
+                  <Select aria-label="Cột khoá chính" value={curPrimary ?? ""} className="sm:!w-64" onChange={(e) => setPrimary(e.target.value || null)}>
                     <option value="">Chọn cột</option>
                     {curKeys.map((k) => <option key={k} value={k}>{userCols.find((c) => c.key === k)?.name ?? k}</option>)}
                   </Select>
                 </Field>
               )}
             </>
-          )}
-          <div>
-            <Button variant="secondary" disabled={!master || (on === null && keys === null && primary === undefined)} onClick={() => run(() => setShareOptions(tpl.master_table_id!, { key_split: curOn, key_columns: curOn ? curKeys : split?.key_columns.map((k) => k.key) ?? [], key_primary: curOn && curKeys.length > 1 ? curPrimary : null }).then(() => { setKeys(null); setOn(null); setPrimary(undefined); }), "Đã lưu khoá phân chia")}>Lưu khoá phân chia</Button>
-          </div>
+          ) : <p className="text-[12px] text-muted-foreground">Khoá phân chia đang tắt: mọi thành viên thấy mọi dòng. Bật ở nút bên trên để chọn cột khoá.</p>}
         </div>
       )}
-      <ErrorText error={err} />
+      {err ? <div className="border-t border-border-soft px-4 py-2"><ErrorText error={err} /></div> : null}
     </section>
   );
 }
@@ -478,7 +521,7 @@ function ColumnFlow({ tpl, d, master, column, onClose, onSaved }: { tpl: Templat
       onClose={onClose}
       adapter={adapter}
       confirmText={confirmText}
-      notice={<p className="rounded-md bg-muted px-3 py-2 text-sm">Cột của template, lớp <strong>{LAYER_LABEL[layer]}</strong>{n !== undefined ? `, hiện cho ${n} người` : ""}. Người nhận không sửa được cột này, chỉ thêm cột riêng của mình.</p>}
+      notice={<p className="flex items-start gap-2.5 rounded-[11px] border border-primary-border bg-muted/50 p-3 text-[12px] text-muted-foreground"><Info size={16} aria-hidden className="mt-0.5 shrink-0 text-primary" /><span>Cột của template, lớp <strong className="font-semibold text-foreground">{LAYER_LABEL[layer]}</strong>{n !== undefined ? <>, hiện cho <strong className="font-semibold text-foreground">{n}</strong> người</> : ""}. Người nhận không sửa được cột này, chỉ thêm cột riêng của mình.</span></p>}
     />
   );
 }

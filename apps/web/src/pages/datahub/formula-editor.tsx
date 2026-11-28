@@ -21,7 +21,7 @@ const useDebounced = <T,>(value: T, ms: number): T => {
   return v;
 };
 
-const BOX = "w-full rounded-md border px-3 py-2 text-base leading-6 sm:text-sm [overflow-wrap:anywhere] whitespace-pre-wrap";
+const BOX = "w-full rounded-xl border px-3.5 py-3 font-mono text-base leading-6 sm:text-[12px] [overflow-wrap:anywhere] whitespace-pre-wrap";
 
 /**
  * The formula box (design module2 section 6.3). Suggestions for functions and `[names]` while typing, the syntax of the function the caret is
@@ -202,9 +202,9 @@ export function FormulaEditor({ table, column, value, onChange, resultType, onRe
         </ul>
       )}
 
-      <div className="flex flex-col gap-2 rounded-md bg-muted p-3 text-sm">
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/50 p-3.5 text-[13px]">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-medium">Xem trước 5 dòng đầu</span>
+          <span className="inline-flex items-center gap-2 text-[12px] font-semibold"><span aria-hidden className="size-2 rounded-full bg-ok" />Xem trước 5 dòng đầu</span>
           <label className="flex items-center gap-2 text-xs">
             <span>Kiểu kết quả</span>
             <Select aria-label="Kiểu kết quả" value={resultType} onChange={(e) => onResultType(e.target.value)} className="!w-auto">
