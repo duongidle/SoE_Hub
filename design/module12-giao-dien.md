@@ -49,3 +49,42 @@ Thống nhất concept giao diện cho Stage 12. File này ngắn, chỉ nói c�
 - **Bo góc:** khung 20px, thẻ 16px, ô và nút 10px.
 - **Đổi** hai điều cấm của chuẩn, chỉ trong phạm vi này: kính mờ được dùng ở top bar (nội dung cuộn dưới nó); gradient chỉ ở quầng nền, thanh tiến độ 3px và dải bìa form. Các điều cấm khác giữ: không viền màu dày bên trái thẻ (mockup Deal/Knowledge có, thay bằng chip màu), không chữ gradient, không thẻ lồng thẻ.
 - Mỗi màn một nút chính đặc màu, kể cả khi mockup có hai.
+
+## Sửa sau dùng thử (Dương chốt 28/11/2026) — bước 12H
+
+Dương dùng thử sau 12G: chữ to quá, nội dung "đấm vào mắt", khoảng trống không rõ, thành phần không phân biệt; dải kỳ Deal chiếm chỗ; thanh công cụ chán, dropdown to; thẻ lựa chọn không màu; chọn nhiều dòng không đoán được; ngăn kéo dòng thô, thiếu nền mờ; Onboarding dài lê thê, hành trình nhiều cờ chồng nhau, thanh cuộn to. Nguyên nhân gốc: agent chỉ xem ảnh mockup, không có thông số; 12G-2 còn tăng thang chữ ngược mockup. **Từ nay bám thông số dưới đây** (Opus rút từ HTML mockup 28/11), thay cho thang chữ 12G-2.
+
+### Thông số mockup (bắt buộc)
+
+| Thành phần | Thông số |
+| --- | --- |
+| Chữ thân, ô bảng | 13px (ô bảng 12.5–13px); chữ phụ, nhãn 11.5–12px; chú thích, chip 11px; tối thiểu 10.5px (số đếm nhỏ) |
+| Tiêu đề | tiêu đề trang/khối lớn 18px bold; tiêu đề thẻ 14.5–15px semibold; số KPI 20–24px bold; top bar 14.5px semibold |
+| Độ đậm | 500 chữ thường của nút/menu, 600 nhãn và tiêu đề nhỏ, 700 tiêu đề; không dùng 400 cho nhãn nút |
+| Sidebar | mục cao 35px, chữ 13px/500, màu #4B5068, bo 9px, icon 16px, gap 10px, padding ngang 11px |
+| Top bar | cao 48px, padding ngang 16–20px, chỉ top bar có blur (`bg-white/85 backdrop-blur-md`) |
+| Nút | cao 28px (thanh công cụ) hoặc 32px (thường), 36px ô nhập form; padding ngang 10px; chữ 12–12.5px; bo 7–9px |
+| Bảng | hàng tiêu đề 36px chữ 11.5px/600 màu #646A82 nền #F8F9FB; hàng thân khoảng 42px chữ 13px; cột # 48px chữ 12px màu slate-400, đổi primary khi rê; vạch #EEF0F6 |
+| Thẻ | padding 16px (p-4), thẻ lớn 20px; bo 14–16px; khoảng giữa thẻ 12–16px; vùng main padding 24px dọc, 16–32px ngang |
+| Khoảng cách nhỏ | gap 6–10px trong cụm; py-0.5/1 chip; px-2.5/3 nút |
+| Chip lựa chọn | chấm tròn 6px + nền nhạt + viền nhạt cùng màu + chữ đậm cùng màu, 11.5px/600, bo full; lựa chọn chưa gán màu thì **tự gán theo thứ tự** trong bảng màu, không để xám |
+| Popover/menu | rộng 192–330px, bo 12–14px, viền slate-200, bóng xl, padding dọc 6–8px, chữ 12.5px; dòng menu cao 32px |
+| Ngăn kéo chi tiết | thẻ nổi `top/bottom/right 12px`, rộng tối đa 490px, bo 18px, bóng 2xl; nền sau `slate-900/20` + `backdrop-blur 2px`; trượt vào 300ms ease-out (nền mờ 200ms); đầu ngăn kéo có chip # dòng + chip giá trị chính; nội dung chia ô bo 12px nền nhạt, chữ 13.5px; chân: Đóng + một nút chính |
+| Modal | nền `slate-900/25` + blur 2px, hiện bằng fade-up |
+| Hiệu ứng | `fadeUp` 240ms `cubic-bezier(0.16,1,0.3,1)` cho popover/thẻ mới; đổi màu nền 120–140ms; thu gọn sidebar 220ms cùng đường cong; tôn trọng `prefers-reduced-motion` |
+| Thanh cuộn | 5–6px, rãnh trong suốt, con trượt `rgba(148,155,180,.35)` bo full, rê thì đậm hơn; dải tab/thanh công cụ ẩn thanh cuộn (`no-scrollbar`) |
+| Bóng | thường `shadow-2xs`; popover `shadow-xl`; ngăn kéo `shadow-2xl` |
+
+Agent làm giao diện **được đọc đoạn HTML mockup của đúng thành phần** (grep theo class/id), không chỉ xem ảnh.
+
+### Quyết định
+
+1. **Dải kỳ Deal thành một nút trên thanh công cụ** (giống cụm chọn kỳ `h-8` của mockup Deal), chỉ hiện ở bảng theo kỳ: "📅 Quý 4/2026 ▾". Bảng nhỏ khi bấm: chọn Tháng/Quý/Năm, lùi/tới, **"Toàn bộ thời gian"** (mới), ô "Theo kỳ chung", và một dòng nói rõ lọc gì: Deals "Deal liên quan đến kỳ (theo ngày bắt đầu và ngày đóng)" + cách hiểu kỳ; Index "Lọc theo cột Tháng". Mặc định vẫn Quý này. Đổi Module 4 mục 11a.
+2. **Thanh công cụ gọn kiểu Lark:** nút 28px chữ 12–12.5px; công cụ đang bật tô primary nhạt và có số ("Lọc 2", "Cột 1"); không còn ô tick rời: "Theo kỳ chung" vào nút kỳ, "Cho phép leader sửa deal của tôi" vào "•••" (hoặc cạnh Chia sẻ). Dropdown của công cụ theo thông số popover.
+3. **Chọn dòng kiểu Lark** (thay quy định "trái mở, phải chọn" 28/11): rê vào số thứ tự thì hiện ô tick; tick để chọn, tick nhiều dòng, Shift chọn dải, ô tick ở tiêu đề chọn hết; bấm số (hoặc icon mở rộng hiện khi rê) mở chi tiết dòng; chuột phải không còn chọn. Cảm ứng: chạm số mở, ô tick luôn hiện khi đang có dòng được chọn.
+4. **Thẻ lựa chọn có màu** theo bảng thông số.
+5. **Ngăn kéo chi tiết dòng** theo bảng thông số.
+6. **Onboarding gọn trong khoảng một màn hình:**
+   - Hành trình: mỗi tuần một mốc; checkpoint **không vẽ nhãn trên con đường** nữa, chỉ một huy hiệu nhỏ trên mốc ("⚑3", màu theo trạng thái xấu nhất: trễ cam, đạt xanh, chưa tới xám). Rê hiện tooltip danh sách checkpoint, bấm mở ngăn kéo tuần. Chiều cao khối hành trình cố định khoảng 160–200px, cuộn ngang nếu nhiều tuần.
+   - Dải "Bạn đang ở" gọn một hàng; không lặp số liệu.
+   - Phần tuần hiện tại: danh sách việc gọn (dòng 36–40px), checkpoint bên phải; nội dung dài thì thu lại có "Xem thêm", không kéo trang dài.

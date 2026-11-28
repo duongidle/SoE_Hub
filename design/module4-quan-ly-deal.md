@@ -577,7 +577,7 @@ Bốn cột B, A, N, T, mỗi cột: `Có bằng chứng` / `Chưa rõ` / `Âm`.
 
 Mọi bảng đều có ô Thời gian của Module 2 mục 5.4. Quản lý Deal có thêm một **thanh chọn kỳ dùng chung** ở đầu trang.
 
-- Đổi kỳ ở một chỗ thì Deals, Index, Probation KPI và dashboard cùng theo. Mặc định là **Quý này**.
+- Đổi kỳ ở một chỗ thì Deals, Index, Probation KPI và dashboard cùng theo. Mặc định là **Quý này**. Có thêm lựa chọn **"Toàn bộ thời gian"** (không lọc theo kỳ; Dương chốt 28/11/2026, `module12-giao-dien.md` mục "Sửa sau dùng thử").
 - Một bảng có thể tách khỏi kỳ chung ("Không theo kỳ chung") và giữ khoảng riêng. Lựa chọn này tự lưu vào view.
 - Kỳ chỉ thu hẹp dữ liệu, không bao giờ mở rộng quyền xem.
 
