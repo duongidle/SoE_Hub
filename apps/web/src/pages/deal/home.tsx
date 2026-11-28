@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { BarChart3, CalendarCheck, Check, ChevronDown, MoreHorizontal, Pencil, Plus, Settings2, Table2, Trash2, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Menu, MenuItem } from "@/components/ui/dropdown";
+import { Menu, MenuCheckItem, MenuItem } from "@/components/ui/dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, Input, PageTitle } from "@/components/ui/form";
 import { Popover } from "@/components/ui/popover";
@@ -15,8 +15,8 @@ import { can, useMe } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { ScrollStrip, segCls, tabCls, TableNameDialog } from "../datahub/detail";
 import { TableView } from "../datahub/table-view";
-import { SharedPeriodContext, useSharedPeriodState } from "@/lib/datahub/deal-view";
-import { SharedPeriodBar, type PeriodScope } from "./period-bar";
+import { SharedPeriodContext, SharedPeriodControlContext, TableMenuExtraContext, useSharedPeriodState } from "@/lib/datahub/deal-view";
+import { PeriodButton, type PeriodScope } from "./period-bar";
 import { DealDashboard } from "./dashboard";
 
 /** The three pages next to the tables, as quiet buttons in the top bar (the page has no main button of its own: the table brings "Thêm dòng"). */
@@ -55,6 +55,8 @@ function DealBody({ home, tableId, dashboard }: { home: { datahub_id: string | n
   const scope: PeriodScope = dashboard ? "dashboard" : role === "deals" || role === "index" || role === "kpi" ? role : "other";
   return (
     <SharedPeriodContext.Provider value={period.value}>
+    <SharedPeriodControlContext.Provider value={period}>
+    <TableMenuExtraContext.Provider value={isDealTable && hasLeader && !roles.includes("manager") ? <LeaderEditMenuItem /> : null}>
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <PageTitle
         actions={
@@ -79,8 +81,7 @@ function DealBody({ home, tableId, dashboard }: { home: { datahub_id: string | n
       >
         Quản lý Deal
       </PageTitle>
-      <SharedPeriodBar state={period} showRule={!dashboard && current?.role_set === "deals"} scope={scope} />
-      <DealTabs home={home} currentId={dashboard ? undefined : tableId} dashboard={dashboard} extra={isDealTable && hasLeader && !roles.includes("manager") ? <LeaderEditToggle /> : null} />
+      <DealTabs home={home} currentId={dashboard ? undefined : tableId} dashboard={dashboard} extra={dashboard ? <PeriodButton state={period} scope={scope} showRule={false} /> : null} />
       {dashboard ? (
         period.loading ? <Skeleton className="h-64 w-full" /> : <DealDashboard home={home} period={period} />
       ) : home.tables.length === 0 ? (
@@ -92,12 +93,14 @@ function DealBody({ home, tableId, dashboard }: { home: { datahub_id: string | n
         period.loading ? <Skeleton className="h-64 w-full" /> : <TableView key={current.id} tableId={current.id} />
       )}
     </div>
+    </TableMenuExtraContext.Provider>
+    </SharedPeriodControlContext.Provider>
     </SharedPeriodContext.Provider>
   );
 }
 
 /** Module 4 mục 4.3: a Leader edits the deals of the team only for people who switched this on (a per-person setting, stored by `datahub.prefs.set`). */
-function LeaderEditToggle() {
+function LeaderEditMenuItem() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: dealKeys.prefs, queryFn: getPrefs });
   const m = useMutation({
@@ -109,10 +112,9 @@ function LeaderEditToggle() {
     onError: () => notify.error("Không lưu được. Thử lại."),
   });
   return (
-    <label className="flex min-h-8 shrink-0 items-center gap-2 text-sm text-muted-foreground">
-      <input type="checkbox" className="h-4 w-4" data-testid="leader-can-edit" disabled={q.isLoading || m.isPending} checked={q.data?.leader_can_edit === true} onChange={(e) => m.mutate(e.target.checked)} />
+    <MenuCheckItem data-testid="leader-can-edit" disabled={q.isLoading || m.isPending} checked={q.data?.leader_can_edit === true} onCheckedChange={(v) => m.mutate(v === true)}>
       Cho phép leader sửa deal của tôi
-    </label>
+    </MenuCheckItem>
   );
 }
 

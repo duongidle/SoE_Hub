@@ -418,7 +418,7 @@ test("chi tiết dòng: sửa trong khung, lịch sử thay đổi", async () =>
   const d = pg.getByRole("dialog", { name: /^Dòng #1$/ });
   await expect(d).toBeVisible();
   // The phone run skips the grid edits of the earlier tests, so the row still holds its first values.
-  await expect(d.getByLabel("Doanh thu")).toHaveValue(phone() ? "156000000" : "200000000");
+  await expect(d.getByLabel("Doanh thu")).toHaveValue(phone() ? "156.000.000" : "200.000.000"); // thousands separators until the cursor is in the field
   await expect(d.getByLabel("Đơn giá")).toContainText(phone() ? "#DIV/0!" : "50.000.000");
   await d.getByLabel("Ghi chú").fill("Gọi lại sau 3 ngày");
   await d.getByLabel("Ghi chú").blur();
@@ -529,7 +529,7 @@ test("dữ liệu xấu nhất: tên dài đúng giới hạn, ký tự đặc b
   }
   await viewer.shot("61-worst-table");
   // The row panel shows the whole long values and wraps them.
-  await g.openMarker(0); // a left click on the row number opens the row panel
+  await g.openMarker(0); // a click on the row number cell, outside its tick box, opens the row panel
   const d = pg.getByRole("dialog", { name: /^Dòng #1$/ });
   await expect(d.getByLabel("Ghi chú")).toBeVisible();
   await expect(d.getByLabel("Tổng giá trị hợp đồng")).toContainText("12.345.678.900 ₫");

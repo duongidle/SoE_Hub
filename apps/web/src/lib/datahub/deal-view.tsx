@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { DealPeriodRule, FilterNode, SortItem, TimeRange } from "@soe/shared";
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { dhKeys, resolveTimeRange } from "./api";
 import { currentPeriod } from "./time-ui";
 import type { Column, TableDetail } from "./types";
@@ -15,8 +15,11 @@ import type { SessionQuery, ViewConfig } from "./view-config";
 export type PeriodUnit = "month" | "quarter" | "year";
 export interface PeriodChoice { unit: PeriodUnit; year: number; index?: number }
 export interface SharedPeriod {
+  /** The period chosen (or the one "Toàn bộ thời gian" goes back to). */
   range: Extract<TimeRange, { kind: "period" }>;
   rule: DealPeriodRule;
+  /** "Toàn bộ thời gian": no period filter at all. The range stays the last period chosen. */
+  all: boolean;
 }
 
 /** The tables that follow the shared period, by role set (never by name). */
@@ -25,16 +28,23 @@ export const followsPeriod = (t: Pick<TableDetail, "role_set">): boolean => !!t.
 
 export const SharedPeriodContext = createContext<SharedPeriod | null>(null);
 export const useSharedPeriod = () => useContext(SharedPeriodContext);
+/** The state behind the period button of the toolbar (the button sits in the toolbar of the open table or dashboard, the state in the page). */
+export type SharedPeriodState = ReturnType<typeof useSharedPeriodState>;
+export const SharedPeriodControlContext = createContext<SharedPeriodState | null>(null);
+export const useSharedPeriodControl = () => useContext(SharedPeriodControlContext);
+/** Extra items of the "..." menu of the open table that only the page knows (Quản lý Deal: "Cho phép leader sửa deal của tôi"). */
+export const TableMenuExtraContext = createContext<ReactNode>(null);
 
 const KEY = "soe.deal.period";
-const readStored = (): { choice: PeriodChoice | null; rule: DealPeriodRule } => {
+interface Stored { choice: PeriodChoice | null; rule: DealPeriodRule; all: boolean }
+const readStored = (): Stored => {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? "null") as { choice?: PeriodChoice; rule?: DealPeriodRule } | null;
+    const raw = JSON.parse(localStorage.getItem(KEY) ?? "null") as { choice?: PeriodChoice; rule?: DealPeriodRule; all?: boolean } | null;
     const c = raw?.choice;
     const ok = c && ["month", "quarter", "year"].includes(c.unit) && Number.isInteger(c.year) && (c.unit === "year" || Number.isInteger(c.index));
-    return { choice: ok ? c : null, rule: raw?.rule && ["related", "received", "closed", "expected"].includes(raw.rule) ? raw.rule : "related" };
+    return { choice: ok ? c : null, rule: raw?.rule && ["related", "received", "closed", "expected"].includes(raw.rule) ? raw.rule : "related", all: raw?.all === true };
   } catch {
-    return { choice: null, rule: "related" };
+    return { choice: null, rule: "related", all: false };
   }
 };
 
@@ -42,7 +52,7 @@ const readStored = (): { choice: PeriodChoice | null; rule: DealPeriodRule } => 
 export function useSharedPeriodState() {
   const [stored, setStored] = useState(readStored);
   const now = useQuery({ queryKey: dhKeys.timeRange({ kind: "preset", preset: "this_quarter" }), queryFn: () => resolveTimeRange({ kind: "preset", preset: "this_quarter" }), staleTime: 60_000 });
-  const save = useCallback((next: { choice: PeriodChoice | null; rule: DealPeriodRule }) => {
+  const save = useCallback((next: Stored) => {
     setStored(next);
     try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* the choice just does not survive a reload */ }
   }, []);
@@ -50,15 +60,17 @@ export function useSharedPeriodState() {
     if (stored.choice) return { kind: "period" as const, unit: stored.choice.unit, year: stored.choice.year, ...(stored.choice.unit === "year" ? {} : { index: stored.choice.index }) };
     return now.data ? currentPeriod("quarter", now.data) : null;
   }, [stored.choice, now.data]);
-  const value: SharedPeriod | null = range ? { range, rule: stored.rule } : null;
+  const value: SharedPeriod | null = range ? { range, rule: stored.rule, all: stored.all } : null;
   return {
     value,
     loading: now.isLoading,
     error: now.error,
-    setChoice: (choice: PeriodChoice | null) => save({ choice, rule: stored.rule }),
-    setRule: (rule: DealPeriodRule) => save({ choice: stored.choice, rule }),
-    reset: () => save({ choice: null, rule: stored.rule }),
-    isDefault: stored.choice === null,
+    /** Choosing a period leaves "Toàn bộ thời gian". */
+    setChoice: (choice: PeriodChoice | null) => save({ choice, rule: stored.rule, all: false }),
+    setRule: (rule: DealPeriodRule) => save({ ...stored, rule }),
+    setAll: (all: boolean) => save({ ...stored, all }),
+    reset: () => save({ choice: null, rule: stored.rule, all: false }),
+    isDefault: stored.choice === null && !stored.all,
   };
 }
 
@@ -106,7 +118,7 @@ function quickParts(table: TableDetail, which: QuickView): { filter: FilterNode;
 /** The query of a view with the shared period and a ready-made filter laid over it. Nothing here is saved to the view. */
 export function overlayQuery(base: SessionQuery, table: TableDetail, config: ViewConfig, shared: SharedPeriod | null, quick: QuickView | null): SessionQuery {
   let q = base;
-  if (shared && followsPeriod(table) && !config.own_period) {
+  if (shared && !shared.all && followsPeriod(table) && !config.own_period) {
     const p = periodFilter(table, shared);
     if (p) {
       q = { ...q };

@@ -162,7 +162,8 @@ test.afterAll(async () => {
 test("User và Leader không thấy màn chốt kỳ", async () => {
   for (const s of [u1S, leadS]) {
     await s.page.goto("/quan-ly-deal");
-    await expect(s.page.getByTestId("shared-period"), s.name).toBeVisible(); // the bar is for everyone
+    await s.page.getByRole("tab", { name: "Deals", exact: true }).click();
+    await expect(s.page.getByTestId("period-button"), s.name).toBeVisible(); // the period button is for everyone
     await expect(s.page.getByTestId("open-period-page"), s.name).toHaveCount(0);
     await s.page.goto("/quan-ly-deal/chot-ky");
     await expect(s.page.getByText("Chỉ Manager chốt kỳ"), s.name).toBeVisible();
@@ -269,11 +270,13 @@ test("BANT: đổi một chữ B/A/N/T thì Mức ưu tiên đổi; nút Cần c
 test("thanh chọn kỳ: đổi kỳ và cách hiểu thì Deals lọc đúng; Không theo kỳ chung giữ view riêng", async () => {
   const page = mgrS.page;
   await page.goto("/quan-ly-deal");
+  await openTab(page, "Deals");
   await expect(page.getByTestId("period-name")).toHaveText(/^Quý [1-4]\/\d{4}$/); // default: this quarter
   await setPeriod(page, { unit: "month", year: 2026, index: 11 }, "received");
   await openTab(page, "Deals");
   await expect(page.getByTestId("period-name")).toHaveText("Tháng 11/2026");
   await expectLines(page, 1); // Delta started on 5 Nov
+  await page.getByTestId("period-button").click(); // the panel stays open while the period is stepped
   await page.getByTestId("period-prev").click();
   await expect(page.getByTestId("period-name")).toHaveText("Tháng 10/2026");
   await expectLines(page, 1); // Gamma started on 2 Oct
@@ -281,11 +284,18 @@ test("thanh chọn kỳ: đổi kỳ và cách hiểu thì Deals lọc đúng; K
   await expectLines(page, 1); // Gamma closed on 15 Oct
   await page.getByTestId("period-prev").click();
   await expectLines(page, 0); // nothing closed in September
+  // "Toàn bộ thời gian": no period at all, both deals show.
+  await page.getByTestId("period-all").click();
+  await expect(page.getByTestId("period-name")).toHaveText("Toàn bộ thời gian");
+  await expectLines(page, 2);
+  await page.getByTestId("period-all").click();
+  await expectLines(page, 0);
   // Leave the shared period: the view keeps its own (no) time range and shows both deals; the choice is saved in the view.
   await page.getByTestId("follow-period").uncheck();
   await expectLines(page, 2);
   await expect(page.getByText("Đã lưu view")).toBeVisible();
   await page.reload();
+  await page.getByTestId("period-button").click();
   await expect(page.getByTestId("follow-period")).not.toBeChecked();
   await expectLines(page, 2);
   await page.getByTestId("follow-period").check();

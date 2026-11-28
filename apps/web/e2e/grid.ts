@@ -54,21 +54,25 @@ export class GridDriver {
     return { x: box.x + marker / 2, y: box.y + headH + r * rowH + rowH / 2 };
   }
 
-  /** Selects the row: a right click on its number (the left click opens the row panel). `append` keeps the rows already selected (Ctrl/Cmd). */
-  async clickMarker(r: number, opts: { append?: boolean } = {}): Promise<void> {
+  /**
+   * Selects the row: a click on the tick box that shows in the middle of its number while the pointer is on it. `append` keeps the rows already
+   * selected (the tick boxes toggle one by one); `range` is a Shift click (the rows between the last tick and this one).
+   */
+  async clickMarker(r: number, opts: { append?: boolean; range?: boolean } = {}): Promise<void> {
     const p = await this.markerPoint(r);
     await this.page.mouse.move(p.x, p.y);
-    if (opts.append) await this.page.keyboard.down("Control");
-    await this.page.mouse.click(p.x, p.y, { button: "right" });
-    if (opts.append) await this.page.keyboard.up("Control");
+    await this.page.waitForTimeout(80);
+    if (opts.range) await this.page.keyboard.down("Shift");
+    await this.page.mouse.click(p.x, p.y);
+    if (opts.range) await this.page.keyboard.up("Shift");
     await this.page.waitForTimeout(150); // the grid applies the selection a moment after the mouse is released
   }
 
-  /** Opens the row panel: a left click on the row number. */
+  /** Opens the row panel: a click on the number cell outside its tick box (the expand icon at its right while hovered). */
   async openMarker(r: number): Promise<void> {
     const p = await this.markerPoint(r);
-    await this.page.mouse.move(p.x, p.y);
-    await this.page.mouse.click(p.x, p.y);
+    await this.page.mouse.move(p.x + 14, p.y);
+    await this.page.mouse.click(p.x + 14, p.y);
     await this.page.waitForTimeout(150);
   }
 

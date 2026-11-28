@@ -73,7 +73,7 @@ test.afterAll(async () => {
 });
 
 for (const [name, url, ready] of [
-  ["home", "/quan-ly-deal", "Kỳ của danh sách deal"],
+  ["home", "/quan-ly-deal", "Dữ liệu"],
   ["dashboard", "/quan-ly-deal/dashboard", "Forecast của team trong kỳ"],
   ["template", "/quan-ly-deal/template", ""],
   ["payments", "/quan-ly-deal/thanh-toan", ""],
@@ -91,18 +91,29 @@ for (const [name, url, ready] of [
   });
 }
 
-test("kỳ của danh sách deal: nhãn riêng, nói lọc theo cột nào, đổi cách hiểu thì đổi cột", async () => {
+test("nút kỳ trên thanh công cụ: bảng nhỏ nói lọc theo cột nào, Toàn bộ thời gian, đổi cách hiểu thì đổi dòng nói", async () => {
   const pg = mgr.page;
   await pg.goto("/quan-ly-deal");
   await pg.getByRole("tab", { name: "Deals", exact: true }).click();
-  const bar = pg.getByTestId("shared-period");
-  await expect(bar.getByTestId("period-title")).toHaveText("Kỳ của danh sách deal");
-  await expect(bar.getByTestId("period-sub")).toContainText("Start date và Closing date");
+  // One button on the toolbar; the panel is closed until it is pressed.
+  await expect(pg.getByTestId("shared-period")).toHaveCount(0);
+  await expect(pg.getByTestId("period-name")).toHaveText(/^Quý [1-4]\/\d{4}$/);
+  await pg.getByTestId("period-button").click();
+  await expect(pg.getByTestId("period-sub")).toHaveText("Deal liên quan đến kỳ (theo ngày bắt đầu và ngày đóng)");
+  await pg.getByTestId("period-all").click();
+  await expect(pg.getByTestId("period-name")).toHaveText("Toàn bộ thời gian");
+  await expect(pg.getByTestId("period-sub")).toContainText("Không lọc theo kỳ");
+  await expect(pg.getByTestId("period-rule")).toHaveCount(0); // no period: no way to read it
+  await pg.getByTestId("period-reset").click();
+  await expect(pg.getByTestId("period-name")).toHaveText(/^Quý [1-4]\/\d{4}$/);
   await pg.evaluate(() => localStorage.setItem("soe.deal.period", JSON.stringify({ choice: null, rule: "closed" })));
   await pg.reload();
-  await expect(pg.getByTestId("period-sub")).toHaveText("Lọc theo cột Closing date");
-  await pg.getByTestId("deal-dashboard-tab").click();
-  await expect(pg.getByTestId("period-title")).toHaveText("Kỳ của dashboard Deals");
+  await pg.getByTestId("period-button").click();
+  await expect(pg.getByTestId("period-sub")).toContainText("Closing date");
+  await pg.getByTestId("deal-dashboard-tab").click({ force: true });
+  await expect(pg.getByTestId("period-button")).toBeVisible();
+  await pg.getByTestId("period-button").click();
+  await expect(pg.getByTestId("period-sub")).toHaveText("Khoảng thời gian chung của mọi biểu đồ");
   await pg.evaluate(() => localStorage.removeItem("soe.deal.period"));
 });
 

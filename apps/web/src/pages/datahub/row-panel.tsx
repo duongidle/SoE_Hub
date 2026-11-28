@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { formatDateTime, formatRelative } from "@soe/shared";
+import { formatDateTime, formatNumber, formatRelative } from "@soe/shared";
 import { ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Drawer } from "@/components/ui/drawer";
@@ -83,15 +83,26 @@ export function RowPanel({ session, rowId, level, onClose, onNavigate }: { sessi
   const cols = session.table.columns;
   const own = cols.filter((c) => !isAuto(c));
   const auto = cols.filter(isAuto);
+  // The main value of the row for the header: what the first column shows (the name of the deal, the person...).
+  const first = cols[0];
+  const mainText = row && first ? displayText(first, row, ctx).trim() : "";
   const field = (c: Column) => <Field key={c.id} col={c} row={row!} level={level} session={session} ctx={ctx} />;
   return (
-    <Drawer title={row?.row_no ? `Dòng #${row.row_no}` : "Chi tiết dòng"} open onClose={onClose} headerExtra={headerExtra} subHeader={tabs}>
+    <Drawer
+      title={row?.row_no ? `Dòng #${row.row_no}` : "Chi tiết dòng"}
+      titleNode={row?.row_no ? <><RowChip className="bg-primary-soft font-bold text-primary tabular-nums">#{row.row_no}</RowChip>{mainText && <RowChip className="min-w-0 max-w-[16rem] border border-border-soft bg-card text-foreground"><span className="truncate">{mainText}</span></RowChip>}</> : undefined}
+      open
+      onClose={onClose}
+      headerExtra={headerExtra}
+      subHeader={tabs}
+      footer={<div className="flex items-center justify-end gap-2"><Button variant="secondary" onClick={onClose}>Đóng</Button></div>}
+    >
       {loadError ? (
         <ErrorState error={loadError} title="Không mở được dòng" />
       ) : !row ? (
         <div className="flex flex-col gap-4">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-10" />)}</div>
       ) : tab === "data" ? (
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           {level === "view" && <p className="rounded-md bg-muted px-3 py-2 text-sm">Bạn chỉ có quyền xem bảng này.</p>}
           {session.table.role_set === "deals" && <DealPaymentsPanel dealRow={row} dealsTableId={session.table.id} />}
           {own.length > 0 && <FieldGroup title={auto.length > 0 ? "Thông tin" : null}>{own.map(field)}</FieldGroup>}
@@ -105,13 +116,18 @@ export function RowPanel({ session, rowId, level, onClose, onNavigate }: { sessi
   );
 }
 
+/** A small chip of the drawer header: 12px/600, rounded 8px (mockup: chip # dòng and chip giá trị chính). */
+function RowChip({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold", className)}>{children}</span>;
+}
+
 /** Columns the system fills (formula, lookup, auto number, created/modified...). */
 const isAuto = (c: Column) => !!c.autofill || COMPUTED_TYPES.has(c.type) || c.type === "auto_number" || SYSTEM_TYPES.has(c.type);
 
 function FieldGroup({ title, children }: { title: string | null; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-4">
-      {title && <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>}
+    <section className="flex flex-col gap-3 rounded-[12px] border border-border-soft bg-muted/40 p-3">
+      {title && <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>}
       {children}
     </section>
   );
@@ -132,7 +148,9 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
   const stored = editText(col, row);
   // While the person types, `draft` holds their text; otherwise the field follows the stored value (another person, a recalculation).
   const [draft, setDraft] = useState<string | null>(null);
-  const text = draft ?? stored;
+  // A number reads with thousands separators until the person puts the cursor in it (then the plain number, easy to edit).
+  const grouped = draft === null && typeof value === "number" && (type === "number" || type === "currency") ? formatNumber(value) : null;
+  const text = draft ?? grouped ?? stored;
   const setText = setDraft;
 
   const save = async (v: unknown) => {
@@ -159,7 +177,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
 
   const id = `f-${col.id}`;
   const label = (
-    <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-sm font-medium text-muted-foreground">
+    <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-xs font-semibold text-foreground">
       <span className="[overflow-wrap:anywhere]">{col.name}{col.required && <span className="text-bad" aria-label="bắt buộc"> *</span>}</span>
       {busy && <span className="text-xs font-normal text-muted-foreground">Đang lưu...</span>}
     </label>

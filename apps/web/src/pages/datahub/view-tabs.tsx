@@ -54,7 +54,7 @@ export function ViewSwitcher({ tableId, views, currentId, access, onSelect, curr
         <Menu
           align="start"
           trigger={
-            <Button variant="ghost" aria-label={`Chọn view, đang ở ${cur?.name ?? ""}`} title={cur?.name} className="max-w-44 !pr-2 sm:!min-h-8 sm:max-w-52">
+            <Button variant="ghost" aria-label={`Chọn view, đang ở ${cur?.name ?? ""}`} title={cur?.name} className="max-w-44 !pr-2 !text-xs sm:!min-h-7 sm:max-w-52">
               <LayoutGrid size={16} aria-hidden className="shrink-0 text-primary" />
               <span className="truncate">{cur?.name}</span>
               {cur && !cur.shared && <Badge tone="muted">Riêng</Badge>}

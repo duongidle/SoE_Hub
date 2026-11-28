@@ -1,7 +1,7 @@
 import { parseLocaleDate, TIME_PRESETS, TIME_PRESET_LABELS, formatNumber, type FilterNode, type TimeFilter, type TimeRange } from "@soe/shared";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, CalendarRange, ChevronLeft, ChevronRight, EyeOff, Filter, Group, PaintBucket, Pin, Plus, Search, Trash2, X, ArrowUpDown, Rows3 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { Button, Input, Select } from "@/components/ui/form";
 import { Popover } from "@/components/ui/popover";
 import { dhKeys, resolveTimeRange } from "@/lib/datahub/api";
@@ -33,6 +33,9 @@ import { cn } from "@/lib/utils";
 import { searchHotkeyProps } from "@/lib/search-hotkey";
 import { FilterEditor } from "./filter-editor";
 
+/** A crowded toolbar (the table has the period button and ready-made filters): tool labels wait for a wider toolbar so the line stays ONE line. */
+const CompactToolsContext = createContext(false);
+
 export type Change = (patch: Partial<Record<keyof ViewConfig, unknown>>) => void;
 
 /**
@@ -42,31 +45,33 @@ export type Change = (patch: Partial<Record<keyof ViewConfig, unknown>>) => void
  * (design module2 section 5) and shows how many settings it holds ("Lọc 2") with a soft tint while any applies.
  * Narrow: tool labels shrink to an icon (name in `title`/`aria-label`), and the line wraps instead of scrolling the page sideways.
  */
-export function ViewTools({ columns, config, dead, change, search, onSearch, onCleanDead, lead, rowSlotRef, extra, more }: { lead?: React.ReactNode; rowSlotRef?: (el: HTMLElement | null) => void; extra?: React.ReactNode; more?: React.ReactNode; columns: Column[]; config: ViewConfig; dead: DeadRefs; change: Change; search: string; onSearch: (s: string) => void; onCleanDead: () => void }) {
+export function ViewTools({ columns, config, dead, change, search, onSearch, onCleanDead, lead, rowSlotRef, period, extra, more }: { lead?: React.ReactNode; period?: React.ReactNode; rowSlotRef?: (el: HTMLElement | null) => void; extra?: React.ReactNode; more?: React.ReactNode; columns: Column[]; config: ViewConfig; dead: DeadRefs; change: Change; search: string; onSearch: (s: string) => void; onCleanDead: () => void }) {
   const dateCols = useMemo(() => columns.filter(isDateColumn), [columns]);
   const hiddenCount = (config.hidden ?? []).filter((k) => columns.some((c) => c.key === k)).length;
   const rowHeight = config.row_height ?? DEFAULT_ROW_HEIGHT;
   return (
     <div data-slot="view-tools" className="@container flex flex-col gap-2">
+      <CompactToolsContext.Provider value={!!period || !!extra}>
       <div role="toolbar" aria-label="Công cụ view" className="flex flex-wrap items-center gap-1.5">
         {lead}
         <Divider />
         <span ref={rowSlotRef} className="contents" />
         <Divider />
+        {period}
         <FilterButton columns={columns} config={config} change={change} />
         <SortButton columns={columns} config={config} change={change} />
         <GroupButton columns={columns} config={config} change={change} />
         <ColumnsButton columns={columns} config={config} change={change} hiddenCount={hiddenCount} />
         <ColorsButton columns={columns} config={config} change={change} />
         {dateCols.length > 0 && <TimeButton columns={columns} dateCols={dateCols} config={config} change={change} />}
+        {extra}
         <div className="ml-auto flex min-w-0 shrink items-center gap-1.5 @max-[58rem]:w-full">
           <SearchBox value={search} onChange={onSearch} />
           <RowHeightButton value={rowHeight} change={change} />
           {more}
         </div>
       </div>
-      {/* The table's own toggles (Deals: "Theo kỳ chung", quick filters) have a line of their own, so the search stays with the tools. */}
-      <div className="flex flex-wrap items-center gap-2 empty:hidden">{extra}</div>
+      </CompactToolsContext.Provider>
       <ActiveChips columns={columns} config={config} change={change} />
       {dead.total > 0 && (
         <div role="alert" className="flex flex-wrap items-center gap-2 rounded-md bg-warn/15 px-3 py-2 text-sm">
@@ -84,16 +89,17 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
 
 /** A tool of the toolbar: icon and label (the label folds away when the toolbar is narrow), the number of settings it holds, a tint while any applies. */
 function ToolButton({ icon, label, count, active, iconOnly, late, ...props }: React.ComponentProps<"button"> & { icon: React.ReactNode; label: string; count?: number; active?: boolean; iconOnly?: boolean; /** Lesser tool: its label shows only when the toolbar is wide enough for ALL labels and the search on ONE line (a 1280px screen with the sidebar has room for the main four). */ late?: boolean }) {
+  const compact = useContext(CompactToolsContext);
   return (
     <Button
       variant="ghost"
       title={label}
-      className={cn("max-w-full sm:!min-h-8 shrink-0 !px-2.5 sm:!py-0", active && "!bg-primary-soft !text-primary")}
+      className={cn("max-w-full shrink-0 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0", active && "!bg-primary-soft !text-primary")}
       aria-label={count ? `${label} ${formatNumber(count)}` : label}
       {...props}
     >
       {icon}
-      <span className={iconOnly ? "sr-only" : late ? "hidden @[68rem]:inline" : "hidden @[56rem]:inline"}>{label}</span>
+      <span className={iconOnly ? "sr-only" : late ? "hidden @[80rem]:inline" : compact ? "hidden @[68rem]:inline" : "hidden @[56rem]:inline"}>{label}</span>
       {count ? <span className="text-xs font-semibold">{formatNumber(count)}</span> : null}
     </Button>
   );
@@ -109,7 +115,7 @@ const Label = ({ children }: { children: React.ReactNode }) => <p className="mb-
  */
 function SearchBox({ value, onChange }: { value: string; onChange: (s: string) => void }) {
   return (
-    <div className="relative min-w-0 flex-1 basis-36 @[58rem]:h-8 @[58rem]:w-9 @[58rem]:flex-none @[72rem]:w-60">
+    <div className="relative min-w-0 flex-1 basis-36 @[58rem]:h-7 @[58rem]:w-8 @[58rem]:flex-none @[72rem]:w-48">
       <Search size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 z-20 -translate-y-1/2 text-muted-foreground" />
       <Input
         type="search"
@@ -119,8 +125,8 @@ function SearchBox({ value, onChange }: { value: string; onChange: (s: string) =
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          "sm:!min-h-8 !border-transparent !bg-muted !pl-8",
-          "@[58rem]:!absolute @[58rem]:right-0 @[58rem]:top-0 @[58rem]:!w-9 @[58rem]:cursor-pointer @[58rem]:placeholder:text-transparent @[58rem]:focus:z-10 @[58rem]:focus:!w-60 @[58rem]:focus:cursor-text @[58rem]:focus:!border-border @[58rem]:focus:!bg-card @[58rem]:focus:shadow-md @[58rem]:focus:placeholder:text-muted-foreground",
+          "sm:!min-h-7 !text-xs !border-transparent !bg-muted !pl-8",
+          "@[58rem]:!absolute @[58rem]:right-0 @[58rem]:top-0 @[58rem]:!w-8 @[58rem]:cursor-pointer @[58rem]:placeholder:text-transparent @[58rem]:focus:z-10 @[58rem]:focus:!w-60 @[58rem]:focus:cursor-text @[58rem]:focus:!border-border @[58rem]:focus:!bg-card @[58rem]:focus:shadow-md @[58rem]:focus:placeholder:text-muted-foreground",
           "@[72rem]:!static @[72rem]:!w-full @[72rem]:cursor-text @[72rem]:placeholder:text-muted-foreground @[72rem]:focus:!w-full @[72rem]:focus:shadow-none",
           value && "@[58rem]:!w-60 @[58rem]:!border-border @[58rem]:placeholder:text-muted-foreground @[58rem]:z-10",
         )}

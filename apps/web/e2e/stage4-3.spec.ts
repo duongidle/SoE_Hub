@@ -1,7 +1,7 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { GridDriver } from "./grid";
-import { API, Session, type ProjectName, chooseOption, closeSelect, openSelect } from "./helpers";
+import { API, Session, type ProjectName, chooseOption, closeSelect, openMore, openSelect } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -202,18 +202,25 @@ test("ô khoá theo can_edit: Leader xem deal của team nhưng không sửa; Us
   // The deal's person switches it on in the page of Deals.
   const u1 = u1S.page;
   await u1.goto(`/quan-ly-deal/${dealsTableId}`);
+  // The switch is a line of the "..." menu of the table toolbar.
   const toggle = u1.getByTestId("leader-can-edit");
-  await expect(toggle).toBeVisible();
+  const openToggle = async () => { await openMore(u1); await expect(toggle).toBeVisible(); };
+  await openToggle();
   await toggle.click();
+  await openToggle();
   await expect(toggle).toBeChecked();
+  await u1.keyboard.press("Escape");
   await toast(u1, /sửa được deal của bạn/);
   await expect.poll(async () => (await leadApi.raw<{ data: { id: string; can_edit?: boolean }[] }>(`/tables/${dealsTableId}/rows?limit=10`)).data.find((r) => r.id === dealId)?.can_edit).toBe(true);
   await lead.reload();
   await openFirstRow(lead);
   await expect(lead.getByRole("textbox", { name: "Tên công ty" })).not.toHaveAttribute("aria-readonly", "true");
+  await openToggle();
   await toggle.click();
-  await expect(toggle).not.toBeChecked();
   await toast(u1, /chỉ xem deal của bạn/);
+  await openToggle();
+  await expect(toggle).not.toBeChecked();
+  await u1.keyboard.press("Escape");
 });
 
 test("cột tự điền chỉ đọc kèm lý do; cột riêng có nhãn Riêng, cột template có nhãn Mẫu", async () => {

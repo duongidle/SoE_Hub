@@ -2,8 +2,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { createPortal } from "react-dom";
 import { formatCount } from "@soe/shared";
-import { GitCompare, ChevronsDownUp, ChevronsUpDown, Columns3, Copy, Download, Maximize2, MoreHorizontal, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Flame, GitCompare, RefreshCw, ChevronsDownUp, ChevronsUpDown, Columns3, Copy, Download, Maximize2, MoreHorizontal, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, errorMessage, Field, Input, Modal, Select } from "@/components/ui/form";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
@@ -20,8 +20,8 @@ import { buildQuery, DEFAULT_ROW_HEIGHT, fullOrder, layoutColumns, moveColumn, n
 import { cn } from "@/lib/utils";
 import { can, liveBus, useMe, type LiveSignal } from "@/lib/session";
 import { useUrlState } from "@/lib/use-url-state";
-import { followsPeriod, overlayQuery, QUICK_LABEL, quickAvailable, useSharedPeriod, type QuickView } from "@/lib/datahub/deal-view";
-import { PolicyDiffDialog } from "@/pages/deal/policy-diff";
+import { followsPeriod, overlayQuery, QUICK_LABEL, quickAvailable, TableMenuExtraContext, useSharedPeriod, useSharedPeriodControl, type QuickView } from "@/lib/datahub/deal-view";
+import { PeriodButton, type PeriodScope } from "@/pages/deal/period-bar";import { PolicyDiffDialog } from "@/pages/deal/policy-diff";
 import { canAddColumnHere, canEditColumnHere, isTemplateTable, layerLabel, templatePageUrl } from "@/lib/datahub/template-ui";
 import { TableGrid, type GridApi } from "./grid";
 import { PersonPicker, RatingPicker } from "./pickers";
@@ -155,6 +155,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   const debounced = useDebounced(search, 350);
   const { dead } = useMemo(() => pruneConfig(config, table.columns), [config, table.columns]);
   const shared = useSharedPeriod();
+  const periodControl = useSharedPeriodControl();
+  const menuExtra = useContext(TableMenuExtraContext);
   // A morning digest links here with `?quick=priority`.
   const urlQuick = (useSearch({ strict: false }) as { quick?: string }).quick;
   const [quick, setQuick] = useState<QuickView | null>(urlQuick === "priority" || urlQuick === "recheck" ? urlQuick : null);
@@ -257,21 +259,22 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
         onCleanDead={cleanDead}
         rowSlotRef={setRowSlot}
         lead={<ViewSwitcher tableId={table.id} views={views} currentId={view.id} access={table.access} onSelect={onSelect} currentConfig={config} />}
+        period={
+          shared && periodControl && followsPeriod(table) ? (
+            <PeriodButton state={periodControl} scope={table.role_set as PeriodScope} showRule={table.role_set === "deals"} follow={{ checked: !config.own_period, onChange: (v) => change({ own_period: v ? undefined : true }) }} />
+          ) : null
+        }
         extra={
-          <>
-            {shared && followsPeriod(table) && (
-              <label className="flex min-h-9 shrink-0 items-center gap-1.5 text-sm" title="Bỏ chọn để view này giữ khoảng thời gian riêng (ô Thời gian)">
-                <input type="checkbox" className="h-4 w-4" data-testid="follow-period" checked={!config.own_period} onChange={(e) => change({ own_period: e.target.checked ? undefined : true })} />
-                Theo kỳ chung
-              </label>
-            )}
-            {quickAvailable(table) && (["priority", "recheck"] as const).map((k) => (
-              <Button key={k} variant="secondary" aria-pressed={quick === k} data-testid={`quick-${k}`} className={cn("shrink-0", quick === k && "!border-primary !bg-primary/10")} onClick={() => setQuick(quick === k ? null : k)}>{QUICK_LABEL[k]}</Button>
-            ))}
-          </>
+          quickAvailable(table) ? (
+            <>
+              {(["priority", "recheck"] as const).map((k) => (
+                <Button key={k} variant="secondary" aria-label={QUICK_LABEL[k]} title={QUICK_LABEL[k]} aria-pressed={quick === k} data-testid={`quick-${k}`} className={cn("shrink-0 sm:!min-h-7 !text-xs", quick === k && "!border-primary-border !bg-primary-soft !text-primary")} onClick={() => setQuick(quick === k ? null : k)}>{k === "priority" ? <Flame size={14} aria-hidden /> : <RefreshCw size={14} aria-hidden />}<span className="hidden @[76rem]:inline" aria-hidden>{QUICK_LABEL[k]}</span></Button>
+              ))}
+            </>
+          ) : null
         }
         more={
-          <Menu trigger={<Button variant="ghost" aria-label="Thêm thao tác" title="Thêm thao tác" className="shrink-0 !px-2.5 sm:!min-h-8 sm:!py-0"><MoreHorizontal size={16} aria-hidden /></Button>}>
+          <Menu trigger={<Button variant="ghost" aria-label="Thêm thao tác" title="Thêm thao tác" className="shrink-0 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0"><MoreHorizontal size={16} aria-hidden /></Button>}>
             {undoApi && (
               <>
                 <MenuItem disabled={!undoApi.canUndo} onSelect={() => undoApi.run(false)}><Undo2 size={16} aria-hidden /> Hoàn tác <span aria-hidden className="ml-auto pl-4 text-xs text-muted-foreground">Ctrl+Z</span></MenuItem>
@@ -282,6 +285,12 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
             {dataActions.map((a) => <MenuItem key={a.key} onSelect={a.run}>{a.icon} {a.label}</MenuItem>)}
             {dataActions.length > 0 && structureActions.length > 0 && <MenuSeparator />}
             {structureActions.map((a) => <MenuItem key={a.key} disabled={a.disabled} onSelect={a.run}>{a.icon} {a.label}</MenuItem>)}
+            {menuExtra && (
+              <>
+                <MenuSeparator />
+                {menuExtra}
+              </>
+            )}
           </Menu>
         }
       />
@@ -481,18 +490,18 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
     <>
       {canWrite && (
         <>
-          <Button onClick={() => void addRow()} disabled={columnsEmpty} className="shrink-0 sm:!min-h-8 sm:!py-0"><Plus size={16} aria-hidden /> Thêm dòng</Button>
+          <Button onClick={() => void addRow()} disabled={columnsEmpty} className="shrink-0 !text-xs sm:!min-h-7 sm:!py-0"><Plus size={16} aria-hidden /> Thêm dòng</Button>
         </>
       )}
       {sel.ids.length > 0 && canWrite && (
         <>
-          <Button variant="ghost" aria-label={`Sửa ${formatCount(sel.ids.length, "dòng")}`} title={`Sửa ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !bg-primary-soft !text-primary sm:!min-h-8 sm:!py-0" onClick={() => setBulk(true)}><Pencil size={16} aria-hidden /><span aria-hidden className="text-xs font-semibold @[64rem]:hidden">{sel.ids.length}</span><span aria-hidden className="hidden @[64rem]:inline">Sửa {formatCount(sel.ids.length, "dòng")}</span></Button>
-          <Button variant="ghost" aria-label={`Xoá ${formatCount(sel.ids.length, "dòng")}`} title={`Xoá ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !text-bad sm:!min-h-8 sm:!py-0" onClick={() => void deleteSelected()}><Trash2 size={16} aria-hidden /><span aria-hidden className="text-xs font-semibold @[64rem]:hidden">{sel.ids.length}</span><span aria-hidden className="hidden @[64rem]:inline">Xoá {formatCount(sel.ids.length, "dòng")}</span></Button>
+          <Button variant="ghost" aria-label={`Sửa ${formatCount(sel.ids.length, "dòng")}`} title={`Sửa ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !bg-primary-soft !text-primary !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setBulk(true)}><Pencil size={16} aria-hidden /><span aria-hidden className="text-xs font-semibold @[64rem]:hidden">{sel.ids.length}</span><span aria-hidden className="hidden @[64rem]:inline">Sửa {formatCount(sel.ids.length, "dòng")}</span></Button>
+          <Button variant="ghost" aria-label={`Xoá ${formatCount(sel.ids.length, "dòng")}`} title={`Xoá ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !text-bad !text-xs sm:!min-h-7 sm:!py-0" onClick={() => void deleteSelected()}><Trash2 size={16} aria-hidden /><span aria-hidden className="text-xs font-semibold @[64rem]:hidden">{sel.ids.length}</span><span aria-hidden className="hidden @[64rem]:inline">Xoá {formatCount(sel.ids.length, "dòng")}</span></Button>
         </>
       )}
       {(sel.active || sel.ids.length === 1) && (
         <Tip label="Chi tiết dòng (bấm số thứ tự, hoặc Shift + Space)">
-          <Button variant="ghost" aria-label="Chi tiết dòng" className="shrink-0 !px-2 sm:!min-h-8 sm:!py-0" onClick={() => setOpenRow(sel.ids.length === 1 ? sel.ids[0]! : sel.active)}><Maximize2 size={16} aria-hidden /></Button>
+          <Button variant="ghost" aria-label="Chi tiết dòng" className="shrink-0 !px-2 !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setOpenRow(sel.ids.length === 1 ? sel.ids[0]! : sel.active)}><Maximize2 size={16} aria-hidden /></Button>
         </Tip>
       )}
       {session.grouped && (

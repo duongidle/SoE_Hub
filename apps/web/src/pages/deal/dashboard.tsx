@@ -10,6 +10,7 @@ import { dhKeys, getDatahub, resolveTimeRange } from "@/lib/datahub/api";
 import { CYCLE_MILESTONES, dealCycleKeys, getCycle, getForecast, type CycleMilestone, type DealHome } from "@/lib/datahub/deal-api";
 import type { useSharedPeriodState } from "@/lib/datahub/deal-view";
 import { rangeName } from "@/lib/datahub/time-ui";
+import type { TimeRange } from "@soe/shared";
 import { can, useMe } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { DashboardView } from "../datahub/dashboard/dashboard-view";
@@ -43,7 +44,9 @@ export function DealDashboard({ home, period }: { home: DealHome; period: Return
     },
   });
   const dhQ = useQuery({ queryKey: dhKeys.datahub(datahubId ?? ""), enabled: !!datahubId && isManager, queryFn: () => getDatahub(datahubId!) });
-  const range = period.value?.range;
+  const all = period.value?.all === true;
+  // "Toàn bộ thời gian": a range with no ends (the server reads it as no cut at all); the dates the forecast needs are the widest the server accepts.
+  const range: TimeRange | undefined = all ? { kind: "between" } : period.value?.range;
   const info = useQuery({ queryKey: dhKeys.timeRange(range), enabled: !!range, queryFn: () => resolveTimeRange(range!), staleTime: 60_000 });
 
   const [milestone, setMilestone] = useState<CycleMilestone>(readMilestone);
@@ -62,7 +65,7 @@ export function DealDashboard({ home, period }: { home: DealHome; period: Return
 
   return (
     <div className="flex min-h-0 flex-col gap-3" data-testid="deal-dashboard">
-      {can(me, "deal:forecast:read") && <ForecastPanel from={info.data.from} to={info.data.to} name={rangeName(range, info.data.fiscal_start_month)} />}
+      {can(me, "deal:forecast:read") && <ForecastPanel from={all ? "1900-01-01" : info.data.from} to={all ? "2200-12-31" : info.data.to} name={all ? "Toàn bộ thời gian" : rangeName(period.value!.range, info.data.fiscal_start_month)} />}
       <section aria-label="Mốc cohort chín" className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-card border border-border bg-card px-4 py-3 text-sm shadow-card">
         <label className="flex items-center gap-2">
           <span className="font-medium">Mốc cohort chín</span>
