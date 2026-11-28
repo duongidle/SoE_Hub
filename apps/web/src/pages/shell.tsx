@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Ellipsis, BookOpen, Briefcase, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Database, FileText, FolderInput, LayoutDashboard, LogOut, Menu, Network, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
+import { Ellipsis, BookOpen, Briefcase, BriefcaseBusiness, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Database, FileText, FolderInput, LayoutDashboard, LogOut, Menu, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { Brand, BRAND_NAME } from "@/components/brand";
@@ -17,7 +17,7 @@ import { SettingsLayout } from "./settings";
 
 const PUBLIC_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
 
-type NavItem = { to: string; label: string; icon: LucideIcon; permission: string | null; dealOnly?: boolean; guestOnly?: boolean; onboarding?: boolean };
+type NavItem = { to: string; label: string; icon: LucideIcon; permission: string | null; dealOnly?: boolean; guestOnly?: boolean; /** Not for the Guest. */ noGuest?: boolean; onboarding?: boolean };
 
 /** Menu items. A user sees an item only when the permission list returned by the API contains its permission. */
 const NAV: NavItem[] = [
@@ -25,18 +25,19 @@ const NAV: NavItem[] = [
   { to: "/datahub", label: "Datahub", icon: Database, permission: "datahub:datahub:use" },
   { to: "/du-lieu-duoc-cap", label: "Dữ liệu được cấp", icon: FolderInput, permission: "datahub:datahub:use", guestOnly: true },
   { to: "/quan-ly-deal", label: "Quản lý Deal", icon: Briefcase, permission: "datahub:datahub:use", dealOnly: true },
+  { to: "/workhub", label: "Workhub", icon: BriefcaseBusiness, permission: null, noGuest: true },
   { to: "/form", label: "Dynamic Form", icon: FileText, permission: "form:form:create" },
   { to: "/onboarding", label: "Onboarding", icon: UserCheck, permission: "onboarding:path:read", onboarding: true },
   { to: "/knowledge", label: "Knowledge", icon: BookOpen, permission: "knowledge:article:read" },
   { to: "/ai-hub", label: "AI Hub", icon: Sparkles, permission: "aihub:skill:read" },
   { to: "/duyet", label: "Duyệt bài", icon: ClipboardCheck, permission: "knowledge:article:review|aihub:skill:review" },
-  { to: "/to-chuc", label: "Org chart", icon: Network, permission: "org:member:read" },
 ];
 
 /** Admin pages. Not in the sidebar: they are listed on the Cài đặt page (/cai-dat), by permission. */
 export const SETTINGS_LINKS: { to: string; label: string; hint: string; permission: string | null }[] = [
   { to: "/tai-khoan", label: "Tài khoản của tôi", hint: "Mật khẩu, thiết bị, token cá nhân", permission: null },
   { to: "/tai-khoan/thong-bao", label: "Cài đặt thông báo", hint: "Kênh nhận và giờ yên tĩnh", permission: null },
+  { to: "/to-chuc", label: "Org chart", hint: "Thành viên, vai trò và sơ đồ cây", permission: "org:member:read" },
   { to: "/cap-du-lieu", label: "Cấp dữ liệu Guest", hint: "Cho Guest xem dữ liệu được chọn", permission: "guest:grant:manage" },
   { to: "/quan-tri/token", label: "Kết nối AI", hint: "Duyệt kết nối AI và token", permission: "auth:token:approve" },
   { to: "/quan-tri/tai-khoan-he-thong", label: "Tài khoản hệ thống", hint: "Tài khoản dịch vụ và key API", permission: "auth:service_account:manage" },
@@ -119,7 +120,7 @@ function SideNav({ items, collapsed, label, onLogout, settingsActive, onNavigate
   const text = collapsed ? "sr-only" : "truncate";
   return (
     <nav aria-label={label} className="flex min-h-0 flex-1 flex-col px-2 pb-3">
-      <div className="contain-scroll-y no-scrollbar flex flex-1 flex-col gap-0.5 overflow-y-auto">
+      <div className="contain-scroll-y no-scrollbar flex flex-1 flex-col gap-1.5 overflow-y-auto">
         {items.map((n) => (
           <Link key={n.to} to={n.to} onClick={onNavigate} activeOptions={{ exact: n.to === "/" }} title={collapsed ? n.label : undefined} className={cn(linkBase, linkActive, collapsed && "justify-center px-0")}>
             <n.icon size={16} aria-hidden className="shrink-0" />
@@ -127,7 +128,7 @@ function SideNav({ items, collapsed, label, onLogout, settingsActive, onNavigate
           </Link>
         ))}
       </div>
-      <div className="mt-2 flex flex-col gap-0.5 border-t border-border-soft pt-2">
+      <div className="mt-2 flex flex-col gap-1.5 border-t border-border-soft pt-2">
         <Link to="/cai-dat" onClick={onNavigate} title={collapsed ? "Cài đặt" : undefined} className={cn(linkBase, linkActive, settingsActive && "active", collapsed && "justify-center px-0")}>
           <Settings size={16} aria-hidden className="shrink-0" />
           <span className={text}>Cài đặt</span>
@@ -219,7 +220,7 @@ export function Shell() {
 
   // "Quản lý Deal" is for people who have the datahub (Manager, Leader, User); Admin and Guest have none (Module 4 mục 1.1).
   const hasDeal = me.user.roles.some((r) => ["manager", "leader", "user"].includes(r));
-  const items = NAV.filter((n) => (!n.permission || canAny(me, n.permission)) && (!n.dealOnly || hasDeal) && (!n.guestOnly || me.user.roles.includes("guest")) && (!n.onboarding || can(me, "onboarding:path:create") || (onb.data ?? 0) > 0));
+  const items = NAV.filter((n) => (!n.permission || canAny(me, n.permission)) && (!n.dealOnly || hasDeal) && (!n.guestOnly || me.user.roles.includes("guest")) && (!n.noGuest || !me.user.roles.includes("guest")) && (!n.onboarding || can(me, "onboarding:path:create") || (onb.data ?? 0) > 0));
   const needed = requiredPermission(shown);
   const denied = needed !== null && !canAny(me, needed);
   const logout = async () => {
@@ -311,10 +312,11 @@ export function Shell() {
                     id="topbar-actions"
                     ref={setActionsEl}
                     className={cn(
-                      "items-center gap-2 sm:mr-1 sm:flex sm:shrink-0 sm:[&_a]:whitespace-nowrap sm:[&_button]:whitespace-nowrap",
+                      "items-center gap-2 sm:flex sm:shrink-0 sm:[&_a]:whitespace-nowrap sm:[&_button]:whitespace-nowrap",
                       actionsOpen ? "fixed inset-x-2 top-14 z-30 flex flex-col items-stretch rounded-card border border-border bg-card p-2 shadow-lg sm:static sm:flex-row sm:items-center sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none" : "hidden",
                     )}
                   />
+                  {actionCount > 0 && <span aria-hidden className="mx-2 hidden h-5 w-px shrink-0 bg-border sm:block" />}
                   <BellButton me={me} />
                   <Link to="/tai-khoan" className="inline-flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-primary-soft" aria-label="Tài khoản của tôi">
                     <span aria-hidden className="inline-flex size-7 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">{initials || <UserRound size={14} />}</span>
