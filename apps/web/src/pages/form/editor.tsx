@@ -273,7 +273,7 @@ function EditorInner({ id, d, refetch }: { id: string; d: FormDetail; refetch: (
           <div className="mx-auto w-full max-w-3xl">
             {step === "share" && <ShareTab form={d} reload={refetch} />}
             {step === "settings" && <SettingsTab form={d} cfg={cfg} change={change} reload={refetch} reloadDraft={reload} flush={flush} />}
-            {step === "responses" && <ResponsesTab form={d} />}
+            {step === "responses" && <ResponsesTab form={d} onShare={() => setStep("share")} />}
           </div>
         </div>
       )}

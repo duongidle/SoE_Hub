@@ -2,17 +2,55 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Copy, ExternalLink, Search, Share2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, Input } from "@/components/ui/form";
 import { ErrorState, FilteredEmptyState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
-import { apiList, fmtTime } from "@/lib/api";
+import { api, apiList, fmtTime } from "@/lib/api";
 import { getTable } from "@/lib/datahub/api";
 import type { FormDetail } from "./model";
 
 interface Resp { row_id: string; created_at: string; created_by: string | null; answers: Record<string, unknown>; quiz: { score: number; max: number; result: string | null; attempt: number } | null }
 const show = (v: unknown): string => (v === undefined || v === null || v === "" ? "" : Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v));
+
+interface QSummary { question_id: string; label: string; input: string; answered: number; options?: { label: string; count: number; percent: number }[]; number?: { avg: number; min: number; max: number }; latest?: string[] }
+interface Summary { total: number; today: number; last_at: string | null; questions: QSummary[]; quiz: { graded: number; pending: number; avg_score: number | null; max_score: number | null; pass_rate: number | null } | null }
+const BAR = ["bg-primary", "bg-emerald-500", "bg-amber-500", "bg-sky-500", "bg-rose-500", "bg-violet-500"];
+const fmtNum = (n: number) => new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(n);
+
+/** One question's summary, all numbers from `form.response.summary` (design module12 12H-9). */
+function QuestionCard({ n, s, onAll }: { n: number; s: QSummary; onAll: () => void }) {
+  return (
+    <section className="rounded-card border border-border bg-card p-5" data-testid="question-summary">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <h3 className="text-[13px] font-bold">Câu {n}: {s.label}</h3>
+        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{s.answered} trả lời</span>
+      </div>
+      {s.options && (s.options.length === 0 ? <p className="text-xs text-muted-foreground">Chưa có lựa chọn nào được chọn.</p> : (
+        <div className="flex flex-col gap-2.5">
+          {s.options.map((o, i) => (
+            <div key={o.label}>
+              <div className="mb-1 flex justify-between gap-3 text-xs"><span className="min-w-0 truncate font-medium">{o.label}</span><span className="shrink-0 font-bold tabular-nums">{o.count} ({fmtNum(o.percent)}%)</span></div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${BAR[i % BAR.length]}`} style={{ width: `${Math.min(100, o.percent)}%` }} /></div>
+            </div>
+          ))}
+        </div>
+      ))}
+      {s.number && (
+        <div className="grid grid-cols-3 gap-3 text-center">
+          {([["Trung bình", s.number.avg], ["Nhỏ nhất", s.number.min], ["Lớn nhất", s.number.max]] as const).map(([l, v]) => <div key={l} className="rounded-xl bg-muted/50 p-3"><div className="text-xs text-muted-foreground">{l}</div><div className="text-lg font-bold tabular-nums">{fmtNum(v)}</div></div>)}
+        </div>
+      )}
+      {s.latest && (s.latest.length === 0 ? <p className="text-xs text-muted-foreground">Chưa có câu trả lời.</p> : (
+        <>
+          <ul className="flex flex-col gap-1.5">{s.latest.map((t, i) => <li key={i} className="rounded-lg bg-muted/50 px-3 py-2 text-xs">{t}</li>)}</ul>
+          <button type="button" onClick={onAll} className="mt-2 text-xs font-semibold text-primary hover:underline">Xem tất cả</button>
+        </>
+      ))}
+    </section>
+  );
+}
 
 const STATE_LABEL: Record<string, string> = { open: "Đang nhận", paused: "Tạm dừng", closed: "Đã đóng", draft: "Nháp", not_started: "Chưa tới giờ mở" };
 
@@ -29,6 +67,8 @@ export function ResponsesTab({ form, onShare }: { form: FormDetail; onShare?: ()
   const q = useQuery({ queryKey: ["form-responses", form.id, search], queryFn: () => apiList<Resp>(`/forms/${form.id}/responses?limit=50${search ? `&search=${encodeURIComponent(search)}` : ""}`) });
   const table = useQuery({ queryKey: ["form-table", form.table_id], queryFn: () => getTable(form.table_id!), enabled: !!form.table_id });
   const qs = ((q.data as unknown as { questions?: { question_id: string; label: string }[] } | undefined)?.questions ?? []).slice(0, 6);
+  const sum = useQuery({ queryKey: ["form-summary", form.id, form.response_count], queryFn: () => api<Summary>("GET", `/forms/${form.id}/responses/summary`), enabled: form.response_count > 0 });
+  const listRef = useRef<HTMLElement>(null);
   const link = `${window.location.origin}/f/${form.code}`;
   const copy = () => { void navigator.clipboard?.writeText(link).then(() => notify.ok("Đã sao chép link")); };
   const tableTo = table.data ? { to: "/datahub/$datahubId/$tableId" as const, params: { datahubId: table.data.datahub_id, tableId: table.data.id } } : null;
@@ -58,12 +98,23 @@ export function ResponsesTab({ form, onShare }: { form: FormDetail; onShare?: ()
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-3">
-            <Stat label="Tổng phản hồi" testid="stat-total">{form.response_count}</Stat>
-            <Stat label="Phản hồi gần nhất" testid="stat-last"><span className="text-base">{form.last_response_at ? fmtTime(form.last_response_at) : "—"}</span></Stat>
-            <Stat label="Trạng thái form" testid="stat-state"><span className="text-base">{STATE_LABEL[form.state] ?? form.state}</span></Stat>
+            <Stat label="Tổng phản hồi" testid="stat-total">{sum.data?.total ?? form.response_count}{!!sum.data?.today && <span className="ml-2 text-xs font-semibold text-ok" data-testid="stat-today">+{sum.data.today} hôm nay</span>}</Stat>
+            {sum.data?.quiz ? (
+              <>
+                <Stat label="Điểm trung bình" testid="stat-avg">{sum.data.quiz.avg_score === null ? "—" : <>{fmtNum(sum.data.quiz.avg_score)}<span className="text-sm font-semibold text-muted-foreground"> / {fmtNum(sum.data.quiz.max_score ?? 0)}</span></>}</Stat>
+                <Stat label="Tỉ lệ đạt" testid="stat-pass">{sum.data.quiz.pass_rate === null ? "—" : <>{fmtNum(sum.data.quiz.pass_rate)}%</>}{sum.data.quiz.pending > 0 && <span className="ml-2 text-xs font-semibold text-warn">{sum.data.quiz.pending} chờ chấm</span>}</Stat>
+              </>
+            ) : (
+              <>
+                <Stat label="Phản hồi gần nhất" testid="stat-last"><span className="text-base">{form.last_response_at ? fmtTime(form.last_response_at) : "—"}</span></Stat>
+                <Stat label="Trạng thái form" testid="stat-state"><span className="text-base">{STATE_LABEL[form.state] ?? form.state}</span></Stat>
+              </>
+            )}
           </div>
 
-          <section className="rounded-card border border-border bg-card shadow-card">
+          {sum.data?.questions.map((s, i) => <QuestionCard key={s.question_id} n={i + 1} s={s} onAll={() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />)}
+
+          <section ref={listRef} className="rounded-card border border-border bg-card shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
               <h3 className="text-sm font-bold">Danh sách phản hồi</h3>
               <div className="relative w-60 max-w-full">

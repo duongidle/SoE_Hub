@@ -1,0 +1,20 @@
+meta {
+  name: form.response.summary
+  type: http
+  seq: 35
+}
+
+get {
+  url: {{baseUrl}}/api/v1/forms/{{formId}}/responses/summary
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Tóm tắt phản hồi của form: tổng, hôm nay (giờ Việt Nam), phản hồi gần nhất; theo câu (số và % từng lựa chọn, trung bình/nhỏ nhất/lớn nhất, 3 câu văn bản mới nhất); bài kiểm tra: điểm trung bình, tỉ lệ đạt, số bài chờ chấm.
+  Quyền: `form:form:create`, chỉ chủ form.
+}

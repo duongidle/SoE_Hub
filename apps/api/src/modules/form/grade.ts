@@ -9,6 +9,7 @@ import { applyRowOps } from "../datahub/rows";
 import { getRow, listRows } from "../datahub/rows-read";
 import { ROW_EVENTS } from "../datahub/shared";
 import { TableSchema } from "../datahub/table-schema";
+import { assertColumnKey } from "../datahub/types";
 import { notify, NOTIFICATION_TYPES, stableId } from "../notification";
 import { labelValue, questionsOf, type FormConfig, type Quiz } from "./config";
 import { isGraded, isManual, RESULT_LABEL, rubricPoints, scoreCells, summarize, totals, round, type ItemScore, type Result } from "./quiz";
@@ -319,6 +320,80 @@ export const gradeOperations = [
         return { row_id: r.id as string, created_at: new Date(r.created_at as string | Date).toISOString(), created_by: (r.created_by as string | null) ?? null, answers, quiz: s && sum ? { score: sum.score, max: sum.max, result: RESULT_LABEL[s.result as Result], attempt: s.attempt_no } : null };
       });
       return { items, nextCursor: res.nextCursor, total: res.total, extra: { questions: qs.map((q) => ({ question_id: q.id, label: q.label, input: q.input })) } };
+    },
+  }),
+
+  defineQuery({
+    name: "form.response.summary",
+    summary: "Tóm tắt phản hồi của form: tổng, hôm nay (giờ Việt Nam), phản hồi gần nhất, thống kê theo từng câu và điểm bài kiểm tra.",
+    description: "Tính bằng SQL trên đúng các dòng mà `form.response.list` đọc (bằng quyền chủ form, không tính dòng đã xoá). Câu chọn một/nhiều: số và % từng lựa chọn, mẫu số là số phản hồi có trả lời câu đó (chọn nhiều thì mỗi phản hồi tính một lần cho mỗi lựa chọn nó chứa, nên tổng % có thể quá 100). Câu số/tiền/phần trăm/sao/thang: trung bình, nhỏ nhất, lớn nhất. Câu văn bản: 3 câu trả lời mới nhất, cắt 200 ký tự. Bài kiểm tra: điểm trung bình và tỉ lệ đạt của bài đã chấm; bài chờ chấm không tính và được đếm riêng.",
+    permission: "form:form:create",
+    aiAllowed: true,
+    menu: "form",
+    input: z.object({ form_id: Id }),
+    output: z.object({
+      total: z.number().int(),
+      today: z.number().int(),
+      last_at: z.string().nullable(),
+      questions: z.array(z.object({
+        question_id: z.string(), label: z.string(), input: z.string(), answered: z.number().int(),
+        options: z.array(z.object({ label: z.string(), count: z.number().int(), percent: z.number() })).optional(),
+        number: z.object({ avg: z.number(), min: z.number(), max: z.number() }).optional(),
+        latest: z.array(z.string()).optional(),
+      })),
+      quiz: z.object({ graded: z.number().int(), pending: z.number().int(), avg_score: z.number().nullable(), max_score: z.number().nullable(), pass_rate: z.number().nullable() }).nullable(),
+    }),
+    http: { method: "GET", path: "/forms/:form_id/responses/summary" },
+    handler: async (ctx, i) => {
+      const f = await formOf(ctx.db, i.form_id);
+      if (f.ownerId !== ctx.actor.userId) throw new AppError("not_found", "Không tìm thấy form.");
+      const empty = { total: 0, today: 0, last_at: null, questions: [], quiz: null };
+      if (!f.tableId) return empty;
+      const cfg = f.draft;
+      const pub = f.publishedVersion ? ((await versionConfig(ctx.db, f.id, f.publishedVersion)) ?? cfg) : cfg;
+      const cols = await liveColumns(ctx.db, f.tableId);
+      const qs = questionsOf(pub).filter((q) => q.column_id && cols.has(q.column_id)).slice(0, 40);
+      const { acc } = await ownerAccess(ctx, f);
+      const from = sql`${acc.rel()} dh_rows`;
+      const where = sql`${acc.rows()} AND deleted_at IS NULL`;
+      const day = sql`date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh'`;
+      const head = (await ctx.db.execute(sql`SELECT count(*)::int AS total, (count(*) FILTER (WHERE created_at >= ${day}))::int AS today, max(created_at) AS last_at FROM ${from} WHERE ${where}`)).rows[0] as Raw;
+      const out: { question_id: string; label: string; input: string; answered: number; options?: { label: string; count: number; percent: number }[]; number?: { avg: number; min: number; max: number }; latest?: string[] }[] = [];
+      for (const q of qs) {
+        const key = sql.raw(`'${assertColumnKey(q.column_id!)}'`);
+        const base = { question_id: q.id, label: q.label, input: q.input, answered: 0 };
+        if (q.input === "single_select" || q.input === "multi_select") {
+          const multi = q.input === "multi_select";
+          const val = multi ? sql`jsonb_array_elements_text(CASE WHEN jsonb_typeof(data->${key}) = 'array' THEN data->${key} ELSE '[]'::jsonb END)` : sql`data->>${key}`;
+          const rows = (await ctx.db.execute(sql`SELECT v, count(*)::int AS n FROM (SELECT ${val} AS v FROM ${from} WHERE ${where}${multi ? sql`` : sql` AND data->>${key} IS NOT NULL AND data->>${key} <> ''`}) s WHERE v IS NOT NULL AND v <> '' GROUP BY v ORDER BY n DESC, v`)).rows as { v: string; n: number }[];
+          const ans = (await ctx.db.execute(sql`SELECT count(*)::int AS n FROM ${from} WHERE ${where} AND data->${key} IS NOT NULL AND data->${key} NOT IN ('null'::jsonb, '""'::jsonb, '[]'::jsonb)`)).rows[0] as { n: number };
+          const names = new Map<string, string>([...(cols.get(q.column_id!)?.options ?? []).map((o) => [o.id, o.name] as [string, string]), ...(q.options ?? []).filter((o) => o.id).map((o) => [o.id!, o.label] as [string, string])]);
+          out.push({ ...base, answered: ans.n, options: rows.map((r) => ({ label: names.get(r.v) ?? r.v, count: r.n, percent: ans.n ? round((r.n / ans.n) * 100) : 0 })) });
+        } else if (["number", "currency", "percent", "rating", "scale"].includes(q.input)) {
+          const num = sql`(data->>${key})::double precision`;
+          const r = (await ctx.db.execute(sql`SELECT count(*)::int AS n, avg(${num}) AS a, min(${num}) AS lo, max(${num}) AS hi FROM ${from} WHERE ${where} AND jsonb_typeof(data->${key}) = 'number'`)).rows[0] as Raw;
+          out.push({ ...base, answered: r.n as number, ...((r.n as number) > 0 ? { number: { avg: round(Number(r.a)), min: Number(r.lo), max: Number(r.hi) } } : {}) });
+        } else if (q.input === "text" || q.input === "long_text") {
+          const txt = sql`data->>${key}`;
+          const ans = (await ctx.db.execute(sql`SELECT count(*)::int AS n FROM ${from} WHERE ${where} AND ${txt} IS NOT NULL AND ${txt} <> ''`)).rows[0] as { n: number };
+          const last = (await ctx.db.execute(sql`SELECT left(${txt}, 200) AS t FROM ${from} WHERE ${where} AND ${txt} IS NOT NULL AND ${txt} <> '' ORDER BY created_at DESC, id DESC LIMIT 3`)).rows as { t: string }[];
+          out.push({ ...base, answered: ans.n, latest: last.map((x) => x.t) });
+        }
+      }
+      let quiz: { graded: number; pending: number; avg_score: number | null; max_score: number | null; pass_rate: number | null } | null = null;
+      if (pub.quiz?.enabled) {
+        const hundred = pub.quiz.scale === "100";
+        const s = (await ctx.db.execute(sql`/*scope:system*/ SELECT
+            (count(*) FILTER (WHERE s.result = 'pending'))::int AS pending,
+            (count(*) FILTER (WHERE s.result <> 'pending'))::int AS graded,
+            avg(CASE WHEN ${hundred}::boolean THEN (CASE WHEN s.max_score > 0 THEN s.score / s.max_score * 100 ELSE 0 END) ELSE s.score END) FILTER (WHERE s.result <> 'pending') AS avg_score,
+            avg(s.max_score) FILTER (WHERE s.result <> 'pending') AS avg_max,
+            (count(*) FILTER (WHERE s.result = 'pass'))::int AS pass_n,
+            (count(*) FILTER (WHERE s.result IN ('pass', 'fail')))::int AS judged
+          FROM form_scores s WHERE s.form_id = ${f.id}::uuid AND s.row_id IN (SELECT id FROM ${from} WHERE ${where})`)).rows[0] as Raw;
+        quiz = { graded: s.graded as number, pending: s.pending as number, avg_score: s.avg_score === null ? null : round(Number(s.avg_score)), max_score: s.avg_score === null ? null : hundred ? 100 : round(Number(s.avg_max)), pass_rate: (s.judged as number) > 0 ? round(((s.pass_n as number) / (s.judged as number)) * 100) : null };
+      }
+      return { total: head.total as number, today: head.today as number, last_at: head.last_at ? new Date(head.last_at as string | Date).toISOString() : null, questions: out, quiz };
     },
   }),
 ];

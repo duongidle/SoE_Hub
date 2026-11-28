@@ -321,6 +321,22 @@ describe("form: clone, responses, transfer, trash", () => {
     expect((await fails(u("form.response.list", { form_id: x.id }))).code).toBeDefined();
   });
 
+  it("summary: totals, today, per-question numbers computed in SQL, the quiz average and pass rate; only the owner reads it", async () => {
+    const x = await quizForm([q("s", "single_select", { options: [{ label: "A" }, { label: "B" }], answer: "A", points: 1 }), q("n", "number"), q("t", "text")], { show: "score", scale: "100", max_attempts: 5, pass: { type: "percent", value: 50 } });
+    await submit(x.code, { s: "A", n: 2, t: "một" });
+    await submit(x.code, { s: "A", n: 4, t: "hai" });
+    await submit(x.code, { s: "B", n: 9, t: "ba" });
+    const sm = await a("form.response.summary", { form_id: x.id });
+    expect(sm).toMatchObject({ total: 3, today: 3, quiz: { graded: 3, pending: 0, avg_score: 66.67, max_score: 100, pass_rate: 66.67 } });
+    const by = Object.fromEntries((sm.questions as { question_id: string }[]).map((z) => [z.question_id, z])) as Record<string, Record<string, unknown>>;
+    expect(by.s!.options).toEqual([{ label: "A", count: 2, percent: 66.67 }, { label: "B", count: 1, percent: 33.33 }]);
+    expect(by.n).toMatchObject({ answered: 3, number: { avg: 5, min: 2, max: 9 } });
+    expect(by.t!.latest).toEqual(["ba", "hai", "một"]);
+    expect((await fails(u("form.response.summary", { form_id: x.id }))).code).toBe("not_found");
+    const none = await quizForm([q("s", "text", { answer: ["x"], points: 1 })], {});
+    expect(await a("form.response.summary", { form_id: none.id })).toMatchObject({ total: 0, today: 0, last_at: null });
+  });
+
   it("an owner change moves the forms with the datahubs; a deleted column switches the question off and tells the owner", async () => {
     const o2 = await seedOrg(t);
     for (const p of [o2.userA1, o2.userA2]) await unlimit(t, p.id);
