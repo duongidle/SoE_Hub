@@ -98,7 +98,7 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 | Rà bước con | Opus | Đọc diff và kết quả test Sonnet ghi, so với thiết kế. **Không chạy lại test Sonnet đã chạy** (Dương chốt 20/11/2026). Chỉ chạy lại khi: (1) có test chập chờn hoặc "fail rồi chạy lại pass": chạy lại đúng phần đó; (2) có commit sửa **code** sau mã commit đã chạy test: chỉ chạy phần bị ảnh hưởng (commit chỉ sửa tài liệu hay `progress.md` thì không chạy); (3) số liệu vô lý (thiếu mã commit, số test giảm, skip tăng không giải thích). Chạm phần dùng chung thì **đọc kỹ diff ở chỗ đó** (lộ quyền, sai phạm vi dòng thường không bị test bắt) và grep nơi gọi của hàm dùng chung bị đổi để kiểm Sonnet không sót. |
 | Kiểm thử cuối stage | Sonnet chạy, Opus điều phối | Toàn bộ `pnpm test` và cả bộ e2e, đi luồng thật theo vai trò, dữ liệu xấu nhất. Chi tiết: `design/kiem-thu.md`. |
 
-**Sửa chỉ giao diện test tối giản** (Dương chốt 28/11/2026): chỉ `typecheck`, `lint` và e2e của đúng màn bị chạm, chạy một lần ở cuối; kiểm bằng ảnh chụp là chính. Không chạy vitest trừ khi đổi logic.
+**Sửa chỉ giao diện test tối giản** (Dương chốt 28/11/2026, siết cùng ngày): chỉ `typecheck`, `lint` và tự xem ảnh chụp. Không chạy e2e, trừ khi đổi selector hay hành vi mà một spec chắc chắn dùng: khi đó chạy đúng spec đó một lần. Không chạy vitest trừ khi đổi logic. E2e còn lại dồn tới lần kiểm thử cuối stage kế tiếp.
 
 **Việc nhỏ test nhanh** (Dương chốt 27/11/2026): việc nhỏ (sửa một lỗi, một chỗ, ước dưới khoảng 10M token) chỉ chạy `typecheck`, `lint`, unit test của file/module vừa sửa và test tái hiện lỗi; e2e chỉ đúng spec của màn bị chạm, nếu có. Không chạy cả bộ vitest hay e2e: bước con hoặc kiểm thử cuối stage kế tiếp sẽ chạy. Ghi lệnh và mã commit vào `progress.md` như thường.
 
