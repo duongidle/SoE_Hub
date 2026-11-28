@@ -43,7 +43,7 @@ type ToolId = "filter" | "sort" | "group" | "columns" | "colors" | "time" | "den
 /** The tools that move into the "..." menu when the line is too narrow, the least used first (design module12 12H-4). */
 const FOLD_ORDER: ToolId[] = ["density", "colors", "time", "columns", "group"];
 /** The width the line needs (without the period button) with the search open, then with it folded, then one more tool folded each step. */
-const LEVEL_ROOM = [1180, 1040, 960, 880, 800, 700, 600];
+const LEVEL_ROOM = [1040, 1040, 960, 880, 800, 700, 600]; // the search is always the magnifier now (Dương 28/11): level 0 needs no more room than level 1
 
 /** Which tools are folded into "..." now, the place their panel opens from, and the one panel opened from the menu. */
 const FoldContext = createContext<{ folded: ReadonlySet<ToolId>; host: HTMLElement | null; openId: ToolId | null; setOpenId: (id: ToolId | null) => void }>({ folded: new Set(), host: null, openId: null, setOpenId: () => {} });
@@ -98,7 +98,7 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
   const wrap = level > LEVEL_ROOM.length - 0 || room < LEVEL_ROOM[LEVEL_ROOM.length - 1]! - 120;
   const setSlot = rowSlotRef;
   const folded = useMemo(() => new Set(foldable.slice(0, Math.max(0, level - 1))), [foldable, level]);
-  const searchIcon = level >= 1;
+  const searchIcon = true; // a plain icon button at every width; the field opens on press (or "/")
   const foldedList = foldable.filter((id) => folded.has(id));
 
   return (
@@ -219,7 +219,8 @@ function SearchBox({ value, onChange, iconOnly, wide }: { value: string; onChang
         onChange={(e) => onChange(e.target.value)}
         className={cn(
           "!min-h-7 !text-xs !border-transparent !bg-muted !pl-8 !py-0",
-          iconOnly && "!absolute right-0 top-0 !w-8 cursor-pointer placeholder:text-transparent focus:z-10 focus:!w-60 focus:cursor-text focus:!border-border focus:!bg-card focus:shadow-md focus:placeholder:text-muted-foreground",
+          iconOnly && "!bg-transparent hover:!bg-muted",
+          iconOnly && "!absolute right-0 top-0 !w-8 cursor-pointer placeholder:text-transparent focus:z-10 focus:!w-60 focus:cursor-text focus:!border-border focus:!bg-card focus:hover:!bg-card focus:shadow-md focus:placeholder:text-muted-foreground",
           iconOnly && value && "!w-60 !border-border z-10 placeholder:text-muted-foreground",
         )}
         autoComplete="off"

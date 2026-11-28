@@ -99,17 +99,17 @@ test("nút kỳ trên thanh công cụ: bảng nhỏ nói lọc theo cột nào,
   await expect(pg.getByTestId("shared-period")).toHaveCount(0);
   await expect(pg.getByTestId("period-name")).toHaveText(/^Quý [1-4]\/\d{4}$/);
   await pg.getByTestId("period-button").click();
-  await expect(pg.getByTestId("period-sub")).toHaveText("Deal liên quan đến kỳ (theo ngày bắt đầu và ngày đóng)");
+  await expect(pg.getByTestId("period-rule-related")).toBeChecked();
   await pg.getByTestId("period-all").click();
   await expect(pg.getByTestId("period-name")).toHaveText("Toàn bộ thời gian");
   await expect(pg.getByTestId("period-sub")).toContainText("Không lọc theo kỳ");
   await expect(pg.getByTestId("period-rule")).toHaveCount(0); // no period: no way to read it
-  await pg.getByTestId("period-reset").click();
+  await pg.getByTestId("period-quick-quarter").click();
   await expect(pg.getByTestId("period-name")).toHaveText(/^Quý [1-4]\/\d{4}$/);
   await pg.evaluate(() => localStorage.setItem("soe.deal.period", JSON.stringify({ choice: null, rule: "closed" })));
   await pg.reload();
   await pg.getByTestId("period-button").click();
-  await expect(pg.getByTestId("period-sub")).toContainText("Closing date");
+  await expect(pg.getByTestId("period-rule-closed")).toBeChecked();
   await pg.getByTestId("deal-dashboard-tab").click({ force: true });
   await expect(pg.getByTestId("period-button")).toBeVisible();
   await pg.getByTestId("period-button").click();

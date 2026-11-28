@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { API, Session, type ProjectName, chooseOption, moreAction } from "./helpers";
+import { API, Session, type ProjectName, moreAction } from "./helpers";
 import { ApiClient, createAdmin, seedPeople } from "./seed";
 
 /**
@@ -287,7 +287,7 @@ test("thanh chọn kỳ: đổi kỳ và cách hiểu thì Deals lọc đúng; K
   await page.getByTestId("period-prev").click();
   await expect(page.getByTestId("period-name")).toHaveText("Tháng 10/2026");
   await expectLines(page, 1); // Gamma started on 2 Oct
-  await chooseOption(page.getByTestId("period-rule"), "closed");
+  await page.getByTestId("period-rule-closed").check();
   await expectLines(page, 1); // Gamma closed on 15 Oct
   await page.getByTestId("period-prev").click();
   await expectLines(page, 0); // nothing closed in September
@@ -307,7 +307,7 @@ test("thanh chọn kỳ: đổi kỳ và cách hiểu thì Deals lọc đúng; K
   await expectLines(page, 2);
   await page.getByTestId("follow-period").check();
   await expectLines(page, 0);
-  await page.getByTestId("period-reset").click();
+  await page.getByTestId("period-quick-quarter").click();
   await expect(page.getByTestId("period-name")).toHaveText(/^Quý [1-4]\/\d{4}$/);
 });
 
