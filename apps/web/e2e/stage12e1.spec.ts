@@ -112,11 +112,10 @@ for (const [w, h] of [[1440, 900], [1280, 800]] as const) {
     await page.getByTestId("add-url").click();
     await expect(page.getByTestId("canvas-block").nth(2)).toContainText("Đường dẫn");
     // the four steps, and the tool buttons of the chosen block
-    for (const [tab, text] of [["Thiết lập", "Chế độ Bài kiểm tra"], ["Chia sẻ", "Ai điền được"], ["Phản hồi", "phản hồi"], ["Thiết kế", "Mục lục"]] as const) {
+    for (const [tab, text] of [["Thiết lập", "Chế độ Bài kiểm tra"], ["Chia sẻ", "Ai điền được"], ["Phản hồi", "phản hồi"], ["Thiết kế", "Thuộc tính"]] as const) {
       await page.getByRole("tab", { name: tab }).click();
       await expect(page.getByText(text).first()).toBeVisible();
     }
-    await expect(page.getByTestId("open-table-bar")).toBeVisible();
     await mgrApi.call("PUT", `/forms/${formId}/draft`, { config: { ...(await mgrApi.call<{ draft: Record<string, unknown> }>("GET", `/forms/${formId}`)).draft } });
   });
 }
@@ -130,14 +129,14 @@ test("Thiết lập: công tắc Chế độ Bài kiểm tra ẩn Mỗi người
   await page.getByRole("tab", { name: "Thiết lập" }).click();
   await expect(page.getByTestId("one-per-user")).toBeVisible();
   await expect(page.getByTestId("quiz-settings")).toHaveCount(0);
-  await expect(page.getByText("Tổng số phản hồi của cả form")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Tổng số phản hồi của cả form/ })).toBeVisible();
   await page.getByTestId("quiz-enabled").check();
   await expect(page.getByTestId("quiz-settings")).toBeVisible();
   await expect(page.getByTestId("one-per-user")).toHaveCount(0);
-  await expect(page.getByTestId("quiz-settings").getByText("Khác với “Số phản hồi tối đa”")).toBeVisible();
+  await expect(page.getByTestId("quiz-settings").getByRole("button", { name: /Khác với “Số phản hồi tối đa”/ })).toBeVisible();
   await page.getByTestId("quiz-settings").scrollIntoViewIfNeeded();
   await shot(mgr, "settings-quiz-1440");
   await page.getByTestId("quiz-enabled").uncheck();
   await expect(page.getByTestId("one-per-user")).toBeVisible();
-  await expect(page.getByTestId("save-status")).toHaveText("Đã lưu nháp");
+  await expect(page.getByTestId("save-status")).toHaveText(/^Đã lưu nháp/);
 });

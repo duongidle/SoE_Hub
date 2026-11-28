@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { BLOCK_NAME, DOT_CLS, metaOf, PICKER_GROUPS, TONE_CLS } from "./kinds";
 import { type Block, kindLabel, type Question } from "./model";
 
-const FAKE = "rounded-lg border border-border bg-card px-3 py-2 text-sm text-faint";
+const FAKE = "rounded-[9px] border border-border bg-card px-3 py-2 text-sm text-faint";
 const TILE_CLS = "inline-flex size-8 shrink-0 items-center justify-center rounded-lg";
 
 /** A control of a question, drawn but not usable. */
@@ -18,7 +18,7 @@ function FakeInput({ q }: { q: Question }) {
     case "single_select": case "multi_select":
       return (
         <div className="flex flex-col gap-2">
-          {opts.map((o, i) => <div key={o.id ?? i} className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 text-sm"><span aria-hidden className={cn("size-4 shrink-0 border border-border", q.input === "single_select" ? "rounded-full" : "rounded")} />{o.label || <span className="text-faint">(lựa chọn trống)</span>}</div>)}
+          {opts.map((o, i) => <div key={o.id ?? i} className="flex items-center gap-2.5 rounded-[9px] border border-border bg-card px-3 py-2 text-sm"><span aria-hidden className={cn("size-4 shrink-0 border-2 border-slate-300", q.input === "single_select" ? "rounded-full" : "rounded-[4px]")} />{o.label || <span className="text-faint">(lựa chọn trống)</span>}</div>)}
         </div>
       );
     case "checkbox": return <div className="flex items-center gap-2.5 text-sm"><span aria-hidden className="size-4 rounded border border-border" />{q.hint || "Đồng ý"}</div>;
@@ -46,20 +46,32 @@ function FakeInput({ q }: { q: Question }) {
 function Face({ b, num }: { b: Block; num: number | null }) {
   if (b.type === "question") {
     const q = b as Question;
-    const meta = metaOf("question", q.input);
-    const Icon = meta.icon;
-    return (
-      <div className={cn("flex flex-col gap-2", q.hidden && "opacity-60")}>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          <span className={cn(TILE_CLS, "size-6 rounded-md", TONE_CLS[meta.tone])}><Icon size={14} aria-hidden /></span>
-          <span className="font-semibold text-primary">Câu {num}</span>
-          <span>{kindLabel(q.input)}</span>
-          {q.hidden && <span className="rounded-full bg-muted px-2 py-0.5">Trường ẩn</span>}
-          {!q.column_id && <span className="rounded-full bg-warn-bg px-2 py-0.5 text-warn">Chưa nối cột</span>}
+    if ((q as { fill_self?: boolean }).fill_self) {
+      return (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-workspace px-4 py-3">
+          <div className="flex items-center gap-3">
+            <span aria-hidden className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">NĐ</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5"><span className="text-sm font-semibold" data-testid="block-title">{q.label || "Người điền"}</span><span className="rounded bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground">Trường hệ thống</span></div>
+              <span className="block text-xs text-muted-foreground">Tự động ghi nhận tài khoản nội bộ đang đăng nhập</span>
+            </div>
+          </div>
+          <span className="rounded-full border border-ok-border bg-ok-bg px-2.5 py-0.5 text-xs font-medium text-ok">Tự động nhận diện</span>
         </div>
-        <p className="text-base font-medium [overflow-wrap:anywhere]"><span data-testid="block-title" className={q.label ? undefined : "text-faint"}>{q.label || "(chưa có nhãn)"}</span>{q.required && <span className="ml-1 text-bad" aria-label="bắt buộc">*</span>}</p>
-        {q.description && <p className="-mt-1 text-sm text-muted-foreground [overflow-wrap:anywhere]">{q.description}</p>}
-        <FakeInput q={q} />
+      );
+    }
+    return (
+      <div className={cn("flex flex-col gap-1.5", q.hidden && "opacity-60")}>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <span className="font-bold text-primary">Câu {num}</span>
+          <span aria-hidden className="text-faint">·</span>
+          <span className="font-medium text-muted-foreground">{kindLabel(q.input)}</span>
+          {q.hidden && <span className="rounded border border-warn-border bg-warn-bg px-1.5 text-[11px] font-semibold text-warn">Trường ẩn</span>}
+          {!q.column_id && <span className="rounded bg-warn-bg px-1.5 text-[11px] font-semibold text-warn">Chưa nối cột</span>}
+        </div>
+        <p className="pr-24 text-base font-semibold leading-snug [overflow-wrap:anywhere]"><span data-testid="block-title" className={q.label ? undefined : "text-faint"}>{q.label || "(chưa có nhãn)"}</span>{q.required && <span className="ml-1 font-bold text-bad" aria-label="bắt buộc">*</span>}</p>
+        {q.description && <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{q.description}</p>}
+        <div className="mt-1.5"><FakeInput q={q} /></div>
       </div>
     );
   }
@@ -68,25 +80,25 @@ function Face({ b, num }: { b: Block; num: number | null }) {
   if (b.type === "image") return b.url ? <img src={String(b.url)} alt={String(b.alt ?? "")} className="max-h-60 rounded-lg object-contain" /> : <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-faint" data-testid="block-title">Ảnh (chưa có địa chỉ)</div>;
   if (b.type === "divider") return <div className="py-2"><hr className="border-border" /><span className="sr-only" data-testid="block-title">Đường kẻ</span></div>;
   if (b.type === "page_break") return <div className="flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 border-t border-dashed border-border" /><span data-testid="block-title">Ngắt trang</span><span className="h-px flex-1 border-t border-dashed border-border" /></div>;
-  return <span className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-sm font-medium text-primary"><span aria-hidden className="size-2 rounded-full bg-primary" /><span data-testid="block-title">{String(b.title ?? "") || BLOCK_NAME.group}</span></span>;
+  return <div className="flex items-center gap-3"><span className="inline-flex items-center gap-2 rounded-lg border border-primary-border bg-primary-soft px-3 py-1 text-xs font-bold text-primary"><span aria-hidden className="size-2 rounded-full bg-primary" /><span data-testid="block-title">{String(b.title ?? "") || BLOCK_NAME.group}</span></span><span aria-hidden className="h-px flex-1 bg-border" /></div>;
 }
 
-const ICON_BTN = "inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-primary-soft hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 [@media(pointer:coarse)]:size-11";
+const ICON_BTN = "inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-primary-soft hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 [@media(pointer:coarse)]:size-11";
 
 /** One block on the sheet. The chosen one shows its tools (move, copy, delete). A group holds its children below its own title. */
-export function BlockCard({ b, num, selected, issue, nested, canUp, canDown, onSelect, onMove, onClone, onDelete, children }: {
-  b: Block; num: number | null; selected: boolean; issue: boolean; nested: boolean; canUp: boolean; canDown: boolean;
+export function BlockCard({ b, num, selected, issue, canUp, canDown, onSelect, onMove, onClone, onDelete, children }: {
+  b: Block; num: number | null; selected: boolean; issue: boolean; canUp: boolean; canDown: boolean;
   onSelect: () => void; onMove: (d: -1 | 1) => void; onClone: () => void; onDelete: () => void; children?: React.ReactNode;
 }) {
   return (
-    <div data-block={b.id} data-testid="canvas-block" className={cn("relative rounded-xl border bg-card p-4 transition-shadow sm:p-5", selected ? "border-primary shadow-md ring-2 ring-primary/20" : issue ? "border-bad" : "border-border hover:border-primary-border", nested && "bg-workspace")}>
+    <div data-block={b.id} data-testid="canvas-block" className={cn("relative rounded-[14px] border px-5 py-4 transition-colors", selected ? "border-primary bg-primary-soft/40 shadow-sm" : issue ? "border-bad" : "border-transparent hover:border-primary-border hover:bg-primary-soft/30")}>
       {selected && (
-        <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5 shadow-sm" role="toolbar" aria-label="Thao tác với khối đang chọn">
-          <button type="button" className={ICON_BTN} aria-label="Nhân bản" onClick={onClone} data-testid="block-clone"><Copy size={14} aria-hidden /></button>
-          <button type="button" className={ICON_BTN} aria-label="Lên" disabled={!canUp} onClick={() => onMove(-1)} data-testid="block-up"><ArrowUp size={14} aria-hidden /></button>
-          <button type="button" className={ICON_BTN} aria-label="Xuống" disabled={!canDown} onClick={() => onMove(1)} data-testid="block-down"><ArrowDown size={14} aria-hidden /></button>
-          <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
-          <button type="button" className={cn(ICON_BTN, "hover:!bg-bad-bg hover:!text-bad")} aria-label="Xoá khối" onClick={onDelete} data-testid="block-delete"><Trash2 size={14} aria-hidden /></button>
+        <div className="absolute right-3 top-2.5 z-10 flex items-center gap-1 rounded-lg border border-border bg-card px-1.5 py-0.5 shadow-xs" role="toolbar" aria-label="Thao tác với khối đang chọn">
+          <button type="button" className={ICON_BTN} aria-label="Nhân bản" onClick={onClone} data-testid="block-clone"><Copy size={13} aria-hidden /></button>
+          <button type="button" className={ICON_BTN} aria-label="Lên" disabled={!canUp} onClick={() => onMove(-1)} data-testid="block-up"><ArrowUp size={13} aria-hidden /></button>
+          <button type="button" className={ICON_BTN} aria-label="Xuống" disabled={!canDown} onClick={() => onMove(1)} data-testid="block-down"><ArrowDown size={13} aria-hidden /></button>
+          <span aria-hidden className="mx-0.5 h-3.5 w-px bg-border" />
+          <button type="button" className={cn(ICON_BTN, "hover:!bg-bad-bg hover:!text-bad")} aria-label="Xoá khối" onClick={onDelete} data-testid="block-delete"><Trash2 size={13} aria-hidden /></button>
         </div>
       )}
       <button type="button" className="block w-full cursor-pointer text-left" onClick={onSelect} data-testid="block-select" aria-pressed={selected}><Face b={b} num={num} /></button>
@@ -140,11 +152,11 @@ export function TypePicker({ trigger, onPick, inGroup }: { trigger: React.ReactN
 /** The line between two blocks. The "+" shows when the mouse is over it, always on touch screens, and as soon as the keyboard reaches it. */
 export function InsertBar({ onPick, inGroup, testid }: { onPick: (type: string) => void; inGroup?: boolean; testid: string }) {
   return (
-    <div className="group/ins relative flex h-6 items-center justify-center [@media(hover:none)]:h-9">
-      <span aria-hidden className="absolute inset-x-6 top-1/2 h-px bg-primary-border opacity-0 transition-opacity group-hover/ins:opacity-100 group-focus-within/ins:opacity-100 [@media(hover:none)]:opacity-100" />
+    <div className="group/ins relative -my-1 flex h-[18px] items-center justify-center [@media(hover:none)]:my-0 [@media(hover:none)]:h-9">
+      <span aria-hidden className="absolute inset-x-5 top-1/2 h-px bg-primary-border opacity-0 transition-opacity group-hover/ins:opacity-100 group-focus-within/ins:opacity-100 [@media(hover:none)]:opacity-100" />
       <TypePicker inGroup={inGroup} onPick={onPick} trigger={
-        <button type="button" aria-label="Chèn câu hỏi vào đây" data-testid={testid} className="relative z-10 inline-flex size-6 cursor-pointer items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 shadow-sm transition-opacity hover:bg-primary-hover focus-visible:opacity-100 group-hover/ins:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:size-8 [@media(hover:none)]:opacity-100">
-          <Plus size={14} aria-hidden />
+        <button type="button" aria-label="Chèn câu hỏi vào đây" data-testid={testid} className="relative z-10 inline-flex h-5 cursor-pointer items-center gap-1 rounded-full bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground opacity-0 shadow-sm transition-opacity hover:bg-primary-hover focus-visible:opacity-100 group-hover/ins:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:h-8 [@media(hover:none)]:opacity-100">
+          <Plus size={12} aria-hidden />Chèn câu hỏi tại đây
         </button>
       } />
     </div>

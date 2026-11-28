@@ -57,7 +57,7 @@ test.describe("7B1", () => {
     test.setTimeout(180_000);
     const page = mgr.page;
     const titles = () => page.getByTestId("canvas-block").getByTestId("block-title").allTextContents();
-    const saved = () => expect(page.getByTestId("save-status")).toHaveText("Đã lưu nháp");
+    const saved = () => expect(page.getByTestId("save-status")).toHaveText(/^Đã lưu nháp/);
 
     await page.goto("/form");
     await page.getByTestId("new-form").click();
@@ -104,7 +104,9 @@ test.describe("7B1", () => {
     await page.getByTestId("block-delete").click();
     await expect.poll(titles).toEqual(["Họ tên", "Tuổi", "Bạn thích gì"]);
     // the outline on the left jumps to a question
+    await page.getByTestId("side-toc").click();
     await page.getByTestId("toc-item").filter({ hasText: "Bạn thích gì" }).click();
+    await page.getByTestId("side-props").click();
     await expect(page.getByTestId("q-label")).toHaveValue("Bạn thích gì");
 
     // link: make a new column for "Họ tên" and "Tuổi"
@@ -149,7 +151,7 @@ test.describe("7B1", () => {
     await page.getByTestId("create-columns").click();
     await expect(page.getByTestId("publish-issues")).toHaveCount(0);
     await page.getByTestId("publish").click();
-    await expect(page.getByTestId("publish-bar")).toContainText("Đang nhận");
+    await expect(page.getByTestId("form-state")).toHaveText("Đang nhận");
     await expect(page.getByTestId("unpublished-note")).toHaveCount(0);
 
     // a change after publishing raises the bar
@@ -157,11 +159,9 @@ test.describe("7B1", () => {
     await page.getByTestId("q-label").fill("Họ và tên");
     await expect(page.getByTestId("unpublished-note")).toBeVisible();
 
-    // settings: the notification button is shown, off and dimmed
+    // settings: the unbuilt notification switch is not shown (12H-9)
     await page.getByRole("tab", { name: "Thiết lập" }).click();
-    const note = page.getByTestId("notify-new-response");
-    await expect(note).toBeDisabled();
-    await expect(note.locator("xpath=ancestor::label")).toContainText("Sắp có");
+    await expect(page.getByTestId("notify-new-response")).toHaveCount(0);
     await page.getByRole("tab", { name: "Chia sẻ" }).click();
     await expect(page.getByTestId("form-link")).toHaveValue(/\/f\/[A-Za-z0-9]{10}$/);
 
@@ -199,9 +199,9 @@ test.describe("7B1", () => {
     await chooseOption(page.getByTestId("q-answer"), "Hà Nội");
     await page.getByTestId("canvas-block").filter({ hasText: "Viết về team" }).getByTestId("block-select").click();
     await page.getByTestId("q-points").fill("5");
-    await expect(page.getByTestId("save-status")).toHaveText("Đã lưu nháp");
+    await expect(page.getByTestId("save-status")).toHaveText(/^Đã lưu nháp/);
     await page.getByTestId("publish").click();
-    await expect(page.getByTestId("publish-bar")).toContainText("Đang nhận");
+    await expect(page.getByTestId("form-state")).toHaveText("Đang nhận");
 
     // a person fills it in (through the API of the web)
     const sub = await userApi.call<{ quiz: { result: string } }>("POST", `/fill/${f.code}/submit`, { attempt_id: randomUUID(), answers: { q1: "Hà Nội", q2: "Team nhỏ, làm việc chăm chỉ." } });
