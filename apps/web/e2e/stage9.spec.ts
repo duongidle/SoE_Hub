@@ -54,13 +54,16 @@ test.afterAll(async () => {
 test("Leader gắn lộ trình mẫu cho nhân sự, sửa trong trình sửa; nhân sự tick việc, gửi Q&A, thấy Q&A 1/10", async () => {
   test.setTimeout(240_000);
   // The worker makes the sample plan of a new Leader within a minute.
-  await expect.poll(async () => (await leadApi.call<unknown[]>("GET", "/onboarding/plans?scope=template")).length, { timeout: 120_000, intervals: [3000] }).toBeGreaterThan(0);
+  // The templates of the tree are the Manager's sample and the Leader's own; only the Leader's keeps the forms the Leader can see, so wait for THAT one (the worker builds them one after another).
+  const leadId = ((await leadApi.call<{ user: { id: string } }>("GET", "/auth/me")).user.id);
+  await expect.poll(async () => (await leadApi.call<{ owner_id: string }[]>("GET", "/onboarding/plans?scope=template")).some((x) => x.owner_id === leadId), { timeout: 150_000, intervals: [3000] }).toBe(true);
+  const ownIndex = (await leadApi.call<{ owner_id: string }[]>("GET", "/onboarding/plans?scope=template")).findIndex((x) => x.owner_id === leadId);
 
   const lp = lead.page;
   // Clone the sample (it keeps the forms, no new tables), then assign the clone from the same tab.
   await lp.goto("/onboarding/lo-trinh");
   await lp.getByRole("tab", { name: "Mẫu" }).click();
-  await lp.getByTestId("plan-clone").first().click();
+  await lp.getByTestId("plan-row").nth(ownIndex).getByTestId("plan-clone").click();
   await expect(lp.getByTestId("onb-editor")).toBeVisible();
   await lp.goto("/onboarding/lo-trinh");
   await lp.getByRole("tab", { name: "Mẫu" }).click(); // a clone of a template is a template
