@@ -4,7 +4,7 @@ import { ArrowRight, Check, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input, Select, Textarea } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import { ACCENTS, type Block, type FormConfig, isEmptyAnswer, isSelect, QUESTION_KINDS, type Question, visibleIds } from "./model";
+import { ACCENTS, type Block, type FormConfig, isEmptyAnswer, isSelect, type Question, visibleIds } from "./model";
 
 export interface RendererProps {
   config: FormConfig;
@@ -137,8 +137,6 @@ interface Ctx extends RendererProps {
   groupTotal: number;
 }
 
-const kindLabel = (input: string) => QUESTION_KINDS.find((k) => k.input === input)?.label ?? input;
-
 function Render({ b, p, visible }: { b: Block; p: Ctx; visible: Set<string> }) {
   if (!visible.has(b.id)) return null;
   switch (b.type) {
@@ -173,13 +171,11 @@ function Render({ b, p, visible }: { b: Block; p: Ctx; visible: Set<string> }) {
           data-question={q.id}
           onFocusCapture={() => p.setActive(q.id)}
         >
-          <div className="flex items-center gap-2 text-xs">
-            <span className="rounded-md bg-primary-soft px-2 py-0.5 font-semibold text-primary">Câu {p.nums.get(q.id)}</span>
-            <span className="text-muted-foreground">{kindLabel(q.input)}</span>
-            {q.required && <span className="ml-auto font-medium text-bad">Bắt buộc *</span>}
-          </div>
-          <label htmlFor={"q-" + q.id} className="text-base font-semibold [overflow-wrap:anywhere]">{q.label || "(chưa có nhãn)"}</label>
-          {q.description && <span className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{q.description}</span>}
+          <label htmlFor={"q-" + q.id} className="flex items-baseline gap-2 text-[15px] font-semibold leading-snug">
+            <span className="shrink-0 rounded-md bg-primary-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-primary">Câu {p.nums.get(q.id)}</span>
+            <span className="min-w-0 [overflow-wrap:anywhere]">{q.label || "(chưa có nhãn)"}{q.required && <span className="ml-0.5 text-bad" aria-label="bắt buộc">*</span>}</span>
+          </label>
+          {q.description && <span className="text-[13px] text-muted-foreground [overflow-wrap:anywhere]">{q.description}</span>}
           <div className="mt-1 flex flex-col gap-2">
             <QuestionInput q={q} value={p.answers[q.id]} set={(v) => p.onChange({ ...p.answers, [q.id]: v })} renderAttachment={p.renderAttachment} />
           </div>
@@ -204,6 +200,7 @@ const questionsIn = (list: Block[]): Question[] => list.flatMap((b) => (b.type =
 
 /** Container widths of the real page (the main column plus the aside); the editor preview keeps the narrow frame. */
 const FILL_WIDTHS = { narrow: "lg:max-w-3xl", medium: "lg:max-w-4xl", wide: "lg:max-w-6xl" } as const;
+const PLAIN_WIDTHS = { narrow: "lg:max-w-2xl", medium: "lg:max-w-3xl", wide: "lg:max-w-5xl" } as const;
 const PREVIEW_WIDTHS = { narrow: "max-w-md", medium: "max-w-2xl", wide: "max-w-4xl" } as const;
 
 export function FormRenderer(p: RendererProps) {
@@ -271,13 +268,14 @@ export function FormRenderer(p: RendererProps) {
   const errors = { ...pageErr, ...(p.errors ?? {}) };
   const ctx: Ctx = { ...p, errors, nums, active, setActive: setActiveId, groups, groupTotal: groupIds.length };
 
+  const quiz = !!config.quiz?.enabled;
   const actions = (
-    <div className="flex gap-2">
+    <div className={cn("flex gap-2", !quiz && "lg:justify-end")}>
       {cur > 0 && <Button variant="secondary" onClick={() => setPage(cur - 1)} data-testid="form-back">Quay lại</Button>}
       {last ? (
-        <Button className="flex-1" onClick={submit} loading={p.submitting} disabled={!p.onSubmit} style={{ background: accent }} data-testid="form-submit">{p.submitLabel ?? "Gửi"}{fill && <ArrowRight size={16} aria-hidden />}</Button>
+        <Button className={cn(quiz ? "flex-1" : "flex-1 lg:flex-none")} onClick={submit} loading={p.submitting} disabled={!p.onSubmit} style={{ background: accent }} data-testid="form-submit">{p.submitLabel ?? "Gửi"}{fill && <ArrowRight size={16} aria-hidden />}</Button>
       ) : (
-        <Button className="flex-1" onClick={next} style={{ background: accent }} data-testid="form-next">Tiếp<ArrowRight size={16} aria-hidden /></Button>
+        <Button className={cn(quiz ? "flex-1" : "flex-1 lg:flex-none")} onClick={next} style={{ background: accent }} data-testid="form-next">Tiếp<ArrowRight size={16} aria-hidden /></Button>
       )}
     </div>
   );
@@ -322,10 +320,11 @@ export function FormRenderer(p: RendererProps) {
     );
   }
   return (
-    <div className={cn("mx-auto grid w-full items-start gap-4 pb-28 lg:grid-cols-[minmax(0,1fr)_240px] lg:pb-0", FILL_WIDTHS[ap.width ?? "medium"])} style={{ ["--form-accent" as string]: accent }} data-testid="form-renderer">
+    <div className={cn("mx-auto grid w-full items-start gap-4 pb-28 lg:pb-0", quiz ? ["lg:grid-cols-[minmax(0,1fr)_240px]", FILL_WIDTHS[ap.width ?? "medium"]] : PLAIN_WIDTHS[ap.width ?? "medium"])} style={{ ["--form-accent" as string]: accent }} data-testid="form-renderer">
       {body}
-      <aside className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card/90 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:sticky lg:inset-x-auto lg:bottom-auto lg:top-20 lg:rounded-card lg:border lg:bg-card lg:p-4 lg:shadow-card lg:backdrop-blur-none" data-testid="form-aside">
-        <div className="mb-3 hidden flex-col gap-3 lg:flex">
+      <aside className={cn("fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card/90 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur", quiz ? "lg:sticky lg:inset-x-auto lg:bottom-auto lg:top-20 lg:rounded-card lg:border lg:bg-card lg:p-4 lg:shadow-card lg:backdrop-blur-none" : "lg:static lg:flex lg:items-center lg:justify-end lg:gap-3 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none")} data-testid="form-aside">
+        {!quiz && p.draftNote && <span className="hidden items-center gap-1 text-xs text-ok lg:inline-flex" data-testid="draft-note"><Check size={14} aria-hidden />{p.draftNote}</span>}
+        {quiz && <div className="mb-3 hidden flex-col gap-3 lg:flex">
           {p.draftNote && <p className="flex items-center gap-1.5 rounded-control border border-ok-border bg-ok-bg px-2.5 py-1.5 text-xs text-ok" data-testid="draft-note"><Check size={14} aria-hidden />{p.draftNote}</p>}
           <div className="flex items-baseline justify-between"><h2 className="text-sm font-semibold">Bản đồ câu hỏi</h2><span className="text-xs font-semibold text-primary tabular-nums">{done}/{qs.length}</span></div>
           <div className="grid grid-cols-4 gap-1.5" data-testid="question-map">
@@ -341,7 +340,7 @@ export function FormRenderer(p: RendererProps) {
             <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border-2 border-(--form-accent)" />Đang xem</span>
             <span className="inline-flex items-center gap-1"><i className="size-2 rounded-full border border-border bg-muted" />Trống</span>
           </div>
-        </div>
+        </div>}
         {actions}
       </aside>
     </div>

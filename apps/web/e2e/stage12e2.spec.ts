@@ -115,7 +115,7 @@ test("form công khai: thanh tiến độ, thẻ câu, lưu nháp, bản đồ c
     expect(box.y).toBeGreaterThan(812 - 120);
   } else {
     await expect(page.getByTestId("draft-note")).toContainText("Đã lưu nháp lúc");
-    await expect(page.getByTestId("question-map").getByRole("button")).toHaveCount(10);
+    await expect(page.getByTestId("question-map")).toHaveCount(0);
   }
 
   // the draft stays in the browser
@@ -123,16 +123,9 @@ test("form công khai: thanh tiến độ, thẻ câu, lưu nháp, bản đồ c
   await expect(page.getByLabel("Họ tên")).toHaveValue("Nguyễn An");
   await expect(page.getByRole("radio", { name: "Doanh nghiệp" })).toBeChecked();
 
-  if (!phone) {
-    // the map jumps to a question of the other page
-    await page.getByRole("button", { name: /Tới câu 8/ }).click();
-    await expect(page.getByTestId("form-progress")).toContainText("Trang 2 / 2");
-    await expect(page.getByLabel("Số người dùng")).toBeFocused();
-    await shot(anon, "fill-page2");
-  } else {
-    await page.getByTestId("form-next").click();
-    await expect(page.getByTestId("form-progress")).toContainText("Trang 2 / 2");
-  }
+  await page.getByTestId("form-next").click();
+  await expect(page.getByTestId("form-progress")).toContainText("Trang 2 / 2");
+  await shot(anon, "fill-page2");
   await page.getByLabel("Ngày bắt đầu dùng").fill("25/12/2026");
   await page.getByLabel("Số người dùng").fill("12");
   await page.getByRole("checkbox", { name: "Tôi đồng ý được liên hệ lại" }).check();

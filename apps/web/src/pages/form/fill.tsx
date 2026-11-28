@@ -297,7 +297,7 @@ function Filler({ view, reload }: { view: FillView; reload: () => void }) {
   const today = new Date().toLocaleDateString("vi-VN");
   const progress = formProgress(cfg, answers);
   const quizOn = !!cfg.quiz?.enabled;
-  const kind = quizOn ? "Bài kiểm tra" : internal ? "Form nội bộ" : "Form công khai";
+  const kind = quizOn ? "Bài kiểm tra" : undefined;
   const draftNote = savedAt ? "Đã lưu nháp lúc " + savedAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : restored ? "Đã khôi phục bản nháp" : null;
   const filler = (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border-soft bg-muted/60 px-4 py-3" data-testid="fill-who">
@@ -309,7 +309,7 @@ function Filler({ view, reload }: { view: FillView; reload: () => void }) {
     </div>
   );
   return (
-    <Shell bar={<TopBar name={cfg.title || view.name} chip={kind} progress={progress} draft={draftNote} accent={accentOf(cfg)} />}>
+    <Shell bar={<TopBar name={cfg.title || view.name} chip={kind} progress={progress} draft={quizOn ? draftNote : null} accent={accentOf(cfg)} />}>
       <FormRenderer
         mode="fill"
         chip={kind}

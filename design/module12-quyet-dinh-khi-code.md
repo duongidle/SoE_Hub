@@ -306,3 +306,9 @@ Chỉ web. Không đổi quyền, cách tính hay dữ liệu lưu. Chức năng
 - **Top bar:** "Bài của tôi"/"Skill của tôi" là nút viền 32px kèm icon bookmark; "Viết bài"/"Tải lên skill" 32px bo 9px.
 - **Trang đọc:** `.tiptap-doc` chữ 15px (thêm một dòng vào `index.css`), cột 72ch giữ nguyên.
 - **Kiểm:** typecheck sạch; eslint các thư mục library/knowledge/aihub sạch; ảnh scratchpad `12h-5/` (1440 và 1280). Theo lệnh Opus chỉ chạy e2e `stage8` (đổi selector nút Tìm); không chạy `stage12f2`.
+
+## 12H-7 Trang điền form gọn (28/11)
+- **Bản đồ câu hỏi chỉ cho Bài kiểm tra** (config.quiz.enabled). Form thường: không cột phải, cột căn giữa (PLAIN_WIDTHS 2xl/3xl/5xl theo appearance.width); aside vẫn là một phần tử duy nhất chứa nút: ghim đáy ở điện thoại, từ lg thành hàng cuối form căn phải kèm chữ nhỏ "Đã lưu nháp lúc …" (draft-note).
+- **Không nhắc loại form** (nội bộ/công khai) ở thanh trên và dải bìa; chip chỉ còn "Bài kiểm tra". Thanh trên không còn chữ nháp ở form thường.
+- **Đầu câu hỏi một dòng:** chip "Câu N" + tiêu đề 15px/600 cùng hàng, dấu * đỏ sau tiêu đề, mô tả 13px muted; bỏ nhãn loại dữ liệu (kindLabel).
+- **Kiểm:** typecheck sạch; e2e stage12e2 desktop+phone 5 pass (sửa spec: bỏ nhấn bản đồ, dùng nút Tiếp cho cả hai). Ảnh scratchpad 12h-7/. Chưa chụp riêng Bài kiểm tra (nhánh quiz giữ nguyên bản đồ cũ).
