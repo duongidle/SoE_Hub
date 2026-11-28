@@ -117,12 +117,12 @@ function FileBox({ code, token, attemptId, q, value, set }: { code: string; toke
   };
   return (
     <div className="flex flex-col gap-2" data-testid={`file-${q.id}`}>
-      <input id={`q-${q.id}`} type="file" multiple disabled={busy} onChange={(e) => { void pick(e.target.files); e.target.value = ""; }} className="max-w-full text-sm" />
+      <input id={`q-${q.id}`} type="file" multiple disabled={busy} onChange={(e) => { void pick(e.target.files); e.target.value = ""; }} className="min-h-11 max-w-full text-sm" />
       {busy && <span className="text-xs text-muted-foreground">Đang tải file…</span>}
       {ids.map((id) => (
         <div key={id} className="flex items-center justify-between gap-2 rounded border border-border px-2 py-1 text-sm">
           <span className="min-w-0 [overflow-wrap:anywhere]">{names[id] ?? "File đã tải"}</span>
-          <button type="button" className="text-xs text-bad" onClick={() => set(ids.filter((x) => x !== id))}>Bỏ</button>
+          <button type="button" className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm text-bad" onClick={() => set(ids.filter((x) => x !== id))}>Bỏ</button>
         </div>
       ))}
       {err && <span role="alert" className="text-xs text-bad">{err}</span>}
@@ -135,7 +135,7 @@ function Shell({ bar, children }: { bar: React.ReactNode; children: React.ReactN
   return (
     <div className="min-h-dvh bg-background" style={{ backgroundImage: "radial-gradient(48rem 26rem at 8% -8%, rgb(79 70 229 / 0.12), transparent 65%), radial-gradient(44rem 26rem at 100% 4%, rgb(16 185 129 / 0.10), transparent 65%)" }} data-testid="fill-page">
       {bar}
-      <div className="mx-auto w-full px-3 py-4 sm:px-6 sm:py-6">{children}</div>
+      <div className="mx-auto w-full px-[max(0.75rem,env(safe-area-inset-left))] py-4 sm:px-6 sm:py-6">{children}</div>
     </div>
   );
 }
@@ -143,7 +143,7 @@ function Shell({ bar, children }: { bar: React.ReactNode; children: React.ReactN
 function TopBar({ name, chip, progress, draft, accent }: { name: string; chip?: string; progress?: { done: number; total: number } | null; draft?: string | null; accent?: string }) {
   const pct = progress && progress.total > 0 ? (progress.done / progress.total) * 100 : 0;
   return (
-    <header className="sticky top-0 z-30 border-b border-border-soft bg-card/80 backdrop-blur-md" data-testid="fill-bar">
+    <header className="sticky top-0 z-30 border-b border-border-soft bg-card/80 pt-[env(safe-area-inset-top)] backdrop-blur-md" data-testid="fill-bar">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-3 sm:px-6">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary text-sm font-bold text-primary-foreground" aria-hidden>S</span>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold sm:flex-none sm:text-base" title={name}>{name}</span>

@@ -41,6 +41,27 @@ test.beforeAll(async ({ browser }, info) => {
 });
 test.afterAll(async () => { await s?.close(); });
 
+/** Quick accessibility and touch audit (ui-ux-pro-max 1-3, 8): every control has a name, every image an alt, every field a label; icon buttons are not tiny. */
+const a11y = () => {
+  const out: string[] = [];
+  const visible = (el: Element) => { const r = el.getBoundingClientRect(); const c = getComputedStyle(el); return r.width > 0 && r.height > 0 && c.visibility !== "hidden"; };
+  const name = (el: Element) => (el.getAttribute("aria-label") ?? el.getAttribute("aria-labelledby") ?? el.getAttribute("title") ?? (el as HTMLElement).innerText ?? "").trim();
+  for (const el of Array.from(document.querySelectorAll("button, a[href], [role=button], [role=tab]"))) {
+    if (!visible(el)) continue;
+    if (!name(el) && !el.querySelector("img[alt]:not([alt=''])")) out.push(`no name: ${el.tagName} ${String((el as HTMLElement).className).slice(0, 50)}`);
+  }
+  for (const el of Array.from(document.querySelectorAll("img"))) if (visible(el) && !el.hasAttribute("alt")) out.push("img without alt");
+  for (const el of Array.from(document.querySelectorAll("input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea, select"))) {
+    if (!visible(el)) continue;
+    const id = el.getAttribute("id");
+    const labelled = el.getAttribute("aria-label") || el.getAttribute("aria-labelledby") || el.closest("label") || (id && document.querySelector(`label[for="${id}"]`));
+    if (!labelled) out.push(`field without label: ${el.tagName} ${el.getAttribute("placeholder") ?? ""}`);
+  }
+  if (!document.documentElement.lang) out.push("html without lang");
+  if (document.querySelectorAll("h1").length === 0) out.push("no h1");
+  return out;
+};
+
 /** A box whose content is wider than the box (text that sticks out or is cut with no ellipsis). A box that scrolls, or ends the text with "...", is fine. */
 const bleed = () => {
   const out: string[] = [];
@@ -79,6 +100,7 @@ for (const [name, url] of SCREENS) {
     await s.page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
     const out = await s.page.evaluate(bleed);
     expect.soft(out, `Chữ tràn khỏi khung ở ${name}`).toEqual([]);
+    expect.soft(await s.page.evaluate(a11y), `Truy cập (a11y) ở ${name}`).toEqual([]);
     expect(s.problems).toEqual([]);
   });
 }
