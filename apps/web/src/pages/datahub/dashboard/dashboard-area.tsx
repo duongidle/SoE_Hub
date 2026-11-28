@@ -208,7 +208,7 @@ export function DashboardArea({ dh, dashboardId }: { dh: DatahubBrief; dashboard
           const on = d.id === dashboardId;
           return (
             <div key={d.id} className={cn("flex shrink-0 items-center rounded-lg", on ? "bg-primary-soft" : "hover:bg-card")}>
-              <Link to="/datahub/$datahubId/dashboard/$dashboardId" params={{ datahubId: dh.id, dashboardId: d.id }} role="tab" aria-selected={on} className={cn("max-w-48 truncate px-3 py-3 text-sm sm:py-1.5", on ? "font-semibold text-primary" : "text-muted-foreground hover:text-foreground")} title={d.name}>{d.name}</Link>
+              <Link to="/datahub/$datahubId/dashboard/$dashboardId" params={{ datahubId: dh.id, dashboardId: d.id }} role="tab" aria-selected={on} className={cn("max-w-48 truncate px-3 py-3 text-sm sm:py-1.5", on ? "font-medium text-primary" : "text-muted-foreground hover:text-foreground")} title={d.name}>{d.name}</Link>
               {on && (
                 <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn dashboard ${d.name}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
                   <MenuItem onSelect={() => setDialog({ kind: "rename", d })}><Pencil size={16} aria-hidden /> Đổi tên</MenuItem>

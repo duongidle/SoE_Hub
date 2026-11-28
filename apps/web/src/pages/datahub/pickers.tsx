@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 /** `index`: position of the option in its column (an option without a color gets one by it). */
 export function OptionChip({ option, index = 0 }: { option: SelectOption; index?: number }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold [overflow-wrap:anywhere]" style={optionChipVar(option.color, index)}>
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium [overflow-wrap:anywhere]" style={optionChipVar(option.color, index)}>
       <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: "var(--chip-dot)" }} />
       {option.name}
     </span>

@@ -49,7 +49,7 @@ export function EmptyDashboard({ owner, dh, onPick }: { owner: boolean; dh?: Dat
               <button type="button" onClick={() => onPick(i.type)} className="flex min-h-11 w-full items-start gap-3 rounded-card border border-border-soft bg-card p-4 text-left shadow-sm transition-colors hover:border-primary-border hover:bg-primary-soft focus-visible:outline-2">
                 <span aria-hidden className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">{i.icon}</span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-semibold [overflow-wrap:anywhere]">{i.title}</span>
+                  <span className="block text-sm font-medium [overflow-wrap:anywhere]">{i.title}</span>
                   <span className="block text-xs text-muted-foreground [overflow-wrap:anywhere]">{TYPE_LABELS[i.type]}. {i.hint}</span>
                 </span>
               </button>

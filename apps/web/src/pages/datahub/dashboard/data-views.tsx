@@ -60,7 +60,7 @@ export function PivotTable({ result, format, heat, totals }: { result: QueryResu
             {p.colLabels.map((c) => (
               <th key={c} scope="col" className={cn("px-2 py-1.5 font-medium", num)}>{c}</th>
             ))}
-            {showTotals && <th scope="col" className={cn("px-2 py-1.5 font-semibold", num)}>Tổng</th>}
+            {showTotals && <th scope="col" className={cn("px-2 py-1.5 font-medium", num)}>Tổng</th>}
           </tr>
         </thead>
         <tbody>
@@ -76,13 +76,13 @@ export function PivotTable({ result, format, heat, totals }: { result: QueryResu
                   </td>
                 );
               })}
-              {showTotals && <td className={cn("px-2 py-1.5 font-semibold", num)}>{formatValue(p.rowTotals![i]!, format)}</td>}
+              {showTotals && <td className={cn("px-2 py-1.5 font-medium", num)}>{formatValue(p.rowTotals![i]!, format)}</td>}
             </tr>
           ))}
         </tbody>
         {showTotals && (
           <tfoot>
-            <tr className="border-t-2 border-border font-semibold">
+            <tr className="border-t-2 border-border font-medium">
               <th scope="row" className="px-2 py-1.5 text-left">Tổng</th>
               {p.colTotals!.map((v, j) => (
                 <td key={j} className={cn("px-2 py-1.5", num)}>{formatValue(v, format)}</td>

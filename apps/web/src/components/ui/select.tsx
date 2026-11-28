@@ -137,7 +137,7 @@ export function Select({ className, children, value, defaultValue, onChange, dis
   const items: React.ReactNode[] = [];
   let lastGroup: string | undefined;
   for (const o of shown) {
-    if (o.group !== lastGroup && o.group) items.push(<div key={`g-${o.group}`} role="presentation" className="px-3 pb-0.5 pt-2 text-xs font-semibold text-muted-foreground">{o.group}</div>);
+    if (o.group !== lastGroup && o.group) items.push(<div key={`g-${o.group}`} role="presentation" className="px-3 pb-0.5 pt-2 text-xs font-medium text-muted-foreground">{o.group}</div>);
     lastGroup = o.group;
     items.push(
       <div

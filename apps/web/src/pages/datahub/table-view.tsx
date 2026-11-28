@@ -517,7 +517,7 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
         {body}
         {sel.ids.length > 0 && (
           <div role="toolbar" aria-label="Dòng đã chọn" data-testid="selection-bar" className="fade-up pointer-events-auto absolute inset-x-3 bottom-4 z-20 mx-auto flex w-fit max-w-[calc(100%-1.5rem)] flex-wrap items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-1.5 text-xs text-foreground shadow-xl">
-            <span className="font-semibold">Đã chọn {formatCount(sel.ids.length, "dòng")}</span>
+            <span className="font-medium">Đã chọn {formatCount(sel.ids.length, "dòng")}</span>
             {sel.ids.length === 1 && (
               <Button variant="ghost" aria-label="Chi tiết dòng" className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setOpenRow(sel.ids[0]!)}><Maximize2 size={14} aria-hidden /><span aria-hidden>Chi tiết</span></Button>
             )}

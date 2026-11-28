@@ -3,7 +3,7 @@ import type * as React from "react";
 import { cn } from "@/lib/utils";
 
 /** Colors by meaning: ok = done, info = in progress, warn = waiting / due soon, bad = overdue / error, ai = special group / AI. */
-const badgeVariants = cva("inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold", {
+const badgeVariants = cva("inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium", {
   variants: {
     tone: {
       ok: "border-ok-border bg-ok-bg text-ok",

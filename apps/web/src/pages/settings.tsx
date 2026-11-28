@@ -35,14 +35,14 @@ export function SettingsLayout({ me, path, children }: { me: Me; path: string; c
         <div className="flex flex-col gap-5 md:sticky md:top-4">
           {groups.map((g) => (
             <div key={g.name} role="group" aria-label={g.name} className="flex flex-col gap-0.5">
-              <div className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.name}</div>
+              <div className="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{g.name}</div>
               {g.links.map((l) => (
                 <Link
                   key={l.to}
                   to={l.to}
                   aria-label={l.label}
                   aria-current={l.to === current ? "page" : undefined}
-                  className={cn("flex min-h-10 items-center rounded-control px-3 text-sm transition-colors hover:bg-primary-soft", l.to === current ? "bg-primary-soft font-semibold text-primary" : "text-foreground")}
+                  className={cn("flex min-h-10 items-center rounded-control px-3 text-sm transition-colors hover:bg-primary-soft", l.to === current ? "bg-primary-soft font-medium text-primary" : "text-foreground")}
                 >
                   {l.label}
                 </Link>

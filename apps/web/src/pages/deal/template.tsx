@@ -55,7 +55,7 @@ export function TemplatePage() {
   const item = (t: Template) => (
     <li key={t.id}>
       <button type="button" data-testid={`template-item`} aria-current={t.id === search.template ? "true" : undefined} onClick={() => select(t.id)} className={cn("flex w-full flex-col gap-1 rounded-xl border border-transparent px-3 py-2.5 text-left hover:bg-muted", t.id === search.template && "border-primary-border bg-primary-soft")}>
-        <span className={cn("text-sm [overflow-wrap:anywhere]", t.id === search.template ? "font-semibold text-primary" : "font-medium")}>{t.name}</span>
+        <span className={cn("text-sm [overflow-wrap:anywhere]", t.id === search.template ? "font-medium text-primary" : "font-medium")}>{t.name}</span>
         <span className="flex flex-wrap items-center gap-1.5 text-xs font-normal text-muted-foreground">
           <Badge tone={t.kind === "shared" ? "ok" : "warn"}>{t.kind === "shared" ? "Chung" : "Riêng"}</Badge>
           {t.archived && <Badge>Đã lưu trữ</Badge>}
@@ -269,7 +269,7 @@ function TemplatePanel({ id, focusColumn, leaderName }: { id: string; focusColum
           <h3 className="text-base font-semibold">Cột của bảng</h3>
           <div role="group" aria-label="Lọc cột theo lớp" className="inline-flex flex-wrap items-center gap-0.5 rounded-lg bg-muted p-0.5">
             {([["all", "Tất cả", d.columns.length], ["basic", LAYER_LABEL.basic, count("basic")], ["role", LAYER_LABEL.role, count("role")], ["team", LAYER_LABEL.team, count("team")]] as const).map(([k, label, n]) => (
-              <button key={k} type="button" aria-pressed={layerTab === k} onClick={() => setLayerTab(k)} className={cn("min-h-7 rounded-md px-2.5 text-sm", layerTab === k ? "bg-card font-semibold text-primary shadow-card" : "text-muted-foreground hover:text-foreground")}>{label} ({n})</button>
+              <button key={k} type="button" aria-pressed={layerTab === k} onClick={() => setLayerTab(k)} className={cn("min-h-7 rounded-md px-2.5 text-sm", layerTab === k ? "bg-card font-medium text-primary shadow-card" : "text-muted-foreground hover:text-foreground")}>{label} ({n})</button>
             ))}
           </div>
           <label className="relative ml-auto block min-w-40 max-w-64 flex-1 basis-44">

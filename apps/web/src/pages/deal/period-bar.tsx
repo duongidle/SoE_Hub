@@ -86,7 +86,7 @@ export function PeriodButton({ state, scope, showRule, follow }: { state: Shared
             <div className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2">
                 <Button variant="ghost" className="!px-1.5" aria-label="Kỳ trước" data-testid="period-prev" onClick={() => step(-1)}><ChevronLeft size={16} aria-hidden /></Button>
-                <span className="min-w-0 flex-1 text-center text-[13px] font-semibold tabular-nums" data-testid="period-pop-name">{name}</span>
+                <span className="min-w-0 flex-1 text-center text-[13px] font-medium tabular-nums" data-testid="period-pop-name">{name}</span>
                 <Button variant="ghost" className="!px-1.5" aria-label="Kỳ sau" data-testid="period-next" onClick={() => step(1)}><ChevronRight size={16} aria-hidden /></Button>
               </div>
               <p className="text-center text-xs tabular-nums text-muted-foreground">{rangeDates(info.data)}</p>

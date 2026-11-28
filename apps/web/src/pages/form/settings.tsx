@@ -72,7 +72,7 @@ export function ShareTab({ form, reload }: { form: FormDetail; reload: () => voi
 const Card = ({ title, desc, action, children, className, testid }: { title: string; desc?: string; action?: React.ReactNode; children?: React.ReactNode; className?: string; testid?: string }) => (
   <section className={cn("flex flex-col gap-3 rounded-card border border-border bg-card p-5", className)} data-testid={testid}>
     <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0"><h2 className="text-sm font-bold">{title}</h2>{desc && <p className="text-xs text-muted-foreground">{desc}</p>}</div>
+      <div className="min-w-0"><h2 className="text-sm font-semibold">{title}</h2>{desc && <p className="text-xs text-muted-foreground">{desc}</p>}</div>
       {action}
     </div>
     {children}
@@ -85,7 +85,7 @@ function Toggle({ checked, onChange, label, hint, help, disabled, testid }: { ch
   return (
     <label className={cn("flex min-h-9 cursor-pointer items-center justify-between gap-4 py-1", disabled && "cursor-not-allowed opacity-50")}>
       <span className="min-w-0">
-        <span className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">{label}{help && <Help text={help} />}</span>
+        <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">{label}{help && <Help text={help} />}</span>
         {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
       </span>
       <span className="relative h-6 w-10 shrink-0">
@@ -120,7 +120,7 @@ export function SettingsTab({ form, cfg, change, reload, reloadDraft, flush }: {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4">
       <div>
-        <h2 className="text-lg font-bold">Thiết lập thu thập</h2>
+        <h2 className="text-lg font-semibold">Thiết lập thu thập</h2>
         <p className="text-xs text-muted-foreground">Quy tắc nhận phản hồi, thời gian hiệu lực và chế độ bài kiểm tra.{isPublic && " Form công khai (ai có link): các mục dành cho form nội bộ bị mờ."}</p>
       </div>
       <div className="grid items-start gap-4 xl:grid-cols-2">
@@ -128,11 +128,11 @@ export function SettingsTab({ form, cfg, change, reload, reloadDraft, flush }: {
         <Card title="Thông tin chung" desc="Tên form và trạng thái nhận phản hồi">
           <Field label="Tên form"><Input value={name} maxLength={200} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && name !== form.name && upd.mutate({ name: name.trim() })} data-testid="settings-name" /></Field>
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold">Trạng thái</span>
+            <span className="text-xs font-medium">Trạng thái</span>
             <div role="radiogroup" aria-label="Trạng thái" className="inline-flex w-fit rounded-lg bg-muted p-0.5" data-testid="status">
               {STATUS.map(([v, l]) => (
                 <button key={v} type="button" role="radio" aria-checked={form.status === v} disabled={unpublished || status.isPending} onClick={() => form.status !== v && status.mutate(v)} data-testid={`status-${v}`}
-                  className={cn("rounded-md px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50", form.status === v ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}>{l}</button>
+                  className={cn("rounded-md px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50", form.status === v ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground")}>{l}</button>
               ))}
             </div>
             <span className="text-xs text-muted-foreground">{unpublished ? "Nháp: xuất bản ở bước Thiết kế để bắt đầu nhận phản hồi." : form.state_reason ?? ""}</span>
@@ -156,14 +156,14 @@ export function SettingsTab({ form, cfg, change, reload, reloadDraft, flush }: {
             <div className="flex flex-col gap-3 border-t border-border-soft pt-3" data-testid="quiz-settings">
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-muted/50 p-3">
-                  <span className="mb-1 block text-xs font-semibold text-muted-foreground">Điểm đạt</span>
+                  <span className="mb-1 block text-xs font-medium text-muted-foreground">Điểm đạt</span>
                   <div className="flex items-center gap-2">
                     <Input type="number" min={0} className="w-20" value={quiz.pass?.value ?? ""} placeholder="Không đặt" onChange={(e) => setQuiz({ pass: e.target.value === "" ? null : { type: quiz.pass?.type ?? "percent", value: Number(e.target.value) } })} data-testid="quiz-pass" aria-label="Điểm đạt" />
                     <Select className="w-24" aria-label="Tính theo" value={quiz.pass?.type ?? "percent"} disabled={!quiz.pass} onChange={(e) => setQuiz({ pass: { type: e.target.value as "points" | "percent", value: quiz.pass?.value ?? 0 } })}><option value="percent">%</option><option value="points">Điểm</option></Select>
                   </div>
                 </div>
                 <div className="rounded-xl bg-muted/50 p-3">
-                  <span className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">Số lần làm tối đa<Help text="Số lần mỗi người được làm bài. Khác với “Số phản hồi tối đa”, là tổng của cả form." /></span>
+                  <span className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">Số lần làm tối đa<Help text="Số lần mỗi người được làm bài. Khác với “Số phản hồi tối đa”, là tổng của cả form." /></span>
                   <div className="flex items-center gap-2">
                     <Input type="number" min={1} max={20} className="w-20" value={quiz.max_attempts} onChange={(e) => setQuiz({ max_attempts: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })} data-testid="quiz-attempts" aria-label="Số lần làm tối đa" />
                     <span className="text-xs text-muted-foreground">lần mỗi người</span>

@@ -47,7 +47,7 @@ export function AiHubPage({ openId }: { openId?: string }) {
   };
   const goto = (id: string | null) => void (nav as (o: unknown) => Promise<void>)(id ? { to: "/ai-hub/$id", params: { id }, search: (s: unknown) => s } : { to: "/ai-hub", search: (s: unknown) => s });
   const installOf = async (id: string) => (await qc.fetchQuery({ queryKey: ["aihub", "skill", id], queryFn: () => api<SkillDetail>("GET", `/aihub/skills/${id}`) })).install.claude_code;
-  const newBtn = "inline-flex h-8 items-center gap-1.5 rounded-[9px] bg-primary px-3.5 text-sm font-semibold text-primary-foreground shadow-2xs transition-colors hover:bg-primary-hover";
+  const newBtn = "inline-flex h-8 items-center gap-1.5 rounded-[9px] bg-primary px-3.5 text-sm font-medium text-primary-foreground shadow-2xs transition-colors hover:bg-primary-hover";
   return (
     <div className="mx-auto flex max-w-[1260px] flex-col gap-4">
       <PageTitle
@@ -88,7 +88,7 @@ export function AiHubPage({ openId }: { openId?: string }) {
               <div className="flex flex-wrap gap-1">{s.clients.map((c, n) => <ColorChip key={c} index={n} color="blue">{CLIENT_LABEL[c] ?? c}</ColorChip>)}</div>
               {s.group && <span className="shrink-0 text-[11px] text-muted-foreground">{GROUP_LABEL[s.group] ?? s.group}</span>}
             </div>
-            <Link to="/ai-hub/$id" params={{ id: s.id }} search={(x: unknown) => x as never} className="font-mono text-base font-bold text-foreground [overflow-wrap:anywhere] hover:text-primary">{s.name}</Link>
+            <Link to="/ai-hub/$id" params={{ id: s.id }} search={(x: unknown) => x as never} className="font-mono text-base font-semibold text-foreground [overflow-wrap:anywhere] hover:text-primary">{s.name}</Link>
             <CodeFrame label="description" className="line-clamp-4 min-h-[4.5rem]">{s.snippet ? <Snippet html={s.snippet} /> : s.description}</CodeFrame>
             {s.tags.length > 0 && <div className="flex flex-wrap gap-1">{s.tags.slice(0, 4).map((t) => <span key={t} className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">#{t}</span>)}</div>}
             <div className="mt-auto flex items-center justify-between gap-2 border-t border-border-soft pt-2 text-[11px] text-muted-foreground">

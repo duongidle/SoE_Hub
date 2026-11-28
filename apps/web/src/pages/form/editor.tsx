@@ -163,8 +163,8 @@ function EditorInner({ id, d, refetch }: { id: string; d: FormDetail; refetch: (
           const on = step === s.value;
           return (
             <button key={s.value} type="button" role="tab" aria-selected={on} onClick={() => { setStep(s.value); if (s.value === "design") setView("edit"); }} data-testid={`step-${s.value}`}
-              className={cn("inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1 text-sm sm:min-h-7", on ? "bg-card font-semibold text-primary shadow-2xs" : "font-medium text-muted-foreground hover:text-foreground")}>
-              <span className="hidden min-[1400px]:inline-flex"><s.icon size={14} aria-hidden /></span>{n + 1}. {s.label}{s.value === "responses" && <span className="rounded-full bg-primary-soft px-1.5 text-[11px] font-bold text-primary">{d.response_count}</span>}
+              className={cn("inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1 text-sm sm:min-h-7", on ? "bg-card font-medium text-primary shadow-2xs" : "font-medium text-muted-foreground hover:text-foreground")}>
+              <span className="hidden min-[1400px]:inline-flex"><s.icon size={14} aria-hidden /></span>{n + 1}. {s.label}{s.value === "responses" && <span className="rounded-full bg-primary-soft px-1.5 text-[11px] font-medium text-primary">{d.response_count}</span>}
             </button>
           );
         })}
@@ -189,8 +189,8 @@ function EditorInner({ id, d, refetch }: { id: string; d: FormDetail; refetch: (
                   const text = b.type === "question" ? (b as Question).label || "(chưa có nhãn)" : b.type === "group" ? String(b.title ?? BLOCK_NAME.group) : b.type === "heading" || b.type === "text" ? String(b.text ?? BLOCK_NAME[b.type]) : BLOCK_NAME[b.type] ?? b.type;
                   return (
                     <li key={b.id}>
-                      <button type="button" onClick={() => jump(b.id)} aria-current={selected === b.id ? "true" : undefined} data-testid="toc-item" className={cn("flex w-full cursor-pointer items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-sm", f.parent ? "pl-6" : "pl-2", selected === b.id ? "bg-primary-soft font-semibold text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground", b.type === "group" && "font-semibold")}>
-                        <span className="min-w-0 flex-1 truncate">{b.type === "question" ? <span className="mr-1.5 text-xs font-semibold text-primary">{numbers.get(b.id)}.</span> : null}{text}</span>
+                      <button type="button" onClick={() => jump(b.id)} aria-current={selected === b.id ? "true" : undefined} data-testid="toc-item" className={cn("flex w-full cursor-pointer items-center gap-2 rounded-lg py-1.5 pr-2 text-left text-sm", f.parent ? "pl-6" : "pl-2", selected === b.id ? "bg-primary-soft font-medium text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground", b.type === "group" && "font-medium")}>
+                        <span className="min-w-0 flex-1 truncate">{b.type === "question" ? <span className="mr-1.5 text-xs font-medium text-primary">{numbers.get(b.id)}.</span> : null}{text}</span>
                       </button>
                     </li>
                   );
@@ -235,10 +235,10 @@ function EditorInner({ id, d, refetch }: { id: string; d: FormDetail; refetch: (
                   <div className="h-1" style={{ background: `linear-gradient(90deg, ${accent}, #34d399)` }} aria-hidden />
                   <div className="border-b border-border-soft px-6 pb-4 pt-5">
                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      {d.table_name ? <span className="inline-flex items-center rounded-full bg-primary-soft px-2.5 py-0.5 text-[11px] font-semibold text-primary" data-testid="source-chip">Datahub · {d.table_name}</span> : <span />}
+                      {d.table_name ? <span className="inline-flex items-center rounded-full bg-primary-soft px-2.5 py-0.5 text-[11px] font-medium text-primary" data-testid="source-chip">Datahub · {d.table_name}</span> : <span />}
                       <span className="text-xs text-muted-foreground">{numbers.size} câu hỏi · Tự động đồng bộ bảng</span>
                     </div>
-                    <input value={cfg.title} placeholder="Tiêu đề form" aria-label="Tiêu đề form" onChange={(e) => change({ ...cfg, title: e.target.value })} data-testid="form-title" className="-ml-2 w-full rounded-[9px] border border-transparent bg-transparent px-2 py-1 text-2xl font-bold tracking-tight outline-none hover:border-border focus:border-primary" />
+                    <input value={cfg.title} placeholder="Tiêu đề form" aria-label="Tiêu đề form" onChange={(e) => change({ ...cfg, title: e.target.value })} data-testid="form-title" className="-ml-2 w-full rounded-[9px] border border-transparent bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight outline-none hover:border-border focus:border-primary" />
                     <textarea rows={2} value={cfg.description} placeholder="Thêm mô tả hướng dẫn điền biểu mẫu..." aria-label="Mô tả form" onChange={(e) => change({ ...cfg, description: e.target.value })} className="-ml-2 mt-1 w-full resize-none rounded-[9px] border border-transparent bg-transparent px-2 py-1.5 text-sm leading-relaxed text-muted-foreground outline-none hover:border-border focus:border-primary" />
                   </div>
                   <div className="flex flex-col p-4 sm:p-5">
@@ -246,7 +246,7 @@ function EditorInner({ id, d, refetch }: { id: string; d: FormDetail; refetch: (
                     {cfg.blocks.length === 0 && <p className="mb-3 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Form chưa có câu hỏi. Bấm "Thêm câu hỏi" bên dưới.</p>}
                     <div className="px-2 pt-3">
                       <TypePicker onPick={(t) => addAt(t, null, cfg.blocks.length)} trigger={
-                        <button type="button" className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary-border bg-primary-soft/40 py-3 text-sm font-semibold text-primary transition-colors hover:border-primary hover:bg-primary-soft" data-testid="add-question"><Plus size={16} aria-hidden /> Thêm câu hỏi</button>
+                        <button type="button" className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary-border bg-primary-soft/40 py-3 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary-soft" data-testid="add-question"><Plus size={16} aria-hidden /> Thêm câu hỏi</button>
                       } />
                     </div>
                   </div>
@@ -258,7 +258,7 @@ function EditorInner({ id, d, refetch }: { id: string; d: FormDetail; refetch: (
             <aside className={cn(scroller, "w-full shrink-0 border-t border-border bg-card p-4 lg:w-[320px] lg:border-l lg:border-t-0")} aria-label="Thuộc tính" data-testid="props-panel">
               <div role="tablist" aria-label="Bảng bên phải" className="-mx-1 mb-4 flex gap-1 border-b border-border-soft">
                 {([["props", "Thuộc tính"], ["toc", "Mục lục"]] as const).map(([v, l]) => (
-                  <button key={v} type="button" role="tab" aria-selected={side === v} onClick={() => setSide(v)} data-testid={`side-${v}`} className={cn("-mb-px min-h-11 cursor-pointer border-b-2 px-3 text-xs sm:min-h-8", side === v ? "border-primary font-semibold text-primary" : "border-transparent font-medium text-muted-foreground hover:text-foreground")}>{l}</button>
+                  <button key={v} type="button" role="tab" aria-selected={side === v} onClick={() => setSide(v)} data-testid={`side-${v}`} className={cn("-mb-px min-h-11 cursor-pointer border-b-2 px-3 text-xs sm:min-h-8", side === v ? "border-primary font-medium text-primary" : "border-transparent font-medium text-muted-foreground hover:text-foreground")}>{l}</button>
                 ))}
               </div>
               {side === "toc" ? toc : chosen ? <PropsPanel key={chosen.id} cfg={cfg} block={chosen} num={numbers.get(chosen.id) ?? null} change={change} formId={id} tableId={d.table_id} flush={flush} reload={reload} /> : (

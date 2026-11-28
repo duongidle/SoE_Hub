@@ -50,7 +50,7 @@ function TypeSettings() {
               <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Sunrise className="size-[18px]" aria-hidden /></span>
               <Switch
                 className="flex-1"
-                label={<span className="text-[13px] font-semibold">Bản tin buổi sáng</span>}
+                label={<span className="text-[13px] font-medium">Bản tin buổi sáng</span>}
                 hint={<span className="text-xs">Mỗi sáng 08:00 tóm tắt việc cần làm hôm nay của bạn.</span>}
                 checked={data.morning_digest}
                 onChange={(v) => save.mutate({ morning_digest: v })}
@@ -74,7 +74,7 @@ function TypeSettings() {
                   {optional.map((t) => (
                     <Switch
                       key={t.type}
-                      label={<span className="text-[13px] font-semibold" title={t.type}>{t.label}</span>}
+                      label={<span className="text-[13px] font-medium" title={t.type}>{t.label}</span>}
                       hint={<span className="text-xs [overflow-wrap:anywhere]">{t.description}</span>}
                       checked={t.enabled}
                       onChange={(v) => save.mutate({ disabled_types: disabledAfter(t.type, v) })}

@@ -24,14 +24,14 @@ function QuestionCard({ n, s, onAll }: { n: number; s: QSummary; onAll: () => vo
   return (
     <section className="rounded-card border border-border bg-card p-5" data-testid="question-summary">
       <div className="mb-3 flex items-start justify-between gap-3">
-        <h3 className="text-[13px] font-bold">Câu {n}: {s.label}</h3>
+        <h3 className="text-[13px] font-semibold">Câu {n}: {s.label}</h3>
         <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{s.answered} trả lời</span>
       </div>
       {s.options && (s.options.length === 0 ? <p className="text-xs text-muted-foreground">Chưa có lựa chọn nào được chọn.</p> : (
         <div className="flex flex-col gap-2.5">
           {s.options.map((o, i) => (
             <div key={o.label}>
-              <div className="mb-1 flex justify-between gap-3 text-xs"><span className="min-w-0 truncate font-medium">{o.label}</span><span className="shrink-0 font-bold tabular-nums">{o.count} ({fmtNum(o.percent)}%)</span></div>
+              <div className="mb-1 flex justify-between gap-3 text-xs"><span className="min-w-0 truncate font-medium">{o.label}</span><span className="shrink-0 font-medium tabular-nums">{o.count} ({fmtNum(o.percent)}%)</span></div>
               <div className="h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${BAR[i % BAR.length]}`} style={{ width: `${Math.min(100, o.percent)}%` }} /></div>
             </div>
           ))}
@@ -39,13 +39,13 @@ function QuestionCard({ n, s, onAll }: { n: number; s: QSummary; onAll: () => vo
       ))}
       {s.number && (
         <div className="grid grid-cols-3 gap-3 text-center">
-          {([["Trung bình", s.number.avg], ["Nhỏ nhất", s.number.min], ["Lớn nhất", s.number.max]] as const).map(([l, v]) => <div key={l} className="rounded-xl bg-muted/50 p-3"><div className="text-xs text-muted-foreground">{l}</div><div className="text-lg font-bold tabular-nums">{fmtNum(v)}</div></div>)}
+          {([["Trung bình", s.number.avg], ["Nhỏ nhất", s.number.min], ["Lớn nhất", s.number.max]] as const).map(([l, v]) => <div key={l} className="rounded-xl bg-muted/50 p-3"><div className="text-xs text-muted-foreground">{l}</div><div className="text-lg font-semibold tabular-nums">{fmtNum(v)}</div></div>)}
         </div>
       )}
       {s.latest && (s.latest.length === 0 ? <p className="text-xs text-muted-foreground">Chưa có câu trả lời.</p> : (
         <>
           <ul className="flex flex-col gap-1.5">{s.latest.map((t, i) => <li key={i} className="rounded-lg bg-muted/50 px-3 py-2 text-xs">{t}</li>)}</ul>
-          <button type="button" onClick={onAll} className="mt-2 text-xs font-semibold text-primary hover:underline">Xem tất cả</button>
+          <button type="button" onClick={onAll} className="mt-2 text-xs font-medium text-primary hover:underline">Xem tất cả</button>
         </>
       ))}
     </section>
@@ -57,7 +57,7 @@ const STATE_LABEL: Record<string, string> = { open: "Đang nhận", paused: "T�
 const Stat = ({ label, children, testid }: { label: string; children: React.ReactNode; testid?: string }) => (
   <div className="rounded-card border border-border bg-card p-4" data-testid={testid}>
     <span className="text-xs font-medium text-muted-foreground">{label}</span>
-    <div className="mt-1 text-[22px] font-bold leading-tight tabular-nums">{children}</div>
+    <div className="mt-1 text-[22px] font-semibold leading-tight tabular-nums">{children}</div>
   </div>
 );
 
@@ -77,18 +77,18 @@ export function ResponsesTab({ form, onShare }: { form: FormDetail; onShare?: ()
     <div className="mx-auto flex max-w-5xl flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-lg font-bold">Phản hồi biểu mẫu <span className="tabular-nums" data-testid="response-count"><span className="sr-only">Tổng </span>({form.response_count})<span className="sr-only"> phản hồi</span></span></h2>
+          <h2 className="text-lg font-semibold">Phản hồi biểu mẫu <span className="tabular-nums" data-testid="response-count"><span className="sr-only">Tổng </span>({form.response_count})<span className="sr-only"> phản hồi</span></span></h2>
           {tableTo && table.data && (
-            <p className="text-xs text-muted-foreground">Dữ liệu đồng bộ về bảng <Link {...tableTo} className="font-semibold text-primary hover:underline">{table.data.name}</Link> trong Datahub</p>
+            <p className="text-xs text-muted-foreground">Dữ liệu đồng bộ về bảng <Link {...tableTo} className="font-medium text-primary hover:underline">{table.data.name}</Link> trong Datahub</p>
           )}
         </div>
-        {tableTo && <Link {...tableTo} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold hover:bg-muted" data-testid="open-table"><ExternalLink size={14} aria-hidden />Mở bảng</Link>}
+        {tableTo && <Link {...tableTo} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-medium hover:bg-muted" data-testid="open-table"><ExternalLink size={14} aria-hidden />Mở bảng</Link>}
       </div>
 
       {none ? (
         <div className="rounded-card border border-dashed border-border bg-card px-4 py-12 text-center" data-testid="responses-empty">
           <div aria-hidden className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-primary-soft text-primary"><Share2 size={26} /></div>
-          <h3 className="text-base font-bold">Chưa có phản hồi</h3>
+          <h3 className="text-base font-semibold">Chưa có phản hồi</h3>
           <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">{form.published_version === 0 ? "Xuất bản form rồi gửi link cho người cần điền, phản hồi sẽ hiện ở đây." : "Gửi link cho người cần điền, phản hồi sẽ hiện ở đây ngay khi họ nộp."}</p>
           <div className="mt-4 flex justify-center gap-2">
             <Button onClick={copy} data-testid="empty-copy-link"><Copy size={14} aria-hidden /> Sao chép link form</Button>
@@ -98,11 +98,11 @@ export function ResponsesTab({ form, onShare }: { form: FormDetail; onShare?: ()
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-3">
-            <Stat label="Tổng phản hồi" testid="stat-total">{sum.data?.total ?? form.response_count}{!!sum.data?.today && <span className="ml-2 text-xs font-semibold text-ok" data-testid="stat-today">+{sum.data.today} hôm nay</span>}</Stat>
+            <Stat label="Tổng phản hồi" testid="stat-total">{sum.data?.total ?? form.response_count}{!!sum.data?.today && <span className="ml-2 text-xs font-medium text-ok" data-testid="stat-today">+{sum.data.today} hôm nay</span>}</Stat>
             {sum.data?.quiz ? (
               <>
-                <Stat label="Điểm trung bình" testid="stat-avg">{sum.data.quiz.avg_score === null ? "—" : <>{fmtNum(sum.data.quiz.avg_score)}<span className="text-sm font-semibold text-muted-foreground"> / {fmtNum(sum.data.quiz.max_score ?? 0)}</span></>}</Stat>
-                <Stat label="Tỉ lệ đạt" testid="stat-pass">{sum.data.quiz.pass_rate === null ? "—" : <>{fmtNum(sum.data.quiz.pass_rate)}%</>}{sum.data.quiz.pending > 0 && <span className="ml-2 text-xs font-semibold text-warn">{sum.data.quiz.pending} chờ chấm</span>}</Stat>
+                <Stat label="Điểm trung bình" testid="stat-avg">{sum.data.quiz.avg_score === null ? "—" : <>{fmtNum(sum.data.quiz.avg_score)}<span className="text-sm font-medium text-muted-foreground"> / {fmtNum(sum.data.quiz.max_score ?? 0)}</span></>}</Stat>
+                <Stat label="Tỉ lệ đạt" testid="stat-pass">{sum.data.quiz.pass_rate === null ? "—" : <>{fmtNum(sum.data.quiz.pass_rate)}%</>}{sum.data.quiz.pending > 0 && <span className="ml-2 text-xs font-medium text-warn">{sum.data.quiz.pending} chờ chấm</span>}</Stat>
               </>
             ) : (
               <>
@@ -116,7 +116,7 @@ export function ResponsesTab({ form, onShare }: { form: FormDetail; onShare?: ()
 
           <section ref={listRef} className="rounded-card border border-border bg-card shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-              <h3 className="text-sm font-bold">Danh sách phản hồi</h3>
+              <h3 className="text-sm font-semibold">Danh sách phản hồi</h3>
               <div className="relative w-60 max-w-full">
                 <Search size={14} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input className="pl-8" placeholder="Tìm trong phản hồi" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Tìm phản hồi" />
@@ -125,7 +125,7 @@ export function ResponsesTab({ form, onShare }: { form: FormDetail; onShare?: ()
             {q.error ? <ErrorState error={q.error} /> : q.data?.data.length === 0 ? <FilteredEmptyState onClear={() => setSearch("")} /> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm" data-testid="response-table">
-                  <thead className="bg-muted text-left text-xs font-semibold text-muted-foreground"><tr><th className="p-2 pl-4">Lúc</th>{qs.map((x) => <th key={x.question_id} className="p-2">{x.label}</th>)}<th className="p-2">Kết quả</th></tr></thead>
+                  <thead className="bg-muted text-left text-xs font-medium text-muted-foreground"><tr><th className="p-2 pl-4">Lúc</th>{qs.map((x) => <th key={x.question_id} className="p-2">{x.label}</th>)}<th className="p-2">Kết quả</th></tr></thead>
                   <tbody>{q.data?.data.map((r) => <tr key={r.row_id} className="border-t border-border"><td className="whitespace-nowrap p-2 pl-4">{fmtTime(r.created_at)}</td>{qs.map((x) => <td key={x.question_id} className="max-w-48 truncate p-2">{show(r.answers[x.question_id])}</td>)}<td className="p-2">{r.quiz ? <span className="inline-flex items-center gap-2"><span className="tabular-nums">{r.quiz.score}/{r.quiz.max}</span><Badge tone={r.quiz.result === null ? "warn" : /^không/i.test(r.quiz.result) ? "bad" : /^đạt$/i.test(r.quiz.result) ? "ok" : "muted"}>{r.quiz.result ?? "Chờ chấm"}</Badge></span> : ""}</td></tr>)}</tbody>
                 </table>
               </div>

@@ -64,7 +64,7 @@ function Item({ n, onOpened }: { n: NotificationRow; onOpened?: () => void }) {
   return (
     <button type="button" data-testid="notification-item" onClick={open} className={cn("flex w-full flex-col gap-0.5 rounded-md border border-border p-3 text-left text-[13px] hover:bg-muted", n.read_at ? "bg-card" : "bg-[#F5F6FF]")}>
       <span className="flex items-start justify-between gap-2">
-        <span className={cn("flex items-start gap-2 [overflow-wrap:anywhere]", n.read_at ? "font-medium" : "font-semibold text-foreground")}>
+        <span className={cn("flex items-start gap-2 [overflow-wrap:anywhere]", n.read_at ? "font-medium" : "font-medium text-foreground")}>
           {!n.read_at && <span aria-label="Chưa đọc" className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />}
           <span>{isPinned(n) && <Pin size={12} aria-label="Ghim" className="mr-1 inline" />}
           {n.title}</span>
@@ -97,7 +97,7 @@ function UnreadChip({ on, count, onClick }: { on: boolean; count: number; onClic
   return (
     <button type="button" aria-pressed={on} onClick={onClick} className={cn("inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium", on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground hover:bg-muted")}>
       Chỉ chưa đọc
-      {count > 0 && <span className={cn("rounded-full px-1.5 text-[11px] font-semibold leading-4", on ? "bg-white/25" : "bg-primary/10 text-primary")}>{count > 99 ? "99+" : count}</span>}
+      {count > 0 && <span className={cn("rounded-full px-1.5 text-[11px] font-medium leading-4", on ? "bg-white/25" : "bg-primary/10 text-primary")}>{count > 99 ? "99+" : count}</span>}
     </button>
   );
 }
@@ -153,7 +153,7 @@ export function BellButton({ me }: { me: Me }) {
     <button type="button" aria-label={`Thông báo, ${n} chưa đọc`} className="relative inline-flex min-h-9 min-w-9 items-center justify-center rounded-md hover:bg-muted">
       <Bell size={18} />
       {n > 0 && (
-        <span data-testid="bell-count" className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-bad px-1 text-center text-xs font-semibold leading-4 text-white">
+        <span data-testid="bell-count" className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-bad px-1 text-center text-xs font-medium leading-4 text-white">
           {n > 99 ? "99+" : n}
         </span>
       )}

@@ -52,7 +52,7 @@ const optionName = (col: Column | undefined, v: unknown): string => {
 type Tone = "ok" | "info" | "warn" | "bad" | "ai" | "muted";
 const STATUS_TONE: Record<string, Tone> = { "Đã về": "ok", "Về thiếu": "warn", "Quá hạn": "bad", "Sắp đến hạn": "warn", "Chưa đến hạn": "info", "Tạm tính": "warn", "Đã chốt": "ok", "Điều chỉnh": "ai" };
 const toneOf = (s: string): Tone => STATUS_TONE[s] ?? "muted";
-const SEG = (on: boolean) => cn("min-h-8 rounded-md px-3 text-sm", on ? "bg-card font-semibold text-primary shadow-card" : "text-muted-foreground hover:text-foreground");
+const SEG = (on: boolean) => cn("min-h-8 rounded-md px-3 text-sm", on ? "bg-card font-medium text-primary shadow-card" : "text-muted-foreground hover:text-foreground");
 const TH_NUM = "text-right";
 const TD_NUM = "text-right tabular-nums";
 const today = () => new Date().toISOString().slice(0, 10);
@@ -128,7 +128,7 @@ function DealFocusBar({ dealId, onClear }: { dealId: string; onClear: () => void
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-card border border-primary-border bg-primary-soft/60 px-3 py-2 text-sm" data-testid="deal-focus">
       <span className="text-muted-foreground">Đang xem riêng deal</span>
-      <span className="font-semibold [overflow-wrap:anywhere]">{f.isLoading ? "…" : f.data?.found ? f.data.label : "không còn trong phạm vi của bạn"}</span>
+      <span className="font-medium [overflow-wrap:anywhere]">{f.isLoading ? "…" : f.data?.found ? f.data.label : "không còn trong phạm vi của bạn"}</span>
       <Button variant="ghost" className="ml-auto !min-h-8" data-testid="deal-focus-clear" onClick={onClear}><X size={14} aria-hidden /> Xem tất cả</Button>
     </div>
   );

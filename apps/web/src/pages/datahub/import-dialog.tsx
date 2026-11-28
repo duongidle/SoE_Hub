@@ -195,7 +195,7 @@ export function ImportDialog({ target, onClose, onImported }: { target: ImportTa
       <div className="flex flex-col gap-4" data-testid="import-dialog">
         <ol className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground" aria-label="Các bước">
           {STEPS.map((s, i) => (
-            <li key={s} aria-current={step === i + 1 ? "step" : undefined} className={cn(step === i + 1 && "font-semibold text-foreground")}>{i + 1}. {s}</li>
+            <li key={s} aria-current={step === i + 1 ? "step" : undefined} className={cn(step === i + 1 && "font-medium text-foreground")}>{i + 1}. {s}</li>
           ))}
         </ol>
 
@@ -351,7 +351,7 @@ function SheetsStep({ plans, current, setCurrent, patch, jobId, onNext, onBack }
             <table className="w-full text-xs">
               <tbody>
                 {p.info.preview.map((r) => (
-                  <tr key={r.row} className={cn("border-b border-border last:border-0", r.row === p.headerRow && "bg-muted font-semibold")}>
+                  <tr key={r.row} className={cn("border-b border-border last:border-0", r.row === p.headerRow && "bg-muted font-medium")}>
                     <th scope="row" className="sticky left-0 bg-card px-2 py-1 text-right font-normal tabular-nums text-muted-foreground">{r.row}</th>
                     {r.cells.map((c, k) => (
                       <td key={k} className="max-w-48 truncate px-2 py-1" title={c}>{c}</td>

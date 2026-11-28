@@ -50,9 +50,9 @@ function Face({ b, num }: { b: Block; num: number | null }) {
       return (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-workspace px-4 py-3">
           <div className="flex items-center gap-3">
-            <span aria-hidden className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">NĐ</span>
+            <span aria-hidden className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">NĐ</span>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5"><span className="text-sm font-semibold" data-testid="block-title">{q.label || "Người điền"}</span><span className="rounded bg-muted px-1.5 text-[11px] font-semibold text-muted-foreground">Trường hệ thống</span></div>
+              <div className="flex items-center gap-1.5"><span className="text-sm font-medium" data-testid="block-title">{q.label || "Người điền"}</span><span className="rounded bg-muted px-1.5 text-[11px] font-medium text-muted-foreground">Trường hệ thống</span></div>
               <span className="block text-xs text-muted-foreground">Tự động ghi nhận tài khoản nội bộ đang đăng nhập</span>
             </div>
           </div>
@@ -63,13 +63,13 @@ function Face({ b, num }: { b: Block; num: number | null }) {
     return (
       <div className={cn("flex flex-col gap-1.5", q.hidden && "opacity-60")}>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          <span className="font-bold text-primary">Câu {num}</span>
+          <span className="font-medium text-primary">Câu {num}</span>
           <span aria-hidden className="text-faint">·</span>
           <span className="font-medium text-muted-foreground">{kindLabel(q.input)}</span>
-          {q.hidden && <span className="rounded border border-warn-border bg-warn-bg px-1.5 text-[11px] font-semibold text-warn">Trường ẩn</span>}
-          {!q.column_id && <span className="rounded bg-warn-bg px-1.5 text-[11px] font-semibold text-warn">Chưa nối cột</span>}
+          {q.hidden && <span className="rounded border border-warn-border bg-warn-bg px-1.5 text-[11px] font-medium text-warn">Trường ẩn</span>}
+          {!q.column_id && <span className="rounded bg-warn-bg px-1.5 text-[11px] font-medium text-warn">Chưa nối cột</span>}
         </div>
-        <p className="pr-24 text-base font-semibold leading-snug [overflow-wrap:anywhere]"><span data-testid="block-title" className={q.label ? undefined : "text-faint"}>{q.label || "(chưa có nhãn)"}</span>{q.required && <span className="ml-1 font-bold text-bad" aria-label="bắt buộc">*</span>}</p>
+        <p className="pr-24 text-base font-semibold leading-snug [overflow-wrap:anywhere]"><span data-testid="block-title" className={q.label ? undefined : "text-faint"}>{q.label || "(chưa có nhãn)"}</span>{q.required && <span className="ml-1 font-medium text-bad" aria-label="bắt buộc">*</span>}</p>
         {q.description && <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{q.description}</p>}
         <div className="mt-1.5"><FakeInput q={q} /></div>
       </div>
@@ -80,7 +80,7 @@ function Face({ b, num }: { b: Block; num: number | null }) {
   if (b.type === "image") return b.url ? <img src={String(b.url)} alt={String(b.alt ?? "")} className="max-h-60 rounded-lg object-contain" /> : <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-faint" data-testid="block-title">Ảnh (chưa có địa chỉ)</div>;
   if (b.type === "divider") return <div className="py-2"><hr className="border-border" /><span className="sr-only" data-testid="block-title">Đường kẻ</span></div>;
   if (b.type === "page_break") return <div className="flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 border-t border-dashed border-border" /><span data-testid="block-title">Ngắt trang</span><span className="h-px flex-1 border-t border-dashed border-border" /></div>;
-  return <div className="flex items-center gap-3"><span className="inline-flex items-center gap-2 rounded-lg border border-primary-border bg-primary-soft px-3 py-1 text-xs font-bold text-primary"><span aria-hidden className="size-2 rounded-full bg-primary" /><span data-testid="block-title">{String(b.title ?? "") || BLOCK_NAME.group}</span></span><span aria-hidden className="h-px flex-1 bg-border" /></div>;
+  return <div className="flex items-center gap-3"><span className="inline-flex items-center gap-2 rounded-lg border border-primary-border bg-primary-soft px-3 py-1 text-xs font-medium text-primary"><span aria-hidden className="size-2 rounded-full bg-primary" /><span data-testid="block-title">{String(b.title ?? "") || BLOCK_NAME.group}</span></span><span aria-hidden className="h-px flex-1 bg-border" /></div>;
 }
 
 const ICON_BTN = "inline-flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-primary-soft hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 [@media(pointer:coarse)]:size-11";
@@ -155,7 +155,7 @@ export function InsertBar({ onPick, inGroup, testid }: { onPick: (type: string) 
     <div className="group/ins relative -my-1 flex h-[18px] items-center justify-center [@media(hover:none)]:my-0 [@media(hover:none)]:h-9">
       <span aria-hidden className="absolute inset-x-5 top-1/2 h-px bg-primary-border opacity-0 transition-opacity group-hover/ins:opacity-100 group-focus-within/ins:opacity-100 [@media(hover:none)]:opacity-100" />
       <TypePicker inGroup={inGroup} onPick={onPick} trigger={
-        <button type="button" aria-label="Chèn câu hỏi vào đây" data-testid={testid} className="relative z-10 inline-flex h-5 cursor-pointer items-center gap-1 rounded-full bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground opacity-0 shadow-sm transition-opacity hover:bg-primary-hover focus-visible:opacity-100 group-hover/ins:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:h-8 [@media(hover:none)]:opacity-100">
+        <button type="button" aria-label="Chèn câu hỏi vào đây" data-testid={testid} className="relative z-10 inline-flex h-5 cursor-pointer items-center gap-1 rounded-full bg-primary px-2.5 text-[11px] font-medium text-primary-foreground opacity-0 shadow-sm transition-opacity hover:bg-primary-hover focus-visible:opacity-100 group-hover/ins:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:h-8 [@media(hover:none)]:opacity-100">
           <Plus size={12} aria-hidden />Chèn câu hỏi tại đây
         </button>
       } />

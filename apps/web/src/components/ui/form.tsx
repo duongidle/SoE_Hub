@@ -53,7 +53,7 @@ export function Textarea({ className, ...props }: React.ComponentProps<"textarea
 export function Field({ label, hint, error, required, name, children }: { label: string; hint?: string; error?: string | null; required?: boolean; name?: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1 text-sm" data-field={name}>
-      <span className="text-xs font-semibold text-foreground">{label}{required && <span className="text-bad" aria-hidden> *</span>}</span>
+      <span className="text-xs font-medium text-foreground">{label}{required && <span className="text-bad" aria-hidden> *</span>}</span>
       {children}
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
       {error && <span role="alert" className="text-xs text-bad">{error}</span>}
@@ -107,7 +107,7 @@ export function PageTitle({ children, actions }: { children: React.ReactNode; ac
   }
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-lg font-bold tracking-tight text-foreground">{children}</h1>
+      <h1 className="text-lg font-semibold tracking-tight text-foreground">{children}</h1>
       {actions && (slot ? createPortal(actions, slot) : <div className="flex flex-wrap gap-2">{actions}</div>)}
     </div>
   );
@@ -117,7 +117,7 @@ export function PageTitle({ children, actions }: { children: React.ReactNode; ac
 export function Table({ children }: { children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-card border border-border bg-card shadow-card">
-      <table className="w-full min-w-max text-left text-sm [&_td]:border-t [&_td]:border-border-soft [&_td]:px-3 [&_td]:py-2 [&_th]:bg-[#F8F9FB] [&_th]:px-3 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:text-muted-foreground [&_tbody_tr:hover]:bg-primary-soft/40">{children}</table>
+      <table className="w-full min-w-max text-left text-sm [&_td]:border-t [&_td]:border-border-soft [&_td]:px-3 [&_td]:py-2 [&_th]:bg-[#F8F9FB] [&_th]:px-3 [&_th]:py-2 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground [&_tbody_tr:hover]:bg-primary-soft/40">{children}</table>
     </div>
   );
 }
@@ -176,7 +176,7 @@ export function Tabs<T extends string>({ value, onChange, items }: { value: T; o
   return (
     <div role="tablist" className="no-scrollbar mb-4 flex gap-1 overflow-x-auto border-b border-border-soft">
       {items.map((i) => (
-        <button key={i.value} type="button" role="tab" aria-selected={value === i.value} onClick={() => onChange(i.value)} className={cn("-mb-px whitespace-nowrap rounded-t-md border-b-2 px-3 py-3 text-[13px] transition-colors sm:py-2", value === i.value ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:bg-primary-soft hover:text-foreground")}>
+        <button key={i.value} type="button" role="tab" aria-selected={value === i.value} onClick={() => onChange(i.value)} className={cn("-mb-px whitespace-nowrap rounded-t-md border-b-2 px-3 py-3 text-[13px] transition-colors sm:py-2", value === i.value ? "border-primary font-medium text-primary" : "border-transparent text-muted-foreground hover:bg-primary-soft hover:text-foreground")}>
           {i.label}
         </button>
       ))}

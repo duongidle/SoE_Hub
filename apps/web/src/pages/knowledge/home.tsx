@@ -48,7 +48,7 @@ export function ArticleItem({ a }: { a: ArticleCard }) {
         {a.type && <ColorChip index={1} color={TYPE_COLOR[a.type]}>{TYPE_LABEL[a.type] ?? a.type}</ColorChip>}
         {a.for_sale && <ColorChip index={2} color="teal">Cho sale</ColorChip>}
       </div>
-      <Link to="/knowledge/$id" params={{ id: a.id }} className="line-clamp-2 text-base leading-snug font-bold text-foreground [overflow-wrap:anywhere] hover:text-primary">{a.title}</Link>
+      <Link to="/knowledge/$id" params={{ id: a.id }} className="line-clamp-2 text-base leading-snug font-semibold text-foreground [overflow-wrap:anywhere] hover:text-primary">{a.title}</Link>
       {a.snippet ? <Snippet html={a.snippet} /> : <p className="line-clamp-2 text-sm text-muted-foreground [overflow-wrap:anywhere]">{a.summary}</p>}
       {a.tags.length > 0 && <div className="flex flex-wrap gap-1">{a.tags.slice(0, 4).map((t) => <span key={t} className={PILL}>#{t}</span>)}</div>}
       <div className="mt-auto flex items-center justify-between gap-3 border-t border-border-soft pt-2 text-[11px] text-muted-foreground">
@@ -65,13 +65,13 @@ function TopViewed() {
   if (!q.data?.length) return null;
   return (
     <section className="rounded-card border border-border bg-card p-4 shadow-2xs" data-testid="kn-top" aria-label="Xem nhiều">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold"><span aria-hidden className="size-2 rounded-full bg-primary" />Xem nhiều</h2>
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><span aria-hidden className="size-2 rounded-full bg-primary" />Xem nhiều</h2>
       <ol className="flex flex-col gap-2.5">
         {q.data.map((a, n) => (
           <li key={a.id} className="flex gap-2.5">
-            <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-md bg-primary-soft text-[11px] font-bold text-primary">{n + 1}</span>
+            <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-md bg-primary-soft text-[11px] font-medium text-primary">{n + 1}</span>
             <div className="min-w-0">
-              <Link to="/knowledge/$id" params={{ id: a.id }} className="line-clamp-2 text-xs leading-snug font-semibold [overflow-wrap:anywhere] hover:text-primary">{a.title}</Link>
+              <Link to="/knowledge/$id" params={{ id: a.id }} className="line-clamp-2 text-xs leading-snug font-medium [overflow-wrap:anywhere] hover:text-primary">{a.title}</Link>
               <div className="truncate text-[11px] text-muted-foreground">{a.view_count} lượt xem · {a.author.name}</div>
             </div>
           </li>
@@ -101,7 +101,7 @@ export function KnowledgeHomePage() {
           can(me, "knowledge:article:post") && (
             <>
               <Link to="/knowledge/cua-toi" className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted"><Bookmark size={14} aria-hidden className="text-muted-foreground" />Bài của tôi</Link>
-              <Link to="/knowledge/soan" className="inline-flex h-8 items-center gap-1.5 rounded-[9px] bg-primary px-3.5 text-sm font-semibold text-primary-foreground shadow-2xs transition-colors hover:bg-primary-hover" data-testid="new-article"><Plus size={14} aria-hidden />Viết bài</Link>
+              <Link to="/knowledge/soan" className="inline-flex h-8 items-center gap-1.5 rounded-[9px] bg-primary px-3.5 text-sm font-medium text-primary-foreground shadow-2xs transition-colors hover:bg-primary-hover" data-testid="new-article"><Plus size={14} aria-hidden />Viết bài</Link>
             </>
           )
         }

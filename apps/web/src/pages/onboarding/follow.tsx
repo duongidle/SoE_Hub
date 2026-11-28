@@ -25,7 +25,7 @@ function StatCard({ label, value, tone, testid }: { label: string; value: number
   return (
     <div className="rounded-card border border-border bg-card px-4 py-3 shadow-card" data-testid={testid}>
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      <div className={cn("num mt-1 text-2xl font-bold tracking-tight", tone === "bad" && value > 0 ? "text-bad" : "text-foreground")}>{value}</div>
+      <div className={cn("num mt-1 text-2xl font-semibold tracking-tight", tone === "bad" && value > 0 ? "text-bad" : "text-foreground")}>{value}</div>
     </div>
   );
 }
@@ -75,7 +75,7 @@ export function OverviewBody() {
         {a.ownPlan && (
           <Link to="/onboarding" className="flex flex-col justify-center rounded-card border border-primary-border bg-primary-soft/40 px-4 py-3 shadow-card hover:bg-primary-soft" data-testid="onb-own-card">
             <span className="text-xs font-medium text-muted-foreground">Lộ trình của tôi</span>
-            <span className="mt-1 text-sm font-semibold text-primary">Mở hành trình</span>
+            <span className="mt-1 text-sm font-medium text-primary">Mở hành trình</span>
           </Link>
         )}
       </div>
@@ -112,7 +112,7 @@ export function OverviewBody() {
                     <div className="min-w-0"><MiniRoad r={r} /><div className="num mt-1 text-xs text-muted-foreground">Tuần {r.current_week}/{r.total_weeks}</div></div>
                     <div><div className="num mb-1 text-sm font-semibold" data-testid="onb-row-progress">{r.progress_pct}%</div><ProgressBar ratio={r.progress_pct / 100} tone={r.overdue > 0 ? "warn" : "primary"} className="!h-1.5" /></div>
                     <div className="num text-sm"><span className="text-xs text-muted-foreground lg:hidden">Checkpoint </span>{r.checkpoints_passed}/{r.checkpoints_total}</div>
-                    <div className={cn("num text-sm", r.overdue > 0 ? "font-semibold text-bad" : "text-muted-foreground")}><span className="text-xs font-normal text-muted-foreground lg:hidden">Trễ </span>{r.overdue}</div>
+                    <div className={cn("num text-sm", r.overdue > 0 ? "font-medium text-bad" : "text-muted-foreground")}><span className="text-xs font-normal text-muted-foreground lg:hidden">Trễ </span>{r.overdue}</div>
                     <div>{r.final_result === "passed" ? <Pill tone="ok">Đạt</Pill> : r.final_result === "failed" ? <Pill tone="bad">Không đạt</Pill> : <span className="text-xs text-muted-foreground">Chưa chốt</span>}</div>
                   </div>
                   {groups.length > 0 && (

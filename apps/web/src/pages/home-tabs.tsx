@@ -22,7 +22,7 @@ import { DashboardView } from "@/pages/datahub/dashboard/dashboard-view";
 /** The most dashboards one person can pin (same limit as the server). */
 const TABS_MAX = 20;
 const SHARED = "shared";
-const tabClass = (on: boolean) => cn("flex h-10 max-w-52 -mb-px items-center gap-1.5 whitespace-nowrap rounded-t-control border-b-2 px-3 text-sm transition-colors", on ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:text-foreground");
+const tabClass = (on: boolean) => cn("flex h-10 max-w-52 -mb-px items-center gap-1.5 whitespace-nowrap rounded-t-control border-b-2 px-3 text-sm transition-colors", on ? "border-primary font-medium text-primary" : "border-transparent text-muted-foreground hover:text-foreground");
 
 function PinnedTabButton({ tab, on, pos, onSelect }: { tab: PinnedTab; on: boolean; pos: number; onSelect: () => void }) {
   const btn = useRef<HTMLButtonElement>(null);

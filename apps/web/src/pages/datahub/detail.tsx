@@ -158,9 +158,9 @@ export function ScrollStrip({ children, activeKey }: { children: React.ReactNode
   );
 }
 
-export const segCls = (on: boolean) => cn("inline-flex min-h-10 items-center gap-1.5 rounded-md px-2.5 text-[13px] sm:min-h-6", on ? "bg-primary-soft font-semibold text-primary" : "font-medium text-muted-foreground hover:text-foreground");
+export const segCls = (on: boolean) => cn("inline-flex min-h-10 items-center gap-1.5 rounded-md px-2.5 text-[13px] sm:min-h-6", on ? "bg-primary-soft font-medium text-primary" : "font-medium text-muted-foreground hover:text-foreground");
 /** One tab of the strip, underline style (Airtable/Lark): muted 13px/500; the open one is ink 600 with a 2px primary line under it. */
-export const tabCls = (on: boolean) => cn("relative inline-flex min-h-11 shrink-0 items-center gap-1.5 px-3 text-[13px] sm:min-h-9", on ? "font-semibold text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary" : "font-medium text-muted-foreground hover:text-foreground");
+export const tabCls = (on: boolean) => cn("relative inline-flex min-h-11 shrink-0 items-center gap-1.5 px-3 text-[13px] sm:min-h-9", on ? "font-medium text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary" : "font-medium text-muted-foreground hover:text-foreground");
 /** The strip line: a 1px line under it that the underline of the open tab sits on. */
 export const STRIP_CLS = "flex min-w-0 flex-wrap items-center gap-1 border-b border-border-soft sm:flex-nowrap";
 

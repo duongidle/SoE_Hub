@@ -75,7 +75,7 @@ const TONE: Record<Tone, string> = {
 };
 /** Small coloured label: colour by meaning (green done, blue running, amber waiting, red late, purple special). */
 export function Pill({ tone, children, className }: { tone: Tone; children: React.ReactNode; className?: string }) {
-  return <span className={cn("inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs font-semibold", TONE[tone], className)}>{children}</span>;
+  return <span className={cn("inline-flex h-5 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs font-medium", TONE[tone], className)}>{children}</span>;
 }
 export const CP_TONE: Record<string, Tone> = { not_yet: "neutral", running: "info", passed: "ok", passed_late: "warn", failed: "bad" };
 export const KIND_TONE: Record<string, Tone> = { on_job: "ok", self_study: "neutral", session: "info", session_cs: "info", session_sale: "info", review_1_1: "ai", test: "warn", mockup: "ai", off: "neutral", other: "neutral" };

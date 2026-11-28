@@ -34,7 +34,7 @@ export function TaskRow({ f, canTick, onTick, showDate }: { f: FlatOcc; canTick:
           <span className={cn("min-w-0 text-sm [overflow-wrap:anywhere]", done && "text-muted-foreground line-through")}>{item.name}</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {(showDate || late) && <span className={cn("num", late && "font-semibold text-bad")}>{late ? "Trễ · " : ""}{fmtDate(occ.on_date)}</span>}
+          {(showDate || late) && <span className={cn("num", late && "font-medium text-bad")}>{late ? "Trễ · " : ""}{fmtDate(occ.on_date)}</span>}
           {item.due_time && <span className="num">hạn {item.due_time.slice(0, 5)}</span>}
           {item.form_code && <a className={cn("inline-flex min-h-6 items-center gap-0.5 text-sm font-medium", done ? "text-muted-foreground" : "text-primary")} href={`/f/${item.form_code}`} target="_blank" rel="noreferrer" data-testid="occ-form">{formLabel}{item.form_name ? `: ${item.form_name}` : ""}<ArrowUpRight size={13} aria-hidden /></a>}
           {item.link && <a className="inline-flex items-center gap-0.5 text-sm font-medium text-primary" href={item.link} target="_blank" rel="noreferrer">Mở link<ArrowUpRight size={13} aria-hidden /></a>}
@@ -56,7 +56,7 @@ export function DayGroups({ list, canTick, onTick, limit }: { list: FlatOcc[]; c
     <div className="flex flex-col divide-y divide-border-soft">
       {shown.map(({ d, rows }) => (
         <div key={d} className="px-4 py-2" data-testid="onb-day">
-          <div className={cn("mb-0.5 text-[11px] font-semibold", d === todayVn() ? "text-primary" : "text-muted-foreground")}>{dayLabel(d).toUpperCase()}{d === todayVn() ? " · HÔM NAY" : ""}</div>
+          <div className={cn("mb-0.5 text-[11px] font-medium", d === todayVn() ? "text-primary" : "text-muted-foreground")}>{dayLabel(d).toUpperCase()}{d === todayVn() ? " · HÔM NAY" : ""}</div>
           <ul>{rows.map((f) => <TaskRow key={f.occ.id} f={f} canTick={canTick} onTick={(done) => onTick(f.occ.id, done)} />)}</ul>
         </div>
       ))}
@@ -109,7 +109,7 @@ export function CpWeekCard({ cp, plan, flash }: { cp: ProgressCp; plan: PlanFull
     <div className={cn("rounded-md", (pop || flash) && "onb-pop")} data-testid="onb-cp-week">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Flag size={14} aria-hidden className="text-muted-foreground" />
-        <span className="min-w-0 text-sm font-semibold [overflow-wrap:anywhere]">{cp.name}</span>
+        <span className="min-w-0 text-sm font-medium [overflow-wrap:anywhere]">{cp.name}</span>
         <Pill tone={CP_TONE[cp.status] ?? "neutral"}>{(CP_STATUS[cp.status] ?? CP_STATUS.not_yet!).label}</Pill>
       </div>
       <div className="flex flex-col gap-3">

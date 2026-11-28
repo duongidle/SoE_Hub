@@ -135,7 +135,7 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
                   <MenuItem key={id} onSelect={() => { fromMenu.current = true; setOpenId(id); }} className={m.active ? "text-primary" : undefined}>
                     {m.icon}
                     <span>{m.label}</span>
-                    {m.count ? <span className="ml-auto pl-4 text-xs font-semibold">{formatNumber(m.count)}</span> : null}
+                    {m.count ? <span className="ml-auto pl-4 text-xs font-medium">{formatNumber(m.count)}</span> : null}
                   </MenuItem>
                 );
               })}
@@ -172,7 +172,7 @@ function ToolButton({ meta, ...props }: React.ComponentProps<"button"> & { meta:
     >
       {meta.icon}
       <span>{meta.label}</span>
-      {meta.count ? <span className="text-xs font-semibold">{formatNumber(meta.count)}</span> : null}
+      {meta.count ? <span className="text-xs font-medium">{formatNumber(meta.count)}</span> : null}
     </Button>
   );
 }
@@ -185,7 +185,7 @@ function ToolPopover({ meta, label, title, width, footer, children }: { meta: To
   const f = useContext(FoldContext);
   const body = (
     <div className="flex flex-col gap-3">
-      <p className="text-[13px] font-semibold text-foreground">{title}</p>
+      <p className="text-[13px] font-medium text-foreground">{title}</p>
       {children}
       {footer && <p className="border-t border-border-soft pt-2 text-[11px] leading-relaxed text-muted-foreground">{footer}</p>}
     </div>

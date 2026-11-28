@@ -213,6 +213,8 @@ body {
   font-family: "SoE Number", "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Scrollbars (mockup): 6px, transparent track, soft thumb. */

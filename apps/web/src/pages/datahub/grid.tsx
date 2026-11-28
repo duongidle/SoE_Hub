@@ -73,7 +73,7 @@ function gridTheme(): Partial<Theme> {
     linkColor: token("--primary"),
     cellHorizontalPadding: 8,
     cellVerticalPadding: 4,
-    headerFontStyle: "600 12px",
+    headerFontStyle: "500 12px",
     baseFontStyle: "13px",
     markerFontStyle: "12px",    fontFamily: FONT_STACK,
     editorFontSize: "13px",

@@ -166,9 +166,9 @@ function OrgCard({ n, collapsed, onToggle, onOpen, compact }: { n: TNode; collap
       >
         <Avatar name={n.p.full_name} size="md" className="size-8" />
         <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-[13px] font-semibold leading-4">{n.p.full_name}</span>
+          <span className="truncate text-[13px] font-medium leading-4">{n.p.full_name}</span>
           <span className="flex items-center gap-1">
-            <span className={cn("rounded-full border px-1.5 text-[11px] font-semibold leading-4", ROLE_CHIP[role])}>{roleText(n.p)}</span>
+            <span className={cn("rounded-full border px-1.5 text-[11px] font-medium leading-4", ROLE_CHIP[role])}>{roleText(n.p)}</span>
             {n.p.status !== "active" && <span title={USER_STATUS_LABELS[n.p.status]} aria-label={USER_STATUS_LABELS[n.p.status]} className={cn("size-1.5 rounded-full", n.p.status === "locked" ? "bg-bad" : "bg-warn")} />}
           </span>
           <span className="truncate text-[11px] leading-4 text-muted-foreground">{below > 0 ? `Team · ${below} người` : n.p.email}</span>
@@ -180,7 +180,7 @@ function OrgCard({ n, collapsed, onToggle, onOpen, compact }: { n: TNode; collap
           onClick={onToggle}
           aria-expanded={!collapsed}
           aria-label={`${collapsed ? "Mở" : "Thu"} nhánh ${n.p.full_name}`}
-          className="absolute bottom-0 left-1/2 z-10 inline-flex h-6 -translate-x-1/2 items-center gap-0.5 rounded-full border border-border bg-card px-2 text-[11px] font-semibold text-muted-foreground shadow-2xs hover:border-primary-border hover:text-primary"
+          className="absolute bottom-0 left-1/2 z-10 inline-flex h-6 -translate-x-1/2 items-center gap-0.5 rounded-full border border-border bg-card px-2 text-[11px] font-medium text-muted-foreground shadow-2xs hover:border-primary-border hover:text-primary"
         >
           {collapsed ? <ChevronRight size={12} aria-hidden /> : <ChevronDown size={12} aria-hidden />}
           {n.children.length}
@@ -283,7 +283,7 @@ function OrgTree({ onOpen }: { onOpen: (id: string) => void }) {
               <div ref={inner} className="otree flex w-max flex-col items-center gap-8" style={{ transform: `scale(${scale})`, transformOrigin: "0 0" }}>
                 {roots.map((r) => (
                   <div key={r.p.id} className="flex flex-col items-center gap-3">
-                    <div className="text-[11px] font-semibold text-muted-foreground">Cây của {r.p.full_name}</div>
+                    <div className="text-[11px] font-medium text-muted-foreground">Cây của {r.p.full_name}</div>
                     <ul className="otree-root">
                       <OrgBranch n={r} closed={closed} toggle={toggle} onOpen={onOpen} />
                     </ul>
@@ -296,7 +296,7 @@ function OrgTree({ onOpen }: { onOpen: (id: string) => void }) {
       )}
       {q.data && q.data.outside.length > 0 && (
         <section className="rounded-card border border-border bg-card p-4 shadow-sm">
-          <div className="mb-3 text-[13px] font-semibold">Ngoài cây (Admin, Guest tự đăng ký)</div>
+          <div className="mb-3 text-[13px] font-medium">Ngoài cây (Admin, Guest tự đăng ký)</div>
           <div className="flex flex-wrap gap-3">
             {q.data.outside.map((p) => (
               <OrgCard key={p.id} n={{ p, children: [] }} collapsed={false} onToggle={() => {}} onOpen={() => onOpen(p.id)} />

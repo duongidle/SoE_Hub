@@ -154,7 +154,7 @@ function Render({ b, p, visible }: { b: Block; p: Ctx; visible: Set<string> }) {
         <section className="flex flex-col gap-4" data-group={b.id}>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-card border border-border bg-card/80 px-4 py-3">
             <div className="min-w-0">
-              {idx !== undefined && <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--form-accent)" }}>Phần {idx} / {p.groupTotal}</div>}
+              {idx !== undefined && <div className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--form-accent)" }}>Phần {idx} / {p.groupTotal}</div>}
               {b.title ? <h3 className="text-base font-semibold [overflow-wrap:anywhere]">{String(b.title)}</h3> : null}
             </div>
             <span className="text-xs text-muted-foreground">{n} câu</span>
@@ -174,7 +174,7 @@ function Render({ b, p, visible }: { b: Block; p: Ctx; visible: Set<string> }) {
           onFocusCapture={() => p.setActive(q.id)}
         >
           <label htmlFor={"q-" + q.id} className="flex items-baseline gap-2 text-[15px] font-semibold leading-snug">
-            {p.quiz && <span className="shrink-0 rounded-md bg-primary-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-primary">Câu {p.nums.get(q.id)}</span>}
+            {p.quiz && <span className="shrink-0 rounded-md bg-primary-soft px-2 py-0.5 text-xs font-medium tabular-nums text-primary">Câu {p.nums.get(q.id)}</span>}
             <span className="min-w-0 [overflow-wrap:anywhere]">{q.label || "(chưa có nhãn)"}{q.required && <span className="ml-0.5 text-bad" aria-label="bắt buộc">*</span>}</span>
           </label>
           {q.description && <span className="text-[13px] text-muted-foreground [overflow-wrap:anywhere]">{q.description}</span>}
@@ -328,7 +328,7 @@ export function FormRenderer(p: RendererProps) {
         {!quiz && p.draftNote && <span className="hidden items-center gap-1 text-xs text-ok lg:inline-flex" data-testid="draft-note"><Check size={14} aria-hidden />{p.draftNote}</span>}
         {quiz && <div className="mb-3 hidden flex-col gap-3 lg:flex">
           {p.draftNote && <p className="flex items-center gap-1.5 rounded-control border border-ok-border bg-ok-bg px-2.5 py-1.5 text-xs text-ok" data-testid="draft-note"><Check size={14} aria-hidden />{p.draftNote}</p>}
-          <div className="flex items-baseline justify-between"><h2 className="text-sm font-semibold">Bản đồ câu hỏi</h2><span className="text-xs font-semibold text-primary tabular-nums">{done}/{qs.length}</span></div>
+          <div className="flex items-baseline justify-between"><h2 className="text-sm font-semibold">Bản đồ câu hỏi</h2><span className="text-xs font-medium text-primary tabular-nums">{done}/{qs.length}</span></div>
           <div className="grid grid-cols-4 gap-1.5" data-testid="question-map">
             {qs.map((q) => {
               const answered = !isEmptyAnswer(p.answers[q.id]);

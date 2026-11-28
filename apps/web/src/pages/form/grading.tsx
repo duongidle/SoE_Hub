@@ -53,8 +53,8 @@ function GradeForm({ detail, next, onDone }: { detail: Detail; next: () => void;
       </div>
       {detail.items.map((i, n) => (
         <div key={i.question_id} className="flex flex-col gap-2 rounded-card border border-border bg-card p-4 shadow-card" data-testid="grade-item" data-question={i.question_id}>
-          <div className="flex items-center gap-2 text-xs"><span className="rounded-md bg-primary-soft px-2 py-0.5 font-semibold text-primary">Câu {n + 1}</span><span className="text-muted-foreground">tối đa {i.max} điểm</span>{!i.manual && <Badge tone={i.correct === true ? "ok" : i.correct === false ? "bad" : "muted"} className="ml-auto">Tự động chấm</Badge>}</div>
-          <p className="font-semibold [overflow-wrap:anywhere]">{i.label || i.question_id}</p>
+          <div className="flex items-center gap-2 text-xs"><span className="rounded-md bg-primary-soft px-2 py-0.5 font-medium text-primary">Câu {n + 1}</span><span className="text-muted-foreground">tối đa {i.max} điểm</span>{!i.manual && <Badge tone={i.correct === true ? "ok" : i.correct === false ? "bad" : "muted"} className="ml-auto">Tự động chấm</Badge>}</div>
+          <p className="font-medium [overflow-wrap:anywhere]">{i.label || i.question_id}</p>
           <p className="whitespace-pre-line rounded-control bg-muted/60 px-3 py-2 text-sm [overflow-wrap:anywhere]" data-testid="grade-answer">{show(i.answer)}</p>
           {i.expected !== undefined && i.expected !== null && <p className="text-xs text-muted-foreground">Đáp án đúng: {show(i.expected)}</p>}
           {i.manual ? (
@@ -109,7 +109,7 @@ export function GradingPage() {
             {items.length === 0 && <EmptyState title={status === "pending" ? "Không có bài chờ chấm" : "Chưa có bài"} />}
             {items.map((i) => (
               <li key={i.response_id}><button type="button" onClick={() => setCur(i.response_id)} data-testid="grade-row" aria-current={cur === i.response_id ? "true" : undefined} className={"flex w-full items-center gap-3 rounded-card border p-3 text-left text-sm transition-colors " + (cur === i.response_id ? "border-primary-border bg-primary-soft" : "border-border bg-card hover:border-primary-border")}>
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary" aria-hidden>{initials(i.user_name)}</span>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-medium text-primary" aria-hidden>{initials(i.user_name)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium" title={i.form_name}>{i.form_name}</span>
                   <span className="block truncate text-xs text-muted-foreground">{i.user_name ?? "—"} · lần {i.attempt} · {fmtTime(i.submitted_at)}</span>

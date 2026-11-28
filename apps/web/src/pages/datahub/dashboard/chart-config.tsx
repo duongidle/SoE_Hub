@@ -104,7 +104,7 @@ function CohortEditor({ cols, value, onChange }: { cols: Cols; value: CohortDef 
   };
   return (
     <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid="cohort-editor">
-      <legend className="px-1 text-sm font-semibold">Cohort</legend>
+      <legend className="px-1 text-sm font-medium">Cohort</legend>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Cột ngày bắt đầu" required hint="Dòng thuộc cohort của kỳ chứa ngày này.">
           <Select value={c.start} onChange={(e) => set({ start: e.target.value })}>
@@ -215,7 +215,7 @@ function SeriesEditor({ dh, chart, index, series: s, metrics, sources, onChange,
 
   return (
     <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3" data-testid={`series-${index}`}>
-      <legend className="px-1 text-sm font-semibold">{chart.type === "combo" || allowsManySeries(chart.type) ? `Số liệu ${index + 1}` : "Số liệu"}</legend>
+      <legend className="px-1 text-sm font-medium">{chart.type === "combo" || allowsManySeries(chart.type) ? `Số liệu ${index + 1}` : "Số liệu"}</legend>
       {onRemove && (
         <Button variant="ghost" className="self-end !px-2" onClick={onRemove} aria-label={`Bỏ số liệu ${index + 1}`}><Trash2 size={16} aria-hidden /> Bỏ</Button>
       )}
@@ -561,7 +561,7 @@ export function ChartConfigPanel({ dh, dashboardId, record, startType, siblings,
           )}
 
           <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3">
-            <legend className="px-1 text-sm font-semibold">Hiển thị</legend>
+            <legend className="px-1 text-sm font-medium">Hiển thị</legend>
             <Field label="Định dạng số">
               <Select value={o.format ?? ""} onChange={(e) => setOpt({ format: (e.target.value || undefined) as never })}>
                 {Object.entries(FORMAT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

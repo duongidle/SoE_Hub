@@ -19,7 +19,7 @@ const Check = ({ checked, onChange, children, testid }: { checked: boolean; onCh
 function Toggle({ checked, onChange, label, hint, testid }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint: string; testid: string }) {
   return (
     <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 py-2.5 sm:min-h-0">
-      <span className="min-w-0"><span className="block text-sm font-semibold">{label}</span><span className="block text-xs text-muted-foreground">{hint}</span></span>
+      <span className="min-w-0"><span className="block text-sm font-medium">{label}</span><span className="block text-xs text-muted-foreground">{hint}</span></span>
       <span className="relative h-5 w-9 shrink-0">
         <input type="checkbox" className="peer absolute inset-0 z-10 m-0 size-full cursor-pointer opacity-0" checked={checked} onChange={(e) => onChange(e.target.checked)} data-testid={testid} />
         <span aria-hidden className="absolute inset-0 rounded-full bg-border transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-primary peer-checked:after:translate-x-4 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2" />
@@ -190,8 +190,8 @@ function PropsBody({ cfg, block, change, formId, tableId, flush, reload }: { cfg
       {isSelect(q.input) && (
         <div className="flex flex-col gap-2.5" data-testid="options-editor">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-bold">Danh sách lựa chọn</p>
-            <button type="button" className="cursor-pointer text-xs font-semibold text-primary hover:underline" onClick={() => setOpts([...opts, { id: rid("o_"), label: `Lựa chọn ${opts.length + 1}` }])}>+ Thêm đáp án</button>
+            <p className="text-sm font-medium">Danh sách lựa chọn</p>
+            <button type="button" className="cursor-pointer text-xs font-medium text-primary hover:underline" onClick={() => setOpts([...opts, { id: rid("o_"), label: `Lựa chọn ${opts.length + 1}` }])}>+ Thêm đáp án</button>
           </div>
           {opts.map((o, i) => (
             <div key={o.id ?? i} className="flex flex-col gap-2 rounded-[10px] border border-border bg-workspace p-2.5">
@@ -201,7 +201,7 @@ function PropsBody({ cfg, block, change, formId, tableId, flush, reload }: { cfg
               </div>
               {o.id && after.length > 0 && (
                 <details>
-                  <summary className={cn("cursor-pointer text-xs font-semibold", (q.reveal?.[o.id]?.length ?? 0) > 0 ? "text-primary" : "text-muted-foreground hover:text-primary")}>↳ {(q.reveal?.[o.id]?.length ?? 0) > 0 ? `Đang bật rẽ nhánh (${q.reveal?.[o.id]?.length})` : "Thêm logic rẽ nhánh"}</summary>
+                  <summary className={cn("cursor-pointer text-xs font-medium", (q.reveal?.[o.id]?.length ?? 0) > 0 ? "text-primary" : "text-muted-foreground hover:text-primary")}>↳ {(q.reveal?.[o.id]?.length ?? 0) > 0 ? `Đang bật rẽ nhánh (${q.reveal?.[o.id]?.length})` : "Thêm logic rẽ nhánh"}</summary>
                   {after.map((b) => { const cur = q.reveal?.[o.id!] ?? []; const lab = b.type === "group" ? `Nhóm: ${b.title ?? b.id}` : (b as Question).label || b.id; return <Check key={b.id} checked={cur.includes(b.id)} onChange={(v) => { const next = { ...(q.reveal ?? {}), [o.id!]: v ? [...cur, b.id] : cur.filter((x) => x !== b.id) }; if (next[o.id!]!.length === 0) delete next[o.id!]; set({ reveal: Object.keys(next).length ? next : undefined }); }}>{lab}</Check>; })}
                 </details>
               )}
@@ -225,8 +225,8 @@ export function PropsPanel(p: { cfg: FormConfig; block: Block; num: number | nul
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2 border-b border-border-soft pb-3">
-        <span className={cn("inline-flex items-center gap-1.5 rounded-[7px] px-2.5 py-1 text-xs font-bold", TONE_CLS[meta.tone])}><meta.icon size={13} aria-hidden />{b.type === "question" ? kindLabel(q.input) : BLOCK_NAME[b.type]}</span>
-        {num !== null && <span className="text-xs font-semibold text-muted-foreground">Câu #{num}</span>}
+        <span className={cn("inline-flex items-center gap-1.5 rounded-[7px] px-2.5 py-1 text-xs font-medium", TONE_CLS[meta.tone])}><meta.icon size={13} aria-hidden />{b.type === "question" ? kindLabel(q.input) : BLOCK_NAME[b.type]}</span>
+        {num !== null && <span className="text-xs font-medium text-muted-foreground">Câu #{num}</span>}
       </div>
       <PropsBody {...rest} />
     </div>

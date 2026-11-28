@@ -90,7 +90,7 @@ export function RowPanel({ session, rowId, level, onClose, onNavigate }: { sessi
   return (
     <Drawer
       title={row?.row_no ? `Dòng #${row.row_no}` : "Chi tiết dòng"}
-      titleNode={row?.row_no ? <><RowChip className="bg-primary-soft font-bold text-primary tabular-nums">#{row.row_no}</RowChip>{mainText && <RowChip className="min-w-0 max-w-[16rem] border border-border-soft bg-card text-foreground"><span className="truncate">{mainText}</span></RowChip>}</> : undefined}
+      titleNode={row?.row_no ? <><RowChip className="bg-primary-soft font-medium text-primary tabular-nums">#{row.row_no}</RowChip>{mainText && <RowChip className="min-w-0 max-w-[16rem] border border-border-soft bg-card text-foreground"><span className="truncate">{mainText}</span></RowChip>}</> : undefined}
       open
       onClose={onClose}
       headerExtra={headerExtra}
@@ -118,7 +118,7 @@ export function RowPanel({ session, rowId, level, onClose, onNavigate }: { sessi
 
 /** A small chip of the drawer header: 12px/600, rounded 8px (mockup: chip # dòng and chip giá trị chính). */
 function RowChip({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold", className)}>{children}</span>;
+  return <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium", className)}>{children}</span>;
 }
 
 /** Columns the system fills (formula, lookup, auto number, created/modified...). */
@@ -177,7 +177,7 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
 
   const id = `f-${col.id}`;
   const label = (
-    <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-xs font-semibold text-foreground">
+    <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-xs font-medium text-foreground">
       <span className="[overflow-wrap:anywhere]">{col.name}{col.required && <span className="text-bad" aria-label="bắt buộc"> *</span>}</span>
       {busy && <span className="text-xs font-normal text-muted-foreground">Đang lưu...</span>}
     </label>

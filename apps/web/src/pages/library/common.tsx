@@ -143,10 +143,10 @@ export function LibraryHead({ title, desc, count, children }: { title: string; d
     <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-2xs lg:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="text-lg font-bold">{title}</h2>
+          <h2 className="text-lg font-semibold">{title}</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">{desc}</p>
         </div>
-        {count && <span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary tabular-nums" data-testid="lib-count">{count}</span>}
+        {count && <span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-medium text-primary tabular-nums" data-testid="lib-count">{count}</span>}
       </div>
       {children}
     </div>
@@ -156,7 +156,7 @@ export function LibraryHead({ title, desc, count, children }: { title: string; d
 /** Small chip with the option colors (dot, light fill, light border). `index` gives a stable color by position. */
 export function ColorChip({ index, color, children, className }: { index: number; color?: string; children: React.ReactNode; className?: string }) {
   return (
-    <span className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold", className)} style={optionChipVar(color, index)}>
+    <span className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium", className)} style={optionChipVar(color, index)}>
       <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: "var(--chip-dot)" }} />
       <span className="truncate">{children}</span>
     </span>
@@ -190,10 +190,10 @@ export function TagStrip({ tags, active, onPick }: { tags: string[]; active: str
   if (!tags.length) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5" data-testid="popular-tags">
-      <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Thẻ phổ biến:</span>
+      <span className="mr-1 text-[11px] font-medium text-muted-foreground">Thẻ phổ biến:</span>
       {tags.map((t, i) => (
         <button key={t} type="button" aria-pressed={active === t} onClick={() => onPick(active === t ? "" : t)}
-          className={cn("rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition-opacity hover:opacity-80", active === t && "ring-2 ring-current/30")} style={optionChipVar(undefined, i)}>#{t}</button>
+          className={cn("rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-opacity hover:opacity-80", active === t && "ring-2 ring-current/30")} style={optionChipVar(undefined, i)}>#{t}</button>
       ))}
     </div>
   );
@@ -205,7 +205,7 @@ export function ChipTabs<T extends string>({ value, onChange, items, label }: { 
     <div role="tablist" aria-label={label} className="no-scrollbar flex max-w-full gap-1 overflow-x-auto">
       {items.map((i) => (
         <button key={i.value} type="button" role="tab" aria-selected={value === i.value} onClick={() => onChange(i.value)}
-          className={cn("min-h-8 shrink-0 whitespace-nowrap rounded-lg px-2.5 text-xs transition-colors", value === i.value ? "bg-primary-soft font-semibold text-primary" : "font-medium text-muted-foreground hover:bg-muted hover:text-foreground")}>{i.label}</button>
+          className={cn("min-h-8 shrink-0 whitespace-nowrap rounded-lg px-2.5 text-xs transition-colors", value === i.value ? "bg-primary-soft font-medium text-primary" : "font-medium text-muted-foreground hover:bg-muted hover:text-foreground")}>{i.label}</button>
       ))}
     </div>
   );
@@ -236,7 +236,7 @@ export function CopyButton({ getText, children, className, variant = "secondary"
 export function CodeFrame({ children, label, className }: { children: React.ReactNode; label?: string; className?: string }) {
   return (
     <div className={cn("rounded-lg border border-border-soft bg-muted px-3 py-2", className)}>
-      {label && <div className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</div>}
+      {label && <div className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</div>}
       <div className="font-mono text-xs leading-relaxed text-foreground/80 [overflow-wrap:anywhere]">{children}</div>
     </div>
   );

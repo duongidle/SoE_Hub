@@ -392,7 +392,7 @@ function FitText({ text }: { text: string }) {
   }, [text]);
   return (
     <div ref={box} className="w-full overflow-x-auto">
-      <span ref={span} className="inline-block whitespace-nowrap font-semibold leading-tight" style={{ fontSize: size }} data-testid="kpi-value">{text}</span>
+      <span ref={span} className="inline-block whitespace-nowrap font-medium leading-tight" style={{ fontSize: size }} data-testid="kpi-value">{text}</span>
     </div>
   );
 }

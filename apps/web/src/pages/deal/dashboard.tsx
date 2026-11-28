@@ -139,7 +139,7 @@ function ForecastPanel({ from, to, name }: { from: string | null; to: string | n
           {f.by_type.length > 0 && (
             <div className="mt-3 overflow-x-auto rounded-xl border border-border-soft">
               <table className="w-full min-w-max border-collapse text-sm">
-                <thead><tr className="bg-muted text-left text-xs text-muted-foreground"><th scope="col" className="px-3 py-2 font-semibold">Loại deal</th><th scope="col" className="px-3 py-2 text-right font-semibold">Đã ký</th><th scope="col" className="px-3 py-2 text-right font-semibold">Chưa ký</th></tr></thead>
+                <thead><tr className="bg-muted text-left text-xs text-muted-foreground"><th scope="col" className="px-3 py-2 font-medium">Loại deal</th><th scope="col" className="px-3 py-2 text-right font-medium">Đã ký</th><th scope="col" className="px-3 py-2 text-right font-medium">Chưa ký</th></tr></thead>
                 <tbody>{f.by_type.map((t, i) => (
                   <tr key={t.type} className="border-t border-border-soft">
                     <th scope="row" className="px-3 py-2 text-left font-medium"><span aria-hidden className={cn("mr-2 inline-block size-2 rounded-full align-middle", TYPE_DOTS[i % TYPE_DOTS.length])} />{t.type}</th>

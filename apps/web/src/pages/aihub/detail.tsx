@@ -117,14 +117,14 @@ export function SkillDrawer({ id, onClose }: { id: string; onClose: () => void }
               <section className="flex flex-col gap-3" data-testid="install">
                 <div className="rounded-lg border border-border bg-card p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-sm font-semibold"><Terminal size={15} aria-hidden />Claude Code</span>
+                    <span className="flex items-center gap-1.5 text-sm font-medium"><Terminal size={15} aria-hidden />Claude Code</span>
                     <CopyButton getText={() => s.install.claude_code} className="!min-h-8">Sao chép lệnh</CopyButton>
                   </div>
                   <CodeFrame><code data-testid="install-cmd" className="block whitespace-pre-wrap">{s.install.claude_code}</code></CodeFrame>
                   <p className="mt-2 text-xs text-muted-foreground">Cần file zip đã tải ở thư mục hiện tại. Skill nằm ở <code>{s.install.claude_code_path}</code>.</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card p-3 text-sm">
-                  <div className="mb-1.5 flex items-center gap-1.5 font-semibold"><Monitor size={15} aria-hidden />Claude Desktop · claude.ai</div>
+                  <div className="mb-1.5 flex items-center gap-1.5 font-medium"><Monitor size={15} aria-hidden />Claude Desktop · claude.ai</div>
                   <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
                     <li>Tải gói zip ở nút bên dưới.</li>
                     <li><b className="text-foreground">Claude Desktop:</b> {s.install.claude_desktop}</li>
@@ -142,7 +142,7 @@ export function SkillDrawer({ id, onClose }: { id: string; onClose: () => void }
 
             {tab === "files" && (
               <section>
-                <div className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Cấu trúc gói</div>
+                <div className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">Cấu trúc gói</div>
                 <ul className="rounded-lg border border-border-soft bg-muted p-2 text-sm" data-testid="tree">
                   {s.tree.map((t) => (
                     <li key={t.path} className="flex items-center gap-2 py-0.5">

@@ -12,7 +12,7 @@ export type { PersonInfo } from "@/lib/people";
 /** Round avatar: the initials (no photo yet), drawn by CSS so they are not part of the text (copying or searching a name never picks them up). Decorative: the name is always written next to it. */
 export function Avatar({ name, size = "sm", className }: { name: string; size?: "sm" | "md"; className?: string }) {
   return (
-    <span aria-hidden data-initials={initialsOf(name) || "?"} className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-primary-soft font-semibold text-primary before:content-[attr(data-initials)]", size === "sm" ? "size-5 text-xs" : "size-9 text-sm", className)} />
+    <span aria-hidden data-initials={initialsOf(name) || "?"} className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-primary-soft font-medium text-primary before:content-[attr(data-initials)]", size === "sm" ? "size-5 text-xs" : "size-9 text-sm", className)} />
   );
 }
 
@@ -43,7 +43,7 @@ export function PersonCard({ person }: { person: PersonInfo }) {
       </div>
       {person.email && <Row icon={<Mail size={14} />}>{person.email}</Row>}
       {person.team && <Row icon={<Users size={14} />}>Team {person.team}</Row>}
-      {roles && <Row icon={<span className="text-xs font-semibold">VT</span>}>{roles}</Row>}
+      {roles && <Row icon={<span className="text-xs font-medium">VT</span>}>{roles}</Row>}
     </div>
   );
 }

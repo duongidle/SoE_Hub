@@ -96,7 +96,7 @@ export function SkillUploadPage() {
               void pick(async () => { const out: { path: string; file: File }[] = []; for (const en of items) await walk(en, "", out); return readFiles(out); });
             }}
           >
-            <div className="mb-2 flex items-center gap-2 font-semibold"><Upload size={18} aria-hidden className="text-primary" />Gói skill</div>
+            <div className="mb-2 flex items-center gap-2 font-medium"><Upload size={18} aria-hidden className="text-primary" />Gói skill</div>
             <p className="mb-3 text-muted-foreground">Chọn file zip, chọn thư mục, hoặc kéo thả vào đây. Thư mục có <code>SKILL.md</code> ở gốc, đầu file có <code>name</code> và <code>description</code>.</p>
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2">File zip <input type="file" accept=".zip" aria-label="Chọn file zip" data-testid="zip-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) onZip(f); }} /></label>

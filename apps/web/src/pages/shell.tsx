@@ -119,7 +119,7 @@ const readCollapsed = () => {
 };
 
 const linkBase = "relative flex min-h-[35px] items-center gap-2 rounded-[9px] px-3 text-[13px] font-medium text-[#4B5068] transition-colors duration-[130ms] hover:bg-primary-soft hover:text-foreground";
-const linkActive = "[&.active]:bg-primary-soft [&.active]:font-semibold [&.active]:text-primary [&.active]:before:absolute [&.active]:before:-left-2 [&.active]:before:top-2 [&.active]:before:bottom-2 [&.active]:before:w-[3px] [&.active]:before:rounded-full [&.active]:before:bg-primary [&.active]:before:content-['']";
+const linkActive = "[&.active]:bg-primary-soft [&.active]:font-medium [&.active]:text-primary [&.active]:before:absolute [&.active]:before:-left-2 [&.active]:before:top-2 [&.active]:before:bottom-2 [&.active]:before:w-[3px] [&.active]:before:rounded-full [&.active]:before:bg-primary [&.active]:before:content-['']";
 
 /** The menu list; the sidebar on a wide screen and the drawer on a narrow one use the same markup. */
 function SideNav({ items, collapsed, label, onLogout, settingsActive, onNavigate }: { items: NavItem[]; collapsed: boolean; label: string; onLogout?: () => void; settingsActive?: boolean; onNavigate?: () => void }) {
@@ -303,7 +303,7 @@ export function Shell() {
                   {trail.map((t, i) => (
                     <span key={t} className={cn("flex items-center gap-1.5", i === trail.length - 1 ? "min-w-0" : "max-w-40 shrink-0")}>
                       {i > 0 && <ChevronRight size={14} aria-hidden className="shrink-0 text-faint" />}
-                      <span className={cn("truncate", i === trail.length - 1 ? "font-semibold text-foreground" : "text-muted-foreground")} aria-current={i === trail.length - 1 ? "page" : undefined}>{t}</span>
+                      <span className={cn("truncate", i === trail.length - 1 ? "font-medium text-foreground" : "text-muted-foreground")} aria-current={i === trail.length - 1 ? "page" : undefined}>{t}</span>
                     </span>
                   ))}
                 </nav>
@@ -326,7 +326,7 @@ export function Shell() {
                   <HelpButton />
                   <BellButton me={me} />
                   <Link to="/tai-khoan" className="inline-flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-primary-soft" aria-label="Tài khoản của tôi">
-                    <span aria-hidden className="inline-flex size-7 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">{initials || <UserRound size={14} />}</span>
+                    <span aria-hidden className="inline-flex size-7 items-center justify-center rounded-full bg-primary-soft text-xs font-medium text-primary">{initials || <UserRound size={14} />}</span>
                     <span className="hidden max-w-32 truncate font-medium sm:inline">{me.user.full_name}</span>
                   </Link>
                   <Button variant="ghost" onClick={logout} aria-label="Đăng xuất" className="!px-2 lg:hidden">

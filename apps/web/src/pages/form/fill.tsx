@@ -145,7 +145,7 @@ function TopBar({ name, chip, progress, draft, accent }: { name: string; chip?: 
   return (
     <header className="sticky top-0 z-30 border-b border-border-soft bg-card/80 pt-[env(safe-area-inset-top)] backdrop-blur-md" data-testid="fill-bar">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-3 sm:px-6">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary text-sm font-bold text-primary-foreground" aria-hidden>S</span>
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary text-sm font-medium text-primary-foreground" aria-hidden>S</span>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold sm:flex-none sm:text-base" title={name}>{name}</span>
         {chip && <Badge tone="primary" className="hidden shrink-0 sm:inline-flex">{chip}</Badge>}
         <span className="hidden flex-1 sm:block" />

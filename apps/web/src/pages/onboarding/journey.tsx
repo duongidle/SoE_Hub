@@ -88,7 +88,7 @@ function Road({ weeks, cps, curNo, who, self, onOpen }: { weeks: WeekInfo[]; cps
           const idx = weeks.map((w, i) => (w.stage === si ? i : -1)).filter((i) => i >= 0);
           const xa = pts[idx[0]!]![0] - (n > 1 ? Math.min(26, step / 2) : 26);
           const xb = pts[idx[idx.length - 1]!]![0] + (n > 1 ? Math.min(26, step / 2) : 26);
-          return <div key={si} className="absolute truncate text-[11px] font-semibold text-muted-foreground" style={{ left: xa + 8, top: 10, maxWidth: Math.max(40, xb - xa - 16) }} title={stageName(si) ? `Giai đoạn ${si + 1}` : undefined}>GIAI ĐOẠN {si + 1}</div>;
+          return <div key={si} className="absolute truncate text-[11px] font-medium text-muted-foreground" style={{ left: xa + 8, top: 10, maxWidth: Math.max(40, xb - xa - 16) }} title={stageName(si) ? `Giai đoạn ${si + 1}` : undefined}>GIAI ĐOẠN {si + 1}</div>;
         })}
         {weeks.map((w, i) => {
           const [x, y] = pts[i]!;
@@ -99,19 +99,19 @@ function Road({ weeks, cps, curNo, who, self, onOpen }: { weeks: WeekInfo[]; cps
             <div key={w.no} onMouseEnter={(e) => { const r = e.currentTarget.querySelector("button")!.getBoundingClientRect(); setHov({ i, x: r.left + r.width / 2, y: r.bottom }); }} onMouseLeave={() => setHov(null)}>
               <button type="button" onClick={() => onOpen(w.no)} onFocus={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHov({ i, x: r.left + r.width / 2, y: r.bottom }); }} onBlur={() => setHov(null)} data-testid="onb-week" data-state={w.state} aria-current={cur ? "step" : undefined}
                 aria-label={`Tuần ${w.no}: ${w.w.name}, ${STATE_LABEL[w.state]}${list ? `, ${list.length} checkpoint` : ""}`}
-                className={cn("absolute grid size-7 place-items-center rounded-full border-2 text-[11px] font-bold shadow-md motion-safe:transition-transform motion-safe:hover:scale-110", NODE[w.state])} style={{ left: x - 14, top: y - 14 }}>
+                className={cn("absolute grid size-7 place-items-center rounded-full border-2 text-[11px] font-medium shadow-md motion-safe:transition-transform motion-safe:hover:scale-110", NODE[w.state])} style={{ left: x - 14, top: y - 14 }}>
                 {cur && <span aria-hidden className="absolute -inset-[6px] rounded-full border-2 border-primary-border" />}
                 {w.state === "done" ? <Check size={14} strokeWidth={3} aria-hidden /> : w.state === "late" ? <AlertTriangle size={13} strokeWidth={2.5} aria-hidden /> : w.state === "break" ? <Coffee size={13} aria-hidden /> : <span className="num">{w.no}</span>}
               </button>
               {worst && list && (
-                <span data-testid="onb-flag" data-status={worst.status} aria-hidden className={cn("pointer-events-none absolute inline-flex h-4 items-center gap-0.5 rounded-full border px-1 text-[11px] font-bold leading-none", FLAG_TONE[BADGE_TONE[worst.status] ?? "neutral"])} style={{ left: x + 8, top: y - 26 }}>
+                <span data-testid="onb-flag" data-status={worst.status} aria-hidden className={cn("pointer-events-none absolute inline-flex h-4 items-center gap-0.5 rounded-full border px-1 text-[11px] font-medium leading-none", FLAG_TONE[BADGE_TONE[worst.status] ?? "neutral"])} style={{ left: x + 8, top: y - 26 }}>
                   <Flag size={10} aria-hidden />{list.length}
                 </span>
               )}
               <div className="num pointer-events-none absolute text-center text-[11px] text-muted-foreground" style={{ left: x - 16, width: 32, top: y + 18 }}>T{w.no}</div>
               {cur && (
                 <div className="pointer-events-none absolute" style={{ left: x - 62, top: y + 34 }}>
-                  <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-primary-border bg-card py-0.5 pl-0.5 pr-2.5 text-[11px] font-semibold shadow-md">
+                  <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-primary-border bg-card py-0.5 pl-0.5 pr-2.5 text-[11px] font-medium shadow-md">
                     <Avatar name={who} className="!size-5 !bg-primary !text-white" />{self ? "Bạn đang ở đây" : "Đang ở đây"}
                   </div>
                 </div>
@@ -122,9 +122,9 @@ function Road({ weeks, cps, curNo, who, self, onOpen }: { weeks: WeekInfo[]; cps
       </div>
       {hov && tipList && createPortal(
         <div role="tooltip" data-testid="onb-flag-tip" className="pointer-events-none fixed z-50 flex w-[240px] flex-col gap-1 rounded-xl border border-border bg-card p-2 text-xs shadow-xl" style={{ left: Math.max(8, Math.min(window.innerWidth - 248, hov.x - 120)), top: Math.min(hov.y + 8, window.innerHeight - 24 - tipList.length * 24) }}>
-          <div className="text-[11px] font-semibold text-muted-foreground">Tuần {weeks[hov.i]!.no} · {tipList.length} checkpoint</div>
+          <div className="text-[11px] font-medium text-muted-foreground">Tuần {weeks[hov.i]!.no} · {tipList.length} checkpoint</div>
           {tipList.map((c) => (
-            <div key={c.id} className="flex items-center justify-between gap-2"><span className="min-w-0 truncate font-medium">{c.name}</span><span className={cn("shrink-0 rounded-full border px-1.5 text-[11px] font-semibold", FLAG_TONE[CP_TONE[c.status] ?? "neutral"])}>{CP_STATUS[c.status]?.label}</span></div>
+            <div key={c.id} className="flex items-center justify-between gap-2"><span className="min-w-0 truncate font-medium">{c.name}</span><span className={cn("shrink-0 rounded-full border px-1.5 text-[11px] font-medium", FLAG_TONE[CP_TONE[c.status] ?? "neutral"])}>{CP_STATUS[c.status]?.label}</span></div>
           ))}
         </div>, document.body)}
     </div>
@@ -224,9 +224,9 @@ export function JourneyTab({ plan, prog, manage, canTick, canBreak, breakBusy, o
       <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-card border border-border bg-card p-4 shadow-card" data-testid="onb-hero">
         <div className="min-w-0 basis-56">
           <div className="flex items-baseline gap-1.5">
-            <span className="num text-lg font-bold leading-none" data-testid="onb-hero-week">{curNo ? `Tuần ${curNo}` : started ? `Tuần ${N}` : "Sắp tới"}</span>
+            <span className="num text-lg font-semibold leading-none" data-testid="onb-hero-week">{curNo ? `Tuần ${curNo}` : started ? `Tuần ${N}` : "Sắp tới"}</span>
             <span className="num text-xs text-muted-foreground">/ {N}</span>
-            <span className="text-[11px] font-semibold text-muted-foreground">{curNo ? "· BẠN ĐANG Ở" : started ? "· ĐÃ QUA TUẦN CUỐI" : "· CHƯA BẮT ĐẦU"}</span>
+            <span className="text-[11px] font-medium text-muted-foreground">{curNo ? "· BẠN ĐANG Ở" : started ? "· ĐÃ QUA TUẦN CUỐI" : "· CHƯA BẮT ĐẦU"}</span>
           </div>
           <div className="mt-1 truncate text-xs text-muted-foreground" title={`${phase}${focus ? ` · ${focus.w.name}` : ""}`}>{phase}{focus ? ` · ${focus.w.name}` : ""}</div>
           <div className="mt-2 flex items-center gap-2"><ProgressBar className="!h-1 flex-1" ratio={pct / 100} /><span className="num shrink-0 text-[11px] text-muted-foreground" data-testid="onb-progress-summary">{pct}% · {done}/{flat.length} việc</span></div>
@@ -235,8 +235,8 @@ export function JourneyTab({ plan, prog, manage, canTick, canBreak, breakBusy, o
           <div className="flex min-w-0 flex-1 basis-72 items-center gap-3 rounded-lg bg-primary-soft px-3 py-2" data-testid="onb-next">
             <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-white"><Flag size={16} /></span>
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold text-primary">MỐC TIẾP THEO{nextWeekInfo?.end ? ` · HẠN ${fmtDate(nextWeekInfo.end)}` : ""}</div>
-              <div className="truncate text-sm font-semibold" title={next.name}>{next.name}</div>
+              <div className="text-[11px] font-medium text-primary">MỐC TIẾP THEO{nextWeekInfo?.end ? ` · HẠN ${fmtDate(nextWeekInfo.end)}` : ""}</div>
+              <div className="truncate text-sm font-medium" title={next.name}>{next.name}</div>
               <div className="truncate text-xs text-muted-foreground" title={missing > 0 ? missingText : undefined}>{missing > 0 ? <>Còn <b className="text-foreground">{missing} {unmet.length ? "điều kiện" : "việc"}</b>: {missingText}.</> : "Mọi điều kiện đã đủ, chờ hệ thống ghi nhận."}</div>
             </div>
           </div>
