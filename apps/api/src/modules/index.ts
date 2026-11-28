@@ -18,6 +18,7 @@ import { formOperations } from "./form";
 import { onboardingEvents, onboardingOperations } from "./onboarding";
 import { knowledgeOperations } from "./knowledge/ops";
 import { aihubOperations } from "./aihub/ops";
+import { feedbackOperations } from "./feedback";
 import { publishOperations } from "./publish/ops";
 import { guestEvents, guestOperations } from "./guest";
 import { announcementOperations, notificationEvents, notificationOperations, reminderOperations } from "./notification";
@@ -51,6 +52,7 @@ export function buildRegistry(deps: ModuleDeps): { registry: Registry; events: E
     ...publishOperations(deps.config, deps.storage),
     ...knowledgeOperations,
     ...aihubOperations,
+    ...feedbackOperations(deps.config, deps.storage),
     ...guestOperations,
     ...transferOperations,
     ...datahubOperations,

@@ -52,6 +52,10 @@ export const PERMISSIONS = {
   "auth:session:manage": "Thu hồi phiên của người khác",
   "auth:service_account:manage": "Quản lý tài khoản hệ thống",
   "data:transfer": "Chuyển giao dữ liệu",
+  // Module 11
+  "feedback:feedback:read": "Xem góp ý của mình",
+  "feedback:feedback:write": "Gửi góp ý, nhắn lại, rút lại góp ý của mình",
+  "feedback:inbox:manage": "Xử lý feedback (xem tất cả, trả lời, đổi trạng thái)",
   // Business permissions used by later modules (declared now so roles are complete)
   "deal:deal:read": "Xem Quản lý Deal",
   "deal:deal:write": "Sửa deal",
@@ -88,7 +92,7 @@ export function isPermission(s: string): s is Permission {
 }
 
 /** Every signed-in person, guests included (module1 section 3.4). */
-const SIGNED_IN: Permission[] = ["system:whoami", "system:setting:read", "file:read", "file:write", "events:subscribe", "auth:self", "notification:read", "notification:manage", "form:response:submit"];
+const SIGNED_IN: Permission[] = ["system:whoami", "system:setting:read", "file:read", "file:write", "events:subscribe", "auth:self", "notification:read", "notification:manage", "form:response:submit", "feedback:feedback:read", "feedback:feedback:write"];
 /** Every signed-in person except guests. */
 const MEMBER: Permission[] = [...SIGNED_IN, "docs:read", "org:member:read", "knowledge:article:read", "aihub:skill:read", "datahub:datahub:use", "onboarding:path:read"];
 /** Work every member role can do with their own data (module1 section 3.2). */
@@ -104,6 +108,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "org:member:write",
     "org:role:elevated",
     "org:permission:grant",
+    "feedback:inbox:manage",
     "auth:token:approve",
     "auth:session:manage",
     "auth:service_account:manage",
@@ -158,6 +163,7 @@ export const SUPPLEMENTARY_PERMISSIONS: SupplementaryPermission[] = [
   { permission: "knowledge:article:review", label: "Duyệt Knowledge", grantableBy: ["admin", "manager"], eligibleRoles: ["manager", "leader", "user"] },
   { permission: "aihub:skill:review", label: "Duyệt AI Hub", grantableBy: ["admin", "manager"], eligibleRoles: ["manager", "leader", "user"] },
   { permission: "onboarding:path:create", label: "Tạo lộ trình onboard (cho User)", grantableBy: ["manager"], eligibleRoles: ["user"] },
+  { permission: "feedback:inbox:manage", label: "Xử lý feedback", grantableBy: ["admin"], eligibleRoles: ["manager", "leader", "user"] },
   { permission: "deal:team:export", label: "Xuất dữ liệu deal của team (cho Leader)", grantableBy: ["manager"], eligibleRoles: ["leader"] },
 ];
 

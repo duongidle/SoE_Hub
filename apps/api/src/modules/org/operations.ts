@@ -1,6 +1,6 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
-import { AppError, ROLES, SUPPLEMENTARY_PERMISSIONS, listParamsShape, type Role } from "@soe/shared";
+import { AppError, ROLES, ROLE_PERMISSIONS, SUPPLEMENTARY_PERMISSIONS, listParamsShape, type Role } from "@soe/shared";
 import { diffRows, listPage, orgMemberships, recordRowHistory, userPermissions, users, type FieldMap } from "@soe/db";
 import { scopeIncludes, scopeSql, type Scope } from "../../auth/access";
 import { revokeUserSessions, revokeUserTokens } from "../../auth/sessions";
@@ -360,6 +360,52 @@ export const orgOperations = [
       const rows = await ctx.db.select().from(userPermissions).where(and(eq(userPermissions.userId, i.id), isNull(userPermissions.revokedAt)));
       const names = await namesOf(ctx.db, rows.map((r) => r.grantedBy ?? ""));
       return rows.map((r) => ({ permission: r.permission, note: r.note, granted_at: r.grantedAt, granted_by: r.grantedBy, granted_by_name: r.grantedBy ? (names.get(r.grantedBy)?.full_name ?? null) : null }));
+    },
+  }),
+
+  defineQuery({
+    name: "org.permission.holders",
+    summary: "Mỗi quyền bổ sung: những người đang được cấp (trong phạm vi cây của bạn) và bạn có cấp/gỡ được không.",
+    description: "`can_manage`: vai trò của bạn được cấp/gỡ quyền này. `holders[].writable`: người đó nằm trong phạm vi bạn sửa (Admin: tất cả; Manager: cây mình). `by_roles`: vai trò có quyền này sẵn (không cần cấp). Cấp/gỡ dùng `org.permission.grant` / `org.permission.revoke`.",
+    permission: "org:permission:grant",
+    aiAllowed: true,
+    input: z.object({}),
+    output: z.array(
+      z.object({
+        permission: z.string(),
+        label: z.string(),
+        grantable_by: z.array(z.string()),
+        eligible_roles: z.array(z.string()),
+        by_roles: z.array(z.string()),
+        can_manage: z.boolean(),
+        holders: z.array(z.object({ user_id: z.uuid(), full_name: z.string(), email: z.string().nullable(), roles: z.array(z.string()), note: z.string().nullable(), granted_at: z.date().or(z.string()), granted_by_name: z.string().nullable(), writable: z.boolean() })),
+      }),
+    ),
+    http: { method: "GET", path: "/org/permissions/holders" },
+    handler: async (ctx) => {
+      const me = await ctx.access.requirePrincipal();
+      const scope = await ctx.access.scope("org");
+      const writeScope = await ctx.access.scope("org_write");
+      const res = await ctx.db.execute(sql`SELECT up.permission, up.note, up.granted_at, u.id AS user_id, u.full_name, u.email, u.roles, gb.full_name AS granted_by_name
+        FROM user_permissions up JOIN users u ON u.id = up.user_id LEFT JOIN users gb ON gb.id = up.granted_by
+        WHERE up.revoked_at IS NULL AND u.kind = 'person' AND u.status <> 'locked' AND ${scopeSql(sql`u.id`, scope)}
+        ORDER BY u.full_name, u.id`);
+      const rows = res.rows as { permission: string; note: string | null; granted_at: Date | string; user_id: string; full_name: string; email: string | null; roles: string[]; granted_by_name: string | null }[];
+      return SUPPLEMENTARY_PERMISSIONS.map((def) => {
+        const canManage = def.grantableBy.some((r) => me.roles.includes(r));
+        const adminGrant = me.roles.includes("admin") && def.grantableBy.includes("admin");
+        return {
+          permission: def.permission,
+          label: def.label,
+          grantable_by: def.grantableBy,
+          eligible_roles: def.eligibleRoles,
+          by_roles: ROLES.filter((r) => ROLE_PERMISSIONS[r].includes(def.permission)),
+          can_manage: canManage,
+          holders: rows
+            .filter((r) => r.permission === def.permission)
+            .map((r) => ({ user_id: r.user_id, full_name: r.full_name, email: r.email, roles: r.roles, note: r.note, granted_at: r.granted_at, granted_by_name: r.granted_by_name, writable: canManage && (adminGrant || scopeIncludes(writeScope, r.user_id)) })),
+        };
+      });
     },
   }),
 

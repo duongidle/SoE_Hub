@@ -42,6 +42,8 @@ export const NOTIFICATION_TYPES = {
   postPending: "post.pending",
   postApproved: "post.approved",
   postReturned: "post.returned",
+  feedbackNew: "feedback.new",
+  feedbackUpdate: "feedback.update",
   onboardingDaily: "onboarding.daily",
   onboardingDue: "onboarding.due",
   onboardingOverdue: "onboarding.overdue",
@@ -499,6 +501,10 @@ defineNotification({ type: NOTIFICATION_TYPES.formGraded, category: "form", labe
 defineNotification({ type: NOTIFICATION_TYPES.postPending, category: "library", label: "Bài chờ duyệt", description: "Có bài Knowledge hoặc AI Hub chờ bạn duyệt.", priority: "important", render: () => null });
 defineNotification({ type: NOTIFICATION_TYPES.postApproved, category: "library", label: "Bài của bạn được duyệt", description: "Bài bạn đăng đã được duyệt và xuất bản.", render: () => null });
 defineNotification({ type: NOTIFICATION_TYPES.postReturned, category: "library", label: "Bài của bạn bị trả lại", description: "Bài bạn đăng bị trả lại kèm lý do để sửa.", priority: "important", render: () => null });
+
+/** Feedback (design module11 2): to the handlers of the inbox (new feedback, the sender wrote again); to the sender (a reply, a new status). Sent by `modules/feedback`. */
+defineNotification({ type: NOTIFICATION_TYPES.feedbackNew, category: "feedback", label: "Feedback mới hoặc người gửi nhắn lại", description: "Có góp ý mới, hoặc người gửi nhắn lại, cho người xử lý feedback.", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.feedbackUpdate, category: "feedback", label: "Góp ý của bạn có cập nhật", description: "Góp ý bạn gửi có trả lời mới hoặc đổi trạng thái.", render: () => null });
 
 /** A column a question writes to was deleted: the question is switched off and the owner must know (design module7 1.3, mandatory). */
 defineNotification({

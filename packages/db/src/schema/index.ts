@@ -16,3 +16,4 @@ export * from "./metrics";
 export * from "./forms";
 export * from "./posts";
 export * from "./prefs";
+export * from "./feedback";

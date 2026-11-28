@@ -79,6 +79,7 @@ const RULES: Rule[] = [
   { match: /^(notification|reminder|announcement)\./, menu: "notify" },
   { match: /^file\./, menu: "datahub" },
   { match: /^form\./, menu: "form" },
+  { match: /^feedback\./, menu: "feedback" },
   { match: /^skill\./, menu: "aihub" },
   { match: /^(knowledge|review|post)\./, menu: "knowledge" },
   { match: /^datahub\.limit\.mine$/, menu: "none" },
