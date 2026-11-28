@@ -7,19 +7,26 @@ import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import { useCrumbs, usePageChrome } from "@/lib/page-chrome";
 
-export function Button({ className, variant = "primary", loading, disabled, children, ...props }: React.ComponentProps<"button"> & { variant?: "primary" | "secondary" | "danger" | "ghost"; loading?: boolean }) {
+export type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
+
+/** The one button look (32px, 13px/500, 14px icons). Use it for a Link that must look like a Button: `<Link className={buttonClass({ variant: "secondary" })}>`. */
+export function buttonClass({ variant = "primary", className }: { variant?: ButtonVariant; className?: string } = {}) {
   const styles = {
     primary: "bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover",
     secondary: "border border-border bg-card text-foreground hover:border-primary-border hover:bg-primary-soft",
     danger: "bg-bad text-white shadow-sm hover:opacity-90",
     ghost: "text-foreground hover:bg-primary-soft",
   }[variant];
+  return cn("inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-[9px] px-3 py-1.5 text-[13px] font-medium transition-[transform,background-color,border-color] duration-[130ms] ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:min-h-8 sm:min-w-0", styles, className);
+}
+
+export function Button({ className, variant = "primary", loading, disabled, children, ...props }: React.ComponentProps<"button"> & { variant?: ButtonVariant; loading?: boolean }) {
   return (
     <button
       type="button"
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn("inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-[9px] px-3 py-1.5 text-[13px] font-medium transition-[transform,background-color,border-color] duration-[130ms] ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:min-h-8 sm:min-w-0", styles, className)}
+      className={buttonClass({ variant, className })}
       {...props}
     >
       {loading && <Loader2 size={16} aria-hidden className="animate-spin motion-reduce:animate-none" />}

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { BellPlus } from "lucide-react";
 import { useState } from "react";
-import { Button, ConfirmDialog, DateTimeInput, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
+import { Button, buttonClass, ConfirmDialog, DateTimeInput, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { api, fmtTime, parseVnDateTime } from "@/lib/api";
@@ -124,7 +124,7 @@ export function RemindersPanel({ showNew = true }: { showNew?: boolean } = {}) {
 export function RemindersPage() {
   return (
     <div>
-      <PageTitle actions={<Link to="/thong-bao" className="inline-flex min-h-9 items-center px-3 text-sm text-primary underline">Thông báo</Link>}>Nhắc hẹn</PageTitle>
+      <PageTitle actions={<Link to="/thong-bao" className={buttonClass({ variant: "secondary" })}>Thông báo</Link>}>Nhắc hẹn</PageTitle>
       <RemindersPanel />
     </div>
   );

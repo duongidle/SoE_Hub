@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from "@soe/shared";
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, Notice, PageTitle, Table, Tabs, Textarea } from "@/components/ui/form";
+import { Button, buttonClass, ConfirmDialog, ErrorText, Field, Input, Modal, Notice, PageTitle, Table, Tabs, Textarea } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, NoAccessState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -36,7 +36,7 @@ export function PeriodPage() {
   if (!manager) return <NoAccessState title="Chỉ Manager chốt kỳ" hint="Chốt kỳ, mở lại kỳ và snapshot dự báo là việc của Manager trên cây của mình." />;
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3" data-testid="period-page">
-      <PageTitle actions={<Link to="/quan-ly-deal" className="inline-flex min-h-8 items-center rounded-control border border-border bg-card px-3 text-sm font-medium hover:bg-muted">Về Quản lý Deal</Link>}>Chốt kỳ và dự báo</PageTitle>
+      <PageTitle actions={<Link to="/quan-ly-deal" className={buttonClass({ variant: "secondary" })}>Về Quản lý Deal</Link>}>Chốt kỳ và dự báo</PageTitle>
       <Tabs value={tab} onChange={setTab} items={[{ value: "close", label: "Chốt kỳ tháng" }, { value: "snapshot", label: "Snapshot dự báo" }]} />
       {tab === "close" ? <ClosePanel /> : <SnapshotPanel />}
     </div>

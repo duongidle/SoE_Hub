@@ -2,7 +2,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Bookmark, Download, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
-import { ErrorText, PageTitle, Select } from "@/components/ui/form";
+import { buttonClass, ErrorText, PageTitle, Select } from "@/components/ui/form";
+import { ReviewLink } from "../review/review-link";
 import { EmptyState } from "@/components/ui/states";
 import { api } from "@/lib/api";
 import { can, useMe } from "@/lib/session";
@@ -47,17 +48,19 @@ export function AiHubPage({ openId }: { openId?: string }) {
   };
   const goto = (id: string | null) => void (nav as (o: unknown) => Promise<void>)(id ? { to: "/ai-hub/$id", params: { id }, search: (s: unknown) => s } : { to: "/ai-hub", search: (s: unknown) => s });
   const installOf = async (id: string) => (await qc.fetchQuery({ queryKey: ["aihub", "skill", id], queryFn: () => api<SkillDetail>("GET", `/aihub/skills/${id}`) })).install.claude_code;
-  const newBtn = "inline-flex h-8 items-center gap-1.5 rounded-[9px] bg-primary px-3.5 text-sm font-medium text-primary-foreground shadow-2xs transition-colors hover:bg-primary-hover";
   return (
     <div className="mx-auto flex max-w-[1260px] flex-col gap-4">
       <PageTitle
         actions={
-          can(me, "aihub:skill:post") && (
-            <>
-              <Link to="/ai-hub/cua-toi" className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted"><Bookmark size={14} aria-hidden className="text-muted-foreground" />Skill của tôi</Link>
-              <Link to="/ai-hub/tai-len" className={newBtn} data-testid="upload-skill"><Upload size={14} aria-hidden />Tải lên skill</Link>
-            </>
-          )
+          <>
+            <ReviewLink kind="skill" />
+            {can(me, "aihub:skill:post") && (
+              <>
+                <Link to="/ai-hub/cua-toi" className={buttonClass({ variant: "secondary" })}><Bookmark size={14} aria-hidden className="text-muted-foreground" />Skill của tôi</Link>
+                <Link to="/ai-hub/tai-len" className={buttonClass()} data-testid="upload-skill"><Upload size={14} aria-hidden />Tải lên skill</Link>
+              </>
+            )}
+          </>
         }
       >
         AI Hub

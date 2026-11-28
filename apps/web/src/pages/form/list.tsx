@@ -3,7 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ClipboardCheck, Copy, FilePlus2, RotateCcw, Table2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
+import { Button, buttonClass, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { Tip } from "@/components/ui/tooltip";
@@ -56,7 +56,7 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-const linkBtn = "inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium hover:border-primary-border hover:bg-primary-soft sm:min-h-9";
+const linkBtn = buttonClass({ variant: "secondary" });
 
 export function FormListPage() {
   const qc = useQueryClient();
@@ -72,7 +72,7 @@ export function FormListPage() {
   const restore = useMutation({ mutationFn: (f: FormBrief) => api("POST", `/forms/${f.id}/restore`, {}), onSuccess: () => { notify.ok("Đã khôi phục form"); refresh(); } });
   return (
     <div>
-      <PageTitle actions={<><Tip label="Thùng rác"><button type="button" onClick={() => setTab(tab === "trash" ? "live" : "trash")} aria-label={`Thùng rác${trashN ? `, ${trashN} form` : ""}`} aria-pressed={tab === "trash"} data-testid="form-trash" className={`relative inline-flex size-11 sm:size-8 shrink-0 items-center justify-center rounded-md text-bad hover:bg-bad-bg ${tab === "trash" ? "bg-bad-bg" : ""}`}><Trash2 size={16} aria-hidden />{trashN > 0 && <span className="num absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-bad px-1 text-center text-[10px] font-semibold leading-4 text-white">{trashN}</span>}</button></Tip><Link to="/form/cham-bai" className={linkBtn}><ClipboardCheck size={16} aria-hidden /> Chấm bài</Link><Button onClick={() => setCreating(true)} data-testid="new-form"><FilePlus2 size={16} aria-hidden /> Tạo form</Button></>}>Dynamic Form</PageTitle>
+      <PageTitle actions={<><Tip label="Thùng rác"><button type="button" onClick={() => setTab(tab === "trash" ? "live" : "trash")} aria-label={`Thùng rác${trashN ? `, ${trashN} form` : ""}`} aria-pressed={tab === "trash"} data-testid="form-trash" className={`relative inline-flex size-11 sm:size-8 shrink-0 items-center justify-center rounded-md text-bad hover:bg-bad-bg ${tab === "trash" ? "bg-bad-bg" : ""}`}><Trash2 size={16} aria-hidden />{trashN > 0 && <span className="num absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-bad px-1 text-center text-[10px] font-semibold leading-4 text-white">{trashN}</span>}</button></Tip><Link to="/form/cham-bai" className={linkBtn}><ClipboardCheck size={14} aria-hidden />Chấm bài</Link><Button onClick={() => setCreating(true)} data-testid="new-form"><FilePlus2 size={14} aria-hidden />Tạo form</Button></>}>Dynamic Form</PageTitle>
       {tab === "trash" && (
         <div className="mb-3 flex items-center gap-2" data-testid="form-trash-head">
           <Button variant="ghost" onClick={() => setTab("live")}><ArrowLeft size={16} aria-hidden /> Quay lại</Button>
@@ -97,7 +97,7 @@ export function FormListPage() {
               <div className="flex items-center gap-1">
                 {tab === "live" ? (
                   <>
-                    {f.table_id && f.datahub_id && <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: f.datahub_id, tableId: f.table_id }} className={linkBtn} aria-label={`Mở bảng phản hồi của ${f.name}`} data-testid="open-responses"><Table2 size={16} aria-hidden /> Mở bảng phản hồi</Link>}
+                    {f.table_id && f.datahub_id && <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: f.datahub_id, tableId: f.table_id }} className={linkBtn} aria-label={`Mở bảng phản hồi của ${f.name}`} data-testid="open-responses"><Table2 size={14} aria-hidden />Mở bảng phản hồi</Link>}
                     <Button variant="ghost" onClick={() => clone.mutate(f)} aria-label={`Nhân bản ${f.name}`} title="Nhân bản"><Copy size={16} aria-hidden /></Button>
                     <Button variant="ghost" onClick={() => setDel(f)} aria-label={`Xoá ${f.name}`} title="Xoá"><Trash2 size={16} aria-hidden /></Button>
                   </>

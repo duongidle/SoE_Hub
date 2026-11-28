@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { Button, Input, PageTitle, Select } from "@/components/ui/form";
+import { Button, buttonClass, Input, PageTitle, Select } from "@/components/ui/form";
 import { PersonChip } from "@/components/ui/person";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, FilteredEmptyState } from "@/components/ui/states";
@@ -135,7 +135,7 @@ export function StaffPage() {
   const { planId } = useParams({ strict: false }) as { planId: string };
   return (
     <div>
-      <PageTitle actions={<Link to="/onboarding/theo-doi" className="inline-flex min-h-9 items-center px-3 text-sm text-primary underline">Về Tổng quan</Link>}>Nhân sự onboarding</PageTitle>
+      <PageTitle actions={<Link to="/onboarding/theo-doi" className={buttonClass({ variant: "secondary" })}>Về Tổng quan</Link>}>Nhân sự onboarding</PageTitle>
       <PlanView planId={planId} manage />
     </div>
   );

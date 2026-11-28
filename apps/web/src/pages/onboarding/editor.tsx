@@ -3,7 +3,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
-import { Button, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
+import { Button, buttonClass, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -200,7 +200,7 @@ function Editor({ p }: { p: PlanFull }) {
   const readOnly = !p.can_edit || ended;
   return (
     <div data-testid="onb-editor">
-      <PageTitle actions={<><Link to="/onboarding/lo-trinh" className="inline-flex min-h-9 items-center px-3 text-sm text-primary underline">Về danh sách</Link><Button loading={save.isPending} disabled={readOnly} onClick={() => save.mutate()} data-testid="plan-save">Lưu lộ trình</Button></>}>Sửa lộ trình</PageTitle>
+      <PageTitle actions={<><Link to="/onboarding/lo-trinh" className={buttonClass({ variant: "secondary" })}>Về danh sách</Link><Button loading={save.isPending} disabled={readOnly} onClick={() => save.mutate()} data-testid="plan-save">Lưu lộ trình</Button></>}>Sửa lộ trình</PageTitle>
       {readOnly && <p className="mb-3 rounded-md bg-muted p-3 text-sm">{ended ? "Lộ trình đã kết thúc, không sửa được." : "Chỉ Leader trực tiếp hoặc Manager sửa được lộ trình này."}</p>}
       <ErrorText error={e} />
       <fieldset disabled={readOnly} className="mt-3 flex flex-col gap-6">

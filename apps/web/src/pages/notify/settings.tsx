@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { AlarmClock, Bell, BookOpen, Bot, ClipboardList, Database, GraduationCap, Handshake, Megaphone, MessageSquare, Sunrise, UserRound, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, ErrorText, Input, Notice, PageTitle, Select } from "@/components/ui/form";
+import { Button, buttonClass, ErrorText, Input, Notice, PageTitle, Select } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { notify } from "@/components/ui/toast";
 import { api } from "@/lib/api";
@@ -150,7 +150,7 @@ export function NotificationSettingsPage() {
   const me = useMe().data;
   return (
     <div className="flex flex-col gap-6">
-      <PageTitle actions={<Link to="/thong-bao" className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-medium hover:bg-muted"><Bell className="size-4" aria-hidden />Thông báo</Link>}>Cài đặt thông báo</PageTitle>
+      <PageTitle actions={<Link to="/thong-bao" className={buttonClass({ variant: "secondary" })}><Bell size={14} aria-hidden />Thông báo</Link>}>Cài đặt thông báo</PageTitle>
       <TypeSettings />
       {me && <DueRules />}
     </div>

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { PenLine, Upload } from "lucide-react";
-import { Button, ErrorText, PageTitle } from "@/components/ui/form";
+import { Button, buttonClass, ErrorText, PageTitle } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/states";
 import { api, fmtTime } from "@/lib/api";
 import { ChipTabs, StateBadge } from "../library/common";
@@ -34,7 +34,7 @@ export function MineList({ kind }: { kind: "article" | "skill" }) {
   const items = tab ? all.filter((p) => shownOf(p) === tab) : all;
   const count = (s: string) => all.filter((p) => shownOf(p) === s).length;
   const statesHere = (["draft", "pending", "returned", "published", "archived"] as const).filter((s) => count(s) > 0); // one group only: "Tất cả" would be the same list, so no filter
-  const newBtn = "inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover";
+  const newBtn = buttonClass();
   return (
     <div className="mx-auto flex max-w-[960px] flex-col gap-3">
       <PageTitle actions={isArticle ? <Link to="/knowledge/soan" className={newBtn}><PenLine size={14} aria-hidden />Viết bài</Link> : <Link to="/ai-hub/tai-len" className={newBtn}><Upload size={14} aria-hidden />Tải lên skill</Link>}>

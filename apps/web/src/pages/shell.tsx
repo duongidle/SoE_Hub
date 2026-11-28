@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Ellipsis, BookOpen, Briefcase, BriefcaseBusiness, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardCheck, Database, FileText, FolderInput, LayoutDashboard, LogOut, Menu, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
+import { Ellipsis, BookOpen, Briefcase, BriefcaseBusiness, ChevronRight, ChevronsLeft, ChevronsRight, Database, FileText, FolderInput, LayoutDashboard, LogOut, Menu, Settings, Sparkles, UserCheck, UserRound, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { Brand, BRAND_NAME } from "@/components/brand";
@@ -31,7 +31,6 @@ const NAV: NavItem[] = [
   { to: "/onboarding", label: "Onboarding", icon: UserCheck, permission: "onboarding:path:read", onboarding: true },
   { to: "/knowledge", label: "Knowledge", icon: BookOpen, permission: "knowledge:article:read" },
   { to: "/ai-hub", label: "AI Hub", icon: Sparkles, permission: "aihub:skill:read" },
-  { to: "/duyet", label: "Duyệt bài", icon: ClipboardCheck, permission: "knowledge:article:review|aihub:skill:review" },
 ];
 
 /** Admin pages. Not in the sidebar: they are listed on the Cài đặt page (/cai-dat), by permission. */
@@ -94,9 +93,13 @@ export function settingsLinkFor(path: string) {
 }
 export const isSettingsPath = (path: string) => path === "/cai-dat" || settingsLinkFor(path) !== null;
 
+/** The review queue lives inside Knowledge and AI Hub: `/duyet?kind=article|skill` (no kind: Knowledge). */
+const reviewKind = () => new URLSearchParams(window.location.search).get("kind") === "skill" ? "skill" : "article";
+
 /** Breadcrumb from the path: the menu item it belongs to (longest prefix), under "Cài đặt" for settings pages. */
 function crumbs(path: string): string[] {
   if (path === "/cai-dat") return ["Cài đặt"];
+  if (path === "/duyet") return reviewKind() === "skill" ? ["AI Hub", "Duyệt skill"] : ["Knowledge", "Duyệt bài"];
   const setting = settingsLinkFor(path);
   if (setting) return ["Cài đặt", setting.label];
   const item = NAV.filter((n) => (n.to === "/" ? path === "/" : path === n.to || path.startsWith(`${n.to}/`))).sort((x, y) => y.to.length - x.to.length)[0];
@@ -122,13 +125,13 @@ const linkBase = "relative flex min-h-[35px] items-center gap-2 rounded-[9px] px
 const linkActive = "[&.active]:bg-primary-soft [&.active]:font-medium [&.active]:text-primary [&.active]:before:absolute [&.active]:before:-left-2 [&.active]:before:top-2 [&.active]:before:bottom-2 [&.active]:before:w-[3px] [&.active]:before:rounded-full [&.active]:before:bg-primary [&.active]:before:content-['']";
 
 /** The menu list; the sidebar on a wide screen and the drawer on a narrow one use the same markup. */
-function SideNav({ items, collapsed, label, onLogout, settingsActive, onNavigate }: { items: NavItem[]; collapsed: boolean; label: string; onLogout?: () => void; settingsActive?: boolean; onNavigate?: () => void }) {
+function SideNav({ items, collapsed, label, onLogout, settingsActive, onNavigate, forceActive }: { items: NavItem[]; collapsed: boolean; label: string; onLogout?: () => void; settingsActive?: boolean; onNavigate?: () => void; forceActive?: string | null }) {
   const text = collapsed ? "sr-only" : "truncate";
   return (
     <nav aria-label={label} className="flex min-h-0 flex-1 flex-col px-2 pb-3">
       <div className="contain-scroll-y no-scrollbar flex flex-1 flex-col gap-1.5 overflow-y-auto">
         {items.map((n) => (
-          <Link key={n.to} to={n.to} onClick={onNavigate} activeOptions={{ exact: n.to === "/" }} title={collapsed ? n.label : undefined} className={cn(linkBase, linkActive, collapsed && "justify-center px-0")}>
+          <Link key={n.to} to={n.to} onClick={onNavigate} activeOptions={{ exact: n.to === "/" }} title={collapsed ? n.label : undefined} className={cn(linkBase, linkActive, n.to === forceActive && "active", collapsed && "justify-center px-0")}>
             <n.icon size={16} aria-hidden className="shrink-0" />
             <span className={text}>{n.label}</span>
           </Link>
@@ -244,10 +247,11 @@ export function Shell() {
   };
 
   // An open table fills the window (the grid scrolls inside it); other pages are a centered column that scrolls.
-  const wide = shown.startsWith("/datahub/") || shown.startsWith("/du-lieu-duoc-cap/") || (shown.startsWith("/quan-ly-deal") && shown !== "/quan-ly-deal/template");
+  const wide = shown.startsWith("/datahub/") || shown.startsWith("/du-lieu-duoc-cap/") || shown.startsWith("/quan-ly-deal");
   // The form editor fills the window on a wide screen (outline and properties stay put, only the sheet scrolls); on a narrow one the page scrolls.
   const formEdit = /^\/form\/[^/]+$/.test(shown) && shown !== "/form/cham-bai" && shown !== "/form/bai-lam";
   const baseTrail = crumbs(shown);
+  const reviewActive = shown === "/duyet" ? (reviewKind() === "skill" ? "/ai-hub" : "/knowledge") : null;
   // A name the menu does not know (datahub, form...) ends the breadcrumb; settings pages already carry their label.
   const trail = !leaf || isSettingsPath(shown) || baseTrail[baseTrail.length - 1] === leaf ? baseTrail : baseTrail[0] === BRAND_NAME ? [leaf] : [...baseTrail, leaf];
   const initials = initialsOf(me.user.full_name);
@@ -273,7 +277,7 @@ export function Shell() {
               <ChevronsRight size={18} aria-hidden />
             </button>
           )}
-          <SideNav items={items} collapsed={collapsed} label="Menu chính" onLogout={logout} settingsActive={isSettingsPath(shown)} />
+          <SideNav items={items} collapsed={collapsed} label="Menu chính" onLogout={logout} settingsActive={isSettingsPath(shown)} forceActive={reviewActive} />
         </aside>
 
         <Dialog.Root open={open} onOpenChange={(o) => setOpenPath(o ? path : null)}>
@@ -287,7 +291,7 @@ export function Shell() {
                 </Link>
               </div>
               {/* A tap on the link of the page already open changes no path, so the menu is closed by the tap itself. */}
-              <SideNav items={items} collapsed={false} label="Menu điện thoại" settingsActive={isSettingsPath(shown)} onNavigate={() => setOpenPath(null)} />
+              <SideNav items={items} collapsed={false} label="Menu điện thoại" settingsActive={isSettingsPath(shown)} forceActive={reviewActive} onNavigate={() => setOpenPath(null)} />
             </Dialog.Content>
           </Dialog.Portal>
 

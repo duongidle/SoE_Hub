@@ -5,7 +5,7 @@ import { formatCurrency, formatDate } from "@soe/shared";
 import { ArrowUpRight, Plus, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ConfirmDialog, ErrorText, errorMessage, Field, Input, Modal, Notice, PageTitle, Select, Table, Tabs, Textarea } from "@/components/ui/form";
+import { Button, buttonClass, ConfirmDialog, ErrorText, errorMessage, Field, Input, Modal, Notice, PageTitle, Select, Table, Tabs, Textarea } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -95,7 +95,7 @@ export function PaymentsPage() {
   const items: { value: Tab; label: string }[] = [{ value: "dot", label: "Đợt thanh toán" }, ...(manager ? [{ value: "match" as const, label: "Ghép tiền về" }] : []), { value: "ledger", label: "Sổ com" }];
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3" data-testid="payments-page">
-      <PageTitle actions={<Link to="/quan-ly-deal" className="inline-flex min-h-8 items-center rounded-control border border-border bg-card px-3 text-sm font-medium hover:bg-muted">Về Quản lý Deal</Link>}>Thanh toán và com</PageTitle>
+      <PageTitle actions={<Link to="/quan-ly-deal" className={buttonClass({ variant: "secondary" })}>Về Quản lý Deal</Link>}>Thanh toán và com</PageTitle>
       <Tabs value={tab} onChange={setTab} items={items} />
       {sp.deal && tab !== "match" && <DealFocusBar dealId={sp.deal} onClear={() => setSp({ deal: "" })} />}
       {tab === "dot" && <InstalmentsTab manager={manager} dealId={sp.deal} />}

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Bookmark, Eye, Plus } from "lucide-react";
+import { Bookmark, Eye, PenLine } from "lucide-react";
 import { useState } from "react";
-import { ErrorText, PageTitle, Select } from "@/components/ui/form";
+import { buttonClass, ErrorText, PageTitle, Select } from "@/components/ui/form";
+import { ReviewLink } from "../review/review-link";
 import { PersonChip } from "@/components/ui/person";
 import { EmptyState } from "@/components/ui/states";
 import { api } from "@/lib/api";
@@ -98,12 +99,15 @@ export function KnowledgeHomePage() {
     <div className="mx-auto flex max-w-[1260px] flex-col gap-4">
       <PageTitle
         actions={
-          can(me, "knowledge:article:post") && (
-            <>
-              <Link to="/knowledge/cua-toi" className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted"><Bookmark size={14} aria-hidden className="text-muted-foreground" />Bài của tôi</Link>
-              <Link to="/knowledge/soan" className="inline-flex h-8 items-center gap-1.5 rounded-[9px] bg-primary px-3.5 text-sm font-medium text-primary-foreground shadow-2xs transition-colors hover:bg-primary-hover" data-testid="new-article"><Plus size={14} aria-hidden />Viết bài</Link>
-            </>
-          )
+          <>
+            <ReviewLink kind="article" />
+            {can(me, "knowledge:article:post") && (
+              <>
+                <Link to="/knowledge/cua-toi" className={buttonClass({ variant: "secondary" })}><Bookmark size={14} aria-hidden className="text-muted-foreground" />Bài của tôi</Link>
+                <Link to="/knowledge/soan" className={buttonClass()} data-testid="new-article"><PenLine size={14} aria-hidden />Viết bài</Link>
+              </>
+            )}
+          </>
         }
       >
         Knowledge

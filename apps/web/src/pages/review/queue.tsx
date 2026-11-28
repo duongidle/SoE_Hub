@@ -145,7 +145,9 @@ const useWide = () => useSyncExternalStore((cb) => { const m = window.matchMedia
 export function ReviewQueuePage() {
   const me = useMe().data;
   const wide = useWide();
-  const [kind, setKind] = useState("");
+  const urlKind = new URLSearchParams(window.location.search).get("kind");
+  const fixed = urlKind === "article" || urlKind === "skill" ? urlKind : "";
+  const [kind, setKind] = useState(fixed);
   const [sel, setSel] = useState<{ id: string; version: number } | null>(null);
   const initial = new URLSearchParams(window.location.search).get("post");
   const q = useQuery({ queryKey: ["review", "queue", kind], queryFn: () => api<QueueItem[]>("GET", `/review/queue?limit=100${kind ? `&kind=${kind}` : ""}`) });
@@ -155,10 +157,10 @@ export function ReviewQueuePage() {
   const detail = current && <Review key={`${current.id}-${current.version}`} id={current.id} version={current.version} onDone={() => setSel(null)} />;
   return (
     <div className="mx-auto flex max-w-[1280px] flex-col gap-3">
-      <PageTitle>Hàng chờ duyệt</PageTitle>
+      <PageTitle>{fixed === "skill" ? "Duyệt skill" : fixed === "article" ? "Duyệt bài" : "Hàng chờ duyệt"}</PageTitle>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        {kinds.length > 2 ? <ChipTabs label="Loại" value={kind} onChange={(v) => { setKind(v); setSel(null); }} items={kinds} /> : <span />}
-        {q.data && <span className="text-sm text-muted-foreground">{items.length} bài chờ duyệt</span>}
+        {!fixed && kinds.length > 2 ? <ChipTabs label="Loại" value={kind} onChange={(v) => { setKind(v); setSel(null); }} items={kinds} /> : <span />}
+        {q.data && <span className="text-sm text-muted-foreground">{items.length} {fixed === "skill" ? "skill" : "bài"} chờ duyệt</span>}
       </div>
       <ErrorText error={q.error} />
       {q.data && items.length === 0 && <EmptyState title="Không có gì chờ duyệt" hint="Bài và skill tác giả gửi lên sẽ hiện ở đây." />}
