@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { AlarmClock, Bell, BookOpen, Bot, ClipboardList, Database, GraduationCap, Handshake, Megaphone, Sunrise, UserRound, type LucideIcon } from "lucide-react";
+import { AlarmClock, Bell, BookOpen, Bot, ClipboardList, Database, GraduationCap, Handshake, Megaphone, MessageSquare, Sunrise, UserRound, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, ErrorText, Input, Notice, PageTitle, Select } from "@/components/ui/form";
@@ -24,6 +24,7 @@ const GROUPS: Record<string, { label: string; icon: LucideIcon }> = {
   onboarding: { label: "Onboarding", icon: GraduationCap },
   reminder: { label: "Nhắc hẹn", icon: AlarmClock },
   announcement: { label: "Thông báo chung", icon: Megaphone },
+  feedback: { label: "Góp ý", icon: MessageSquare },
 };
 
 function TypeSettings() {

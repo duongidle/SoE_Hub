@@ -198,7 +198,7 @@ export const notificationOperations = [
     handler: async (ctx) => {
       const s = await readSettings(ctx.db, ctx.actor.userId);
       const off = new Set(s.disabledTypes);
-      return { morning_digest: s.morningDigest, types: notificationDefs().filter((d) => d.on).map((d) => ({ type: d.type, category: d.category, label: d.label, description: d.description, mandatory: !!d.mandatory, enabled: !!d.mandatory || !off.has(d.type) })) };
+      return { morning_digest: s.morningDigest, types: notificationDefs().filter((d) => d.on || d.listed).map((d) => ({ type: d.type, category: d.category, label: d.label, description: d.description, mandatory: !!d.mandatory, enabled: !!d.mandatory || !off.has(d.type) })) };
     },
   }),
 
@@ -215,7 +215,7 @@ export const notificationOperations = [
       const known = new Map(notificationDefs().map((d) => [d.type, d]));
       for (const t of i.disabled_types ?? []) {
         const d = known.get(t);
-        if (!d || !d.on) throw new AppError("validation_error", `Không có loại thông báo "${t}".`, { reason: "unknown_type", type: t });
+        if (!d || !(d.on || d.listed)) throw new AppError("validation_error", `Không có loại thông báo "${t}".`, { reason: "unknown_type", type: t });
         if (d.mandatory) throw new AppError("validation_error", `Loại "${t}" là bắt buộc, không tắt được.`, { reason: "mandatory_type", type: t });
       }
       const cur = await readSettings(ctx.db, ctx.actor.userId);

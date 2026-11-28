@@ -220,7 +220,8 @@ export function TokensPage() {
     <div className="flex flex-col gap-6">
       <PageTitle>Kết nối AI</PageTitle>
       <p className="text-sm text-muted-foreground">
-        Dùng cho Claude Code, Codex, script. Chọn menu và mức cho kết nối; token chỉ hiện một lần lúc tạo và phải được Admin duyệt mới dùng được. Kết nối không bao giờ rộng hơn quyền của bạn.
+        Dùng cho Claude Code, Codex, script. Chọn menu và mức cho kết nối; token chỉ hiện một lần lúc tạo và phải được Admin duyệt mới dùng được. Kết nối không bao giờ rộng hơn quyền của bạn.{" "}
+        <a href="https://github.com/duongidle/SoE_Hub/blob/main/docs/ket-noi-ai.md" target="_blank" rel="noreferrer" className="text-primary underline">Xem hướng dẫn kết nối AI</a>.
       </p>
       <Card>
         <CardHeader>

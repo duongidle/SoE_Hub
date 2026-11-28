@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { can, useLiveUpdates, useMe } from "@/lib/session";
 import { initialsOf } from "@/lib/people";
 import { useSearchHotkey } from "@/lib/search-hotkey";
+import { HelpButton } from "./feedback/help";
 import { BellButton } from "./notify/inbox";
 import { SettingsLayout } from "./settings";
 
@@ -37,9 +38,12 @@ const NAV: NavItem[] = [
 export const SETTINGS_LINKS: { to: string; label: string; hint: string; permission: string | null }[] = [
   { to: "/tai-khoan", label: "Tài khoản của tôi", hint: "Mật khẩu, thiết bị, token cá nhân", permission: null },
   { to: "/tai-khoan/thong-bao", label: "Cài đặt thông báo", hint: "Kênh nhận và giờ yên tĩnh", permission: null },
+  { to: "/gop-y", label: "Góp ý của tôi", hint: "Góp ý đã gửi và phản hồi", permission: null },
   { to: "/to-chuc", label: "Org chart", hint: "Thành viên, vai trò và sơ đồ cây", permission: "org:member:read" },
+  { to: "/quan-tri/quyen-bo-sung", label: "Phân quyền bổ sung", hint: "Cấp thêm quyền cho từng người", permission: "org:permission:grant" },
   { to: "/cap-du-lieu", label: "Cấp dữ liệu Guest", hint: "Cho Guest xem dữ liệu được chọn", permission: "guest:grant:manage" },
   { to: "/quan-tri/token", label: "Kết nối AI", hint: "Duyệt kết nối AI và token", permission: "auth:token:approve" },
+  { to: "/quan-tri/feedback", label: "Feedback", hint: "Góp ý của người dùng", permission: "feedback:inbox:manage" },
   { to: "/quan-tri/tai-khoan-he-thong", label: "Tài khoản hệ thống", hint: "Tài khoản dịch vụ và key API", permission: "auth:service_account:manage" },
   { to: "/quan-tri/nhat-ky", label: "Nhật ký", hint: "Nhật ký thao tác của Admin", permission: "system:audit:read" },
   { to: "/quan-tri/chuyen-giao", label: "Chuyển giao", hint: "Chuyển dữ liệu của một người sang người khác", permission: "data:transfer" },
@@ -67,6 +71,8 @@ const ROUTE_PERMISSIONS: { prefix: string; permission: string }[] = [
   { prefix: "/to-chuc", permission: "org:member:read" },
   { prefix: "/cap-du-lieu", permission: "guest:grant:manage" },
   { prefix: "/quan-tri/token", permission: "auth:token:approve" },
+  { prefix: "/quan-tri/feedback", permission: "feedback:inbox:manage" },
+  { prefix: "/quan-tri/quyen-bo-sung", permission: "org:permission:grant" },
   { prefix: "/quan-tri/tai-khoan-he-thong", permission: "auth:service_account:manage" },
   { prefix: "/quan-tri/nhat-ky", permission: "system:audit:read" },
   { prefix: "/quan-tri/chuyen-giao", permission: "data:transfer" },
@@ -317,6 +323,7 @@ export function Shell() {
                     )}
                   />
                   {actionCount > 0 && <span aria-hidden className="mx-2 hidden h-5 w-px shrink-0 bg-border sm:block" />}
+                  <HelpButton />
                   <BellButton me={me} />
                   <Link to="/tai-khoan" className="inline-flex min-h-9 items-center gap-2 rounded-md px-1.5 text-sm hover:bg-primary-soft" aria-label="Tài khoản của tôi">
                     <span aria-hidden className="inline-flex size-7 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary">{initials || <UserRound size={14} />}</span>

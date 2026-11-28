@@ -503,8 +503,8 @@ defineNotification({ type: NOTIFICATION_TYPES.postApproved, category: "library",
 defineNotification({ type: NOTIFICATION_TYPES.postReturned, category: "library", label: "Bài của bạn bị trả lại", description: "Bài bạn đăng bị trả lại kèm lý do để sửa.", priority: "important", render: () => null });
 
 /** Feedback (design module11 2): to the handlers of the inbox (new feedback, the sender wrote again); to the sender (a reply, a new status). Sent by `modules/feedback`. */
-defineNotification({ type: NOTIFICATION_TYPES.feedbackNew, category: "feedback", label: "Feedback mới hoặc người gửi nhắn lại", description: "Có góp ý mới, hoặc người gửi nhắn lại, cho người xử lý feedback.", render: () => null });
-defineNotification({ type: NOTIFICATION_TYPES.feedbackUpdate, category: "feedback", label: "Góp ý của bạn có cập nhật", description: "Góp ý bạn gửi có trả lời mới hoặc đổi trạng thái.", render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.feedbackNew, category: "feedback", label: "Feedback mới hoặc người gửi nhắn lại", description: "Có góp ý mới, hoặc người gửi nhắn lại, cho người xử lý feedback.", listed: true, render: () => null });
+defineNotification({ type: NOTIFICATION_TYPES.feedbackUpdate, category: "feedback", label: "Góp ý của bạn có cập nhật", description: "Góp ý bạn gửi có trả lời mới hoặc đổi trạng thái.", listed: true, render: () => null });
 
 /** A column a question writes to was deleted: the question is switched off and the owner must know (design module7 1.3, mandatory). */
 defineNotification({

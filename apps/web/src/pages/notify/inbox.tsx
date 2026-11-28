@@ -25,7 +25,7 @@ export interface NotificationRow {
   created_at: string;
 }
 
-export const CATEGORY_LABEL: Record<string, string> = { account: "Tài khoản", datahub: "Datahub", ai: "Kết nối AI", deal: "Quản lý Deal", reminder: "Nhắc hẹn", digest: "Bản tin", announcement: "Thông báo chung" };
+export const CATEGORY_LABEL: Record<string, string> = { account: "Tài khoản", datahub: "Datahub", ai: "Kết nối AI", deal: "Quản lý Deal", reminder: "Nhắc hẹn", digest: "Bản tin", announcement: "Thông báo chung", feedback: "Góp ý" };
 
 const vnDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(iso));
 const isPinned = (n: NotificationRow) => n.type === "announcement" && n.priority === "important" && !n.read_at;

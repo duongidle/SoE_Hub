@@ -38,6 +38,8 @@ export interface NotificationDef {
   description: string;
   /** Outbox event that triggers it. Omit for a type that is only sent directly with `notify.send`. */
   on?: string | string[];
+  /** A type sent directly (no `on`) that still shows in the person's notification settings, so they can switch it off. */
+  listed?: boolean;
   recipients?: (ev: OutboxRow, deps: NotifyDeps) => Target[] | Promise<Target[]>;
   /** Content for one recipient. `by` is who did it ("Dương", "Dương (qua Claude Desktop)", or "Hệ thống"). Return null to skip this person. */
   render: (ev: OutboxRow, recipient: string, by: string, ctx: unknown, deps: NotifyDeps) => NotifyContent | null | Promise<NotifyContent | null>;

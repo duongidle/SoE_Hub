@@ -11,6 +11,8 @@ import { GuestGrantsPage } from "@/pages/guest";
 import { GuestDataPage, GuestTablePage } from "@/pages/guest-data";
 import { Home } from "@/pages/home";
 import { OrgPage } from "@/pages/org";
+import { ExtraPermissionsPage } from "@/pages/permissions-extra";
+import { FeedbackInboxPage, MyFeedbackPage } from "@/pages/feedback/lists";
 import { SettingsHubPage } from "@/pages/settings";
 import { Shell } from "@/pages/shell";
 import { SystemPage } from "@/pages/system";
@@ -80,6 +82,9 @@ export const router = createRouter({
     r("/thong-bao-chung", AnnouncementsPage),
     r("/nhac-hen", RemindersPage),
     r("/tai-khoan/thong-bao", NotificationSettingsPage),
+    r("/gop-y", MyFeedbackPage),
+    r("/quan-tri/feedback", FeedbackInboxPage),
+    r("/quan-tri/quyen-bo-sung", ExtraPermissionsPage),
     r("/cap-du-lieu", GuestGrantsPage),
     r("/du-lieu-duoc-cap", GuestDataPage),
     r("/du-lieu-duoc-cap/$tableId", GuestTablePage),
