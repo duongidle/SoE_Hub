@@ -25,7 +25,7 @@ Không thêm cài đặt hệ thống mới. Hằng số còn viết cứng (gi�
   - Nội dung: chữ thường, tối đa 5.000 ký tự (bắt buộc).
   - Ảnh: tối đa 3, mỗi ảnh ≤ 5 MB, dán bằng Ctrl+V hoặc chọn file; dùng lệnh file của Module 0. Không tự chụp màn hình.
   - Tự ghi kèm, người gửi không điền: đường dẫn trang đang mở, user agent, cỡ màn hình.
-- **Ảnh không cảnh báo, không chặn.** Admin xem ảnh là bình thường: Admin bị giới hạn ở **quyền thao tác** nghiệp vụ, không bị chặn nhìn thấy dữ liệu trong feedback (Dương 28/11).
+- **Ảnh không cảnh báo, không chặn.** Admin là vai trò xử lý hệ thống, không có nghiệp vụ nên không xem và không cần xem Datahub hay Deal; quy định này không đổi. Ảnh trong feedback là thứ người gửi tự đưa cho người xử lý, không phải quyền truy cập Datahub, nên không cần cảnh báo (Dương 28/11).
 - Người gửi **rút lại** được khi còn trạng thái Mới (xoá mềm).
 
 ## 2. Xử lý feedback
