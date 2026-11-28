@@ -312,3 +312,14 @@ Chỉ web. Không đổi quyền, cách tính hay dữ liệu lưu. Chức năng
 - **Không nhắc loại form** (nội bộ/công khai) ở thanh trên và dải bìa; chip chỉ còn "Bài kiểm tra". Thanh trên không còn chữ nháp ở form thường.
 - **Đầu câu hỏi một dòng:** chip "Câu N" + tiêu đề 15px/600 cùng hàng, dấu * đỏ sau tiêu đề, mô tả 13px muted; bỏ nhãn loại dữ liệu (kindLabel).
 - **Kiểm:** typecheck sạch; e2e stage12e2 desktop+phone 5 pass (sửa spec: bỏ nhấn bản đồ, dùng nút Tiếp cho cả hai). Ảnh scratchpad 12h-7/. Chưa chụp riêng Bài kiểm tra (nhánh quiz giữ nguyên bản đồ cũ).
+
+## 12H-4 Thanh công cụ Datahub/Deal kiểu Lark + dropdown (28/11)
+
+- **Bố cục cụm** (`view-tools.tsx`): [Dạng bảng ▾] │ [Thêm dòng...] │ [Kỳ] [Lọc] [Sắp xếp] [Nhóm] │ [Ẩn cột] [Tô màu] [Thời gian] ... [Tìm] [Dòng: ...] [•••]. Vạch dọc 1px cao 16px giữa cụm, 12px mỗi bên; trong cụm gap 4px.
+- **Mọi nút có icon + chữ** (28px, 12px/500, icon 14). Chỉ 🔍 (khi gấp) và ••• là icon trơn. Nút chọn dòng cũng có chữ ("Sửa 3 dòng", "Xoá 3 dòng", "Chi tiết", "Thu gọn", "Mở nhóm").
+- **Gấp theo độ rộng cố định, không đo từng nút** (đã thử ResizeObserver + đo tràn thì vòng render): đọc một số duy nhất là độ rộng thanh (`LEVEL_ROOM`), trừ 160px nếu có nút kỳ. Thứ tự gấp: ô tìm thành 🔍, rồi Dòng, Tô màu, Thời gian, Ẩn cột, Nhóm vào "•••" (trong menu vẫn icon + chữ + số; bấm thì mở bảng của công cụ ngay dưới nút •••). Còn hẹp hơn thì thanh xuống dòng (`flex-wrap`, luôn bật như lưới an toàn khi hàng chọn dòng dài). 1440: Datahub đủ chữ mọi công cụ; Deal gấp Dòng. 1280: Deal gấp Tô màu, Thời gian (và Dòng).
+- **Trạng thái bật**: nền primary nhạt + chữ primary + số ("Lọc 2", "Ẩn 14 cột").
+- **Hai lọc nhanh của Deal** ("Ưu tiên hôm nay", "Cần chấm lại hôm nay") vào bảng **Lọc** thành mục "Lọc nhanh" có tên rõ, tính vào số của Lọc. Lý do: là bộ lọc, không phải chế độ xem; bỏ hai nút icon lạ; giữ testid `quick-*` (spec `stage4-5` mở Lọc trước, chưa chạy lại theo lệnh Dương 28/11).
+- **Popover/menu**: padding 12px (menu 6px + dòng px 12px), dòng 32px, tiêu đề 13px/600, chân là ghi chú tách bằng vạch (`ToolPopover`). Select: padding 6 + dòng px 12. `Menu` có thêm `onCloseAutoFocus`.
+- **Ngăn kéo**: mở thì focus vào khung ngăn kéo (không vào nút "dòng trước").
+- **Top bar / sidebar** (việc thêm cùng bước): vạch dọc mờ 20px giữa cụm nút trang và chuông (chỉ khi trang có nút), 12px hai bên; khoảng giữa mục sidebar 6px; bỏ "Org chart" khỏi sidebar (route giữ, 12H-6 đưa vào Cài đặt); thêm mục **Workhub** sau Quản lý Deal (mọi người trừ Guest, route `/workhub`, trang trống "Tính năng đang phát triển", không API; `pages/workhub.tsx`).

@@ -137,7 +137,7 @@ export function Select({ className, children, value, defaultValue, onChange, dis
   const items: React.ReactNode[] = [];
   let lastGroup: string | undefined;
   for (const o of shown) {
-    if (o.group !== lastGroup && o.group) items.push(<div key={`g-${o.group}`} role="presentation" className="px-2 pb-0.5 pt-2 text-xs font-semibold text-muted-foreground">{o.group}</div>);
+    if (o.group !== lastGroup && o.group) items.push(<div key={`g-${o.group}`} role="presentation" className="px-3 pb-0.5 pt-2 text-xs font-semibold text-muted-foreground">{o.group}</div>);
     lastGroup = o.group;
     items.push(
       <div
@@ -150,7 +150,7 @@ export function Select({ className, children, value, defaultValue, onChange, dis
         data-active={o.value === active || undefined}
         onClick={() => choose(o)}
         onMouseMove={() => !o.disabled && active !== o.value && setActive(o.value)}
-        className={cn("flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] sm:min-h-8", o.disabled ? "cursor-not-allowed opacity-50" : "data-[active]:bg-primary-soft", o.value === current && "font-medium text-primary")}
+        className={cn("flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] sm:min-h-8", o.disabled ? "cursor-not-allowed opacity-50" : "data-[active]:bg-primary-soft", o.value === current && "font-medium text-primary")}
       >
         <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{o.label}</span>
         {o.value === current && <Check size={16} aria-hidden className="shrink-0" />}
@@ -172,7 +172,7 @@ export function Select({ className, children, value, defaultValue, onChange, dis
           (searchRef.current ?? listRef.current)?.focus();
         }}
         width="w-[max(var(--radix-popover-trigger-width),12rem)]"
-        className="p-1"
+        className="p-1.5"
       >
         {searchable && (
           <div className="relative p-1">
@@ -206,7 +206,7 @@ export function Select({ className, children, value, defaultValue, onChange, dis
           onKeyDown={searchable ? undefined : onListKey}
           className="max-h-72 overflow-y-auto outline-none"
         >
-          {items.length === 0 ? <div className="px-2 py-3 text-sm text-muted-foreground">Không có kết quả</div> : items}
+          {items.length === 0 ? <div className="px-3 py-3 text-sm text-muted-foreground">Không có kết quả</div> : items}
         </div>
       </Popover>
     </>

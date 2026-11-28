@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
  */
 export function Drawer({ title, titleNode, open, onClose, children, dirty, wide, footer, headerExtra, subHeader, width }: { title: string; /** What the header shows in place of the text of `title` (chips of the row number and main value); `title` stays the accessible name. */ titleNode?: React.ReactNode; open: boolean; onClose: () => void; children: React.ReactNode; dirty?: boolean; wide?: boolean; footer?: React.ReactNode; headerExtra?: React.ReactNode; subHeader?: React.ReactNode; soft?: boolean; width?: string }) {
   const [asking, setAsking] = React.useState(false);
+  const panelRef = React.useRef<HTMLDivElement>(null);
   const tryClose = () => {
     if (dirty) setAsking(true);
     else onClose();
@@ -21,7 +22,11 @@ export function Drawer({ title, titleNode, open, onClose, children, dirty, wide,
         <Dialog.Overlay className="overlay-fade fixed inset-0 z-50 bg-slate-900/20 backdrop-blur-[2px]" />
         <Dialog.Content
           aria-describedby={undefined}
-          className={cn("drawer-panel fixed bottom-3 right-3 top-3 z-50 flex w-[calc(100%-1.5rem)] max-w-[490px] flex-col overflow-hidden rounded-[18px] border border-border bg-card shadow-2xl", wide && "sm:max-w-[640px]", width ?? (wide ? "sm:w-[640px]" : "sm:w-[490px]"))}
+          // Open on the panel itself, not on the first button (the "previous row" arrow would show a focus ring at once).
+          tabIndex={-1}
+          ref={panelRef}
+          onOpenAutoFocus={(e) => { e.preventDefault(); panelRef.current?.focus({ preventScroll: true }); }}
+          className={cn("drawer-panel outline-none fixed bottom-3 right-3 top-3 z-50 flex w-[calc(100%-1.5rem)] max-w-[490px] flex-col overflow-hidden rounded-[18px] border border-border bg-card shadow-2xl", wide && "sm:max-w-[640px]", width ?? (wide ? "sm:w-[640px]" : "sm:w-[490px]"))}
         >
           <div className="flex items-center justify-between gap-2 border-b border-border-soft bg-muted/50 px-5 py-3">
             <Dialog.Title className="min-w-0 flex-1 text-base font-semibold tracking-tight text-foreground [overflow-wrap:anywhere]">

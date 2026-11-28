@@ -243,25 +243,32 @@ test("mở lại kỳ có xác nhận và lý do; kỳ trở lại Đang mở", 
   expect(names.every((n) => n === "Đã chốt")).toBe(true);
 });
 
+/** The ready-made filters sit in the "Lọc" panel (12H-4): open it when it is closed, then press the row. */
+async function quick(page: Page, which: "recheck" | "priority"): Promise<void> {
+  const row = page.getByTestId(`quick-${which}`);
+  if (!(await row.isVisible())) await page.getByRole("toolbar", { name: "Công cụ view" }).getByRole("button", { name: /^Lọc/ }).click();
+  await row.click();
+}
+
 test("BANT: đổi một chữ B/A/N/T thì Mức ưu tiên đổi; nút Cần chấm lại hôm nay và Ưu tiên hôm nay lọc đúng", async () => {
   const page = mgrS.page;
   await setPeriod(page, { unit: "quarter", year: 2026, index: 4 });
   await openTab(page, "Deals");
   await expectLines(page, 2);
   // Delta is open and never scored: it is in the recheck queue.
-  await page.getByTestId("quick-recheck").click();
+  await quick(page, "recheck");
   await expectLines(page, 1);
   // Scored: Need and Authority have evidence, Budget too -> P1.
   const level = async () => String((await rowOf("Deals", deltaId))?.["Mức ưu tiên"] ?? "");
   await patchDeal(deltaId, { Budget: "Có bằng chứng", Authority: "Có bằng chứng", Need: "Có bằng chứng", Timeline: "Chưa rõ" });
   await waitFor(async () => (await level()).startsWith("P1"), "Mức ưu tiên P1");
-  await page.getByTestId("quick-recheck").click(); // off
-  await page.getByTestId("quick-priority").click();
+  await quick(page, "recheck"); // off
+  await quick(page, "priority");
   await expectLines(page, 1); // only the open deal
-  await page.getByTestId("quick-recheck").click();
+  await quick(page, "recheck");
   await expectLines(page, 0); // scored just now: out of the recheck queue (both filters on)
-  await page.getByTestId("quick-recheck").click();
-  await page.getByTestId("quick-priority").click();
+  await quick(page, "recheck");
+  await quick(page, "priority");
   // One word changes: Authority "Âm" -> P3.
   await patchDeal(deltaId, { Authority: "Âm" });
   await waitFor(async () => (await level()).startsWith("P3"), "Mức ưu tiên P3");

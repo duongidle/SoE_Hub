@@ -2,11 +2,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { createPortal } from "react-dom";
 import { formatCount } from "@soe/shared";
-import { Flame, GitCompare, RefreshCw, ChevronsDownUp, ChevronsUpDown, Columns3, Copy, Download, Maximize2, MoreHorizontal, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+import { Check, Flame, GitCompare, RefreshCw, ChevronsDownUp, ChevronsUpDown, Columns3, Copy, Download, Maximize2, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, errorMessage, Field, Input, Modal, Select } from "@/components/ui/form";
-import { Menu, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
+import { MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -264,17 +264,23 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
             <PeriodButton state={periodControl} scope={table.role_set as PeriodScope} showRule={table.role_set === "deals"} follow={{ checked: !config.own_period, onChange: (v) => change({ own_period: v ? undefined : true }) }} />
           ) : null
         }
-        extra={
+        filterExtra={
           quickAvailable(table) ? (
-            <>
+            <div className="flex flex-col gap-1" role="group" aria-label="Lọc nhanh">
+              <p className="text-xs font-medium text-muted-foreground">Lọc nhanh (chỉ cho lần xem này, không lưu vào view)</p>
               {(["priority", "recheck"] as const).map((k) => (
-                <Button key={k} variant="secondary" aria-label={QUICK_LABEL[k]} title={QUICK_LABEL[k]} aria-pressed={quick === k} data-testid={`quick-${k}`} className={cn("shrink-0 sm:!min-h-7 !text-xs", quick === k && "!border-primary-border !bg-primary-soft !text-primary")} onClick={() => setQuick(quick === k ? null : k)}>{k === "priority" ? <Flame size={14} aria-hidden /> : <RefreshCw size={14} aria-hidden />}<span className="hidden @[76rem]:inline" aria-hidden>{QUICK_LABEL[k]}</span></Button>
+                <button key={k} type="button" aria-pressed={quick === k} data-testid={`quick-${k}`} onClick={() => setQuick(quick === k ? null : k)} className={cn("-mx-2 flex min-h-8 w-[calc(100%+1rem)] cursor-pointer items-center gap-2 rounded-lg px-2 text-left text-[13px] font-medium transition-colors", quick === k ? "bg-primary-soft text-primary" : "hover:bg-muted")}>
+                  {k === "priority" ? <Flame size={14} aria-hidden /> : <RefreshCw size={14} aria-hidden />}
+                  <span className="min-w-0 flex-1">{QUICK_LABEL[k]}</span>
+                  {quick === k && <Check size={14} aria-hidden />}
+                </button>
               ))}
-            </>
+            </div>
           ) : null
         }
-        more={
-          <Menu trigger={<Button variant="ghost" aria-label="Thêm thao tác" title="Thêm thao tác" className="shrink-0 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0"><MoreHorizontal size={16} aria-hidden /></Button>}>
+        filterExtraCount={quick ? 1 : 0}
+        moreItems={
+          <>
             {undoApi && (
               <>
                 <MenuItem disabled={!undoApi.canUndo} onSelect={() => undoApi.run(false)}><Undo2 size={16} aria-hidden /> Hoàn tác <span aria-hidden className="ml-auto pl-4 text-xs text-muted-foreground">Ctrl+Z</span></MenuItem>
@@ -291,7 +297,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
                 {menuExtra}
               </>
             )}
-          </Menu>
+          </>
         }
       />
       {view.shared && table.access !== "owner" && view.has_override && (
@@ -490,24 +496,24 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
     <>
       {canWrite && (
         <>
-          <Button onClick={() => void addRow()} disabled={columnsEmpty} className="shrink-0 !text-xs sm:!min-h-7 sm:!py-0"><Plus size={16} aria-hidden /> Thêm dòng</Button>
+          <Button onClick={() => void addRow()} disabled={columnsEmpty} className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0"><Plus size={14} aria-hidden /> Thêm dòng</Button>
         </>
       )}
       {sel.ids.length > 0 && canWrite && (
         <>
-          <Button variant="ghost" aria-label={`Sửa ${formatCount(sel.ids.length, "dòng")}`} title={`Sửa ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !bg-primary-soft !text-primary !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setBulk(true)}><Pencil size={16} aria-hidden /><span aria-hidden className="text-xs font-semibold @[64rem]:hidden">{sel.ids.length}</span><span aria-hidden className="hidden @[64rem]:inline">Sửa {formatCount(sel.ids.length, "dòng")}</span></Button>
-          <Button variant="ghost" aria-label={`Xoá ${formatCount(sel.ids.length, "dòng")}`} title={`Xoá ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !text-bad !text-xs sm:!min-h-7 sm:!py-0" onClick={() => void deleteSelected()}><Trash2 size={16} aria-hidden /><span aria-hidden className="text-xs font-semibold @[64rem]:hidden">{sel.ids.length}</span><span aria-hidden className="hidden @[64rem]:inline">Xoá {formatCount(sel.ids.length, "dòng")}</span></Button>
+          <Button variant="ghost" aria-label={`Sửa ${formatCount(sel.ids.length, "dòng")}`} title={`Sửa ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !gap-1.5 !bg-primary-soft !px-2.5 !text-primary !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setBulk(true)}><Pencil size={14} aria-hidden /><span aria-hidden>Sửa {formatCount(sel.ids.length, "dòng")}</span></Button>
+          <Button variant="ghost" aria-label={`Xoá ${formatCount(sel.ids.length, "dòng")}`} title={`Xoá ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !gap-1.5 !px-2.5 !text-bad !text-xs sm:!min-h-7 sm:!py-0" onClick={() => void deleteSelected()}><Trash2 size={14} aria-hidden /><span aria-hidden>Xoá {formatCount(sel.ids.length, "dòng")}</span></Button>
         </>
       )}
       {(sel.active || sel.ids.length === 1) && (
         <Tip label="Chi tiết dòng (bấm số thứ tự, hoặc Shift + Space)">
-          <Button variant="ghost" aria-label="Chi tiết dòng" className="shrink-0 !px-2 !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setOpenRow(sel.ids.length === 1 ? sel.ids[0]! : sel.active)}><Maximize2 size={16} aria-hidden /></Button>
+          <Button variant="ghost" aria-label="Chi tiết dòng" className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setOpenRow(sel.ids.length === 1 ? sel.ids[0]! : sel.active)}><Maximize2 size={14} aria-hidden /><span aria-hidden>Chi tiết</span></Button>
         </Tip>
       )}
       {session.grouped && (
         <>
-          <Button variant="ghost" className="shrink-0 !px-2" title="Thu gọn tất cả nhóm" aria-label="Thu gọn tất cả" onClick={() => session.setAllCollapsed(true)} data-testid="groups-collapse-all"><ChevronsDownUp size={16} aria-hidden /></Button>
-          <Button variant="ghost" className="shrink-0 !px-2" title="Mở tất cả nhóm" aria-label="Mở tất cả" onClick={() => session.setAllCollapsed(false)} data-testid="groups-expand-all"><ChevronsUpDown size={16} aria-hidden /></Button>
+          <Button variant="ghost" className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0" title="Thu gọn tất cả nhóm" aria-label="Thu gọn tất cả" onClick={() => session.setAllCollapsed(true)} data-testid="groups-collapse-all"><ChevronsDownUp size={14} aria-hidden /><span aria-hidden>Thu gọn</span></Button>
+          <Button variant="ghost" className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0" title="Mở tất cả nhóm" aria-label="Mở tất cả" onClick={() => session.setAllCollapsed(false)} data-testid="groups-expand-all"><ChevronsUpDown size={14} aria-hidden /><span aria-hidden>Mở nhóm</span></Button>
         </>
       )}
       {!canWrite && <Badge tone="muted">Chỉ xem</Badge>}

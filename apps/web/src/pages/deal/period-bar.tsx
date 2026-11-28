@@ -62,7 +62,8 @@ export function PeriodButton({ state, scope, showRule, follow }: { state: Shared
         </Button>
       }
     >
-      <div className="flex flex-col gap-3 p-1" data-testid="shared-period">
+      <div className="flex flex-col gap-3" data-testid="shared-period">
+        <p className="text-[13px] font-semibold text-foreground">Kỳ chung</p>
         <div className="flex items-center gap-2">
           <Select aria-label="Loại kỳ" data-testid="period-unit" className="!w-24" value={v.range.unit} onChange={(e) => set(e.target.value as PeriodUnit)}>
             {(Object.keys(PERIOD_UNIT_LABELS) as PeriodUnit[]).map((u) => <option key={u} value={u}>{PERIOD_UNIT_LABELS[u]}</option>)}

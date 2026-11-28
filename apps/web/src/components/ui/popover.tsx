@@ -21,7 +21,7 @@ export function Popover({ trigger, children, label, align = "start", width = "w-
           avoidCollisions={!fixedSide}
           // Opened from inside a dialog, the modal dialog turns pointer events off for everything outside it; the panel must still be clickable.
           style={{ pointerEvents: "auto" }}
-          className={cn("contain-scroll-y z-[60] max-h-[min(80dvh,var(--radix-popover-content-available-height))] max-w-[calc(100vw-1rem)] overflow-y-auto fade-up rounded-[13px] border border-border bg-card p-2 text-[13px] shadow-xl outline-none", width, className)}
+          className={cn("contain-scroll-y z-[60] max-h-[min(80dvh,var(--radix-popover-content-available-height))] max-w-[calc(100vw-1rem)] overflow-y-auto fade-up rounded-[13px] border border-border bg-card p-3 text-[13px] shadow-xl outline-none", width, className)}
         >
           {children}
         </P.Content>
