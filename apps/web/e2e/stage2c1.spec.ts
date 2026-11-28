@@ -394,10 +394,12 @@ test("xoá dòng đã chọn có Hoàn tác; sửa hàng loạt", async () => {
   expect(await g.read(COL.name, 3)).toBe("Khách B");
 
   await g.clickMarker(0);
-  await expect(pg.getByRole("button", { name: "Sửa 1 dòng" })).toBeVisible();
+  // One selected row: no bulk edit (edit the cell or the row panel); the bar offers Chi tiết and Xoá.
+  await expect(pg.getByRole("button", { name: "Chi tiết dòng" })).toBeVisible();
+  await expect(pg.getByRole("button", { name: /^Sửa hàng loạt/ })).toHaveCount(0);
   await g.clickMarker(1, { append: true });
-  await expect(pg.getByRole("button", { name: "Sửa 2 dòng" })).toBeVisible();
-  await pg.getByRole("button", { name: "Sửa 2 dòng" }).click();
+  await expect(pg.getByRole("button", { name: "Sửa hàng loạt 2 dòng" })).toBeVisible();
+  await pg.getByRole("button", { name: "Sửa hàng loạt 2 dòng" }).click();
   const d = pg.getByRole("dialog", { name: "Sửa 2 dòng" });
   await chooseOption(d.getByLabel("Cột"), { label: "Giai đoạn" });
   await chooseOption(d.getByRole("combobox").nth(1), { label: "Chốt" });
@@ -414,7 +416,7 @@ test("chi tiết dòng: sửa trong khung, lịch sử thay đổi", async () =>
   if (phone()) {
     await g.click(COL.name, 0);
   } else await g.click(COL.name, 0);
-  await pg.getByRole("button", { name: "Chi tiết dòng" }).click();
+  await g.openMarker(0); // the expand icon of the number cell (the toolbar no longer has a Chi tiết button for the active cell)
   const d = pg.getByRole("dialog", { name: /^Dòng #1$/ });
   await expect(d).toBeVisible();
   // The phone run skips the grid edits of the earlier tests, so the row still holds its first values.

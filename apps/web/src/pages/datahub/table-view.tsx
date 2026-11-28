@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { createPortal } from "react-dom";
 import { formatCount } from "@soe/shared";
-import { Check, Flame, GitCompare, RefreshCw, ChevronsDownUp, ChevronsUpDown, Columns3, Copy, Download, Maximize2, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload } from "lucide-react";
+import { Check, Flame, GitCompare, RefreshCw, ChevronsDownUp, ChevronsUpDown, Columns3, Copy, Download, Maximize2, Trash, Pencil, Plus, Redo2, Trash2, Undo2, Upload, X } from "lucide-react";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, errorMessage, Field, Input, Modal, Select } from "@/components/ui/form";
@@ -10,7 +10,6 @@ import { MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
-import { Tip } from "@/components/ui/tooltip";
 import { createView, dhKeys, fetchRowsByIds, getDatahub, getTable, lookupPeople, listViews, rememberView, updateView } from "@/lib/datahub/api";
 import { nameKey, optionsOf, parseCellText, readOnlyReason, type Parsed } from "@/lib/datahub/cells";
 import { TableSession } from "@/lib/datahub/session";
@@ -499,17 +498,6 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
           <Button onClick={() => void addRow()} disabled={columnsEmpty} className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0"><Plus size={14} aria-hidden /> Thêm dòng</Button>
         </>
       )}
-      {sel.ids.length > 0 && canWrite && (
-        <>
-          <Button variant="ghost" aria-label={`Sửa ${formatCount(sel.ids.length, "dòng")}`} title={`Sửa ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !gap-1.5 !bg-primary-soft !px-2.5 !text-primary !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setBulk(true)}><Pencil size={14} aria-hidden /><span aria-hidden>Sửa {formatCount(sel.ids.length, "dòng")}</span></Button>
-          <Button variant="ghost" aria-label={`Xoá ${formatCount(sel.ids.length, "dòng")}`} title={`Xoá ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !gap-1.5 !px-2.5 !text-bad !text-xs sm:!min-h-7 sm:!py-0" onClick={() => void deleteSelected()}><Trash2 size={14} aria-hidden /><span aria-hidden>Xoá {formatCount(sel.ids.length, "dòng")}</span></Button>
-        </>
-      )}
-      {(sel.active || sel.ids.length === 1) && (
-        <Tip label="Chi tiết dòng (bấm số thứ tự, hoặc Shift + Space)">
-          <Button variant="ghost" aria-label="Chi tiết dòng" className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setOpenRow(sel.ids.length === 1 ? sel.ids[0]! : sel.active)}><Maximize2 size={14} aria-hidden /><span aria-hidden>Chi tiết</span></Button>
-        </Tip>
-      )}
       {session.grouped && (
         <>
           <Button variant="ghost" className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0" title="Thu gọn tất cả nhóm" aria-label="Thu gọn tất cả" onClick={() => session.setAllCollapsed(true)} data-testid="groups-collapse-all"><ChevronsDownUp size={14} aria-hidden /><span aria-hidden>Thu gọn</span></Button>
@@ -525,7 +513,24 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
       {session.grouped && session.groupsTruncated && (
         <p role="status" className="rounded-md bg-warn/15 px-3 py-2 text-sm">Có hơn 1.000 nhóm nên chỉ hiện 1.000 nhóm đầu. Lọc bớt dòng hoặc chọn cột nhóm khác.</p>
       )}
-      {body}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {body}
+        {sel.ids.length > 0 && (
+          <div role="toolbar" aria-label="Dòng đã chọn" data-testid="selection-bar" className="fade-up pointer-events-auto absolute inset-x-3 bottom-4 z-20 mx-auto flex w-fit max-w-[calc(100%-1.5rem)] flex-wrap items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 py-1.5 text-xs text-foreground shadow-xl">
+            <span className="font-semibold">Đã chọn {formatCount(sel.ids.length, "dòng")}</span>
+            {sel.ids.length === 1 && (
+              <Button variant="ghost" aria-label="Chi tiết dòng" className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setOpenRow(sel.ids[0]!)}><Maximize2 size={14} aria-hidden /><span aria-hidden>Chi tiết</span></Button>
+            )}
+            {sel.ids.length >= 2 && canWrite && (
+              <Button variant="ghost" aria-label={`Sửa hàng loạt ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !gap-1.5 !bg-primary-soft !px-2.5 !text-primary !text-xs sm:!min-h-7 sm:!py-0" onClick={() => setBulk(true)}><Pencil size={14} aria-hidden /><span aria-hidden>Sửa hàng loạt</span></Button>
+            )}
+            {canWrite && (
+              <Button variant="ghost" aria-label={`Xoá ${formatCount(sel.ids.length, "dòng")}`} title={`Xoá ${formatCount(sel.ids.length, "dòng")}`} className="shrink-0 !gap-1.5 !px-2.5 !text-bad !text-xs sm:!min-h-7 sm:!py-0" onClick={() => void deleteSelected()}><Trash2 size={14} aria-hidden /><span aria-hidden>Xoá</span></Button>
+            )}
+            <Button variant="ghost" aria-label="Bỏ chọn" title="Bỏ chọn" className="shrink-0 !px-1.5 !text-xs sm:!min-h-7 sm:!py-0" onClick={() => apiRef.current?.clearSelection()}><X size={14} aria-hidden /></Button>
+          </div>
+        )}
+      </div>
       <div className="flex min-h-4 flex-wrap items-center gap-x-3 text-xs text-muted-foreground" aria-live="polite">
         {!columnsEmpty && store.known && <span>{formatCount(total, "dòng")}</span>}
         {saving > 0 ? <span>Đang lưu...</span> : null}

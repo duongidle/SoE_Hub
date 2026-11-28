@@ -15,7 +15,9 @@ import { FONT_STACK, fontsReady, optionColor, token } from "@/lib/theme";
 import { isInsidePopup, soeRenderer, type SoeCell } from "./grid-cells";
 import type { GridView } from "./table-view";
 
-const MARKER_WIDTH = 48;
+/** Row number column (12H-13): tick box 16px in the middle, expand icon in a 24px zone on the right, 8px apart. */
+const MARKER_WIDTH = 72;
+const ICON_ZONE = 24;
 /** Header row of the grid (mockup: 36px); the body rows follow the density of the view. */
 const HEADER_HEIGHT = 36;
 const NUMERIC = new Set(["number", "currency", "percent", "auto_number", "row_id"]);
@@ -73,8 +75,7 @@ function gridTheme(): Partial<Theme> {
     cellVerticalPadding: 4,
     headerFontStyle: "600 12px",
     baseFontStyle: "13px",
-    markerFontStyle: "12px",
-    fontFamily: FONT_STACK,
+    markerFontStyle: "12px",    fontFamily: FONT_STACK,
     editorFontSize: "13px",
     lineHeight: 1.5,
     roundingRadius: 6,
@@ -97,6 +98,8 @@ export interface GridApi {
   scrollToRow: (index: number) => void;
   /** First and last row POSITION (in the list the server reads) on screen. */
   visibleRange: () => [number, number];
+  /** Drops the row selection (the floating selection bar's ✕). */
+  clearSelection: () => void;
 }
 
 export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef, onAddRow }: { session: TableSession; level: Level; view: GridView; onOpenRow: (rowId: string) => void; onSelection: (rowIds: string[], activeRowId: string | null) => void; apiRef: React.MutableRefObject<GridApi | null>; onAddRow: () => Promise<void> }) {
@@ -153,7 +156,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   const markerAt = useRef(0);
   const [tip, setTip] = useState<Tip | null>(null);
   /** The row under the pointer on the number cell: the expand icon is drawn there. */
-  const [hoverMarker, setHoverMarker] = useState<{ top: number; height: number } | null>(null);
+  const [hoverMarker, setHoverMarker] = useState<{ top: number; height: number; icon: boolean } | null>(null);
 
   const ctx: CellCtx = useMemo(() => ({ people: labels.people, linked: labels.linked, noAccess: labels.noAccess }), [labels]);
   // Names of people already known, for pasting a name into a user column.
@@ -494,8 +497,9 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
         if (line >= 0) ref.current?.scrollTo(0, line, "vertical", 0, 0, { vAlign: "center" });
       },
       visibleRange: () => positionsOf(visible.current.y, visible.current.y + visible.current.height),
+      clearSelection: () => onGridSelectionChange({ columns: CompactSelection.empty(), rows: CompactSelection.empty() }),
     };
-  }, [apiRef, selection, rowAtLine, grouped, session, positionsOf]);
+  }, [apiRef, selection, rowAtLine, grouped, session, positionsOf, onGridSelectionChange]);
 
   const onVisibleRegionChanged = useCallback(
     (range: Rectangle) => {
@@ -647,10 +651,10 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
     } else rows = CompactSelection.fromSingleSelection(r);
     onGridSelectionChange({ columns: CompactSelection.empty(), rows });
   };
-  /** The tick box sits in the middle of the number cell, 18px wide; the click zone is a little wider. */
+  /** The tick box (16px) sits in the middle of the number cell; its click zone is 24px wide. */
   const onTick = (clientX: number): boolean => {
     const rect = rootRef.current?.getBoundingClientRect();
-    return !!rect && Math.abs(clientX - rect.left - MARKER_WIDTH / 2) <= 11;
+    return !!rect && Math.abs(clientX - rect.left - MARKER_WIDTH / 2) <= 12;
   };
   const pressed = useRef<{ row: number; mode: "open" | "toggle" | "range" | "none" } | null>(null);
   const touch = useRef<{ row: number; x: number; timer: ReturnType<typeof setTimeout> | null } | null>(null);
@@ -676,7 +680,10 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
       const root = rootRef.current?.getBoundingClientRect();
       if (!b || !root) return setHoverMarker((h) => (h ? null : h));
       const top = b.y - root.top;
-      setHoverMarker((h) => (h && h.top === top && h.height === b.height ? h : { top, height: b.height }));
+      const icon = e.clientX - root.left >= MARKER_WIDTH - ICON_ZONE;
+      setHoverMarker((h) => (h && h.top === top && h.height === b.height && h.icon === icon ? h : { top, height: b.height, icon }));
+      if (icon) setTip({ x: e.clientX, y: b.y + b.height + 4, text: "Mở chi tiết dòng", v: version });
+      else setTip((t) => (t?.text === "Mở chi tiết dòng" ? null : t));
     },
     onMouseUpCapture: () => {
       const p = pressed.current;
@@ -716,7 +723,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   };
   return (
     // data-* : the layout the browser tests use to find a cell on the canvas.
-    <div ref={rootRef} {...markerHandlers} className="relative min-h-[60dvh] flex-1 overflow-hidden rounded-card border border-border-soft bg-card sm:min-h-0" onMouseLeave={() => { setTip(null); setHoverMarker(null); }} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-header-height={HEADER_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
+    <div ref={rootRef} {...markerHandlers} className={`relative min-h-[60dvh] flex-1 overflow-hidden rounded-card border border-border-soft bg-card sm:min-h-0${hoverMarker && !grouped ? " [&_canvas]:!cursor-pointer" : ""}`} onMouseLeave={() => { setTip(null); setHoverMarker(null); }} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-header-height={HEADER_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
       {theme && (
         <DataEditor
           ref={ref}
@@ -730,7 +737,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
           getCellContent={getCellContent}
           customRenderers={[soeRenderer]}
           isOutsideClick={(e) => !isInsidePopup(e)}
-          rowMarkers={{ kind: grouped ? "checkbox" : selection.rows.length > 0 ? "checkbox-visible" : "both", width: MARKER_WIDTH }}
+          rowMarkers={{ kind: grouped ? "checkbox" : selection.rows.length > 0 ? "checkbox-visible" : "both", width: MARKER_WIDTH, theme: { cellVerticalPadding: Math.max(0, (ROW_HEIGHT - 16) / 2) } }}
           freezeColumns={view.frozen}
           onCellClicked={onHeaderClick}
           onHeaderMenuClick={(c, bounds) => {
@@ -787,8 +794,8 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
       )}
       {hoverMarker && !grouped && (
         // Only drawn: a click on it lands on the number cell, which opens the row (see markerHandlers).
-        <span aria-hidden data-testid="row-expand-hint" className="pointer-events-none absolute z-10 flex size-4 items-center justify-center rounded text-primary" style={{ left: MARKER_WIDTH - 19, top: hoverMarker.top + (hoverMarker.height - 16) / 2 }}>
-          <Maximize2 size={12} />
+        <span aria-hidden data-testid="row-expand-hint" className={`pointer-events-none absolute z-10 flex size-6 items-center justify-center rounded-md text-primary transition-colors duration-100 ${hoverMarker.icon ? "bg-primary-soft" : ""}`} style={{ left: MARKER_WIDTH - ICON_ZONE, top: hoverMarker.top + (hoverMarker.height - ICON_ZONE) / 2 }}>
+          <Maximize2 size={15} />
         </span>
       )}
       <PointPopover at={menu} label={menu ? `Cột ${menu.col.name}` : "Cột"} onClose={() => setMenu(null)}>
