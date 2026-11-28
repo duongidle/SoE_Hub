@@ -79,7 +79,7 @@ export function SendFeedbackModal({ onClose }: { onClose: () => void }) {
         }}
       >
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-semibold">Loại<span className="text-bad" aria-hidden> *</span></span>
+          <span className="text-xs font-medium">Loại<span className="text-bad" aria-hidden> *</span></span>
           <div role="radiogroup" aria-label="Loại góp ý" className="flex flex-wrap gap-2">
             {KINDS.map((k) => (
               <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={cn("min-h-8 cursor-pointer rounded-[9px] border px-3 text-[13px] font-medium transition-colors", kind === k ? "border-primary bg-primary-soft text-primary" : "border-border bg-card hover:border-primary-border hover:bg-primary-soft")}>
@@ -92,7 +92,7 @@ export function SendFeedbackModal({ onClose }: { onClose: () => void }) {
           <Textarea aria-label="Nội dung góp ý" rows={6} maxLength={FEEDBACK_BODY_MAX} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Mô tả lỗi hoặc ý tưởng. Có thể dán ảnh bằng Ctrl+V." />
         </Field>
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold">Ảnh (tối đa {FEEDBACK_MAX_FILES}, mỗi ảnh 5 MB)</span>
+          <span className="text-xs font-medium">Ảnh (tối đa {FEEDBACK_MAX_FILES}, mỗi ảnh 5 MB)</span>
           {files.length > 0 && (
             <ul aria-label="Ảnh đã chọn" className="flex flex-wrap gap-2">
               {files.map((f, i) => (

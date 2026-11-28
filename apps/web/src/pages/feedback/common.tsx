@@ -89,7 +89,7 @@ function FeedbackImage({ feedbackId, file }: { feedbackId: string; file: Feedbac
 
 const Block = ({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) => (
   <section className={cn("flex flex-col gap-2", className)}>
-    <h3 className="text-xs font-semibold text-muted-foreground">{title}</h3>
+    <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
     {children}
   </section>
 );
@@ -171,9 +171,9 @@ export function FeedbackDrawer({ id, onClose, manage }: { id: string; onClose: (
               </Block>
               <Block title="Thông tin tự ghi">
                 <dl className="flex flex-col gap-1 rounded-[12px] border border-border-soft p-3 text-xs text-muted-foreground" data-testid="feedback-context">
-                  <div><dt className="inline font-semibold text-foreground">Trang: </dt><dd className="inline [overflow-wrap:anywhere]">{d.context?.url || "—"}</dd></div>
-                  <div><dt className="inline font-semibold text-foreground">Cỡ màn hình: </dt><dd className="inline">{d.context?.viewport || "—"}</dd></div>
-                  <div><dt className="inline font-semibold text-foreground">Trình duyệt: </dt><dd className="inline [overflow-wrap:anywhere]">{d.context?.user_agent || "—"}</dd></div>
+                  <div><dt className="inline font-medium text-foreground">Trang: </dt><dd className="inline [overflow-wrap:anywhere]">{d.context?.url || "—"}</dd></div>
+                  <div><dt className="inline font-medium text-foreground">Cỡ màn hình: </dt><dd className="inline">{d.context?.viewport || "—"}</dd></div>
+                  <div><dt className="inline font-medium text-foreground">Trình duyệt: </dt><dd className="inline [overflow-wrap:anywhere]">{d.context?.user_agent || "—"}</dd></div>
                 </dl>
               </Block>
             </>

@@ -68,14 +68,14 @@ export function FeedbackInboxPage() {
 function Filters({ kind, status, statusAll, onChange, withOpen }: { kind: string; status: string; statusAll: string; onChange: (p: { kind?: string; status?: string }) => void; withOpen?: boolean }) {
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <label className="flex flex-col gap-1 text-xs font-semibold">
+      <label className="flex flex-col gap-1 text-xs font-medium">
         Loại
         <Select aria-label="Lọc theo loại" className="w-48" value={kind} onChange={(e) => onChange({ kind: e.target.value })}>
           <option value="">Tất cả loại</option>
           {Object.entries(KIND_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </Select>
       </label>
-      <label className="flex flex-col gap-1 text-xs font-semibold">
+      <label className="flex flex-col gap-1 text-xs font-medium">
         Trạng thái
         <Select aria-label="Lọc theo trạng thái" className="w-56" value={status} onChange={(e) => onChange({ status: e.target.value })}>
           {withOpen && <option value="open">Mới và Đang xem</option>}
