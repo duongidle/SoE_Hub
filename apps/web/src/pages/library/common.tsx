@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { Check, Copy, Search } from "lucide-react";
-import { useState } from "react";
+import { Check, Copy, Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import Image from "@tiptap/extension-image";
 import Link2 from "@tiptap/extension-link";
 import { Table } from "@tiptap/extension-table";
@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/form";
 import { notify } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api";
+import { searchHotkeyProps } from "@/lib/search-hotkey";
+import { optionChipVar } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 /** One finding of the automatic check (design module8 3.4, 4.2). `path` points at the field (article) or the file (skill). */
@@ -135,31 +137,63 @@ export const BackLink = ({ to, children }: { to: string; children: React.ReactNo
   <Link to={to} className="inline-flex min-h-9 items-center text-sm text-primary underline">{children}</Link>
 );
 
-/** The white card that opens a library page: one search box, popular tags, then the tabs and filters passed as children. */
-export function LibraryHead({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-sm">{children}</div>;
+/** The white card that opens a library page (mockup): title, one line of description and a count chip, then one search box, popular tags, tabs and filters (children). */
+export function LibraryHead({ title, desc, count, children }: { title: string; desc: string; count?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-2xs lg:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold">{title}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{desc}</p>
+        </div>
+        {count && <span className="rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary tabular-nums" data-testid="lib-count">{count}</span>}
+      </div>
+      {children}
+    </div>
+  );
 }
 
-/** One search box: type and press Enter (or "Tìm"). The parent decides what "#tag" means. */
-export function SearchBox({ value, onChange, onSubmit, placeholder, label, testid, goTestid }: { value: string; onChange: (v: string) => void; onSubmit: () => void; placeholder: string; label: string; testid: string; goTestid?: string }) {
+/** Small chip with the option colors (dot, light fill, light border). `index` gives a stable color by position. */
+export function ColorChip({ index, color, children, className }: { index: number; color?: string; children: React.ReactNode; className?: string }) {
   return (
-    <form role="search" className="flex h-11 items-center gap-2 rounded-xl border border-border bg-card pr-1.5 pl-3 focus-within:border-primary" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
-      <Search size={18} aria-hidden className="shrink-0 text-muted-foreground" />
-      <input className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" aria-label={label} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} data-testid={testid} />
-      <Button type="submit" variant="secondary" className="!min-h-8 shrink-0" data-testid={goTestid}>Tìm</Button>
+    <span className={cn("inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold", className)} style={optionChipVar(color, index)}>
+      <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: "var(--chip-dot)" }} />
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
+
+/** One search box: it searches while you type (300 ms after the last key) and at once on Enter. No button. The parent decides what "#tag" means. */
+export function SearchBox({ value, onChange, onSubmit, placeholder, label, testid }: { value: string; onChange: (v: string) => void; onSubmit: () => void; placeholder: string; label: string; testid: string }) {
+  const submit = useRef(onSubmit);
+  useEffect(() => { submit.current = onSubmit; });
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    const t = setTimeout(() => submit.current(), 300);
+    return () => clearTimeout(t);
+  }, [value]);
+  return (
+    <form role="search" className="relative" onSubmit={(e) => { e.preventDefault(); submit.current(); }}>
+      <Search size={16} aria-hidden className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-primary" />
+      <input {...searchHotkeyProps} className="h-10 w-full rounded-[11px] border border-border bg-[#F7F8FC] pr-14 pl-10 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:bg-card" aria-label={label} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} data-testid={testid} />
+      <div className="absolute top-1/2 right-2.5 flex -translate-y-1/2 items-center gap-1.5">
+        {value ? <button type="button" aria-label="Xoá từ khoá" onClick={() => onChange("")} className="grid size-5 place-items-center rounded-full bg-slate-200/80 text-muted-foreground hover:bg-slate-300"><X size={12} aria-hidden /></button>
+          : <kbd aria-hidden className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">/</kbd>}
+      </div>
     </form>
   );
 }
 
-/** "Thẻ phổ biến": a click filters by that tag, a second click clears it. */
+/** "Thẻ phổ biến": colored chips; a click filters by that tag, a second click clears it. */
 export function TagStrip({ tags, active, onPick }: { tags: string[]; active: string; onPick: (t: string) => void }) {
   if (!tags.length) return null;
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-sm" data-testid="popular-tags">
-      <span className="text-muted-foreground">Thẻ phổ biến:</span>
-      {tags.map((t) => (
+    <div className="flex flex-wrap items-center gap-1.5" data-testid="popular-tags">
+      <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Thẻ phổ biến:</span>
+      {tags.map((t, i) => (
         <button key={t} type="button" aria-pressed={active === t} onClick={() => onPick(active === t ? "" : t)}
-          className={cn("min-h-8 rounded-full border px-2.5 text-xs font-medium transition-colors", active === t ? "border-primary-border bg-primary-soft text-primary" : "border-border-soft bg-muted text-muted-foreground hover:text-foreground")}>#{t}</button>
+          className={cn("rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition-opacity hover:opacity-80", active === t && "ring-2 ring-current/30")} style={optionChipVar(undefined, i)}>#{t}</button>
       ))}
     </div>
   );
@@ -168,10 +202,10 @@ export function TagStrip({ tags, active, onPick }: { tags: string[]; active: str
 /** Category tabs: one tap, the active one is a soft indigo chip. Scrolls sideways on a phone. */
 export function ChipTabs<T extends string>({ value, onChange, items, label }: { value: T; onChange: (v: T) => void; items: { value: T; label: string }[]; label: string }) {
   return (
-    <div role="tablist" aria-label={label} className="flex max-w-full gap-1 overflow-x-auto">
+    <div role="tablist" aria-label={label} className="no-scrollbar flex max-w-full gap-1 overflow-x-auto">
       {items.map((i) => (
         <button key={i.value} type="button" role="tab" aria-selected={value === i.value} onClick={() => onChange(i.value)}
-          className={cn("min-h-9 shrink-0 whitespace-nowrap rounded-[10px] px-3 text-sm transition-colors", value === i.value ? "bg-primary-soft font-semibold text-primary" : "text-muted-foreground hover:text-foreground")}>{i.label}</button>
+          className={cn("min-h-8 shrink-0 whitespace-nowrap rounded-lg px-2.5 text-xs transition-colors", value === i.value ? "bg-primary-soft font-semibold text-primary" : "font-medium text-muted-foreground hover:bg-muted hover:text-foreground")}>{i.label}</button>
       ))}
     </div>
   );

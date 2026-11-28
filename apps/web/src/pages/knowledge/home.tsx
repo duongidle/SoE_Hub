@@ -1,15 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Eye, PenLine } from "lucide-react";
+import { Bookmark, Eye, Plus } from "lucide-react";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { ErrorText, PageTitle, Select } from "@/components/ui/form";
 import { PersonChip } from "@/components/ui/person";
 import { EmptyState } from "@/components/ui/states";
 import { api } from "@/lib/api";
 import { can, useMe } from "@/lib/session";
 import { useUrlState } from "@/lib/use-url-state";
-import { CATEGORY_LABEL, ChipTabs, LibraryHead, SearchBox, Snippet, TagStrip, TYPE_LABEL } from "../library/common";
+import { CATEGORY_LABEL, ChipTabs, ColorChip, LibraryHead, SearchBox, Snippet, TagStrip, TYPE_LABEL } from "../library/common";
 
 export interface ArticleCard {
   id: string;
@@ -37,20 +36,24 @@ const qs = (s: Search, limit: number) => {
 };
 export const shortDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "");
 
+const CAT_COLOR: Record<string, string> = { base_app: "blue", business: "green" };
+const TYPE_COLOR: Record<string, string> = { guide: "purple", use_case: "orange" };
+const PILL = "rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground";
+
 export function ArticleItem({ a }: { a: ArticleCard }) {
   return (
-    <li className="flex flex-col gap-2 rounded-card border border-border bg-card p-4 shadow-sm" data-testid="article-card">
+    <li className="flex flex-col gap-2 rounded-card border border-border bg-card p-4 shadow-2xs transition-shadow hover:shadow-md" data-testid="article-card">
       <div className="flex flex-wrap items-center gap-1.5">
-        {a.category && <Badge tone="primary">{CATEGORY_LABEL[a.category] ?? a.category}</Badge>}
-        {a.type && <Badge tone="info">{TYPE_LABEL[a.type] ?? a.type}</Badge>}
-        {a.for_sale && <Badge tone="ai">Cho sale</Badge>}
+        {a.category && <ColorChip index={0} color={CAT_COLOR[a.category]}>{CATEGORY_LABEL[a.category] ?? a.category}</ColorChip>}
+        {a.type && <ColorChip index={1} color={TYPE_COLOR[a.type]}>{TYPE_LABEL[a.type] ?? a.type}</ColorChip>}
+        {a.for_sale && <ColorChip index={2} color="teal">Cho sale</ColorChip>}
       </div>
-      <Link to="/knowledge/$id" params={{ id: a.id }} className="text-base leading-snug font-semibold text-foreground [overflow-wrap:anywhere] hover:text-primary">{a.title}</Link>
+      <Link to="/knowledge/$id" params={{ id: a.id }} className="line-clamp-2 text-base leading-snug font-bold text-foreground [overflow-wrap:anywhere] hover:text-primary">{a.title}</Link>
       {a.snippet ? <Snippet html={a.snippet} /> : <p className="line-clamp-2 text-sm text-muted-foreground [overflow-wrap:anywhere]">{a.summary}</p>}
-      {a.tags.length > 0 && <div className="flex flex-wrap gap-1">{a.tags.slice(0, 4).map((t) => <Badge key={t}>#{t}</Badge>)}</div>}
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border-soft pt-2 text-xs text-muted-foreground">
-        <span className="flex min-w-0 items-center gap-1"><PersonChip className="min-w-0" person={{ id: a.author.id, full_name: a.author.name }} />{a.published_at && <span className="shrink-0">· {shortDate(a.published_at)}</span>}</span>
-        <span className="flex items-center gap-1"><Eye size={14} aria-hidden />{a.view_count}</span>
+      {a.tags.length > 0 && <div className="flex flex-wrap gap-1">{a.tags.slice(0, 4).map((t) => <span key={t} className={PILL}>#{t}</span>)}</div>}
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-border-soft pt-2 text-[11px] text-muted-foreground">
+        <span className="flex min-w-0 items-center gap-1.5 [&_button>span:last-child]:truncate [&_button>span:last-child]:[overflow-wrap:normal] [&_button]:text-[11px]"><PersonChip className="min-w-0" person={{ id: a.author.id, full_name: a.author.name }} />{a.published_at && <span className="shrink-0">· {shortDate(a.published_at)}</span>}</span>
+        <span className="flex shrink-0 items-center gap-1 tabular-nums"><Eye size={14} aria-hidden />{a.view_count}</span>
       </div>
     </li>
   );
@@ -61,15 +64,15 @@ function TopViewed() {
   const q = useQuery({ queryKey: ["knowledge", "top"], queryFn: () => api<ArticleCard[]>("GET", "/knowledge/search?limit=5&sort=views") });
   if (!q.data?.length) return null;
   return (
-    <section className="rounded-card border border-border bg-card p-4 shadow-sm" data-testid="kn-top" aria-label="Xem nhiều">
-      <h2 className="mb-2 text-sm font-semibold">Xem nhiều</h2>
-      <ol className="flex flex-col gap-3">
+    <section className="rounded-card border border-border bg-card p-4 shadow-2xs" data-testid="kn-top" aria-label="Xem nhiều">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold"><span aria-hidden className="size-2 rounded-full bg-primary" />Xem nhiều</h2>
+      <ol className="flex flex-col gap-2.5">
         {q.data.map((a, n) => (
           <li key={a.id} className="flex gap-2.5">
-            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary-soft text-xs font-semibold text-primary">{n + 1}</span>
+            <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-md bg-primary-soft text-[11px] font-bold text-primary">{n + 1}</span>
             <div className="min-w-0">
-              <Link to="/knowledge/$id" params={{ id: a.id }} className="line-clamp-2 text-sm font-medium [overflow-wrap:anywhere] hover:text-primary">{a.title}</Link>
-              <div className="truncate text-xs text-muted-foreground">{a.view_count} lượt xem · {a.author.name}</div>
+              <Link to="/knowledge/$id" params={{ id: a.id }} className="line-clamp-2 text-xs leading-snug font-semibold [overflow-wrap:anywhere] hover:text-primary">{a.title}</Link>
+              <div className="truncate text-[11px] text-muted-foreground">{a.view_count} lượt xem · {a.author.name}</div>
             </div>
           </li>
         ))}
@@ -92,38 +95,38 @@ export function KnowledgeHomePage() {
   const pickTag = (t: string) => { setText(t ? `#${t}` : ""); set({ tag: t, q: "" }); };
   const total = res.data?.length;
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-4">
+    <div className="mx-auto flex max-w-[1260px] flex-col gap-4">
       <PageTitle
         actions={
           can(me, "knowledge:article:post") && (
             <>
-              <Link to="/knowledge/cua-toi" className="inline-flex min-h-9 items-center px-3 text-sm font-medium text-primary hover:underline">Bài của tôi</Link>
-              <Link to="/knowledge/soan" className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover" data-testid="new-article"><PenLine size={14} aria-hidden />Viết bài</Link>
+              <Link to="/knowledge/cua-toi" className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted"><Bookmark size={14} aria-hidden className="text-muted-foreground" />Bài của tôi</Link>
+              <Link to="/knowledge/soan" className="inline-flex h-8 items-center gap-1.5 rounded-[9px] bg-primary px-3.5 text-sm font-semibold text-primary-foreground shadow-2xs transition-colors hover:bg-primary-hover" data-testid="new-article"><Plus size={14} aria-hidden />Viết bài</Link>
             </>
           )
         }
       >
         Knowledge
       </PageTitle>
-      <LibraryHead>
-        <SearchBox value={text} onChange={setText} onSubmit={submit} label="Tìm bài" placeholder="Tìm tiêu đề, nội dung (không dấu cũng được) hoặc gõ #thẻ" testid="kn-search" goTestid="kn-search-go" />
+      <LibraryHead title="Kho tri thức & Kinh nghiệm triển khai" desc="Tra cứu tài liệu sản phẩm Base, quy trình nội bộ và bài học thực chiến của team SoE Hub." count={total === undefined ? undefined : `${total >= 30 ? "30+" : total} bài viết`}>
+        <SearchBox value={text} onChange={setText} onSubmit={submit} label="Tìm bài" placeholder="Tìm tiêu đề, nội dung (không dấu cũng được) hoặc gõ #thẻ" testid="kn-search" />
         <TagStrip tags={(tags.data?.items ?? []).map((t) => t.tag)} active={s.tag} onPick={pickTag} />
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-border-soft pt-3">
           <ChipTabs label="Danh mục" value={s.category} onChange={(v) => set({ category: v })} items={[{ value: "", label: "Tất cả" }, ...Object.entries(CATEGORY_LABEL).map(([value, label]) => ({ value, label }))]} />
-          <div className="flex flex-wrap gap-2">
-            <Select className="sm:w-56" aria-label="Loại bài" value={s.type} onChange={(e) => set({ type: e.target.value })}>
+          <div className="flex shrink-0 items-center gap-2">
+            <Select className="h-8 min-h-8 w-auto text-xs sm:min-h-8" aria-label="Loại bài" value={s.type} onChange={(e) => set({ type: e.target.value })}>
               <option value="">Loại: tất cả</option>
               {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </Select>
-            <Select className="sm:w-56" aria-label="Sắp xếp" value={s.sort} onChange={(e) => set({ sort: e.target.value })}>
-              <option value="relevance">Sắp xếp: độ khớp / mới nhất</option>
-              <option value="newest">Mới nhất</option>
-              <option value="views">Xem nhiều</option>
+            <Select className="h-8 min-h-8 w-auto text-xs sm:min-h-8" aria-label="Sắp xếp" value={s.sort} onChange={(e) => set({ sort: e.target.value })}>
+              <option value="relevance">Sắp xếp: Độ khớp</option>
+              <option value="newest">Sắp xếp: Mới nhất</option>
+              <option value="views">Sắp xếp: Xem nhiều</option>
             </Select>
           </div>
         </div>
       </LibraryHead>
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
         <div className="min-w-0">
           <ErrorText error={res.error} />
           {total === 0 && <EmptyState title="Không có bài nào khớp" hint="Thử bỏ bớt bộ lọc hoặc đổi từ khoá." />}

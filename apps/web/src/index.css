@@ -286,7 +286,7 @@ button, a, input, select, textarea { transition-duration: 130ms; }
 }
 
 /* Tiptap documents (Knowledge): the reset removes list and heading styles, so give them back. Line length 65-75 characters. */
-.tiptap-doc { max-width: 72ch; line-height: 1.7; outline: none; overflow-wrap: anywhere; }
+.tiptap-doc { font-size: 15px; max-width: 72ch; line-height: 1.7; outline: none; overflow-wrap: anywhere; }
 .tiptap-doc h2 { font-size: 1.35rem; font-weight: 600; margin: 1.4em 0 0.4em; }
 .tiptap-doc h3 { font-size: 1.15rem; font-weight: 600; margin: 1.2em 0 0.3em; }
 .tiptap-doc p { margin: 0.6em 0; }

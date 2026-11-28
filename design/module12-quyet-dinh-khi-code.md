@@ -295,3 +295,14 @@ Chỉ web. Không đổi quyền, cách tính hay dữ liệu lưu. Chức năng
 - **Bỏ bộ lọc chỉ một nhóm:** Knowledge/AI Hub "Bài/Skill của tôi" chỉ hiện chip trạng thái khi có từ 2 trạng thái; Hàng chờ duyệt chỉ hiện chip Loại khi người duyệt có cả hai loại.
 - **Không đụng (để agent 12H-2 / chưa rà):** hàng tab bảng của Datahub/Deal, dashboard Datahub. Còn hai hàng tab cùng trang ở Onboarding quản lý (`OnbNav` điều hướng trang + nút phân đoạn Hành trình/Hôm nay/Kết quả; `plans.tsx` có `OnbNav` + nút phân đoạn loại lộ trình): giữ vì `OnbNav` là điều hướng giữa trang, không phải tab trong khung.
 - **Kiểm:** typecheck sạch; lint chỉ còn lỗi `e2e/zz-shot12h2.spec.ts` (file chụp tạm của 12H-2); e2e desktop `stage12f1` 3, `stage9` 2, `stage6` 4 (sửa hai selector: tab "Đã xong" thành nút `reminders-done-toggle`, tab "Đã gửi" thành button), `stage7` 6, đều pass. Ảnh: scratchpad `12h-3/after/` (6 tuần) và `12h-3/after18b/` (lộ trình 18 tuần × 3 checkpoint mỗi tuần, 1440×900 và 1280×800).
+
+## 12H-5 Knowledge và AI Hub bám mockup (28/11)
+
+- **Ô tìm** (`library/common.tsx` `SearchBox`): bỏ nút "Tìm"; tìm khi gõ sau 300 ms, Enter tìm ngay; nền #F7F8FC, kính lúp primary bên trái, phím "/" bên phải (đổi thành nút xoá khi có chữ), gắn `searchHotkeyProps`. Chỉ có hai ô tìm có nút "Tìm" trong app (hai trang này); các ô tìm khác không có nút. Bỏ `goTestid` (`kn-search-go`): spec `stage8` đổi sang Enter.
+- **Khối đầu trang** `LibraryHead` nhận `title`, `desc`, `count`: tiêu đề 18px bold, mô tả 13px, chip số bên phải (số lấy từ danh sách đang tải, tối đa 30 / 50 nên hiện "30+"). Tiêu đề AI Hub "Thư viện Skill AI dùng chung" (mockup ghi "Prompt chuẩn hoá", hệ thống chưa có prompt).
+- **Thẻ phổ biến có màu** (`optionChipVar` theo thứ tự). Chip danh mục/loại/client dùng `ColorChip` (chấm + nền nhạt). Không dùng viền trái dày màu của mockup (quy định 12H). Không thêm nút lưu/thích (chưa có chức năng).
+- **Lọc/Sắp xếp:** `Select` 32px chữ 12px, nhãn "Sắp xếp: Độ khớp / Mới nhất / Xem nhiều"; `ChipTabs` 32px chữ 12px bo 8px, ẩn thanh cuộn.
+- **Thẻ bài/skill:** tiêu đề 15px bold tối đa 2 dòng, tag là pill 11px, chân 11px, tên tác giả cắt một dòng, `shadow-2xs`; lưới 2 cột + cột phải 260px, rộng tối đa 1260px.
+- **Top bar:** "Bài của tôi"/"Skill của tôi" là nút viền 32px kèm icon bookmark; "Viết bài"/"Tải lên skill" 32px bo 9px.
+- **Trang đọc:** `.tiptap-doc` chữ 15px (thêm một dòng vào `index.css`), cột 72ch giữ nguyên.
+- **Kiểm:** typecheck sạch; eslint các thư mục library/knowledge/aihub sạch; ảnh scratchpad `12h-5/` (1440 và 1280). Theo lệnh Opus chỉ chạy e2e `stage8` (đổi selector nút Tìm); không chạy `stage12f2`.

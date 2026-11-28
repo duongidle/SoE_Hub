@@ -73,7 +73,7 @@ test("bài Knowledge: soạn, gửi duyệt, Manager duyệt, thành viên tìm 
 
   await up.goto("/knowledge");
   await up.getByTestId("kn-search").fill("doi soat cong no");
-  await up.getByTestId("kn-search-go").click();
+  await up.getByTestId("kn-search").press("Enter");
   const card = up.getByTestId("kn-results").getByTestId("article-card").filter({ hasText: title });
   await expect(card).toBeVisible();
   await card.getByRole("link", { name: title }).click();
@@ -109,7 +109,7 @@ test("skill AI Hub: tải zip có đường dẫn cá nhân, gửi kèm cảnh b
 
   await up.goto("/ai-hub");
   await up.getByTestId("ah-search").fill(name);
-  await up.getByRole("button", { name: "Tìm", exact: true }).click();
+  await up.getByTestId("ah-search").press("Enter");
   await up.getByTestId("skill-card").filter({ hasText: name }).getByRole("link", { name }).click();
   await expect(up.getByTestId("skill-name")).toHaveText(name);
   await expect(up.getByTestId("install-cmd")).toContainText(`~/.claude/skills/${name}`);
