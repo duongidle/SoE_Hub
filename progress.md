@@ -5,7 +5,7 @@ Cập nhật: 28/11/2026
 ## Trạng thái
 
 - **Thiết kế:** Module 0–9, 11 (Cài đặt + Feedback, 28/11) và 12 (giao diện Luminous Bento, 27/11) đã chốt. Module 10 (Workspace) là đề xuất của Khuê, chờ Dương duyệt. **Code Stage 11 trước Stage 10** (Dương 28/11): một bước con 11A server / 11B web + kiểm thử gộp, test tối giản (`module11-cai-dat-feedback.md` mục 7–8).
-- **Code:** Stage 0–9 và 12 xong (Stage 5–7 bản rút gọn; Stage 8–9 test tối giản).
+- **Code:** Stage 0–9, 11 (28/11, Feedback + Phân quyền bổ sung; vitest cả bộ 1407 pass / 10 skip / 0 fail mã 482e0fd; e2e stage11 7, stage1 16, stage6 4 pass) và 12 xong (Stage 5–7 bản rút gọn; Stage 8–9 test tối giản).
 - **Mốc test (12G):** vitest cả bộ 1394 pass, 10 skip, 0 fail (`DH_EQUIV_EDITS=2500`, mã babc896); e2e desktop cả bộ 179 pass / 1 fail đã sửa và chạy riêng pass (mã 7d7f068 → 11576f1); 12G-2 spec bị chạm pass (mã b32498d). Không chạy hai lệnh vitest song song (chung DB).
 - **Git:** `main` và `dev` push sau 12G (28/11).
 - **Việc dời:** thiết kế đã chốt nhưng dời → `design/update_v1.md`; giao diện → `design/stage12.md`.

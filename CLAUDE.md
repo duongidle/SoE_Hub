@@ -73,7 +73,7 @@ Module sau chỉ dựa vào module trước nên code lần lượt; thiết k�
 | 8 | M8 `module8-knowledge-aihub.md` | 1, 5, 6 | Đăng → kiểm tra → duyệt → xuất bản; Knowledge; AI Hub | Đã chốt | Đã xong |
 | 9 | M9 `module9-onboarding.md` | 1, 2, 3, 5, 6, 7 | Lộ trình, checkpoint bằng engine chỉ số, bài test và form, theo dõi chung | Đã chốt | Đã xong |
 | 10 | M10 `module10-workspace.md` | 4, 6 | Giao việc | Chưa | |
-| 11 | M11 `module11-cai-dat-feedback.md` | 0, 1, 5, 6, 12 | Feedback (nút "?", hộp Admin), trang Phân quyền bổ sung. **Code trước Stage 10** (Dương 28/11) | Đã chốt | |
+| 11 | M11 `module11-cai-dat-feedback.md` | 0, 1, 5, 6, 12 | Feedback (nút "?", hộp Admin), trang Phân quyền bổ sung. **Code trước Stage 10** (Dương 28/11) | Đã chốt | Đã xong |
 | 12 | M12 `module12-giao-dien.md` | tất cả | Làm lại giao diện theo concept Luminous Bento, rà toàn bộ chuẩn giao diện | Đã chốt | Đã xong |
 | — | Automation | 0, 2, 6 | Module lõi, hoãn; kiến trúc để sẵn chỗ (Module 0 mục 19) | Hoãn | |
 
