@@ -91,4 +91,14 @@ Một bước con, hai agent Sonnet:
 
 ## Quyết định khi code
 
-(Trống.)
+11A (server, 28/11/2026):
+
+1. **Hai quyền cho người gửi:** `feedback:feedback:read` (xem của mình, `mine`, `get`, `file.url`) và `feedback:feedback:write` (gửi, nhắn, rút lại), cả hai trong `SIGNED_IN` nên Guest dùng được. `feedback:inbox:manage` ở vai trò Admin + quyền bổ sung (Admin cấp; Manager/Leader/User).
+2. **Ảnh người xử lý xem:** thêm `feedback.file.url(feedback_id, file_id)` theo mẫu `post.file.url`; file vẫn riêng của chủ (`file.download.url` của Admin vẫn `not_found`). Ảnh phải là `image/*`, sẵn sàng, ≤ 5 MB, của chính người gửi, tối đa 3.
+3. **`context`:** `{ url, user_agent, viewport }`, `viewport` là chuỗi (ví dụ `"1440x900"`), mỗi trường tuỳ chọn.
+4. **Danh sách `feedback.list`:** tham số `status` = một trạng thái, `open` (Mới + Đang xem, mặc định) hoặc `all`; `kind` tuỳ chọn. Sắp `created_at` giảm dần, keyset bằng `listPage` (mẫu Knowledge dùng offset nên không theo).
+5. **Rút lại:** người gửi, status `new`, xoá mềm; lỗi `conflict` với `details.reason = "not_new"`. Người xử lý đã nhắn mà chưa đổi trạng thái vẫn cho rút (thiết kế chỉ ràng buộc trạng thái).
+6. **Thông báo:** `feedback.new` (người xử lý) và `feedback.update` (người gửi), gửi trực tiếp trong lệnh như `post.*`, không có `on` nên chưa hiện ở trang cài đặt thông báo (web 11B: thêm nhóm `feedback` vào `GROUPS`/`CATEGORY_LABEL` nếu muốn lọc theo nhóm). Người viết không tự nhận. Người xử lý "đã từng trả lời" = người viết tin nhắn khác người gửi; không còn quyền xử lý thì bỏ; không còn ai thì báo mọi người xử lý.
+7. **Đổi trạng thái về chính nó** không tăng version, không báo. Có `row_history` (`historyTableId: "feedback"`) cho đổi trạng thái và rút lại.
+8. **`org.permission.holders`** (quyền `org:permission:grant`): mỗi quyền bổ sung kèm `can_manage`, `by_roles` (vai trò có sẵn quyền), `holders` (chỉ người được cấp, trong phạm vi `org`; `writable` theo `org_write`, Admin cấp quyền Admin được thì mọi người).
+9. Không thêm sự kiện SSE: trang web tự làm mới khi mở; thông báo đã có SSE riêng.
