@@ -131,6 +131,8 @@ function QuestionInput({ q, value, set, renderAttachment }: { q: Question; value
 
 interface Ctx extends RendererProps {
   nums: Map<string, number>;
+  /** Quiz forms number their questions ("Câu 3"); plain forms show the label alone. */
+  quiz: boolean;
   active: string | null;
   setActive: (id: string) => void;
   groups: Map<string, number>;
@@ -172,7 +174,7 @@ function Render({ b, p, visible }: { b: Block; p: Ctx; visible: Set<string> }) {
           onFocusCapture={() => p.setActive(q.id)}
         >
           <label htmlFor={"q-" + q.id} className="flex items-baseline gap-2 text-[15px] font-semibold leading-snug">
-            <span className="shrink-0 rounded-md bg-primary-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-primary">Câu {p.nums.get(q.id)}</span>
+            {p.quiz && <span className="shrink-0 rounded-md bg-primary-soft px-2 py-0.5 text-xs font-semibold tabular-nums text-primary">Câu {p.nums.get(q.id)}</span>}
             <span className="min-w-0 [overflow-wrap:anywhere]">{q.label || "(chưa có nhãn)"}{q.required && <span className="ml-0.5 text-bad" aria-label="bắt buộc">*</span>}</span>
           </label>
           {q.description && <span className="text-[13px] text-muted-foreground [overflow-wrap:anywhere]">{q.description}</span>}
@@ -266,7 +268,7 @@ export function FormRenderer(p: RendererProps) {
     }
   };
   const errors = { ...pageErr, ...(p.errors ?? {}) };
-  const ctx: Ctx = { ...p, errors, nums, active, setActive: setActiveId, groups, groupTotal: groupIds.length };
+  const ctx: Ctx = { ...p, errors, nums, quiz: !!config.quiz?.enabled, active, setActive: setActiveId, groups, groupTotal: groupIds.length };
 
   const quiz = !!config.quiz?.enabled;
   const actions = (
