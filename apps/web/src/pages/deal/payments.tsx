@@ -551,7 +551,7 @@ function LedgerTab({ manager, myId, dealId = "" }: { manager: boolean; myId: str
   })();
   const q = useQuery({
     queryKey: ["pay-rows", ledger?.id, "ledger", mine ? myId : "", dealId],
-    enabled: !!ledger && !!s.table,
+    enabled: !!ledger && !!s.table && (!mine || !!myId),
     refetchInterval: (query) => (query.state.data?.rows.some((r) => (r.pending?.length ?? 0) > 0) ? 1500 : false),
     queryFn: async () => {
       const out: Row[] = [];
