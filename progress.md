@@ -16,6 +16,7 @@ Cập nhật: 28/11/2026
 
 ## Bước tiếp
 
+0. **Chờ Dương feedback chỗ giao diện cần sửa** (28/11), sửa xong mới làm Stage 11.
 1. Stage 11 (Cài đặt + Feedback): Opus rà phạm vi theo `kinh-nghiem-quyet-dinh.md` rồi giao 11A (server) / 11B (web + kiểm thử gộp).
 2. Module 10 (Workspace): chờ Dương duyệt đề xuất.
 
@@ -23,7 +24,6 @@ Cập nhật: 28/11/2026
 
 - Form: nhãn lựa chọn của form cho 200 ký tự, tên lựa chọn cột Datahub chỉ 100 → `form.question.create_columns` lỗi với lựa chọn dài; tên cột tối đa 100 ký tự nên câu dài bị cắt tên cột. Chuỗi NFD từ file ngoài làm lỗi `option_missing` khi publish: nên chuẩn hoá NFC ở engine.
 - `ensureTreeTemplates` không hoàn thiện cây dựng dở (`module4-quyet-dinh-khi-code.md` cuối file).
-- `metrics-perf` (join 100k dòng) từng 1246 ms khi máy bận; chạy riêng pass. Theo dõi lần chạy cả bộ sau.
 - Deal: việc tính lại nền xếp sau việc người dùng, chưa chống đói; đổi cây của một người tính lại 3,6 s; Manager chưa đặt được mốc cohort mặc định; Index của team chưa đọc từ `Doanh thu theo người`; ô lọc theo cột của biểu đồ chưa có nhóm Vai trò.
 - Guest (4.7A): nhiều team cùng cấp thì cột theo người đọc để trống; dòng Guest đọc vẫn có created_by/updated_by (id); `com_split` gửi tay chưa kiểm trần; chưa có khoá ghép nhiều cột cho upsert.
 - Dashboard: người xem qua chia sẻ không tự tải lại khi dữ liệu đổi.
@@ -34,11 +34,11 @@ Cập nhật: 28/11/2026
 
 ## Lỗi điện thoại để sau
 
-`stage1.spec.ts` phone "cài đặt hệ thống" từng hết giờ 1 lần (`pnpm test:e2e stage1 --project=phone`), theo dõi.
+(Trống; lỗi chưa rõ nguyên nhân ở `design/chua-ro-nguyen-nhan.md`.)
 
 ## Câu hỏi còn mở (chờ Dương)
 
-- Chập chờn chưa tái hiện: (1) `apps/api/test/deal-defaults.test.ts` "fills the months after the last one..." hết 20 s một lần trong cả bộ vitest 12G-1 (chạy riêng 1,5 s; file chạy 5 lần riêng, 2 lần cùng `apps/api/test/deal*` + `datahub-f*`: pass hết; tần suất khoảng 1 trong 2 lượt cả bộ). Hướng tìm: `drainOutbox`/`addIndexMonths` chờ khi nhiều file cùng chạy. (2) `stage1` "Leader đăng ký: mã hiện ở chuông" 1 lần trong 4 lượt: 401 của `/notifications` ở `/dang-nhap` (cuộc gọi chuông còn bay lúc phiên hết); chạy lại cả file pass.
+- Lỗi chưa rõ nguyên nhân (chập chờn chưa tái hiện): đã gác, ghi ở `design/chua-ro-nguyen-nhan.md`.
 - Việc giao diện để sau: trang `/cai-dat` hai cột như mockup; tab đang chọn ở Onboarding rỗng; nhãn cột lưới cắt không có "…".
 
 - Bảng lệnh ⌘K (gõ để nhảy tới trang, datahub, form, dashboard): cần tìm kiếm xuyên module, có thể thêm một API tìm chung. Ước 6–10M token. Làm trong Stage 12 không? (Opus hứa hỏi ở 12F; Dương đang ngủ nên ghi ở đây.)
