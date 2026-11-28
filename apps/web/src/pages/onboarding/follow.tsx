@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { Input, PageTitle, Select } from "@/components/ui/form";
+import { Button, Input, PageTitle, Select } from "@/components/ui/form";
 import { PersonChip } from "@/components/ui/person";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, FilteredEmptyState } from "@/components/ui/states";
@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { disambiguate } from "@/lib/people";
 import { useUrlState } from "@/lib/use-url-state";
 import { cn } from "@/lib/utils";
-import { GROUP_LABEL, OnbNav, PLAN_STATUS, Pill, type Tone } from "./common";
+import { ChipFilter, GROUP_LABEL, PLAN_STATUS, Pill, useOnbAccess, type Tone } from "./common";
 import { ProgressBar } from "./parts";
 import { PlanView } from "./plan-view";
 
@@ -19,7 +19,16 @@ interface Row {
 const GROUPS = ["test", "mockup", "on_job", "qna", "daily", "other"];
 const GROUP_TONE: Record<string, Tone> = { passed: "ok", failed: "bad", running: "info", not_yet: "neutral" };
 const COLS = "lg:grid-cols-[minmax(170px,1.1fr)_minmax(220px,2fr)_150px_100px_70px_90px]";
-const FILTERS = { q: "", status: "active", team: "", plan: "" };
+const FILTERS = { q: "", status: "active", team: "", plan: "", view: "all" };
+
+function StatCard({ label, value, tone, testid }: { label: string; value: number; tone?: "bad"; testid: string }) {
+  return (
+    <div className="rounded-card border border-border bg-card px-4 py-3 shadow-card" data-testid={testid}>
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className={cn("num mt-1 text-2xl font-bold tracking-tight", tone === "bad" && value > 0 ? "text-bad" : "text-foreground")}>{value}</div>
+    </div>
+  );
+}
 
 /** The weeks of one plan as dots: past filled, the current week big with a ring, the coming ones hollow. */
 function MiniRoad({ r }: { r: Row }) {
@@ -37,21 +46,40 @@ function MiniRoad({ r }: { r: Row }) {
 }
 
 export function FollowPage() {
+  return <OverviewBody />;
+}
+
+/** Overview of the people being onboarded (for Leader, Manager, followers): numbers, then one row per person. */
+export function OverviewBody() {
   const [f, setF] = useUrlState(FILTERS);
   const nav = useNavigate();
-  const res = useQuery({ queryKey: ["onb", "overview", f.status, f.q], queryFn: () => api<Row[]>("GET", `/onboarding/overview?status=${f.status}${f.q ? `&q=${encodeURIComponent(f.q)}` : ""}`) });
-  const all = res.data ?? [];
+  const a = useOnbAccess();
+  const res = useQuery({ queryKey: ["onb", "overview", "all", f.q], queryFn: () => api<Row[]>("GET", `/onboarding/overview?status=all${f.q ? `&q=${encodeURIComponent(f.q)}` : ""}`) });
+  const everyone = res.data ?? [];
+  const active = everyone.filter((r) => r.status === "active");
+  const all = f.status === "all" ? everyone : everyone.filter((r) => r.status === f.status);
   const leaders = [...new Map(all.filter((r) => r.leader_id).map((r) => [r.leader_id!, r.leader_name ?? ""])).entries()];
   const plans = [...new Set(all.map((r) => r.plan_name))];
   const staffNames = disambiguate(all.map((r) => ({ id: r.staff_id, full_name: r.staff_name })));
-  const rows = all.filter((r) => (!f.team || r.leader_id === f.team) && (!f.plan || r.plan_name === f.plan));
+  const rows = all.filter((r) => (!f.team || r.leader_id === f.team) && (!f.plan || r.plan_name === f.plan) && (f.view !== "following" || a.followingIds.has(r.plan_id)) && (f.view !== "late" || r.overdue > 0));
   const lateCount = rows.filter((r) => r.overdue > 0).length;
-  const filtered = !!(f.q || f.team || f.plan || f.status !== "active");
+  const filtered = !!(f.q || f.team || f.plan || f.status !== "active" || f.view !== "all");
   const open = (r: Row) => void nav({ to: "/onboarding/nhan-su/$planId", params: { planId: r.plan_id } });
   return (
     <div>
-      <PageTitle>Theo dõi onboarding</PageTitle>
-      <OnbNav active="follow" />
+      <PageTitle actions={a.manage ? <Button variant="secondary" onClick={() => void nav({ to: "/onboarding/lo-trinh" })} data-testid="onb-open-plans">Lộ trình & mẫu</Button> : undefined}>Tổng quan</PageTitle>
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="onb-stats">
+        <StatCard label="Đang onboard" value={active.length} testid="onb-stat-active" />
+        <StatCard label="Có việc trễ" value={active.filter((r) => r.overdue > 0).length} tone="bad" testid="onb-stat-late" />
+        <StatCard label="Sắp xong trong 2 tuần" value={active.filter((r) => r.total_weeks - r.current_week <= 2).length} testid="onb-stat-soon" />
+        {a.ownPlan && (
+          <Link to="/onboarding" className="flex flex-col justify-center rounded-card border border-primary-border bg-primary-soft/40 px-4 py-3 shadow-card hover:bg-primary-soft" data-testid="onb-own-card">
+            <span className="text-xs font-medium text-muted-foreground">Lộ trình của tôi</span>
+            <span className="mt-1 text-sm font-semibold text-primary">Mở hành trình</span>
+          </Link>
+        )}
+      </div>
+      <div className="mb-3"><ChipFilter label="Lọc danh sách" value={f.view} onChange={(v) => setF({ view: v })} items={[{ value: "all", label: "Tất cả" }, ...(a.followingIds.size > 0 ? [{ value: "following", label: "Tôi theo dõi" }] : []), { value: "late", label: "Trễ" }]} /></div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Input className="min-w-40 flex-1 sm:max-w-xs" aria-label="Tìm" placeholder="Tìm tên hoặc lộ trình" value={f.q} onChange={(e) => setF({ q: e.target.value })} data-testid="onb-q" />
         <div className="min-w-0 basis-[calc(50%-4px)] sm:basis-44"><Select aria-label="Team" value={f.team} onChange={(e) => setF({ team: e.target.value })}><option value="">Mọi team</option>{leaders.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</Select></div>
@@ -61,7 +89,7 @@ export function FollowPage() {
       </div>
       {res.error ? <ErrorState error={res.error} onRetry={() => void res.refetch()} />
         : res.isLoading ? <div className="flex flex-col gap-2" aria-busy="true"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><p className="sr-only">Đang tải...</p></div>
-        : rows.length === 0 ? (filtered ? <FilteredEmptyState onClear={() => setF({ q: "", team: "", plan: "", status: "active" })} /> : <EmptyState title="Chưa có nhân sự nào đang onboard" hint="Gắn một lộ trình cho nhân sự ở mục Lộ trình." action={<Link to="/onboarding/lo-trinh" className="text-sm font-medium text-primary">Mở danh sách lộ trình</Link>} />)
+        : rows.length === 0 ? (filtered ? <FilteredEmptyState onClear={() => setF({ q: "", team: "", plan: "", status: "active" })} /> : <EmptyState title="Chưa có nhân sự nào đang onboard" hint="Gắn một lộ trình cho nhân sự ở Lộ trình & mẫu." action={a.manage ? <Link to="/onboarding/lo-trinh" className="text-sm font-medium text-primary">Mở Lộ trình & mẫu</Link> : undefined} />)
         : (
           <>
           {/* Column titles (wide screens; narrow ones label each number inside the card). Same grid and the card's border + padding, so they line up. */}
@@ -107,7 +135,7 @@ export function StaffPage() {
   const { planId } = useParams({ strict: false }) as { planId: string };
   return (
     <div>
-      <PageTitle actions={<Link to="/onboarding/theo-doi" className="inline-flex min-h-9 items-center px-3 text-sm text-primary underline">Về Theo dõi</Link>}>Nhân sự onboarding</PageTitle>
+      <PageTitle actions={<Link to="/onboarding/theo-doi" className="inline-flex min-h-9 items-center px-3 text-sm text-primary underline">Về Tổng quan</Link>}>Nhân sự onboarding</PageTitle>
       <PlanView planId={planId} manage />
     </div>
   );

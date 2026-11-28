@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { api, ApiError } from "@/lib/api";
 import { can, useMe } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -137,21 +136,27 @@ export function buildWeeks(plan: PlanFull, today: string): WeekInfo[] {
 export const dayOf = (d: string) => { const x = new Date(`${d}T00:00:00Z`).getUTCDay(); return x === 0 ? 7 : x; };
 export const dayLabel = (d: string) => `${WEEKDAY_LABEL[dayOf(d)]} ${fmtDate(d)}`;
 
-/** Page-level menu of Onboarding: only drawn when there is more than one place to go. */
-export function OnbNav({ active }: { active: "me" | "follow" | "plans" }) {
+/** What the person may see in Onboarding beyond their own journey: the overview of people (manage or follow) and the plan list (manage). */
+export function useOnbAccess() {
   const me = useMe().data;
   const manage = can(me, "onboarding:path:create");
-  const mine = usePlans("mine");
   const following = usePlans("following");
-  const hasOwn = (mine.data ?? []).some((p) => p.staff_id === me?.user.id);
-  const link = (to: string, label: string, on: boolean, testid: string) => (
-    <Link key={to} to={to} data-testid={testid} aria-current={on ? "page" : undefined} className={cn("inline-flex min-h-9 items-center whitespace-nowrap rounded-md px-3 text-sm", on ? "bg-primary-soft font-semibold text-primary" : "text-muted-foreground hover:bg-primary-soft hover:text-foreground")}>{label}</Link>
+  const mine = usePlans("mine");
+  const own = (mine.data ?? []).filter((p) => p.staff_id === me?.user.id);
+  const ownPlan = own.find((p) => p.status === "active") ?? own[0];
+  return { manage, overview: manage || (following.data ?? []).length > 0, ownPlan, followingIds: new Set((following.data ?? []).map((p) => p.id)), loading: mine.isLoading || following.isLoading, error: mine.error ?? following.error, refetch: () => { void mine.refetch(); void following.refetch(); } };
+}
+
+/** One row of filter chips (buttons that stay pressed), for a filter of one list: not a tab bar. */
+export function ChipFilter<T extends string>({ value, onChange, items, label }: { value: T; onChange: (v: T) => void; items: { value: T; label: string }[]; label?: string }) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-2">
+      {items.map((i) => (
+        <button key={i.value} type="button" aria-pressed={value === i.value} onClick={() => onChange(i.value)}
+          className={cn("inline-flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-xs font-medium transition-colors", value === i.value ? "border-primary-border bg-primary-soft text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground")}>
+          {i.label}
+        </button>
+      ))}
+    </div>
   );
-  const links = [
-    (hasOwn || !manage) && link("/onboarding", "Của tôi", active === "me", "onb-nav-me"),
-    (manage || (following.data ?? []).length > 0) && link("/onboarding/theo-doi", "Theo dõi", active === "follow", "onb-nav-follow"),
-    manage && link("/onboarding/lo-trinh", "Lộ trình", active === "plans", "onb-nav-plans"),
-  ].filter(Boolean);
-  if (links.length < 2) return null;
-  return <nav aria-label="Onboarding" className="mb-4 flex gap-1 overflow-x-auto" data-testid="onb-nav">{links}</nav>;
 }

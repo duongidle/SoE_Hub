@@ -62,11 +62,11 @@ test("Leader gắn lộ trình mẫu cho nhân sự, sửa trong trình sửa; n
   const lp = lead.page;
   // Clone the sample (it keeps the forms, no new tables), then assign the clone from the same tab.
   await lp.goto("/onboarding/lo-trinh");
-  await lp.getByRole("tab", { name: "Mẫu" }).click();
+  await lp.getByRole("button", { name: "Mẫu", exact: true }).click();
   await lp.getByTestId("plan-row").nth(ownIndex).getByTestId("plan-clone").click();
   await expect(lp.getByTestId("onb-editor")).toBeVisible();
   await lp.goto("/onboarding/lo-trinh");
-  await lp.getByRole("tab", { name: "Mẫu" }).click(); // a clone of a template is a template
+  await lp.getByRole("button", { name: "Mẫu", exact: true }).click(); // a clone of a template is a template
   await lp.getByTestId("plan-row").filter({ hasText: "(bản sao)" }).first().getByTestId("plan-assign").click();
   await chooseOption(lp.getByTestId("assign-staff"), { label: USER_NAME() });
   await lp.getByTestId("assign-start").fill(mondayOfWeek());

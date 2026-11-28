@@ -349,3 +349,10 @@ Chỉ web (`editor.tsx`, `sheet.tsx`, `props.tsx`, một dòng ở `renderer.tsx
 - **Trang `/tai-khoan/thong-bao`**: thẻ "Bản tin buổi sáng" ở đầu (công tắc; giờ 08:00 cố định nên chỉ ghi trong mô tả), mỗi mảng một thẻ có icon; loại tắt được là hàng công tắc (tên 13/600, mô tả 12px); loại bắt buộc gom một dòng "Luôn nhận: ..." cuối thẻ. Nhóm `form`, `library`, `onboarding` có tên riêng trong `GROUPS` của `settings.tsx` (không đụng `CATEGORY_LABEL` của hộp thông báo). Link "Thông báo" ở top bar thành nút có icon chuông.
 - **Hộp thông báo** (`inbox.tsx`): chưa đọc có chấm 8px, tiêu đề 600, nền #F5F6FF; đã đọc tiêu đề 500, nền trắng. Giờ tương đối `relTime` (hover xem giờ đầy đủ). "Chỉ chưa đọc" là chip bật/tắt kèm số chưa đọc; "Xem tất cả" ở chuông là link gạch khi rê; "Đánh dấu tất cả đã đọc" là nút chữ nhỏ.
 - **Spec**: `stage6` đổi "Không tắt được" thành "Luôn nhận:".
+
+## 12H-12 Onboarding cho Manager/Leader (28/11)
+
+- **Trang vào `/onboarding`** (`me.tsx`): có lộ trình của mình thì Hành trình (kèm nút "Tổng quan" ở top bar nếu có quyền theo dõi/quản lý); không có mà có quyền theo dõi/quản lý thì Tổng quan; không có gì thì màn rỗng. Hook `useOnbAccess` (`common.tsx`).
+- **Tổng quan** (`follow.tsx` `OverviewBody`, route `/onboarding/theo-doi` giữ nguyên): thẻ số Đang onboard / Có việc trễ / Sắp xong trong 2 tuần (tính từ `/onboarding/overview?status=all`, một truy vấn; bộ lọc trạng thái lọc phía web). Không có thẻ "Chưa bắt đầu" vì server chưa trả. Chip lọc Tất cả | Tôi theo dõi | Trễ (`ChipFilter`, nút `aria-pressed`, không phải tab). Thẻ "Lộ trình của tôi → Mở hành trình" khi có lộ trình riêng. Nút "Lộ trình & mẫu" ở top bar (chỉ người có quyền tạo lộ trình).
+- **Lộ trình & mẫu** (`plans.tsx`): chip Tất cả | Của tôi | Mẫu (bỏ "Tôi theo dõi", đã vào Tổng quan); tham số URL `ban` = all/mine/template. Bỏ `OnbNav`. Spec `stage9` đổi tab "Mẫu" thành nút.
+- **Kiểm:** typecheck phần web sạch (chỉ lỗi `e2e/tmp-12h9.spec.ts` của agent khác), eslint thư mục onboarding sạch; e2e desktop `stage12f1` 3 và `stage9` 2 pass / 0 fail / 0 skip; ảnh scratchpad `12h-12/` (Leader: Tổng quan, Lộ trình & mẫu; chưa chụp riêng Manager/User không lộ trình).

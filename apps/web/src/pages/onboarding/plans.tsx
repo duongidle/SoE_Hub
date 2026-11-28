@@ -11,7 +11,7 @@ import { notify } from "@/components/ui/toast";
 import { api, apiList } from "@/lib/api";
 import { disambiguate } from "@/lib/people";
 import { useMe } from "@/lib/session";
-import { OnbNav, PLAN_STATUS, Pill, Segmented, addDays, usePlans, type PlanFull } from "./common";
+import { ChipFilter, PLAN_STATUS, Pill, addDays, usePlans, type PlanFull } from "./common";
 
 interface Member { id: string; full_name: string; roles: string[]; leader_id: string | null }
 
@@ -77,11 +77,13 @@ function CreateDialog({ onClose, template }: { onClose: () => void; template: bo
 
 export function PlanListPage() {
   const me = useMe().data;
-  const [{ ban }, setUrl] = useUrlState({ ban: "mine" });
-  const scope = (["mine", "template", "following"].includes(ban) ? ban : "mine") as "mine" | "template" | "following";
-  const setScope = (v: "mine" | "template" | "following") => setUrl({ ban: v });
+  const [{ ban }, setUrl] = useUrlState({ ban: "all" });
+  const scope = (["all", "mine", "template"].includes(ban) ? ban : "all") as "all" | "mine" | "template";
+  const setScope = (v: "all" | "mine" | "template") => setUrl({ ban: v });
   const [dlg, setDlg] = useState<{ kind: "assign" | "delete"; plan: PlanFull } | "create" | null>(null);
-  const list = usePlans(scope);
+  const mineQ = usePlans("mine");
+  const tplQ = usePlans("template");
+  const list = { data: [...(scope === "template" ? [] : (mineQ.data ?? []).filter((x) => x.staff_id !== me?.user.id)), ...(scope === "mine" ? [] : (tplQ.data ?? []).filter((x) => scope === "template" || !(mineQ.data ?? []).some((m) => m.id === x.id)))], error: mineQ.error ?? tplQ.error, isLoading: mineQ.isLoading || tplQ.isLoading, refetch: () => { void mineQ.refetch(); void tplQ.refetch(); } };
   const qc = useQueryClient();
   const nav = useNavigate();
   const clone = useMutation({
@@ -98,14 +100,13 @@ export function PlanListPage() {
     onError: (e) => notify.error(e instanceof Error ? e.message : "Không nhân bản được."),
   });
   const del = useMutation({ mutationFn: (p: PlanFull) => api("DELETE", `/onboarding/plans/${p.id}`), onSuccess: async () => { await qc.invalidateQueries({ queryKey: ["onb"] }); notify.ok("Đã xoá lộ trình."); setDlg(null); } });
-  const rows = (list.data ?? []).filter((p) => scope !== "mine" || p.staff_id !== me?.user.id);
+  const rows = list.data;
   return (
     <div>
-      <PageTitle actions={<Button onClick={() => setDlg("create")} data-testid="plan-new">Tạo lộ trình</Button>}>Lộ trình onboarding</PageTitle>
-      <OnbNav active="plans" />
-      <div className="mb-4"><Segmented label="Loại lộ trình" value={scope} onChange={setScope} items={[{ value: "mine", label: "Của tôi" }, { value: "template", label: "Mẫu" }, { value: "following", label: "Tôi theo dõi" }]} /></div>
+      <PageTitle actions={<Button onClick={() => setDlg("create")} data-testid="plan-new">Tạo lộ trình</Button>}>Lộ trình & mẫu</PageTitle>
+      <div className="mb-4"><ChipFilter label="Loại lộ trình" value={scope} onChange={setScope} items={[{ value: "all", label: "Tất cả" }, { value: "mine", label: "Của tôi" }, { value: "template", label: "Mẫu" }]} /></div>
       {list.error ? <ErrorState error={list.error} onRetry={() => void list.refetch()} /> : list.isLoading ? <div aria-busy="true" className="flex flex-col gap-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><p className="sr-only">Đang tải...</p></div> : rows.length === 0 ? (
-        <EmptyState title={scope === "following" ? "Bạn chưa theo dõi lộ trình nào" : "Chưa có lộ trình"} hint={scope === "following" ? "Lộ trình hiện ở đây khi Leader thêm bạn làm người theo dõi." : "Nhân bản lộ trình mẫu hoặc tạo mới."} cta={scope === "following" ? undefined : { label: "Tạo lộ trình", onClick: () => setDlg("create") }} />
+        <EmptyState title="Chưa có lộ trình" hint="Nhân bản lộ trình mẫu hoặc tạo mới." cta={{ label: "Tạo lộ trình", onClick: () => setDlg("create") }} />
       ) : (
         <ul className="flex flex-col gap-2" data-testid="plan-list">
           {rows.map((p) => (
