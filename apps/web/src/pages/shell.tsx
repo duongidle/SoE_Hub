@@ -311,7 +311,7 @@ export function Shell() {
                     id="topbar-actions"
                     ref={setActionsEl}
                     className={cn(
-                      "items-center gap-2 sm:mr-1 sm:flex",
+                      "items-center gap-2 sm:mr-1 sm:flex sm:shrink-0 sm:[&_a]:whitespace-nowrap sm:[&_button]:whitespace-nowrap",
                       actionsOpen ? "fixed inset-x-2 top-14 z-30 flex flex-col items-stretch rounded-card border border-border bg-card p-2 shadow-lg sm:static sm:flex-row sm:items-center sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none" : "hidden",
                     )}
                   />
