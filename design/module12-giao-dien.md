@@ -58,8 +58,9 @@ Dương dùng thử sau 12G: chữ to quá, nội dung "đấm vào mắt", kho�
 
 | Thành phần | Thông số |
 | --- | --- |
-| Chữ thân, ô bảng | 13px (ô bảng 12.5–13px); chữ phụ, nhãn 11.5–12px; chú thích, chip 11px; tối thiểu 10.5px (số đếm nhỏ) |
-| Tiêu đề | tiêu đề trang/khối lớn 18px bold; tiêu đề thẻ 14.5–15px semibold; số KPI 20–24px bold; top bar 14.5px semibold |
+| Thang chữ | **số nguyên 11/12/13/14/15/18/24px**, không dùng cỡ lẻ .5 (mockup có, gom về thang: 11.5→12, 12.5→13, 13.5→14, 14.5→15). Tối thiểu 11px (số đếm, chip, chú thích), vì dấu tiếng Việt khó đọc dưới 11px |
+| Chữ thân, ô bảng | 13px; chữ phụ, nhãn, nút thanh công cụ 12px; chú thích, chip 11px. Trang đọc (bài Knowledge, trang điền form) chữ nội dung 14–15px; ô nhập ở điện thoại 16px |
+| Tiêu đề | tiêu đề trang/khối lớn 18px bold; tiêu đề thẻ 15px semibold; số KPI 24px bold; top bar 15px semibold |
 | Độ đậm | 500 chữ thường của nút/menu, 600 nhãn và tiêu đề nhỏ, 700 tiêu đề; không dùng 400 cho nhãn nút |
 | Sidebar | mục cao 35px, chữ 13px/500, màu #4B5068, bo 9px, icon 16px, gap 10px, padding ngang 11px |
 | Top bar | cao 48px, padding ngang 16–20px, chỉ top bar có blur (`bg-white/85 backdrop-blur-md`) |
