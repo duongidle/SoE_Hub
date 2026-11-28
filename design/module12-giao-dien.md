@@ -67,7 +67,7 @@ Dương dùng thử sau 12G: chữ to quá, nội dung "đấm vào mắt", kho�
 | Nút | cao 28px (thanh công cụ) hoặc 32px (thường), 36px ô nhập form; padding ngang 10px; chữ 12–12.5px; bo 7–9px |
 | Bảng | hàng tiêu đề 36px chữ 11.5px/600 màu #646A82 nền #F8F9FB; hàng thân khoảng 42px chữ 13px; cột # 48px chữ 12px màu slate-400, đổi primary khi rê; vạch #EEF0F6 |
 | Thẻ | padding 16px (p-4), thẻ lớn 20px; bo 14–16px; khoảng giữa thẻ 12–16px; vùng main padding 24px dọc, 16–32px ngang |
-| Khoảng cách nhỏ | gap 6–10px trong cụm; py-0.5/1 chip; px-2.5/3 nút |
+| Thang khoảng cách | **4/6/8/12/16/24/32px** (thêm 20 cho thẻ lớn, 2 cho py chip). Icon↔chữ trong nút/chip 6; giữa nút trong cụm 8; giữa phần trong thẻ 12; padding thẻ và giữa thẻ 16; giữa khu vực lớn 24; lề trang 24 dọc, 24–32 ngang. Khoảng trong một khối luôn nhỏ hơn khoảng giữa các khối. Dùng `gap`/`space-y` ở khung cha, không margin lẻ trên con. Padding ngang nút 10 (nút 28px) hoặc 12 (nút 32px) |
 | Chip lựa chọn | chấm tròn 6px + nền nhạt + viền nhạt cùng màu + chữ đậm cùng màu, 11.5px/600, bo full; lựa chọn chưa gán màu thì **tự gán theo thứ tự** trong bảng màu, không để xám |
 | Popover/menu | rộng 192–330px, bo 12–14px, viền slate-200, bóng xl, padding dọc 6–8px, chữ 12.5px; dòng menu cao 32px |
 | Ngăn kéo chi tiết | thẻ nổi `top/bottom/right 12px`, rộng tối đa 490px, bo 18px, bóng 2xl; nền sau `slate-900/20` + `backdrop-blur 2px`; trượt vào 300ms ease-out (nền mờ 200ms); đầu ngăn kéo có chip # dòng + chip giá trị chính; nội dung chia ô bo 12px nền nhạt, chữ 13.5px; chân: Đóng + một nút chính |
