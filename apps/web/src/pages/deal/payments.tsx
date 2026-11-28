@@ -552,6 +552,7 @@ function LedgerTab({ manager, myId, dealId = "" }: { manager: boolean; myId: str
   const q = useQuery({
     queryKey: ["pay-rows", ledger?.id, "ledger", mine ? myId : "", dealId],
     enabled: !!ledger && !!s.table,
+    refetchInterval: (query) => (query.state.data?.rows.some((r) => (r.pending?.length ?? 0) > 0) ? 1500 : false),
     queryFn: async () => {
       const out: Row[] = [];
       let cursor: string | null = null;
@@ -651,6 +652,8 @@ export function DealPaymentsPanel({ dealRow, dealsTableId }: { dealRow: Row; dea
   const mine = useQuery({
     queryKey: ["deal-payments", "ledger", dealRow.id, me?.user.id, ids.join(",")],
     enabled: !!ledger && !!ls.table && !!me && ids.length > 0,
+    // A com amount is a formula: while the server still calculates it the row says so (`pending`), so read again until it is there.
+    refetchInterval: (query) => (query.state.data?.some((r) => (r.pending?.length ?? 0) > 0) ? 1500 : false),
     queryFn: async () => (await fetchRows(ledger!.id, { filter: { and: [{ field: ls.key("nguoi"), op: "eq", value: me?.user.id }, { field: ls.key("deal"), op: "eq", value: dealRow.id }] }, limit: 500 })).data.filter((r) => ids.includes(idsOf(r.data[ls.key("dot")])[0] ?? "")),
   });
   const statusCol = ps.table?.columns.find((c) => c.name === "Trạng thái" && c.type === "formula");
