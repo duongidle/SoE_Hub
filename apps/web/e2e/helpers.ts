@@ -169,7 +169,7 @@ export class Session {
   }
 
   /** Admin pages left the sidebar (12A-1): they are links on the "Cài đặt" page, reached from the sidebar's "Cài đặt". */
-  private static SETTINGS_ONLY = ["Cấp dữ liệu Guest", "Kết nối AI", "Tài khoản hệ thống", "Nhật ký", "Chuyển giao", "Giới hạn Datahub", "Cài đặt hệ thống", "Template Quản lý Deal"];
+  private static SETTINGS_ONLY = ["Org chart", "Cấp dữ liệu Guest", "Kết nối AI", "Tài khoản hệ thống", "Nhật ký", "Chuyển giao", "Giới hạn Datahub", "Cài đặt hệ thống", "Template Quản lý Deal"];
 
   async menuLink(label: string) {
     if (Session.SETTINGS_ONLY.includes(label)) {

@@ -323,3 +323,10 @@ Chỉ web. Không đổi quyền, cách tính hay dữ liệu lưu. Chức năng
 - **Popover/menu**: padding 12px (menu 6px + dòng px 12px), dòng 32px, tiêu đề 13px/600, chân là ghi chú tách bằng vạch (`ToolPopover`). Select: padding 6 + dòng px 12. `Menu` có thêm `onCloseAutoFocus`.
 - **Ngăn kéo**: mở thì focus vào khung ngăn kéo (không vào nút "dòng trước").
 - **Top bar / sidebar** (việc thêm cùng bước): vạch dọc mờ 20px giữa cụm nút trang và chuông (chỉ khi trang có nút), 12px hai bên; khoảng giữa mục sidebar 6px; bỏ "Org chart" khỏi sidebar (route giữ, 12H-6 đưa vào Cài đặt); thêm mục **Workhub** sau Quản lý Deal (mọi người trừ Guest, route `/workhub`, trang trống "Tính năng đang phát triển", không API; `pages/workhub.tsx`).
+
+## 12H-6 Org chart vào Cài đặt + sơ đồ cây (28/11)
+
+- Org chart chuyển vào Cài đặt: thêm một dòng vào `SETTINGS_LINKS` (`shell.tsx`, nhóm Quản trị, quyền `org:member:read`); route `/to-chuc` giữ nguyên, breadcrumb "Cài đặt / Org chart" tự ra từ `settingsLinkFor`. Mục sidebar do 12H-4 bỏ. e2e: `Session.SETTINGS_ONLY` (`helpers.ts`) thêm "Org chart".
+- Bỏ dòng gợi ý "Thêm người vào org chart là cách duy nhất để có tài khoản…" ở đầu trang (Dương 28/11). Mô tả API ở server giữ nguyên.
+- Dạng cây (`org.tsx` `OrgTree`, CSS `org-tree.css`): thẻ 184px (avatar chữ cái đầu, tên 13/600, chip vai trò 11px có màu theo vai trò, "Team · n người" hoặc email, chấm màu khi chưa kích hoạt/khoá); nối bằng CSS lồng nhau (1px #CBD5E1, bo 8px ở khúc cua); nút thu/mở nhánh kèm số con; lá của một nhánh xếp dọc (thẻ 160px, kiểu cây thư mục) để đội đông không kéo sơ đồ quá rộng; nhiều Manager xếp trên dưới. Khung cuộn, kéo chuột để di chuyển (kéo >5px thì không tính là bấm), phóng 40–150% bằng CSS transform, "Vừa khung" (tự chạy lần đầu). Bấm thẻ mở ngăn kéo chi tiết có sẵn. Người ngoài cây (Admin, Guest) là hàng thẻ riêng bên dưới.
+- Không thêm thư viện.

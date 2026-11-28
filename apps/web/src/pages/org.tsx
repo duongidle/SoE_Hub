@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
+import "./org-tree.css";
 import { GUEST_PRESET_LABELS, ROLES, ROLE_LABELS, USER_STATUS_LABELS, type Role } from "@soe/shared";
 import { Badge } from "@/components/ui/badge";
 import { PersonChip } from "@/components/ui/person";
 import { disambiguate } from "@/lib/people";
-import { UserPlus } from "lucide-react";
+import { ChevronDown, ChevronRight, Maximize2, Minus, Plus, UserPlus } from "lucide-react";
 import { Drawer } from "@/components/ui/drawer";
 import { Button, ErrorText, Field, Input, Modal, PageTitle, Select, Table } from "@/components/ui/form";
 import { Segmented } from "./onboarding/common";
@@ -41,6 +43,7 @@ export function OrgPage() {
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [detail, setDetail] = useState<Row | null>(null);
   const members = useMembers(search, status);
+  const all = useMembers("", "");
   const memberNames = disambiguate(members.data ?? []);
   const writable = can(me, "org:member:write");
   return (
@@ -48,7 +51,6 @@ export function OrgPage() {
       <PageTitle actions={writable && <Button onClick={() => setEditing("new")}><UserPlus size={14} aria-hidden />Thêm người</Button>}>Org chart</PageTitle>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <Segmented value={tab} onChange={setTab} label="Cách xem" items={[{ value: "table", label: "Bảng" }, { value: "tree", label: "Dạng cây" }]} />
-        <p className="max-w-xl text-xs text-muted-foreground">Thêm người vào org chart là cách duy nhất để có tài khoản. Người mới ở trạng thái Chưa kích hoạt, tự vào Đăng ký để nhận mã.</p>
       </div>
       {tab === "table" ? (
         <>
@@ -120,7 +122,7 @@ export function OrgPage() {
           </Table>
         </>
       ) : (
-        <OrgTree />
+        <OrgTree onOpen={(id) => { const r = all.data?.find((x) => x.id === id); if (r) setDetail(r); }} />
       )}
       {editing && <MemberForm row={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
       {detail && <MemberDetail row={detail} onClose={() => setDetail(null)} />}
@@ -138,55 +140,169 @@ interface TreeNode {
   members?: TreeNode[];
 }
 
-function OrgTree() {
-  const q = useQuery({ queryKey: ["org", "tree"], queryFn: () => api<{ trees: { manager: TreeNode; leaders: TreeNode[]; direct: TreeNode[] }[]; outside: TreeNode[] }>("GET", "/org/tree") });
-  const Person = ({ p }: { p: TreeNode }) => (
-    <span>
-      <PersonChip person={{ id: p.id, full_name: p.full_name, email: p.email }} /> <span className="text-xs text-muted-foreground">({roleText(p)})</span> {p.status !== "active" && <StatusBadge s={p.status} />}
-    </span>
+const ROLE_CHIP: Record<string, string> = {
+  admin: "border-amber-200 bg-amber-50 text-amber-700",
+  manager: "border-indigo-200 bg-indigo-50 text-indigo-700",
+  leader: "border-violet-200 bg-violet-50 text-violet-700",
+  user: "border-slate-200 bg-slate-50 text-slate-600",
+  guest: "border-emerald-200 bg-emerald-50 text-emerald-700",
+};
+const topRole = (p: TreeNode) => ROLES.find((r) => p.roles.includes(r)) ?? "user";
+const countBelow = (n: TNode): number => n.children.reduce((a, c) => a + 1 + countBelow(c), 0);
+
+interface TNode { p: TreeNode; children: TNode[] }
+
+function OrgCard({ n, collapsed, onToggle, onOpen, compact }: { n: TNode; collapsed: boolean; onToggle: () => void; onOpen: () => void; compact?: boolean }) {
+  const role = topRole(n.p);
+  const below = countBelow(n);
+  return (
+    <div className={cn("relative", n.children.length > 0 && "pb-3")}>
+      <button
+        type="button"
+        onClick={onOpen}
+        title={`${n.p.full_name} · ${n.p.email}`}
+        aria-label={`Chi tiết ${n.p.full_name}`}
+        className={cn("flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-left shadow-2xs transition-[border-color,box-shadow] duration-150 hover:border-primary-border hover:shadow-md", compact ? "w-[160px]" : "w-[184px]")}
+      >
+        <Avatar name={n.p.full_name} size="md" className="size-8" />
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate text-[13px] font-semibold leading-4">{n.p.full_name}</span>
+          <span className="flex items-center gap-1">
+            <span className={cn("rounded-full border px-1.5 text-[11px] font-semibold leading-4", ROLE_CHIP[role])}>{roleText(n.p)}</span>
+            {n.p.status !== "active" && <span title={USER_STATUS_LABELS[n.p.status]} aria-label={USER_STATUS_LABELS[n.p.status]} className={cn("size-1.5 rounded-full", n.p.status === "locked" ? "bg-bad" : "bg-warn")} />}
+          </span>
+          <span className="truncate text-[11px] leading-4 text-muted-foreground">{below > 0 ? `Team · ${below} người` : n.p.email}</span>
+        </span>
+      </button>
+      {n.children.length > 0 && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          aria-label={`${collapsed ? "Mở" : "Thu"} nhánh ${n.p.full_name}`}
+          className="absolute bottom-0 left-1/2 z-10 inline-flex h-6 -translate-x-1/2 items-center gap-0.5 rounded-full border border-border bg-card px-2 text-[11px] font-semibold text-muted-foreground shadow-2xs hover:border-primary-border hover:text-primary"
+        >
+          {collapsed ? <ChevronRight size={12} aria-hidden /> : <ChevronDown size={12} aria-hidden />}
+          {n.children.length}
+        </button>
+      )}
+    </div>
   );
+}
+
+function OrgBranch({ n, closed, toggle, onOpen, depth = 0, compact }: { n: TNode; closed: Set<string>; toggle: (id: string) => void; onOpen: (id: string) => void; depth?: number; compact?: boolean }) {
+  const collapsed = closed.has(n.p.id);
+  const vertical = depth > 0 && n.children.length > 0 && n.children.every((c) => c.children.length === 0);
+  return (
+    <li>
+      <OrgCard n={n} collapsed={collapsed} onToggle={() => toggle(n.p.id)} onOpen={() => onOpen(n.p.id)} compact={compact} />
+      {n.children.length > 0 && !collapsed && (
+        <ul className={vertical ? "otree-v" : undefined}>
+          {n.children.map((c) => (
+            <OrgBranch key={c.p.id} n={c} closed={closed} toggle={toggle} onOpen={onOpen} depth={depth + 1} compact={vertical} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 1.5;
+
+function OrgTree({ onOpen }: { onOpen: (id: string) => void }) {
+  const q = useQuery({ queryKey: ["org", "tree"], queryFn: () => api<{ trees: { manager: TreeNode; leaders: TreeNode[]; direct: TreeNode[] }[]; outside: TreeNode[] }>("GET", "/org/tree") });
+  const [closed, setClosed] = useState<Set<string>>(new Set());
+  const [scale, setScale] = useState(1);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const frame = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; sl: number; st: number; moved: boolean } | null>(null);
+  const fitted = useRef(false);
+  const roots: TNode[] = (q.data?.trees ?? []).map((tr) => ({
+    p: tr.manager,
+    children: [
+      ...tr.leaders.map((l) => ({ p: l, children: (l.members ?? []).map((m) => ({ p: m, children: [] })) })),
+      ...tr.direct.map((d) => ({ p: d, children: [] })),
+    ],
+  }));
+  const toggle = (id: string) => setClosed((s) => { const x = new Set(s); if (!x.delete(id)) x.add(id); return x; });
+  const clamp = (v: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(v * 100) / 100));
+  const fit = () => {
+    if (!frame.current || !inner.current) return;
+    const w = inner.current.offsetWidth;
+    setScale(w > 0 ? clamp(Math.min(1, (frame.current.clientWidth - 32) / w)) : 1);
+    frame.current.scrollTo({ left: 0, top: 0 });
+  };
+  useLayoutEffect(() => {
+    if (inner.current) setSize({ w: inner.current.offsetWidth, h: inner.current.offsetHeight });
+  }, [q.data, closed]);
+  useEffect(() => {
+    if (q.data && size.w > 0 && !fitted.current) {
+      fitted.current = true;
+      fit();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fit once, when the first size is known
+  }, [q.data, size.w]);
+  const el = frame.current;
+  const onDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 || !el) return;
+    drag.current = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop, moved: false };
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || !el || !(e.buttons & 1)) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (!d.moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+    d.moved = true;
+    el.scrollLeft = d.sl - dx;
+    el.scrollTop = d.st - dy;
+  };
+  const endDrag = () => { setTimeout(() => { drag.current = null; }, 0); };
   return (
     <div className="flex flex-col gap-4">
       <ErrorText error={q.error} />
-      {q.data?.trees.map((tr) => (
-        <div key={tr.manager.id} className="rounded-card border border-border bg-card p-4 text-sm shadow-sm">
-          <div className="flex flex-wrap items-center gap-2 font-semibold">
-            <Badge tone="primary">Manager</Badge>Cây của <Person p={tr.manager} />
+      {roots.length > 0 && (
+        <div className="relative">
+          <div className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-lg border border-border bg-card/95 p-1 shadow-2xs" role="toolbar" aria-label="Phóng to thu nhỏ">
+            <Button variant="ghost" aria-label="Thu nhỏ" disabled={scale <= MIN_ZOOM} onClick={() => setScale((s) => clamp(s - 0.1))}><Minus size={14} aria-hidden /></Button>
+            <span className="w-10 text-center text-xs tabular-nums text-muted-foreground" aria-live="polite">{Math.round(scale * 100)}%</span>
+            <Button variant="ghost" aria-label="Phóng to" disabled={scale >= MAX_ZOOM} onClick={() => setScale((s) => clamp(s + 0.1))}><Plus size={14} aria-hidden /></Button>
+            <Button variant="ghost" onClick={fit}><Maximize2 size={14} aria-hidden />Vừa khung</Button>
           </div>
-          <ul className="ml-3 mt-3 space-y-2 border-l-2 border-primary-border pl-4">
-            {tr.leaders.map((l) => (
-              <li key={l.id}>
-                <Person p={l} />
-                {l.members && l.members.length > 0 && (
-                  <ul className="mt-1.5 ml-3 space-y-1 border-l border-border pl-4">
-                    {l.members.map((m) => (
-                      <li key={m.id}>
-                        <Person p={m} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-            {tr.direct.map((d) => (
-              <li key={d.id}>
-                <Person p={d} /> <span className="text-xs text-muted-foreground">— thuộc thẳng Manager</span>
-              </li>
-            ))}
-          </ul>
+          <div
+            ref={frame}
+            className="otree-dots max-h-[calc(100vh-260px)] min-h-[360px] cursor-grab touch-pan-x touch-pan-y overflow-auto rounded-card border border-border active:cursor-grabbing"
+            onPointerDown={onDown}
+            onPointerMove={onMove}
+            onPointerUp={endDrag}
+            onPointerLeave={endDrag}
+            onClickCapture={(e) => { if (drag.current?.moved) { e.stopPropagation(); e.preventDefault(); } }}
+          >
+            <div className="mx-auto p-6" style={{ width: size.w * scale + 48, height: size.h * scale + 48 }}>
+              <div ref={inner} className="otree flex w-max flex-col items-center gap-8" style={{ transform: `scale(${scale})`, transformOrigin: "0 0" }}>
+                {roots.map((r) => (
+                  <div key={r.p.id} className="flex flex-col items-center gap-3">
+                    <div className="text-[11px] font-semibold text-muted-foreground">Cây của {r.p.full_name}</div>
+                    <ul className="otree-root">
+                      <OrgBranch n={r} closed={closed} toggle={toggle} onOpen={onOpen} />
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      ))}
+      )}
       {q.data && q.data.outside.length > 0 && (
-        <div className="rounded-card border border-border bg-card p-4 text-sm shadow-sm">
-          <div className="font-semibold">Ngoài cây (Admin, Guest tự đăng ký)</div>
-          <ul className="ml-3 mt-3 space-y-1 border-l-2 border-border pl-4">
+        <section className="rounded-card border border-border bg-card p-4 shadow-sm">
+          <div className="mb-3 text-[13px] font-semibold">Ngoài cây (Admin, Guest tự đăng ký)</div>
+          <div className="flex flex-wrap gap-3">
             {q.data.outside.map((p) => (
-              <li key={p.id}>
-                <Person p={p} />
-              </li>
+              <OrgCard key={p.id} n={{ p, children: [] }} collapsed={false} onToggle={() => {}} onOpen={() => onOpen(p.id)} />
             ))}
-          </ul>
-        </div>
+          </div>
+        </section>
       )}
     </div>
   );

@@ -1,0 +1,27 @@
+/* Org chart tree (12H-6): nested lists with square 1px connectors, rounded 8px at the bends. */
+.otree ul { position: relative; display: flex; justify-content: center; padding-top: 24px; margin: 0; list-style: none; }
+.otree li { position: relative; display: flex; flex-direction: column; align-items: center; padding: 24px 8px 0; }
+.otree li::before, .otree li::after { content: ""; position: absolute; top: 0; right: 50%; width: 50%; height: 24px; border-top: 1px solid #cbd5e1; }
+.otree li::after { right: auto; left: 50%; border-left: 1px solid #cbd5e1; }
+.otree li:only-child::before, .otree li:only-child::after { display: none; }
+.otree li:only-child { padding-top: 0; }
+.otree li:first-child::before, .otree li:last-child::after { border: 0; }
+.otree li:last-child::before { border-right: 1px solid #cbd5e1; border-radius: 0 8px 0 0; }
+.otree li:first-child::after { border-radius: 8px 0 0 0; }
+.otree ul ul::before { content: ""; position: absolute; top: 0; left: 50%; height: 24px; border-left: 1px solid #cbd5e1; }
+.otree-root { padding-top: 0 !important; }
+.otree-root::before { display: none !important; }
+.otree-root > li { padding-top: 0; }
+.otree-root > li::before, .otree-root > li::after { display: none; }
+.otree-dots { background-image: radial-gradient(#e2e8f0 1px, transparent 1px); background-size: 16px 16px; background-color: #f8f9fb; }
+/* Leaves under a node stack vertically (file-tree style) so a wide team does not stretch the chart. */
+.otree ul.otree-v { flex-direction: column; align-items: stretch; gap: 8px; width: 184px; padding: 12px 0 0 24px; }
+.otree ul.otree-v::before { display: none; }
+.otree ul.otree-v > li { padding: 0; align-items: flex-start; }
+.otree ul.otree-v > li::before, .otree ul.otree-v > li::after { content: ""; position: absolute; right: auto; left: -12px; top: auto; bottom: auto; width: 12px; height: auto; border: 0; border-radius: 0; display: block; }
+.otree ul.otree-v > li::before { top: -8px; bottom: -8px; border-left: 1px solid #cbd5e1; }
+.otree ul.otree-v > li:first-child::before { top: -12px; }
+.otree ul.otree-v > li::after { top: 50%; border-top: 1px solid #cbd5e1; }
+.otree ul.otree-v > li:last-child::before { bottom: 50%; border-bottom: 1px solid #cbd5e1; border-radius: 0 0 0 8px; }
+.otree ul.otree-v > li:last-child::after { display: none; }
+.otree ul.otree-v > li:only-child::before { display: block; }
