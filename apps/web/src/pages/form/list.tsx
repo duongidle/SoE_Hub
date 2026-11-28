@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
+import { Tip } from "@/components/ui/tooltip";
 import { api, fmtTime } from "@/lib/api";
 import { type FormBrief, formKeys, listForms } from "./model";
 
@@ -71,7 +72,7 @@ export function FormListPage() {
   const restore = useMutation({ mutationFn: (f: FormBrief) => api("POST", `/forms/${f.id}/restore`, {}), onSuccess: () => { notify.ok("Đã khôi phục form"); refresh(); } });
   return (
     <div>
-      <PageTitle actions={<><Button variant={tab === "trash" ? "primary" : "secondary"} onClick={() => setTab(tab === "trash" ? "live" : "trash")} aria-label={`Thùng rác${trashN ? `, ${trashN} form` : ""}`} aria-pressed={tab === "trash"} title="Thùng rác" data-testid="form-trash"><Trash2 size={16} aria-hidden />{trashN > 0 && <span className="num text-[11px] font-semibold">{trashN}</span>}</Button><Link to="/form/cham-bai" className={linkBtn}><ClipboardCheck size={16} aria-hidden /> Chấm bài</Link><Button onClick={() => setCreating(true)} data-testid="new-form"><FilePlus2 size={16} aria-hidden /> Tạo form</Button></>}>Dynamic Form</PageTitle>
+      <PageTitle actions={<><Tip label="Thùng rác"><button type="button" onClick={() => setTab(tab === "trash" ? "live" : "trash")} aria-label={`Thùng rác${trashN ? `, ${trashN} form` : ""}`} aria-pressed={tab === "trash"} data-testid="form-trash" className={`relative inline-flex size-11 sm:size-8 shrink-0 items-center justify-center rounded-md text-bad hover:bg-bad-bg ${tab === "trash" ? "bg-bad-bg" : ""}`}><Trash2 size={16} aria-hidden />{trashN > 0 && <span className="num absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-bad px-1 text-center text-[10px] font-semibold leading-4 text-white">{trashN}</span>}</button></Tip><Link to="/form/cham-bai" className={linkBtn}><ClipboardCheck size={16} aria-hidden /> Chấm bài</Link><Button onClick={() => setCreating(true)} data-testid="new-form"><FilePlus2 size={16} aria-hidden /> Tạo form</Button></>}>Dynamic Form</PageTitle>
       {tab === "trash" && (
         <div className="mb-3 flex items-center gap-2" data-testid="form-trash-head">
           <Button variant="ghost" onClick={() => setTab("live")}><ArrowLeft size={16} aria-hidden /> Quay lại</Button>

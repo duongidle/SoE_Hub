@@ -381,3 +381,9 @@ Chỉ web (`editor.tsx`, `sheet.tsx`, `props.tsx`, một dòng ở `renderer.tsx
 - Quy tắc độ đậm: 400 chữ thân, ô bảng, dòng danh sách, mô tả, chữ phụ; 500 nhãn trường, nút, tab, mục menu, chip, tiêu đề cột; 600 chỉ tiêu đề thẻ/trang/mục (h1–h4, Title, text-base trở lên), số KPI; 700 không dùng (trừ logo `brand.tsx`, giữ nguyên).
 - Cách làm: duyệt mọi `font-semibold`/`font-bold` trong `apps/web/src` theo chuỗi class chứa nó: có `text-base|lg|xl|2xl|[15px]|[22px]|tracking-tight|num` hoặc nằm trong `<h1–h6>`/`Title` thì thành 600, còn lại (nhãn, chip, badge, số nhỏ, tiêu đề cột) thành 500. 43 file, 107 chỗ giữ 600, 126 chỗ hạ 500. `font-medium` giữ nguyên (nút, nhãn, chip). Không đổi cỡ chữ, khoảng cách, màu. Bỏ qua `brand.tsx` và `pages/feedback/*` (của 11B; Opus giao lại nếu muốn rà: `common.tsx`, `lists.tsx`, `send.tsx`).
 - Test: `pnpm typecheck`, `pnpm lint` sạch; không chạy vitest/e2e (chỉ đổi độ đậm). Ảnh `12h-14/` trong scratchpad (1440×900: Datahub, Dynamic Form, Cài đặt, Knowledge, Tổng quan).
+
+## 12H-17 nút Thùng rác chỉ là icon đỏ (Dương 28/11, ảnh 26)
+
+- Nút trên trang Datahub (`datahub/list.tsx`), Dynamic Form (`form/list.tsx`), dashboard (`datahub/dashboard/dashboard-area.tsx`): icon 16px màu `text-bad`, vuông 32px (44px điện thoại), nền trong suốt, hover `bg-bad-bg`. Bỏ chữ; giữ `aria-label` (kèm số lượng) và thêm Tip "Thùng rác" nên e2e tìm theo tên vẫn chạy.
+- Số lượng thành badge đỏ nhỏ ở góc icon. Form: tab thùng rác đang bật thì nền `bg-bad-bg` (`aria-pressed`).
+- Mục menu và tiêu đề hộp thoại giữ chữ. Không chụp ảnh trước/sau (chỉ typecheck + eslint theo lệnh test tối giản).

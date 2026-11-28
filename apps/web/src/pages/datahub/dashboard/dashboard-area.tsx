@@ -227,7 +227,7 @@ export function DashboardArea({ dh, dashboardId }: { dh: DatahubBrief; dashboard
         <Tip label="Dashboard mới"><Button variant="ghost" className="shrink-0 !px-2" aria-label="Dashboard mới" onClick={() => setDialog({ kind: "new" })}><Plus size={16} aria-hidden /></Button></Tip>
         <span className="ml-auto flex shrink-0 items-center gap-1">
           <Tip label="Nhập dashboard từ JSON"><Button variant="ghost" className="!px-2" aria-label="Nhập JSON" onClick={() => setDialog({ kind: "import" })} data-testid="import-json"><FileUp size={16} aria-hidden /></Button></Tip>
-          <Tip label="Thùng rác dashboard"><Button variant="ghost" className="!px-2" aria-label={`Thùng rác${trash.data?.length ? ` (${trash.data.length})` : ""}`} onClick={() => setDialog({ kind: "trash" })}><Trash size={16} aria-hidden />{trash.data?.length ? <span className="text-xs">{trash.data.length}</span> : null}</Button></Tip>
+          <Tip label="Thùng rác dashboard"><button type="button" aria-label={`Thùng rác${trash.data?.length ? ` (${trash.data.length})` : ""}`} onClick={() => setDialog({ kind: "trash" })} className="relative inline-flex size-11 sm:size-8 shrink-0 items-center justify-center rounded-md text-bad hover:bg-bad-bg"><Trash size={16} aria-hidden />{trash.data?.length ? <span className="num absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-bad px-1 text-center text-[10px] font-semibold leading-4 text-white">{trash.data.length}</span> : null}</button></Tip>
         </span>
       </div>
 

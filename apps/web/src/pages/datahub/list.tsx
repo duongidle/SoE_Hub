@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ErrorText, Field, Input, Modal, PageTitle, Tabs, Textarea, errorMessage } from "@/components/ui/form";
 import { Menu, MenuItem } from "@/components/ui/dropdown";
+import { Tip } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
@@ -68,7 +69,7 @@ export function DatahubListPage() {
       <PageTitle
         actions={
           <>
-            <Link to="/datahub/thung-rac" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted sm:min-h-9"><Trash size={16} aria-hidden /> Thùng rác</Link>
+            <Tip label="Thùng rác"><Link to="/datahub/thung-rac" aria-label="Thùng rác" className="relative inline-flex size-11 sm:size-8 shrink-0 items-center justify-center rounded-md text-bad hover:bg-bad-bg"><Trash size={16} aria-hidden /></Link></Tip>
             {canCreate && <Button variant="secondary" onClick={() => setDialog({ kind: "import" })} disabled={full} title={full ? "Bạn đã dùng hết số datahub được tạo." : undefined}><Upload size={16} aria-hidden /> Nhập dữ liệu</Button>}
             {canCreate && (
             <Button onClick={() => setDialog({ kind: "create" })} disabled={full} title={full ? "Bạn đã dùng hết số datahub được tạo." : undefined}>
