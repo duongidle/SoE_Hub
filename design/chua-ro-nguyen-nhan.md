@@ -28,3 +28,10 @@ Mỗi mục ghi: tên test hoặc chỗ lỗi, lệnh, tần suất, đã thử 
 
 - Test: join 100k dòng, từng chạy 1246 ms khi máy bận; chạy riêng thì pass.
 - Nghi: máy bận làm chậm, không phải hồi quy engine. Chưa đo lại.
+
+## 5. `stage2c1` test dán vùng Excel (e2e desktop)
+
+- Lệnh: `pnpm test:e2e e2e/stage2c1.spec.ts --project=desktop`.
+- Thấy: 28/11/2026 ở 12H-13 (mã 6d2438c), fail 1 lần; chạy lại 3 lần đều pass.
+- Đã thử: chạy lại cả file 3 lần. Chưa tái hiện.
+- Nghi: dán phụ thuộc clipboard/focus của canvas lúc lưới vừa đổi bề rộng cột số thứ tự (48 → 72px).
