@@ -1,0 +1,20 @@
+meta {
+  name: feedback.get
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/feedback/{{feedbackId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Chi tiết góp ý: nội dung, ảnh, thông tin tự ghi, người gửi, tin nhắn. Người gửi hoặc người xử lý.
+  Quyền: `feedback:feedback:read`.
+}

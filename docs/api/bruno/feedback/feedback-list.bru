@@ -1,0 +1,20 @@
+meta {
+  name: feedback.list
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/feedback?status=open&kind=bug
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Hộp feedback của người xử lý. `status`: new | viewing | planned | done | wont_do | open (mặc định, Mới + Đang xem) | all.
+  Quyền: `feedback:inbox:manage`.
+}

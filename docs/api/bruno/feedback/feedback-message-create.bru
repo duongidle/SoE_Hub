@@ -1,0 +1,28 @@
+meta {
+  name: feedback.message.create
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/feedback/{{feedbackId}}/messages
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "body": "Cậu gửi thêm ảnh chụp màn hình giúp tớ."
+  }
+}
+
+docs {
+  Nhắn trong một góp ý (người gửi hoặc người xử lý), tối đa 5.000 ký tự.
+  Quyền: `feedback:feedback:write`.
+}

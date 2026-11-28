@@ -1,0 +1,20 @@
+meta {
+  name: org.permission.holders
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/v1/org/permissions/holders
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Mỗi quyền bổ sung: người đang được cấp (trong phạm vi cây của bạn), cờ `can_manage` và `writable`. Cấp/gỡ dùng permission-grant / permission-revoke.
+  Quyền: `org:permission:grant`.
+}

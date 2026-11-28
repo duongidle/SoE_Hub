@@ -540,6 +540,21 @@ _Phần 4.1–4.5. Mỗi bước con sau cập nhật phần của mình trong c
 - Tuỳ chọn cột "báo khi cột này được sửa" (9B): xem Module 2 và Module 6 (loại `datahub.cell.changed` ở `catalog.ts`). Không viết SQL tổng hợp riêng cho checkpoint: chỉ qua `runDefinition`. Không cấp quyền bảng cho nhân sự bằng đường khác `applyGrants`. Không để AI tick việc, xác nhận checkpoint, chốt đánh giá cuối.
 - Lộ trình đang chạy chỉ một cho mỗi nhân sự (chỉ mục duy nhất một phần), kiểm ở `plan.assign`.
 
+## Module 11: Cài đặt còn lại, Feedback (11A: server)
+
+**Chỗ gọi vào**
+- Module: `apps/api/src/modules/feedback/index.ts` `feedbackOperations` (đăng ký ở `apps/api/src/modules/index.ts`). Lệnh `feedback.create|withdraw|mine|list|get|file.url|message.create|status.set`, menu AI `feedback` (`^feedback\.` ở `apps/api/src/core/ai-policy.ts`). Bảng `feedback`, `feedback_messages` (`packages/db/src/schema/feedback.ts`, migration `0038_feedback.sql`), cả hai đăng ký bảng có chủ.
+- Ai là người xử lý: quyền `feedback:inbox:manage` (Admin theo vai trò; người khác qua quyền bổ sung, `SUPPLEMENTARY_PERMISSIONS` ở `packages/shared/src/permissions.ts`). Danh sách người xử lý đang hoạt động: `apps/api/src/modules/feedback/index.ts` `inboxManagerIds`. Quyền gửi/đọc của mình: `feedback:feedback:write|read` nằm trong `SIGNED_IN` nên Guest cũng gửi được.
+- Ảnh đính kèm: `file_ids` của người gửi (`file.upload.init`/`complete`), kiểm ở `checkImages` (ảnh, sẵn sàng, ≤5 MB, tối đa 3). File vẫn riêng của chủ; người xử lý đọc qua `feedback.file.url` (mẫu `post.file.url` ở `apps/api/src/modules/publish/ops.ts`), không có đường đọc file riêng lạ.
+- Thông báo: `feedback.new` (người xử lý: góp ý mới, người gửi nhắn lại) và `feedback.update` (người gửi: có trả lời, đổi trạng thái), khai ở `apps/api/src/modules/notification/catalog.ts` `NOTIFICATION_TYPES`, gửi trực tiếp bằng `notify.send` trong lệnh (cùng kiểu `post.*`). Chưa có `on` nên không hiện ở cài đặt thông báo.
+- Liệt kê theo quyền bổ sung: `apps/api/src/modules/org/operations.ts` `orgOperations` (lệnh `org.permission.holders`; cấp/gỡ vẫn là `org.permission.grant|revoke`).
+
+**Mẫu làm theo**
+- Danh sách keyset có lọc: lệnh `feedback.list` (`listPage` + `FieldMap`, mặc định mới nhất trước). Test: `apps/api/test/feedback.test.ts`.
+
+**Luật cấm**
+- Không đọc `feedback` của người khác mà không là người xử lý: `loadVisible` trả `not_found` cho người ngoài. Không cho sửa/xoá tin nhắn đã gửi (không có lệnh). Chuyển giao dữ liệu (M1) không chuyển feedback.
+
 ## Module 12: Giao diện
 
 - Token (màu, bo góc, bóng, nền quầng): `apps/web/src/index.css`. Chỉ dùng token, không mã màu cứng trong component. Màu theo nghĩa: `ok/info/warn/bad/ai` (+ `-bg`, `-border`, `-dot`).

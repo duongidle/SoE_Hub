@@ -1,0 +1,20 @@
+meta {
+  name: feedback.file.url
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/feedback/{{feedbackId}}/files/{{fileId}}/download-url
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+docs {
+  Link tải có hạn một ảnh đính kèm. Người gửi hoặc người xử lý.
+  Quyền: `feedback:feedback:read`.
+}
