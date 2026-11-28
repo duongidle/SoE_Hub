@@ -349,7 +349,7 @@ test("cột Liên kết, Lookup, Rollup: chọn bảng và cột từ danh sách
   // The row panel: pick the linked row from a searchable list.
   await expect(g.root).toBeVisible();
   await g.click(0, 0);
-  await pg.getByRole("button", { name: "Chi tiết dòng" }).click();
+  await g.openMarker(0);
   const panel = pg.getByRole("dialog", { name: /^Dòng #/ });
   await panel.getByRole("button", { name: "Chọn dòng" }).first().click();
   const list = panel.getByRole("listbox", { name: "Dòng của bảng được liên kết" });
@@ -396,7 +396,7 @@ test("cột Đính kèm: tải file lên, tải về, loại file không nhận,
   const key = (await colByName("Hợp đồng"))!.key;
 
   await g.click(0, 0);
-  await pg.getByRole("button", { name: "Chi tiết dòng" }).click();
+  await g.openMarker(0);
   const panel = pg.getByRole("dialog", { name: /^Dòng #/ });
   const input = panel.getByTestId("attachment-input");
   // A type the system does not take: said in words, the cell stays empty.
@@ -419,7 +419,7 @@ test("cột Đính kèm: tải file lên, tải về, loại file không nhận,
   expect(await g.read(colIndex, 0)).toBe("1 tệp");
   // Remove it from the cell.
   await g.click(0, 0);
-  await pg.getByRole("button", { name: "Chi tiết dòng" }).click();
+  await g.openMarker(0);
   await pg.getByRole("dialog", { name: /^Dòng #/ }).getByRole("button", { name: /^Gỡ hợp đồng Thuận Phát.pdf khỏi ô/ }).click();
   await expect.poll(async () => (await cellIds())?.length ?? 0).toBe(0);
   // Put it back for the next test (through the API: the same file id).
@@ -457,7 +457,7 @@ test("người Xem và người Sửa: không đổi được cấu trúc, khôn
 
     // Row panel: links are read-only (a reason in words); files can be seen and downloaded; only the editor uploads.
     await g.click(0, 0);
-    await pg.getByRole("button", { name: "Chi tiết dòng" }).click();
+    await g.openMarker(0);
     const panel = pg.getByRole("dialog", { name: /^Dòng #/ });
     await expect(panel.getByRole("button", { name: "Chọn dòng" })).toHaveCount(0);
     await expect(panel.getByRole("button", { name: "Tải về baogia.pdf" })).toBeVisible();
