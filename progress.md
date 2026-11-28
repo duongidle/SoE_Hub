@@ -19,7 +19,7 @@ Cập nhật: 28/11/2026
 0. **12H — sửa giao diện sau dùng thử** (Dương chốt 28/11; thiết kế: `module12-giao-dien.md` mục "Sửa sau dùng thử", có bảng thông số mockup). Ba agent lần lượt, test theo "Việc nhỏ test nhanh" (spec của màn bị chạm, không chạy cả bộ):
    - [ ] **12H-1 nền:** thang chữ, khoảng cách, nút, bảng (grid canvas), thẻ, popover/menu, modal, ngăn kéo (Drawer nổi + nền mờ + trượt), hiệu ứng fadeUp, thanh cuộn, chip lựa chọn có màu tự gán. Sửa ở token và `components/ui`, grid theme.
    - [ ] **12H-2 Datahub/Deal:** dải kỳ thành nút trên thanh công cụ + "Toàn bộ thời gian"; thanh công cụ kiểu Lark (bỏ ô tick rời); chọn dòng bằng ô tick khi rê số thứ tự; ngăn kéo chi tiết dòng theo mockup.
-   - [ ] **12H-3 Onboarding:** gọn khoảng một màn; huy hiệu checkpoint trên mốc thay nhãn; dải trên một hàng; danh sách tuần gọn.
+   - [ ] **12H-3 Onboarding + rà tab toàn app:** gọn khoảng một màn; huy hiệu checkpoint trên mốc thay nhãn; dải trên một hàng; danh sách tuần gọn. Rà toàn app theo quyết định 7–9 (không lồng tab, thùng rác là nút icon, bỏ tab/bộ lọc chỉ có một nhóm): chuông (Nhắc hẹn Sắp tới/Đã xong), Dynamic Form (Form của tôi/Thùng rác), và mọi chỗ khác tìm được.
 1. Stage 11 (Cài đặt + Feedback): Opus rà phạm vi theo `kinh-nghiem-quyet-dinh.md` rồi giao 11A (server) / 11B (web + kiểm thử gộp).
 2. Module 10 (Workspace): chờ Dương duyệt đề xuất.
 

@@ -88,3 +88,6 @@ Agent làm giao diện **được đọc đoạn HTML mockup của đúng thành
    - Hành trình: mỗi tuần một mốc; checkpoint **không vẽ nhãn trên con đường** nữa, chỉ một huy hiệu nhỏ trên mốc ("⚑3", màu theo trạng thái xấu nhất: trễ cam, đạt xanh, chưa tới xám). Rê hiện tooltip danh sách checkpoint, bấm mở ngăn kéo tuần. Chiều cao khối hành trình cố định khoảng 160–200px, cuộn ngang nếu nhiều tuần.
    - Dải "Bạn đang ở" gọn một hàng; không lặp số liệu.
    - Phần tuần hiện tại: danh sách việc gọn (dòng 36–40px), checkpoint bên phải; nội dung dài thì thu lại có "Xem thêm", không kéo trang dài.
+7. **Không lồng tab trong tab** (Dương 28/11): trong một khung đã có tab thì không đặt thêm hàng tab con. Lọc phụ dùng chip/nút phân đoạn nhỏ gắn vào tiêu đề danh sách, hoặc một dòng "Xem đã xong (n)" ở cuối danh sách. Ví dụ chuông → Nhắc hẹn: bỏ hàng "Sắp tới | Đã xong", danh sách là việc sắp tới, cuối có "Xem đã xong (n)".
+8. **Thùng rác không phải tab** (Dương 28/11): thùng rác là nút icon (kèm số nếu có) trên top bar hoặc trong "•••", mở trang/ngăn kéo riêng, như Datahub đang làm. Không đặt chung hàng với bộ lọc dữ liệu.
+9. **Chỉ có một nhóm thì không có tab/bộ lọc** (Dương 28/11): ví dụ Dynamic Form chỉ hiện "Form của tôi" thì bỏ hàng tab; thùng rác thành nút icon trên top bar. Rà toàn app: tab hay bộ lọc chỉ có một lựa chọn thật thì bỏ.
