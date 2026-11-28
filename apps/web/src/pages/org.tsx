@@ -78,10 +78,12 @@ export function OrgPage() {
               {members.data?.map((u) => (
                 <tr key={u.id}>
                   <td>
+                    <div className="max-w-md">
                     <div className="font-medium"><PersonChip person={{ id: u.id, full_name: u.full_name, email: u.email }} label={memberNames.get(u.id)} /></div>
                     {u.title && <div className="text-xs text-muted-foreground">{u.title}</div>}
                     {/* The email sits under the name (a 1280px screen with the sidebar has no room for it as a column); on a phone the rest of the row follows, and the actions stay in view at the right. */}
                     <div className="mt-0.5 text-xs text-muted-foreground [overflow-wrap:anywhere]">{u.email}</div>
+                    </div>
                     <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground md:hidden">
                       <span>{roleText(u)}{u.manager_id === u.id ? " · gốc cây" : u.manager_name ? ` · Manager ${u.manager_name}` : ""}{u.leader_name ? ` · Cấp trên ${u.leader_name}` : ""}</span>
                       <span><StatusBadge s={u.status} /></span>
@@ -89,8 +91,8 @@ export function OrgPage() {
                   </td>
                   <td className="hidden md:table-cell">{roleText(u)}</td>
                   <td className="hidden md:table-cell">
-                    <div>{u.manager_id === u.id ? "(gốc cây)" : (u.manager_name ?? "—")}</div>
-                    {u.leader_name && <div className="text-xs text-muted-foreground">Cấp trên: {u.leader_name}</div>}
+                    <div className="max-w-xs [overflow-wrap:anywhere]">{u.manager_id === u.id ? "(gốc cây)" : (u.manager_name ?? "—")}</div>
+                    {u.leader_name && <div className="max-w-xs text-xs text-muted-foreground [overflow-wrap:anywhere]">Cấp trên: {u.leader_name}</div>}
                   </td>
                   <td className="hidden md:table-cell">
                     <StatusBadge s={u.status} />

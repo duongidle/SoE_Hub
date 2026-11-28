@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { PageChromeContext } from "@/lib/page-chrome";
 import { api } from "@/lib/api";
 import { can, useLiveUpdates, useMe } from "@/lib/session";
+import { initialsOf } from "@/lib/people";
 import { useSearchHotkey } from "@/lib/search-hotkey";
 import { BellButton } from "./notify/inbox";
 import { SettingsLayout } from "./settings";
@@ -242,7 +243,7 @@ export function Shell() {
   const baseTrail = crumbs(shown);
   // A name the menu does not know (datahub, form...) ends the breadcrumb; settings pages already carry their label.
   const trail = !leaf || isSettingsPath(shown) || baseTrail[baseTrail.length - 1] === leaf ? baseTrail : baseTrail[0] === BRAND_NAME ? [leaf] : [...baseTrail, leaf];
-  const initials = me.user.full_name.split(/\s+/).filter(Boolean).slice(-2).map((w) => w[0]).join("").toUpperCase();
+  const initials = initialsOf(me.user.full_name);
   return (
     <div className="h-dvh md:p-3">
       <a href="#noi-dung" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[80] focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:shadow-md">
@@ -250,7 +251,7 @@ export function Shell() {
       </a>
       <div className="flex h-full overflow-hidden bg-card md:rounded-frame md:shadow-frame">
         <aside className={cn("hidden shrink-0 flex-col border-r border-border-soft bg-sidebar transition-[width] duration-200 lg:flex", collapsed ? "w-16" : "w-[220px]")}>
-          <div className={cn("flex h-14 shrink-0 items-center gap-1.5 px-2.5", collapsed ? "justify-center" : "justify-between")}>
+          <div className={cn("flex h-14 shrink-0 items-center gap-1 px-2", collapsed ? "justify-center" : "justify-between")}>
             <Link to="/" aria-label="SoE HUB, về Tổng quan" className="min-w-0">
               <Brand compact={collapsed} />
             </Link>
@@ -291,9 +292,9 @@ export function Shell() {
                     <Menu size={20} aria-hidden />
                   </Button>
                 </Dialog.Trigger>
-                <nav aria-label="Vị trí" className="flex min-w-0 items-center gap-1.5 text-sm">
+                <nav aria-label="Vị trí" className="flex min-w-0 items-center gap-1.5 text-base">
                   {trail.map((t, i) => (
-                    <span key={t} className="flex min-w-0 items-center gap-1.5">
+                    <span key={t} className={cn("flex items-center gap-1.5", i === trail.length - 1 ? "min-w-0" : "max-w-40 shrink-0")}>
                       {i > 0 && <ChevronRight size={14} aria-hidden className="shrink-0 text-faint" />}
                       <span className={cn("truncate", i === trail.length - 1 ? "font-semibold text-foreground" : "text-muted-foreground")} aria-current={i === trail.length - 1 ? "page" : undefined}>{t}</span>
                     </span>

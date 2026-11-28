@@ -16,8 +16,8 @@ export function BrandMark({ className }: { className?: string }) {
 export function Brand({ center, compact }: { center?: boolean; compact?: boolean }) {
   if (compact) return <BrandMark />;
   return (
-    <span className={cn("flex items-center gap-2.5", center && "flex-col gap-2 text-center")}>
-      <BrandMark className={center ? "size-11 text-base" : undefined} />
+    <span className={cn("flex items-center gap-2", center && "flex-col text-center")}>
+      <BrandMark className={center ? "size-11 text-base" : "size-8"} />
       <span className="flex min-w-0 flex-col leading-tight">
         <span className={cn("font-bold tracking-tight text-foreground", center ? "text-xl" : "text-base")}>{BRAND_NAME}</span>
         <span className="whitespace-nowrap text-xs text-muted-foreground">{BRAND_SLOGAN}</span>

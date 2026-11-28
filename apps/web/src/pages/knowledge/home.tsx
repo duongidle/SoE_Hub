@@ -49,7 +49,7 @@ export function ArticleItem({ a }: { a: ArticleCard }) {
       {a.snippet ? <Snippet html={a.snippet} /> : <p className="line-clamp-2 text-sm text-muted-foreground [overflow-wrap:anywhere]">{a.summary}</p>}
       {a.tags.length > 0 && <div className="flex flex-wrap gap-1">{a.tags.slice(0, 4).map((t) => <Badge key={t}>#{t}</Badge>)}</div>}
       <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border-soft pt-2 text-xs text-muted-foreground">
-        <span className="flex min-w-0 items-center gap-1"><PersonChip person={{ id: a.author.id, full_name: a.author.name }} />{a.published_at && <span>· {shortDate(a.published_at)}</span>}</span>
+        <span className="flex min-w-0 items-center gap-1"><PersonChip className="min-w-0" person={{ id: a.author.id, full_name: a.author.name }} />{a.published_at && <span className="shrink-0">· {shortDate(a.published_at)}</span>}</span>
         <span className="flex items-center gap-1"><Eye size={14} aria-hidden />{a.view_count}</span>
       </div>
     </li>
@@ -69,7 +69,7 @@ function TopViewed() {
             <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary-soft text-xs font-semibold text-primary">{n + 1}</span>
             <div className="min-w-0">
               <Link to="/knowledge/$id" params={{ id: a.id }} className="line-clamp-2 text-sm font-medium [overflow-wrap:anywhere] hover:text-primary">{a.title}</Link>
-              <div className="text-xs text-muted-foreground">{a.view_count} lượt xem · {a.author.name}</div>
+              <div className="truncate text-xs text-muted-foreground">{a.view_count} lượt xem · {a.author.name}</div>
             </div>
           </li>
         ))}
@@ -123,7 +123,7 @@ export function KnowledgeHomePage() {
           </div>
         </div>
       </LibraryHead>
-      <div className="grid items-start gap-4 lg:grid-cols-[1fr_18rem]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="min-w-0">
           <ErrorText error={res.error} />
           {total === 0 && <EmptyState title="Không có bài nào khớp" hint="Thử bỏ bớt bộ lọc hoặc đổi từ khoá." />}

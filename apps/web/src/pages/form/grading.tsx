@@ -7,6 +7,7 @@ import { Button, ErrorText, Field, Input, PageTitle, Textarea } from "@/componen
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { api, fmtTime } from "@/lib/api";
+import { initialsOf } from "@/lib/people";
 import type { Rubric } from "./model";
 
 interface Item { response_id: string; form_id: string; form_name: string; user_name: string | null; attempt: number; result: string | null; score: number; max: number; submitted_at: string }
@@ -19,7 +20,7 @@ const ResultChip = ({ result }: { result: string | null }) => <Badge tone={resul
 /** True from 1024px: the grading page keeps list and answer side by side; narrower, one answer opens in a drawer. */
 const wideQuery = "(min-width: 1024px)";
 const useWide = () => useSyncExternalStore((cb) => { const m = window.matchMedia(wideQuery); m.addEventListener("change", cb); return () => m.removeEventListener("change", cb); }, () => window.matchMedia(wideQuery).matches, () => true);
-const initials = (n: string | null) => (n ?? "?").trim().split(/\s+/).slice(-2).map((x) => x[0]?.toUpperCase() ?? "").join("") || "?";
+const initials = (n: string | null) => initialsOf(n ?? "") || "?";
 const param = (k: string) => new URLSearchParams(window.location.search).get(k);
 
 function GradeForm({ detail, next, onDone }: { detail: Detail; next: () => void; onDone: () => void }) {

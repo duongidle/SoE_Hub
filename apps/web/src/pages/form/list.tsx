@@ -82,7 +82,7 @@ export function FormListPage() {
         <ul className="flex flex-col gap-2" data-testid="form-list">
           {q.data?.map((f) => (
             <li key={f.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-card px-4 py-3 hover:border-primary-border" data-testid="form-row">
-              <div className="min-w-0 flex-1 basis-60">
+              <div className="min-w-0 flex-1 basis-60 [overflow-wrap:anywhere]">
                 {tab === "live" ? <Link to="/form/$id" params={{ id: f.id }} className="font-semibold text-foreground hover:text-primary [overflow-wrap:anywhere]">{f.name}</Link> : <span className="font-semibold">{f.name}</span>}
                 <p className="mt-0.5 text-xs text-muted-foreground"><span className="tabular-nums">{f.response_count}</span> phản hồi{f.last_response_at ? `, mới nhất ${fmtTime(f.last_response_at)}` : ""}{f.table_name ? ` · bảng ${f.table_name}` : ""}</p>
               </div>
