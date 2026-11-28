@@ -1,13 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ClipboardCheck, Copy, FilePlus2, RotateCcw, Table2, Trash2 } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Copy, FilePlus2, RotateCcw, Table2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ConfirmDialog, ErrorText, Field, Input, Modal, PageTitle, Select } from "@/components/ui/form";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { notify } from "@/components/ui/toast";
 import { api, fmtTime } from "@/lib/api";
-import { cn } from "@/lib/utils";
 import { type FormBrief, formKeys, listForms } from "./model";
 
 export const STATUS_LABEL: Record<string, string> = { draft: "Nháp", open: "Đang nhận", paused: "Tạm dừng", closed: "Đã đóng", not_started: "Chưa mở" };
@@ -61,6 +60,8 @@ const linkBtn = "inline-flex min-h-11 items-center gap-1.5 rounded-md border bor
 export function FormListPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<"live" | "trash">("live");
+  const trashQ = useQuery({ queryKey: formKeys.list(true), queryFn: () => listForms(true) });
+  const trashN = trashQ.data?.length ?? 0;
   const [creating, setCreating] = useState(false);
   const [del, setDel] = useState<FormBrief | null>(null);
   const q = useQuery({ queryKey: formKeys.list(tab === "trash"), queryFn: () => listForms(tab === "trash") });
@@ -68,13 +69,15 @@ export function FormListPage() {
   const clone = useMutation({ mutationFn: (f: FormBrief) => api("POST", `/forms/${f.id}/clone`, {}), onSuccess: () => { notify.ok("Đã nhân bản form"); refresh(); } });
   const rm = useMutation({ mutationFn: (f: FormBrief) => api("DELETE", `/forms/${f.id}`), onSuccess: () => { setDel(null); notify.ok("Đã chuyển vào thùng rác"); refresh(); } });
   const restore = useMutation({ mutationFn: (f: FormBrief) => api("POST", `/forms/${f.id}/restore`, {}), onSuccess: () => { notify.ok("Đã khôi phục form"); refresh(); } });
-  const segCls = (on: boolean) => cn("inline-flex min-h-11 cursor-pointer items-center rounded-md px-3 text-sm sm:min-h-7", on ? "bg-card font-medium text-primary shadow-sm" : "text-muted-foreground hover:text-foreground");
   return (
     <div>
-      <PageTitle actions={<><Link to="/form/cham-bai" className={linkBtn}><ClipboardCheck size={16} aria-hidden /> Chấm bài</Link><Button onClick={() => setCreating(true)} data-testid="new-form"><FilePlus2 size={16} aria-hidden /> Tạo form</Button></>}>Dynamic Form</PageTitle>
-      <div className="mb-4 flex w-fit gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="Danh sách form">
-        {([["live", "Form của tôi"], ["trash", "Thùng rác"]] as const).map(([v, l]) => <button key={v} type="button" role="tab" aria-selected={tab === v} className={segCls(tab === v)} onClick={() => setTab(v)}>{l}</button>)}
-      </div>
+      <PageTitle actions={<><Button variant={tab === "trash" ? "primary" : "secondary"} onClick={() => setTab(tab === "trash" ? "live" : "trash")} aria-label={`Thùng rác${trashN ? `, ${trashN} form` : ""}`} aria-pressed={tab === "trash"} title="Thùng rác" data-testid="form-trash"><Trash2 size={16} aria-hidden />{trashN > 0 && <span className="num text-[11px] font-semibold">{trashN}</span>}</Button><Link to="/form/cham-bai" className={linkBtn}><ClipboardCheck size={16} aria-hidden /> Chấm bài</Link><Button onClick={() => setCreating(true)} data-testid="new-form"><FilePlus2 size={16} aria-hidden /> Tạo form</Button></>}>Dynamic Form</PageTitle>
+      {tab === "trash" && (
+        <div className="mb-3 flex items-center gap-2" data-testid="form-trash-head">
+          <Button variant="ghost" onClick={() => setTab("live")}><ArrowLeft size={16} aria-hidden /> Quay lại</Button>
+          <h2 className="text-[15px] font-semibold">Thùng rác</h2>
+        </div>
+      )}
       <ErrorText error={clone.error ?? rm.error ?? restore.error} />
       {q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data?.length === 0 ? (
         <EmptyState title={tab === "trash" ? "Thùng rác trống" : "Chưa có form nào"} hint={tab === "trash" ? undefined : "Tạo form đầu tiên để thu phản hồi vào một bảng Datahub."} cta={tab === "trash" ? undefined : { label: "Tạo form", onClick: () => setCreating(true), icon: <FilePlus2 size={16} aria-hidden /> }} />

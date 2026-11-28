@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PeopleField } from "@/components/ui/people-field";
 import { PersonChip } from "@/components/ui/person";
@@ -82,13 +83,17 @@ function SentItem({ a }: { a: Sent }) {
 export type AnnTab = "sent" | "received";
 
 /** The two lists: what reached me, and (for who may announce) what I sent. Used by the bell and by the page. */
-export function AnnouncementsPanel({ tab, onTab }: { tab: AnnTab; onTab: (t: AnnTab) => void }) {
+export function AnnouncementsPanel({ tab, onTab, nested = false }: { tab: AnnTab; onTab: (t: AnnTab) => void; nested?: boolean }) {
   const canSend = can(useMe().data, "notification:announce");
   const sent = useQuery({ queryKey: ["announcements", "sent"], enabled: canSend && tab === "sent", queryFn: () => api<Sent[]>("GET", "/announcements/sent") });
   const got = useQuery({ queryKey: ["announcements", "received"], enabled: tab === "received", queryFn: () => api<Received[]>("GET", "/announcements/received") });
   return (
     <div>
-      {canSend && <Tabs value={tab} onChange={onTab} items={[{ value: "received" as const, label: "Đã nhận" }, { value: "sent" as const, label: "Đã gửi" }]} />}
+      {canSend && (nested ? (
+        <div className="mb-3 flex gap-1.5" role="group" aria-label="Thông báo chung">
+          {([["received", "Đã nhận"], ["sent", "Đã gửi"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={tab === v} onClick={() => onTab(v)} className={cn("inline-flex min-h-7 items-center rounded-full border px-3 text-xs font-medium", tab === v ? "border-primary-border bg-primary-soft text-primary" : "border-border text-muted-foreground hover:text-foreground")}>{l}</button>)}
+        </div>
+      ) : <Tabs value={tab} onChange={onTab} items={[{ value: "received" as const, label: "Đã nhận" }, { value: "sent" as const, label: "Đã gửi" }]} />)}
       <ErrorText error={sent.error ?? got.error} />
       {tab === "sent" ? (
         <>{sent.data?.length === 0 && <EmptyState title="Chưa gửi thông báo chung nào" />}<ul className="flex flex-col gap-2">{sent.data?.map((a) => <SentItem key={a.id} a={a} />)}</ul></>

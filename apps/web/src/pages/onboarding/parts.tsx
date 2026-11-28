@@ -20,8 +20,8 @@ export function TaskRow({ f, canTick, onTick, showDate }: { f: FlatOcc; canTick:
   const late = !done && occ.on_date < todayVn();
   const formLabel = item.kind === "test" ? "Làm bài test" : "Mở form";
   return (
-    <li className="flex items-start gap-3 py-2" data-testid="onb-occ">
-      <span className="relative mt-0.5 inline-flex size-5 shrink-0">
+    <li className="flex min-h-9 items-center gap-3 py-1.5" data-testid="onb-occ">
+      <span className="relative inline-flex size-5 shrink-0">
         <input type="checkbox" className="peer absolute -inset-2.5 size-10 cursor-pointer opacity-0 disabled:cursor-default" checked={done} disabled={!canTick} aria-label={`Xong: ${item.name}`}
           onChange={(e) => { setPop(e.target.checked); onTick(e.target.checked); }} data-testid="occ-tick" />
         <span aria-hidden onAnimationEnd={() => setPop(false)} className={cn("pointer-events-none grid size-5 place-items-center rounded-md border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary/40", done ? "border-ok-dot bg-ok-dot text-white" : "border-faint/60 bg-card", pop && "onb-pop")}>
@@ -29,8 +29,8 @@ export function TaskRow({ f, canTick, onTick, showDate }: { f: FlatOcc; canTick:
         </span>
       </span>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
-        <div className="flex min-w-0 flex-1 basis-48 items-start gap-2">
-          <Pill tone={KIND_TONE[item.kind] ?? "neutral"} className="mt-0.5 h-5 text-xs">{KIND_LABEL[item.kind] ?? item.kind}</Pill>
+        <div className="flex min-w-0 flex-1 basis-48 items-center gap-2">
+          <Pill tone={KIND_TONE[item.kind] ?? "neutral"} className="h-5 shrink-0 text-[11px]">{KIND_LABEL[item.kind] ?? item.kind}</Pill>
           <span className={cn("min-w-0 text-sm [overflow-wrap:anywhere]", done && "text-muted-foreground line-through")}>{item.name}</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -44,20 +44,23 @@ export function TaskRow({ f, canTick, onTick, showDate }: { f: FlatOcc; canTick:
   );
 }
 
-/** Occurrences grouped by day (Thứ Hai 01/12), earliest first, deadline order inside a day. */
-export function DayGroups({ list, canTick, onTick }: { list: FlatOcc[]; canTick: boolean; onTick: (id: string, done: boolean) => void }) {
+/** Occurrences grouped by day (Thứ Hai 01/12), earliest first, deadline order inside a day. `limit` shows that many tasks first, then "Xem thêm". */
+export function DayGroups({ list, canTick, onTick, limit }: { list: FlatOcc[]; canTick: boolean; onTick: (id: string, done: boolean) => void; limit?: number }) {
+  const [all, setAll] = useState(false);
   const days = [...new Set(list.map((f) => f.occ.on_date))].sort();
+  const cap = !limit || all ? Infinity : limit;
+  const sorted = days.map((d) => ({ d, rows: list.filter((f) => f.occ.on_date === d).sort((a, b) => (a.item.due_time ?? "99").localeCompare(b.item.due_time ?? "99")) }));
+  const shown = sorted.map((g, i) => ({ ...g, rows: g.rows.slice(0, Math.max(0, cap - sorted.slice(0, i).reduce((n, x) => n + x.rows.length, 0))) })).filter((g) => g.rows.length > 0);
+  const hidden = list.length - shown.reduce((n, g) => n + g.rows.length, 0);
   return (
     <div className="flex flex-col divide-y divide-border-soft">
-      {days.map((d) => {
-        const rows = list.filter((f) => f.occ.on_date === d).sort((a, b) => (a.item.due_time ?? "99").localeCompare(b.item.due_time ?? "99"));
-        return (
-          <div key={d} className="px-5 py-3" data-testid="onb-day">
-            <div className={cn("mb-1 text-xs font-semibold", d === todayVn() ? "text-primary" : "text-muted-foreground")}>{dayLabel(d).toUpperCase()}{d === todayVn() ? " · HÔM NAY" : ""}</div>
-            <ul>{rows.map((f) => <TaskRow key={f.occ.id} f={f} canTick={canTick} onTick={(done) => onTick(f.occ.id, done)} />)}</ul>
-          </div>
-        );
-      })}
+      {shown.map(({ d, rows }) => (
+        <div key={d} className="px-4 py-2" data-testid="onb-day">
+          <div className={cn("mb-0.5 text-[11px] font-semibold", d === todayVn() ? "text-primary" : "text-muted-foreground")}>{dayLabel(d).toUpperCase()}{d === todayVn() ? " · HÔM NAY" : ""}</div>
+          <ul>{rows.map((f) => <TaskRow key={f.occ.id} f={f} canTick={canTick} onTick={(done) => onTick(f.occ.id, done)} />)}</ul>
+        </div>
+      ))}
+      {hidden > 0 && <button type="button" onClick={() => setAll(true)} className="px-4 py-2.5 text-left text-xs font-medium text-primary hover:bg-primary-soft" data-testid="onb-more">Xem thêm {hidden} việc</button>}
     </div>
   );
 }

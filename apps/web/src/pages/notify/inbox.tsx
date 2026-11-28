@@ -167,7 +167,7 @@ export function BellButton({ me }: { me: Me }) {
           </>
         )}
         {tab === "reminder" && canRemind && <RemindersPanel showNew={false} />}
-        {tab === "announce" && <AnnouncementsPanel tab={annTab} onTab={setAnnTab} />}
+        {tab === "announce" && <AnnouncementsPanel tab={annTab} onTab={setAnnTab} nested />}
       </Popover>
       <Modal title="Tạo nhắc hẹn" open={create === "reminder"} onClose={() => setCreate(null)}>
         <ReminderForm onDone={() => { setCreate(null); setTab("reminder"); setOpen(true); }} />

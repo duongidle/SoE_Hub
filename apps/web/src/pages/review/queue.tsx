@@ -157,7 +157,7 @@ export function ReviewQueuePage() {
     <div className="mx-auto flex max-w-[1280px] flex-col gap-3">
       <PageTitle>Hàng chờ duyệt</PageTitle>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <ChipTabs label="Loại" value={kind} onChange={(v) => { setKind(v); setSel(null); }} items={kinds} />
+        {kinds.length > 2 ? <ChipTabs label="Loại" value={kind} onChange={(v) => { setKind(v); setSel(null); }} items={kinds} /> : <span />}
         {q.data && <span className="text-sm text-muted-foreground">{items.length} bài chờ duyệt</span>}
       </div>
       <ErrorText error={q.error} />

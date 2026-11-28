@@ -74,7 +74,7 @@ test("nhắc hẹn giờ gần: chuông nhảy số và hiện toast khi worker 
   await page.keyboard.press("Escape");
   // "Xong" moves it to the done tab.
   await page.getByTestId("reminder-item").filter({ hasText: content }).getByRole("button", { name: "Xong" }).click();
-  await page.getByRole("tab", { name: "Đã xong" }).click();
+  await page.getByTestId("reminders-done-toggle").click();
   await expect(page.getByTestId("reminder-item").filter({ hasText: content })).toBeVisible();
 });
 
@@ -122,7 +122,7 @@ test("Chuông có ba tab và nút +: Leader tạo được cả hai loại, thà
   const panel = lp.getByRole("dialog", { name: "Thông báo" });
   for (const name of ["Thông báo", "Nhắc hẹn", "Thông báo chung"]) await expect(panel.getByRole("tab", { name, exact: true })).toBeVisible();
   await panel.getByRole("tab", { name: "Thông báo chung" }).click();
-  await expect(panel.getByRole("tab", { name: "Đã gửi" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Đã gửi" })).toBeVisible();
   await panel.getByRole("button", { name: "Tạo mới" }).click();
   await expect(panel.getByRole("menuitem", { name: "Tạo nhắc hẹn" })).toBeVisible();
   await expect(panel.getByRole("menuitem", { name: "Tạo thông báo chung" })).toBeVisible();

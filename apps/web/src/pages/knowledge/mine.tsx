@@ -33,13 +33,14 @@ export function MineList({ kind }: { kind: "article" | "skill" }) {
   const all = q.data ?? [];
   const items = tab ? all.filter((p) => shownOf(p) === tab) : all;
   const count = (s: string) => all.filter((p) => shownOf(p) === s).length;
+  const statesHere = (["draft", "pending", "returned", "published", "archived"] as const).filter((s) => count(s) > 0); // one group only: "Tất cả" would be the same list, so no filter
   const newBtn = "inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary-hover";
   return (
     <div className="mx-auto flex max-w-[960px] flex-col gap-3">
       <PageTitle actions={isArticle ? <Link to="/knowledge/soan" className={newBtn}><PenLine size={14} aria-hidden />Viết bài</Link> : <Link to="/ai-hub/tai-len" className={newBtn}><Upload size={14} aria-hidden />Tải lên skill</Link>}>
         {isArticle ? "Bài của tôi" : "Skill của tôi"}
       </PageTitle>
-      <ChipTabs label="Trạng thái" value={tab} onChange={setTab} items={[{ value: "", label: `Tất cả (${all.length})` }, ...(["draft", "pending", "returned", "published", "archived"] as const).filter((s) => count(s) > 0).map((s) => ({ value: s, label: `${STATE_NAME[s]} (${count(s)})` }))]} />
+      {statesHere.length > 1 && <ChipTabs label="Trạng thái" value={tab} onChange={setTab} items={[{ value: "", label: `Tất cả (${all.length})` }, ...statesHere.map((s) => ({ value: s, label: `${STATE_NAME[s]} (${count(s)})` }))]} />}
       <ErrorText error={q.error ?? act.error} />
       {q.data?.length === 0 && <EmptyState title={isArticle ? "Chưa có bài nào" : "Chưa có skill nào"} hint={isArticle ? "Viết bài đầu tiên: bài được kiểm tra tự động rồi gửi duyệt." : "Tải lên gói skill đầu tiên: gói được kiểm tra tự động rồi gửi duyệt."} />}
       <ul className="flex flex-col gap-2">
