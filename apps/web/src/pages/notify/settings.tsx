@@ -7,7 +7,7 @@ import { Button, ErrorText, Input, Notice, PageTitle, Select } from "@/component
 import { Switch } from "@/components/ui/switch";
 import { notify } from "@/components/ui/toast";
 import { api } from "@/lib/api";
-import { useMe } from "@/lib/session";
+import { can, useMe } from "@/lib/session";
 import { CATEGORY_LABEL } from "./inbox";
 
 interface TypeRow { type: string; category: string; label: string; description: string; mandatory: boolean; enabled: boolean }
@@ -104,7 +104,8 @@ const WHO = { leading: "Leading", participants: "Người tham gia", leader: "Le
 
 function DueRules() {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["due-rules"], queryFn: () => api<{ rules: Rule[]; can_edit: boolean }>("GET", "/deals/due-rules") });
+  const me = useMe().data;
+  const q = useQuery({ queryKey: ["due-rules"], enabled: can(me, "deal:deal:read"), queryFn: () => api<{ rules: Rule[]; can_edit: boolean }>("GET", "/deals/due-rules") });
   const [draft, setRules] = useState<Rule[] | null>(null);
   const rules = draft ?? q.data?.rules ?? [];
   const save = useMutation({

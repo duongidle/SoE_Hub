@@ -57,7 +57,7 @@ const linkCls = "inline-flex items-center gap-1 text-sm font-medium text-primary
 export function OnboardingSide() {
   const me = useMe().data;
   const allowed = can(me, "onboarding:path:read");
-  const plans = usePlans("mine");
+  const plans = usePlans("mine", allowed);
   const mine = (plans.data ?? []).find((p) => p.staff_id === me?.user.id && p.status === "active");
   const plan = usePlan(mine?.id);
   const progress = useProgress(mine?.id);

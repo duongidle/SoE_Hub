@@ -44,7 +44,7 @@ export const planKey = (id: string) => ["onb", "plan", id] as const;
 export const progressKey = (id: string) => ["onb", "progress", id] as const;
 export const usePlan = (id: string | undefined) => useQuery({ queryKey: planKey(id ?? ""), enabled: !!id, queryFn: () => api<PlanFull>("GET", `/onboarding/plans/${id}`) });
 export const useProgress = (id: string | undefined, enabled = true) => useQuery({ queryKey: progressKey(id ?? ""), enabled: !!id && enabled, queryFn: () => api<Progress>("GET", `/onboarding/plans/${id}/progress`) });
-export const usePlans = (scope: "mine" | "template" | "following" | "team") => useQuery({ queryKey: ["onb", "plans", scope], queryFn: () => api<PlanFull[]>("GET", `/onboarding/plans?scope=${scope}`) });
+export const usePlans = (scope: "mine" | "template" | "following" | "team", enabled = true) => useQuery({ queryKey: ["onb", "plans", scope], enabled, queryFn: () => api<PlanFull[]>("GET", `/onboarding/plans?scope=${scope}`) });
 
 /** Today in Vietnam (YYYY-MM-DD): the dates of the plan are Vietnam dates. */
 export const todayVn = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });

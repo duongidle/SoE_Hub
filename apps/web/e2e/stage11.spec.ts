@@ -39,8 +39,6 @@ test.beforeAll(async ({ browser }, info) => {
   adminS = await Session.open(browser, p, "admin");
   guestS = await Session.open(browser, p, "guest");
   userS = await Session.open(browser, p, "u1");
-  // The shell asks the Guest for onboarding plans (a known 403 of the menu check).
-  guestS.allow(403, /\/onboarding\/plans/);
   sessions = [adminS, guestS, userS];
   await adminS.login(email("admin"), PASSWORD());
   await guestS.login(email("guest"), PASSWORD());
@@ -79,6 +77,7 @@ test("form gửi ở 375px không tràn ngang", async () => {
   const box = await dialog.boundingBox();
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+  await page.waitForTimeout(500); // the sheet rises for 240ms: shoot after it settles
   await guestS.shot("11-form-375");
   await dialog.getByRole("button", { name: "Huỷ" }).click();
   await expect(dialog).toBeHidden();
@@ -152,7 +151,7 @@ test("Phân quyền bổ sung: Admin cấp Xử lý feedback, người đó th�
   await page.goto("/quan-tri/quyen-bo-sung");
   const card = page.getByTestId("perm-feedback:inbox:manage");
   await expect(card).toBeVisible();
-  await expect(card).toContainText("Có sẵn theo vai trò");
+  await expect(card).toContainText("Cấp được cho");
   await card.getByRole("button", { name: /^Thêm người cho/ }).click();
   const picker = page.getByTestId("people-picker");
   await picker.getByLabel("Tìm người").fill(`Thành viên 11 ${RUN}`);
@@ -173,9 +172,9 @@ test("Phân quyền bổ sung: Admin cấp Xử lý feedback, người đó th�
 });
 
 test("trang cài đặt thông báo có nhóm Góp ý", async () => {
-  const page = userS.page;
+  const page = guestS.page;
   await page.goto("/tai-khoan/thong-bao");
   await expect(page.getByTestId("type-feedback.update")).toBeVisible();
   await expect(page.getByTestId("group-feedback")).toContainText("Góp ý của bạn có cập nhật");
-  await userS.shot("11-notification-settings");
+  await guestS.shot("11-notification-settings");
 });

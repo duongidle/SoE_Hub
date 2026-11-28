@@ -93,8 +93,10 @@ function PermissionCard({ row }: { row: PermissionRow }) {
             ))}
           </ul>
         )}
-        {row.by_roles.length > 0 && <p className="text-xs text-muted-foreground">Có sẵn theo vai trò: {roleLabels(row.by_roles)}</p>}
-        <p className="text-xs text-muted-foreground">Vai trò được cấp: {roleLabels(row.eligible_roles)}. {row.can_manage ? "" : `Chỉ ${roleLabels(row.grantable_by)} cấp quyền này.`}</p>
+        <p className="text-xs text-muted-foreground">
+          {row.by_roles.length > 0 && `Có sẵn theo vai trò: ${roleLabels(row.by_roles)}. `}
+          Cấp được cho: {roleLabels(row.eligible_roles)}.{row.can_manage ? "" : ` Chỉ ${roleLabels(row.grantable_by)} cấp.`}
+        </p>
         <ErrorText error={grant.error ?? revoke.error} />
       </CardContent>
       {removing && <ConfirmDialog title="Gỡ quyền?" message={<>Gỡ quyền "{row.label}" của {removing.full_name}?</>} confirmLabel="Gỡ quyền" busy={revoke.isPending} onConfirm={() => revoke.mutate(removing)} onClose={() => setRemoving(null)} />}
@@ -108,7 +110,6 @@ export function ExtraPermissionsPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageTitle>Phân quyền bổ sung</PageTitle>
-      <p className="text-sm text-muted-foreground">Những quyền cấp thêm cho từng người, ngoài quyền theo vai trò.</p>
       {q.isLoading && <Skeleton className="h-32 w-full" />}
       {q.error && <ErrorState error={q.error} onRetry={() => void q.refetch()} />}
       {q.data?.map((row) => <PermissionCard key={row.permission} row={row} />)}
