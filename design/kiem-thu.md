@@ -31,6 +31,8 @@ Dương chốt 19/11/2026. Test lúc pass lúc fail (kể cả e2e hết giờ) 
 
 ## 4. Điện thoại là ưu tiên thấp
 
+**Thu hẹp thêm (Dương chốt 28/11/2026):** điện thoại không phải trọng tâm, không tốn token cho nó. Chỉ **trang điền form** (form công khai và form nội bộ, kể cả bài kiểm tra) phải hiển thị đẹp và chạy đủ ở 375px, vì mọi người hay điền form bằng điện thoại; e2e điện thoại chỉ giữ luồng điền form. Các màn khác ở điện thoại: không viết thêm test, lỗi không nghiêm trọng (bố cục xấu, phải cuộn ngang, nút hơi chật) không sửa, chỉ ghi "Lỗi điện thoại để sau" khi tình cờ thấy. Lỗi nghiêm trọng (mất dữ liệu, sai số, không đăng nhập được) vẫn sửa. Quy định này thay phần "Không áp dụng cho trang công khai (… onboarding)" bên dưới cho Onboarding.
+
 Dương chốt 19/11/2026; người dùng ít dùng điện thoại.
 
 - Test 375px giữ ít: mỗi spec chỉ vài luồng chính, không nhân đôi mọi luồng desktop.
