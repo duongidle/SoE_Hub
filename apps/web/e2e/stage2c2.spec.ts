@@ -389,6 +389,8 @@ test("bảng rất lớn: kéo thanh cuộn tới đâu cũng dưới 1 giây, �
   await expect(pg.getByText("100.000 dòng", { exact: true })).toBeVisible({ timeout: 60_000 });
   const g = new GridDriver(pg);
   const jump = async (fraction: number): Promise<number> => {
+    // The footer count can show before the grid's scroll area is in the page: wait for what the jump uses.
+    await pg.locator(".dvn-scroller").waitFor({ state: "attached" });
     const t0 = Date.now();
     const answer = pg.waitForResponse((r) => /\/rows\?/.test(r.url()) && /offset=/.test(r.url()) && r.ok(), { timeout: 5000 });
     await pg.evaluate((f) => {
