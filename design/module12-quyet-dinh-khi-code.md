@@ -330,3 +330,16 @@ Chỉ web. Không đổi quyền, cách tính hay dữ liệu lưu. Chức năng
 - Bỏ dòng gợi ý "Thêm người vào org chart là cách duy nhất để có tài khoản…" ở đầu trang (Dương 28/11). Mô tả API ở server giữ nguyên.
 - Dạng cây (`org.tsx` `OrgTree`, CSS `org-tree.css`): thẻ 184px (avatar chữ cái đầu, tên 13/600, chip vai trò 11px có màu theo vai trò, "Team · n người" hoặc email, chấm màu khi chưa kích hoạt/khoá); nối bằng CSS lồng nhau (1px #CBD5E1, bo 8px ở khúc cua); nút thu/mở nhánh kèm số con; lá của một nhánh xếp dọc (thẻ 160px, kiểu cây thư mục) để đội đông không kéo sơ đồ quá rộng; nhiều Manager xếp trên dưới. Khung cuộn, kéo chuột để di chuyển (kéo >5px thì không tính là bấm), phóng 40–150% bằng CSS transform, "Vừa khung" (tự chạy lần đầu). Bấm thẻ mở ngăn kéo chi tiết có sẵn. Người ngoài cây (Admin, Guest) là hàng thẻ riêng bên dưới.
 - Không thêm thư viện.
+
+## 12H-8 Trình soạn Dynamic Form theo mockup (28/11)
+
+Chỉ web (`editor.tsx`, `sheet.tsx`, `props.tsx`, một dòng ở `renderer.tsx`). Nguồn: `soe_hub_dynamic_form_lark_ergonomic_edition.html` (thanh bước dòng ~418, tờ form ~475, thuộc tính ~559, câu `renderWysiwygSheet`).
+
+- **Bố cục**: trang tràn sát top bar (`-mx/-my` triệt padding của `main`, không đổi shell). Thanh bước cao 46px, lưới `1fr auto 1fr` để nhóm bước đứng yên khi chữ trạng thái đổi; trái là trạng thái lưu thật ("Đang lưu…" / "Đã lưu nháp lúc HH:mm" / "Lỗi lưu, thử lại" + "Có thay đổi chưa xuất bản"), giữa 4 bước đánh số (icon chỉ từ 1400px), phải "Xem trước" + nút điện thoại + "Xuất bản". Chip trạng thái form đưa lên top bar (`PageTitle actions`, `data-testid="form-state"`). Bỏ nút "Mở bảng phản hồi" (đã có ở bước 4).
+- **Xem trước**: bỏ hàng "Soạn | Máy tính | Điện thoại"; hai nút trên thanh bước bật/tắt xem trước; chip "Đang xem trước bản nháp · không gửi được" có nút ✕ (`view-edit`); bấm "1. Thiết kế" cũng thoát.
+- **Mục lục** (Dương đồng ý bổ sung): không còn cột riêng, là tab thứ hai "Thuộc tính | Mục lục" trong panel phải (một hàng tab); bấm mục thì cuộn và chọn câu, panel giữ ở Mục lục; bấm câu trên tờ form thì panel về Thuộc tính. Vùng giữa rộng như mockup.
+- **Tờ form**: một thẻ bo 16px, dải 4px gradient (màu nhấn của form -> xanh lá), chip "Datahub · tên bảng" + "n câu hỏi · Tự động đồng bộ bảng", tiêu đề 24px/700, mô tả 13px; câu nằm trong thẻ, không viền riêng; rê hoặc chọn thì viền primary bo 14px, thanh công cụ nhỏ góc phải (Nhân bản, Lên, Xuống, Xoá); "Câu n · loại" 12px; câu "Người điền" (`fill_self`) vẽ như khối hệ thống của mockup; nhóm câu là chip + vạch ngang; vạch chèn là nút "+ Chèn câu hỏi tại đây".
+- **Thuộc tính**: chip loại + "Câu #n"; "Mô tả hướng dẫn", "Gợi ý trong ô (Placeholder)"; công tắc trong ô bo góc (tên 13/600, mô tả 12px); "Danh sách lựa chọn" + "+ Thêm đáp án"; "↳ Thêm logic rẽ nhánh" là chính chức năng "Khi chọn thì hiện" đã có.
+- **Không làm** (chưa có chức năng): "Xáo trộn thứ tự lựa chọn", tay nắm kéo lựa chọn (không kéo thả).
+- **Renderer**: chip "Câu n" ở trang điền và xem trước chỉ hiện ở Bài kiểm tra (`ctx.quiz`); trình soạn vẫn hiện số câu.
+- **Spec**: `stage7` và `stage12e1` đổi theo (chip trạng thái `form-state`, "Đã lưu nháp" khớp đầu chuỗi, mục lục qua tab `side-toc` rồi `side-props`, bỏ kiểm nút mở bảng).
