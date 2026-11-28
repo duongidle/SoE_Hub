@@ -387,3 +387,12 @@ Chỉ web (`editor.tsx`, `sheet.tsx`, `props.tsx`, một dòng ở `renderer.tsx
 - Nút trên trang Datahub (`datahub/list.tsx`), Dynamic Form (`form/list.tsx`), dashboard (`datahub/dashboard/dashboard-area.tsx`): icon 16px màu `text-bad`, vuông 32px (44px điện thoại), nền trong suốt, hover `bg-bad-bg`. Bỏ chữ; giữ `aria-label` (kèm số lượng) và thêm Tip "Thùng rác" nên e2e tìm theo tên vẫn chạy.
 - Số lượng thành badge đỏ nhỏ ở góc icon. Form: tab thùng rác đang bật thì nền `bg-bad-bg` (`aria-pressed`).
 - Mục menu và tiêu đề hộp thoại giữ chữ. Không chụp ảnh trước/sau (chỉ typecheck + eslint theo lệnh test tối giản).
+
+## 12H-15 thanh công cụ và bảng là một khối (Dương 28/11, ảnh 24–25)
+
+- Nguyên nhân: thanh công cụ là các nút rời nằm trên nền trang, cách thẻ bảng một khoảng hở; icon đậm cùng màu chữ, nhiều nút có viền hoặc nền tô.
+- `table-view.tsx` `ViewBody`: thanh công cụ, các dòng chú thích, bảng và dòng "N dòng" nằm trong MỘT thẻ (`rounded-card border border-border-soft bg-card overflow-hidden`). `ViewTools` là hàng đầu: `min-h-11` (44px), `border-b border-border-soft`, `px-4 lg:px-5`. `LoadedTable`/`OpenTable`/`TableGrid` nhận `flush` (lưới bỏ viền và bo riêng, gap 0, dòng đếm có `border-t`); `guest-data.tsx` không truyền `flush` nên giữ nguyên.
+- Nút (`TOOL_BTN`, `TOOL_ON` xuất ở `view-tools.tsx`): 28px, bo 7px, chữ 12px, padding ngang 10px, icon 14px màu `text-faint` (slate-400), chữ màu chính; rê nền `muted`. Một kiểu trạng thái bật duy nhất (`TOOL_ON`: nền primary-soft + chữ primary, không viền, icon đổi theo chữ) cho Lọc/Sắp xếp/Nhóm/Ẩn cột/Tô màu/Thời gian. Nút kỳ (`PeriodButton`) bỏ viền, cùng kiểu, chỉ tô khi kỳ khác mặc định. "Dạng bảng" nền `muted`, 14px; "Thêm dòng", "Thu gọn", "Mở nhóm", "..." cùng 28px/bo 7px. Vạch dọc 1px cao 16px (`mx-1` + gap 4). Thứ tự và chức năng nút giữ nguyên; thanh chọn nổi (12H-13) giữ nguyên.
+- Ngưỡng gập nút (`LEVEL_ROOM`) đo lại theo nút mới: `[1020, 1020, 920, 835, 745, 645, 570]`; `room = bề rộng thanh - 40 (padding) - 130 (nút kỳ)` (trước 160). Ở 1280 Deal gập Tô màu và Thời gian vào "..." (thanh vẫn một dòng); Datahub 1280 hiện đủ.
+- Hàng tiêu đề cột đã có nền `--grid-head` từ 12H-1, không đổi.
+- Test: `pnpm typecheck`, `pnpm lint` sạch; e2e desktop `stage4-5` 8 pass / 0 fail / 0 skip. Ảnh `12h-15/before|after3/` trong scratchpad (1440×900, 1280×800, 1100×800: Datahub, Deal).

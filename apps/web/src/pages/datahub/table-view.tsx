@@ -33,7 +33,7 @@ import { MergeBar } from "./merge-status";
 import { RowPanel } from "./row-panel";
 import { TableTrashDialog } from "./trash";
 import { ViewSwitcher } from "./view-tabs";
-import { ViewTools } from "./view-tools";
+import { TOOL_BTN, ViewTools } from "./view-tools";
 
 /** An open table: view tabs and tools on top, then the row toolbar, the grid, the status line and the row panel. */
 export function TableView({ tableId }: { tableId: string }) {
@@ -248,6 +248,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       {merged && <MergeBar table={table} />}
+      {/* ONE card (design module12 12H-15): the toolbar line is the first row of the same card as the grid, cut by one thin line. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-card border border-border-soft bg-card">
       <ViewTools
         columns={table.columns}
         config={config}
@@ -300,7 +302,7 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
         }
       />
       {view.shared && table.access !== "owner" && view.has_override && (
-        <p className="text-xs text-muted-foreground">Bạn đang xem bản riêng của view này; thay đổi của bạn không ảnh hưởng người khác. Chọn "Về mặc định" trong menu view để bỏ.</p>
+        <p className="border-b border-border-soft px-4 py-1.5 text-xs text-muted-foreground lg:px-5">Bạn đang xem bản riêng của view này; thay đổi của bạn không ảnh hưởng người khác. Chọn "Về mặc định" trong menu view để bỏ.</p>
       )}
       {policyOpen && <PolicyDiffDialog onClose={() => setPolicyOpen(false)} />}
       {trashOpen && <TableTrashDialog tableId={table.id} onClose={() => setTrashOpen(false)} onRestored={() => { void qc.invalidateQueries({ queryKey: dhKeys.table(table.id) }); }} />}
@@ -310,7 +312,8 @@ function ViewBody({ table, views, view, onSelect }: { table: TableDetail; views:
       {colUI?.kind === "manage" && <ColumnManager table={table} level={table.access} onClose={() => setColUI(null)} onAdd={() => setColUI({ kind: "add" })} onEdit={(c) => setColUI({ kind: "edit", col: c })} onDelete={(c) => { setColUI(null); void deleteCol(c); }} />}
       {colUI?.kind === "add" && <ColumnEditor table={table} onClose={() => setColUI(null)} />}
       {colUI?.kind === "edit" && <ColumnEditor key={colUI.col.id} table={table} column={colUI.col} onClose={() => setColUI(null)} />}
-      <LoadedTable key={sig} table={table} query={query} gridView={gridView} rowSlot={rowSlot} onUndoApi={setUndoApi} statusText={saveText ? `${saveText}${saveText && view.shared && table.access !== "owner" ? " (chỉ cho bạn)" : ""}` : ""} searching={search.trim() !== ""} onClearFilters={() => { setSearch(""); auto.change({ filter: undefined, time_filter: undefined }); }} />
+      <LoadedTable key={sig} table={table} query={query} gridView={gridView} flush rowSlot={rowSlot} onUndoApi={setUndoApi} statusText={saveText ? `${saveText}${saveText && view.shared && table.access !== "owner" ? " (chỉ cho bạn)" : ""}` : ""} searching={search.trim() !== ""} onClearFilters={() => { setSearch(""); auto.change({ filter: undefined, time_filter: undefined }); }} />
+      </div>
     </div>
   );
 }
@@ -326,7 +329,7 @@ export interface UndoApi {
   run: (redo: boolean) => void;
 }
 
-export function LoadedTable({ table, query, gridView, searching, onClearFilters, rowSlot, statusText, onUndoApi }: { table: TableDetail; query: SessionQuery; gridView: GridView; searching: boolean; onClearFilters: () => void; rowSlot?: HTMLElement | null; statusText?: string; onUndoApi?: (a: UndoApi | null) => void }) {
+export function LoadedTable({ table, query, gridView, searching, onClearFilters, rowSlot, statusText, onUndoApi, flush }: { flush?: boolean; table: TableDetail; query: SessionQuery; gridView: GridView; searching: boolean; onClearFilters: () => void; rowSlot?: HTMLElement | null; statusText?: string; onUndoApi?: (a: UndoApi | null) => void }) {
   // One session per table layout and query (`key` in ViewBody). Started and stopped by an effect: StrictMode runs it twice in development.
   const [session] = useState(() => {
     const s = new TableSession(table, query);
@@ -341,10 +344,10 @@ export function LoadedTable({ table, query, gridView, searching, onClearFilters,
     session.start();
     return () => session.stop();
   }, [session]);
-  return <OpenTable table={table} session={session} gridView={gridView} filtered={searching || !!query.filter || !!query.timeFilter} onClearFilters={onClearFilters} rowSlot={rowSlot} statusText={statusText} onUndoApi={onUndoApi} />;
+  return <OpenTable table={table} session={session} gridView={gridView} filtered={searching || !!query.filter || !!query.timeFilter} onClearFilters={onClearFilters} rowSlot={rowSlot} statusText={statusText} onUndoApi={onUndoApi} flush={flush} />;
 }
 
-function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot, statusText, onUndoApi }: { table: TableDetail; session: TableSession; gridView: GridView; filtered: boolean; onClearFilters: () => void; rowSlot?: HTMLElement | null; statusText?: string; onUndoApi?: (a: UndoApi | null) => void }) {
+function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot, statusText, onUndoApi, flush }: { flush?: boolean; table: TableDetail; session: TableSession; gridView: GridView; filtered: boolean; onClearFilters: () => void; rowSlot?: HTMLElement | null; statusText?: string; onUndoApi?: (a: UndoApi | null) => void }) {
   const qc = useQueryClient();
   // A merged table is read-only for everyone, its owner included.
   const level: Level = table.kind === "merged" ? "view" : table.access;
@@ -487,7 +490,7 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
       />
     );
   } else {
-    body = <TableGrid session={session} level={level} view={gridView} apiRef={apiRef} onOpenRow={setOpenRow} onSelection={(ids, active) => setSel({ ids, active })} onAddRow={addRow} />;
+    body = <TableGrid session={session} level={level} view={gridView} apiRef={apiRef} onOpenRow={setOpenRow} onSelection={(ids, active) => setSel({ ids, active })} onAddRow={addRow} flush={flush} />;
   }
 
   // What belongs to the rows: add a row (the one main button of the screen), undo and redo, actions on the selection, the groups.
@@ -495,23 +498,23 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
     <>
       {canWrite && (
         <>
-          <Button onClick={() => void addRow()} disabled={columnsEmpty} className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0"><Plus size={14} aria-hidden /> Thêm dòng</Button>
+          <Button onClick={() => void addRow()} disabled={columnsEmpty} className={TOOL_BTN}><Plus size={14} aria-hidden /> Thêm dòng</Button>
         </>
       )}
       {session.grouped && (
         <>
-          <Button variant="ghost" className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0" title="Thu gọn tất cả nhóm" aria-label="Thu gọn tất cả" onClick={() => session.setAllCollapsed(true)} data-testid="groups-collapse-all"><ChevronsDownUp size={14} aria-hidden /><span aria-hidden>Thu gọn</span></Button>
-          <Button variant="ghost" className="shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0" title="Mở tất cả nhóm" aria-label="Mở tất cả" onClick={() => session.setAllCollapsed(false)} data-testid="groups-expand-all"><ChevronsUpDown size={14} aria-hidden /><span aria-hidden>Mở nhóm</span></Button>
+          <Button variant="ghost" className={TOOL_BTN} title="Thu gọn tất cả nhóm" aria-label="Thu gọn tất cả" onClick={() => session.setAllCollapsed(true)} data-testid="groups-collapse-all"><ChevronsDownUp size={14} aria-hidden /><span aria-hidden>Thu gọn</span></Button>
+          <Button variant="ghost" className={TOOL_BTN} title="Mở tất cả nhóm" aria-label="Mở tất cả" onClick={() => session.setAllCollapsed(false)} data-testid="groups-expand-all"><ChevronsUpDown size={14} aria-hidden /><span aria-hidden>Mở nhóm</span></Button>
         </>
       )}
       {!canWrite && <Badge tone="muted">Chỉ xem</Badge>}
     </>
   );
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2" onKeyDown={onKeyDown}>
+    <div className={cn("flex min-h-0 flex-1 flex-col", !flush && "gap-2")} onKeyDown={onKeyDown}>
       {rowSlot === undefined ? <div role="toolbar" aria-label="Công cụ bảng" className="flex flex-wrap items-center gap-2">{rowTools}</div> : rowSlot ? createPortal(rowTools, rowSlot) : null}
       {session.grouped && session.groupsTruncated && (
-        <p role="status" className="rounded-md bg-warn/15 px-3 py-2 text-sm">Có hơn 1.000 nhóm nên chỉ hiện 1.000 nhóm đầu. Lọc bớt dòng hoặc chọn cột nhóm khác.</p>
+        <p role="status" className={cn("rounded-md bg-warn/15 px-3 py-2 text-sm", flush && "mx-4 my-2")}>Có hơn 1.000 nhóm nên chỉ hiện 1.000 nhóm đầu. Lọc bớt dòng hoặc chọn cột nhóm khác.</p>
       )}
       <div className="relative flex min-h-0 flex-1 flex-col">
         {body}
@@ -531,7 +534,7 @@ function OpenTable({ table, session, gridView, filtered, onClearFilters, rowSlot
           </div>
         )}
       </div>
-      <div className="flex min-h-4 flex-wrap items-center gap-x-3 text-xs text-muted-foreground" aria-live="polite">
+      <div className={cn("flex min-h-4 flex-wrap items-center gap-x-3 text-xs text-muted-foreground", flush && "shrink-0 border-t border-border-soft px-4 py-1.5 lg:px-5")} aria-live="polite">
         {!columnsEmpty && store.known && <span>{formatCount(total, "dòng")}</span>}
         {saving > 0 ? <span>Đang lưu...</span> : null}
         {statusText ? <span>{statusText}</span> : null}

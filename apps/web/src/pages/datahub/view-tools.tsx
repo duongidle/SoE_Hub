@@ -43,7 +43,11 @@ type ToolId = "filter" | "sort" | "group" | "columns" | "colors" | "time" | "den
 /** The tools that move into the "..." menu when the line is too narrow, the least used first (design module12 12H-4). */
 const FOLD_ORDER: ToolId[] = ["density", "colors", "time", "columns", "group"];
 /** The width the line needs (without the period button) with the search open, then with it folded, then one more tool folded each step. */
-const LEVEL_ROOM = [1040, 1040, 960, 880, 800, 700, 600]; // the search is always the magnifier now (Dương 28/11): level 0 needs no more room than level 1
+/** The look of a button of the toolbar line (mockup `.lark-tool`, design module12 12H-15): 28px, radius 7px, 12px text, 10px of side padding. */
+export const TOOL_BTN = "shrink-0 !gap-1.5 !rounded-[7px] !px-2.5 !text-xs sm:!min-h-7 sm:!py-0";
+/** The one "on" look of a tool that holds settings: a pale primary tint and primary text, no border. */
+export const TOOL_ON = "!bg-primary-soft !text-primary";
+const LEVEL_ROOM = [1020, 1020, 920, 835, 745, 645, 570]; // the search is always the magnifier now (Dương 28/11): level 0 needs no more room than level 1
 
 /** Which tools are folded into "..." now, the place their panel opens from, and the one panel opened from the menu. */
 const FoldContext = createContext<{ folded: ReadonlySet<ToolId>; host: HTMLElement | null; openId: ToolId | null; setOpenId: (id: ToolId | null) => void }>({ folded: new Set(), host: null, openId: null, setOpenId: () => {} });
@@ -93,7 +97,7 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const room = width - (period ? 160 : 0);
+  const room = width - 40 - (period ? 130 : 0); // 40 = the side padding of the line, 130 = the period button
   const level = LEVEL_ROOM.filter((r) => room < r).length; // 0 = everything open
   const wrap = level > LEVEL_ROOM.length - 0 || room < LEVEL_ROOM[LEVEL_ROOM.length - 1]! - 120;
   const setSlot = rowSlotRef;
@@ -102,9 +106,9 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
   const foldedList = foldable.filter((id) => folded.has(id));
 
   return (
-    <div data-slot="view-tools" className="flex flex-col gap-2">
+    <div data-slot="view-tools" className="flex shrink-0 flex-col">
       <FoldContext.Provider value={{ folded, host, openId, setOpenId }}>
-        <div ref={barRef} role="toolbar" aria-label="Công cụ view" className="flex flex-wrap items-center gap-x-1 gap-y-2">
+        <div ref={barRef} role="toolbar" aria-label="Công cụ view" className="flex min-h-11 flex-wrap items-center gap-x-1 gap-y-1 border-b border-border-soft bg-card px-4 py-1.5 lg:px-5">
           {lead}
           <Divider />
           <span ref={setSlot} className="flex shrink-0 items-center gap-1" />
@@ -127,7 +131,7 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
                 // A tool opened from this menu: its panel takes the focus, not the "..." button.
                 if (fromMenu.current) { e.preventDefault(); fromMenu.current = false; }
               }}
-              trigger={<Button variant="ghost" aria-label="Thêm thao tác" title="Thêm thao tác" className="shrink-0 !px-2 !text-xs sm:!min-h-7 sm:!py-0"><MoreHorizontal size={16} aria-hidden /></Button>}
+              trigger={<Button variant="ghost" aria-label="Thêm thao tác" title="Thêm thao tác" className="shrink-0 !rounded-[7px] !px-2 !text-xs sm:!min-h-7 sm:!py-0"><MoreHorizontal size={16} aria-hidden /></Button>}
             >
               {foldedList.map((id) => {
                 const m = metas[id];
@@ -147,7 +151,7 @@ export function ViewTools({ columns, config, dead, change, search, onSearch, onC
       </FoldContext.Provider>
       <ActiveChips columns={columns} config={config} change={change} />
       {dead.total > 0 && (
-        <div role="alert" className="flex flex-wrap items-center gap-2 rounded-md bg-warn/15 px-3 py-2 text-sm">
+        <div role="alert" className="mx-4 my-2 flex flex-wrap items-center gap-2 rounded-md bg-warn/15 px-3 py-2 text-sm lg:mx-5">
           <span className="min-w-0 [overflow-wrap:anywhere]">
             View này dùng {dead.total === 1 ? "1 thiết lập" : `${dead.total} thiết lập`} trỏ tới cột đã bị xoá nên đang bỏ qua.
           </span>
@@ -166,11 +170,11 @@ function ToolButton({ meta, ...props }: React.ComponentProps<"button"> & { meta:
     <Button
       variant="ghost"
       title={meta.label}
-      className={cn("shrink-0 !gap-1.5 !px-2.5 !text-xs sm:!min-h-7 sm:!py-0", meta.active ? "!bg-primary-soft !text-primary" : "text-foreground")}
+      className={cn(TOOL_BTN, meta.active ? TOOL_ON : "text-foreground hover:!bg-muted")}
       aria-label={meta.ariaLabel ?? (meta.count ? `${meta.label} ${formatNumber(meta.count)}` : meta.label)}
       {...props}
     >
-      {meta.icon}
+      <span aria-hidden className={cn("flex shrink-0", !meta.active && "text-faint")}>{meta.icon}</span>
       <span>{meta.label}</span>
       {meta.count ? <span className="text-xs font-medium">{formatNumber(meta.count)}</span> : null}
     </Button>
@@ -200,8 +204,8 @@ function ToolPopover({ meta, label, title, width, footer, children }: { meta: To
   return <Popover label={label} width={width} trigger={<ToolButton meta={meta} />}>{body}</Popover>;
 }
 
-/** A thin vertical line between groups of tools: 12px of air each side (gap 4 + margin 8). */
-const Divider = () => <span aria-hidden className="mx-2 h-4 w-px shrink-0 bg-border" />;
+/** A thin vertical line between groups of tools: 8px of air each side (gap 4 + margin 4). */
+const Divider = () => <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-border" />;
 
 const Label = ({ children }: { children: React.ReactNode }) => <p className="text-xs font-medium text-muted-foreground">{children}</p>;
 
@@ -629,7 +633,7 @@ function ActiveChips({ columns, config, change }: { columns: Column[]; config: V
   const names = tf.columns.map((k) => columns.find((c) => c.key === k)?.name ?? META_DATE_COLUMNS.find((m) => m.key === k)?.name ?? k);
   const dates = rangeDates(info.data);
   return (
-    <div className="flex flex-wrap items-center gap-2" aria-label="Bộ lọc đang bật">
+    <div className="flex flex-wrap items-center gap-2 border-b border-border-soft px-4 py-2 lg:px-5" aria-label="Bộ lọc đang bật">
       <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-selected py-0.5 pl-3 pr-1 text-sm">
         <span className="min-w-0 [overflow-wrap:anywhere]">
           {names.join(" hoặc ")}: <strong className="font-medium">{rangeName(tf.range, info.data?.fiscal_start_month)}</strong>

@@ -102,7 +102,7 @@ export interface GridApi {
   clearSelection: () => void;
 }
 
-export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef, onAddRow }: { session: TableSession; level: Level; view: GridView; onOpenRow: (rowId: string) => void; onSelection: (rowIds: string[], activeRowId: string | null) => void; apiRef: React.MutableRefObject<GridApi | null>; onAddRow: () => Promise<void> }) {
+export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef, onAddRow, flush }: { flush?: boolean; session: TableSession; level: Level; view: GridView; onOpenRow: (rowId: string) => void; onSelection: (rowIds: string[], activeRowId: string | null) => void; apiRef: React.MutableRefObject<GridApi | null>; onAddRow: () => Promise<void> }) {
   const { store, labels } = session;
   useSyncExternalStore(store.subscribe, store.getVersion);
   const layoutVersion = useSyncExternalStore(session.subscribeLayout, session.getLayoutVersion);
@@ -723,7 +723,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   };
   return (
     // data-* : the layout the browser tests use to find a cell on the canvas.
-    <div ref={rootRef} {...markerHandlers} className={`relative min-h-[60dvh] flex-1 overflow-hidden rounded-card border border-border-soft bg-card sm:min-h-0${hoverMarker && !grouped ? " [&_canvas]:!cursor-pointer" : ""}`} onMouseLeave={() => { setTip(null); setHoverMarker(null); }} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-header-height={HEADER_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
+    <div ref={rootRef} {...markerHandlers} className={`relative min-h-[60dvh] flex-1 overflow-hidden bg-card sm:min-h-0${flush ? "" : " rounded-card border border-border-soft"}${hoverMarker && !grouped ? " [&_canvas]:!cursor-pointer" : ""}`} onMouseLeave={() => { setTip(null); setHoverMarker(null); }} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-header-height={HEADER_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
       {theme && (
         <DataEditor
           ref={ref}

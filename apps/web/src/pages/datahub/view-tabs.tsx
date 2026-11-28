@@ -54,8 +54,8 @@ export function ViewSwitcher({ tableId, views, currentId, access, onSelect, curr
         <Menu
           align="start"
           trigger={
-            <Button variant="ghost" aria-label={`Chọn view, đang ở ${cur?.name ?? ""}`} title={cur?.name} className="max-w-44 !pr-2 !text-xs sm:!min-h-7 sm:max-w-52">
-              <LayoutGrid size={16} aria-hidden className="shrink-0 text-primary" />
+            <Button variant="ghost" aria-label={`Chọn view, đang ở ${cur?.name ?? ""}`} title={cur?.name} className="max-w-44 !gap-1.5 !rounded-[7px] !bg-muted !px-2.5 !text-xs !font-semibold hover:!bg-border-soft sm:!min-h-7 sm:!py-0 sm:max-w-52">
+              <LayoutGrid size={14} aria-hidden className="shrink-0 text-primary" />
               <span className="truncate">{cur?.name}</span>
               {cur && !cur.shared && <Badge tone="muted">Riêng</Badge>}
               <ChevronDown size={14} aria-hidden className="shrink-0 text-muted-foreground" />
@@ -73,7 +73,7 @@ export function ViewSwitcher({ tableId, views, currentId, access, onSelect, curr
           <MenuItem onSelect={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /> Thêm view</MenuItem>
         </Menu>
         {cur && (
-          <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn view ${cur.name}`} className="!px-1.5"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
+          <Menu trigger={<Button variant="ghost" aria-label={`Tuỳ chọn view ${cur.name}`} className="!rounded-[7px] !px-1.5 sm:!min-h-7 sm:!py-0"><MoreHorizontal size={16} aria-hidden /></Button>} align="start">
             {(owner || !cur.shared) && <MenuItem onSelect={() => setDialog({ kind: "rename", v: cur })}><Pencil size={16} aria-hidden /> Đổi tên view</MenuItem>}
             <MenuItem onSelect={() => setDialog({ kind: "copy", v: cur })}><Copy size={16} aria-hidden /> Sao chép view</MenuItem>
             {cur.has_override && <MenuItem onSelect={() => reset.mutate(cur)}><RotateCcw size={16} aria-hidden /> Về mặc định</MenuItem>}

@@ -64,10 +64,10 @@ export function PeriodButton({ state, scope, showRule, follow }: { state: Shared
       label="Chọn kỳ"
       width="w-[22rem]"
       trigger={
-        <Button variant="secondary" data-testid="period-button" title="Kỳ của Quản lý Deal" className={cn("shrink-0 sm:!min-h-7 !px-2.5 !text-xs", !state.isDefault && "!border-primary-border !bg-primary-soft !text-primary")}>
-          <CalendarRange size={14} aria-hidden />
+        <Button variant="ghost" data-testid="period-button" title="Kỳ của Quản lý Deal" className={cn("shrink-0 !gap-1.5 !rounded-[7px] !px-2.5 !text-xs sm:!min-h-7 sm:!py-0", state.isDefault ? "hover:!bg-muted" : "!bg-primary-soft !text-primary")}>
+          <CalendarRange size={14} aria-hidden className={state.isDefault ? "text-faint" : undefined} />
           <span data-testid="period-name">{off ? `${label} · riêng bảng này` : label}</span>
-          <ChevronDown size={14} aria-hidden />
+          <ChevronDown size={14} aria-hidden className={state.isDefault ? "text-faint" : undefined} />
         </Button>
       }
     >
