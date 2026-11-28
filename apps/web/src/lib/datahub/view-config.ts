@@ -51,7 +51,7 @@ export const MAX_GROUP = 3;
 export const MAX_COLORS = 20;
 
 /** Pixel heights of a row: compact, standard (default), tall (text wraps to two lines). */
-export const ROW_HEIGHTS: Record<RowHeight, number> = { short: 32, medium: 36, tall: 56 };
+export const ROW_HEIGHTS: Record<RowHeight, number> = { short: 34, medium: 42, tall: 56 };
 export const DEFAULT_ROW_HEIGHT: RowHeight = "medium";
 export const ROW_HEIGHT_LABELS: Record<RowHeight, string> = { short: "Gọn", medium: "Vừa", tall: "Cao" };
 

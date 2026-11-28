@@ -14,7 +14,9 @@ import { FONT_STACK, fontsReady, optionColor, token } from "@/lib/theme";
 import { isInsidePopup, soeRenderer, type SoeCell } from "./grid-cells";
 import type { GridView } from "./table-view";
 
-const MARKER_WIDTH = 56;
+const MARKER_WIDTH = 48;
+/** Header row of the grid (mockup: 36px); the body rows follow the density of the view. */
+const HEADER_HEIGHT = 36;
 const NUMERIC = new Set(["number", "currency", "percent", "auto_number", "row_id"]);
 
 function defaultWidth(col: Column): number {
@@ -54,7 +56,7 @@ function gridTheme(): Partial<Theme> {
     textHeaderSelected: token("--primary-foreground"),
     bgCell: token("--card"),
     bgCellMedium: token("--workspace"),
-    bgHeader: token("--workspace"),
+    bgHeader: token("--grid-head"),
     bgHeaderHasFocus: token("--primary-soft"),
     bgHeaderHovered: token("--muted"),
     bgIconHeader: token("--muted-foreground"),
@@ -62,17 +64,17 @@ function gridTheme(): Partial<Theme> {
     bgBubble: token("--muted"),
     bgBubbleSelected: token("--selected"),
     textBubble: token("--foreground"),
-    borderColor: token("--border-soft"),
-    horizontalBorderColor: token("--border-soft"),
+    borderColor: token("--grid-line"),
+    horizontalBorderColor: token("--grid-line"),
     drilldownBorder: token("--border"),
     linkColor: token("--primary"),
     cellHorizontalPadding: 8,
     cellVerticalPadding: 4,
     headerFontStyle: "600 12px",
-    baseFontStyle: "14px",
+    baseFontStyle: "13px",
     markerFontStyle: "12px",
     fontFamily: FONT_STACK,
-    editorFontSize: "14px",
+    editorFontSize: "13px",
     lineHeight: 1.5,
     roundingRadius: 6,
   };
@@ -692,7 +694,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
   };
   return (
     // data-* : the layout the browser tests use to find a cell on the canvas.
-    <div ref={rootRef} {...markerHandlers} className="relative min-h-[60dvh] flex-1 overflow-hidden rounded-card border border-border-soft bg-card sm:min-h-0" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
+    <div ref={rootRef} {...markerHandlers} className="relative min-h-[60dvh] flex-1 overflow-hidden rounded-card border border-border-soft bg-card sm:min-h-0" onMouseLeave={() => setTip(null)} data-testid="grid" data-widths={JSON.stringify(gridColumns.map((c) => ("width" in c ? c.width : 0)))} data-row-height={ROW_HEIGHT} data-header-height={HEADER_HEIGHT} data-lines={rowsCount} data-layer-tags={JSON.stringify(Object.fromEntries(columns.flatMap((c) => { const t = view.layerTag(c); return t ? [[c.name, t]] : []; })))} data-marker-width={MARKER_WIDTH}>
       {theme && (
         <DataEditor
           ref={ref}
@@ -702,7 +704,7 @@ export function TableGrid({ session, level, view, onOpenRow, onSelection, apiRef
           columns={gridColumns}
           rows={rowsCount}
           rowHeight={ROW_HEIGHT}
-          headerHeight={ROW_HEIGHT}
+          headerHeight={HEADER_HEIGHT}
           getCellContent={getCellContent}
           customRenderers={[soeRenderer]}
           isOutsideClick={(e) => !isInsidePopup(e)}

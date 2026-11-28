@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  * A panel that opens under a button, in a portal (never cut by a scroll box). Esc and a click outside close it; focus moves into
  * it and comes back to the button. `modal` traps focus in the panel and shuts the page behind it (needed when it opens from inside a dialog, whose own focus trap would otherwise pull focus back out). It never grows past the window: taller content scrolls inside.
  */
-export function Popover({ trigger, children, label, align = "start", width = "w-[28rem]", open, onOpenChange, className, fixedSide, modal, onOpenAutoFocus }: { onOpenAutoFocus?: (e: Event) => void; modal?: boolean; fixedSide?: boolean; trigger: React.ReactNode; children: React.ReactNode; label: string; align?: "start" | "center" | "end"; width?: string; open?: boolean; onOpenChange?: (open: boolean) => void; className?: string }) {
+export function Popover({ trigger, children, label, align = "start", width = "w-[22rem]", open, onOpenChange, className, fixedSide, modal, onOpenAutoFocus }: { onOpenAutoFocus?: (e: Event) => void; modal?: boolean; fixedSide?: boolean; trigger: React.ReactNode; children: React.ReactNode; label: string; align?: "start" | "center" | "end"; width?: string; open?: boolean; onOpenChange?: (open: boolean) => void; className?: string }) {
   return (
     <P.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <P.Trigger asChild>{trigger}</P.Trigger>
@@ -21,7 +21,7 @@ export function Popover({ trigger, children, label, align = "start", width = "w-
           avoidCollisions={!fixedSide}
           // Opened from inside a dialog, the modal dialog turns pointer events off for everything outside it; the panel must still be clickable.
           style={{ pointerEvents: "auto" }}
-          className={cn("contain-scroll-y z-[60] max-h-[min(80dvh,var(--radix-popover-content-available-height))] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-border bg-card p-3 text-sm shadow-md outline-none", width, className)}
+          className={cn("contain-scroll-y z-[60] max-h-[min(80dvh,var(--radix-popover-content-available-height))] max-w-[calc(100vw-1rem)] overflow-y-auto fade-up rounded-[13px] border border-border bg-card p-2 text-[13px] shadow-xl outline-none", width, className)}
         >
           {children}
         </P.Content>
@@ -38,7 +38,7 @@ export function PointPopover({ at, label, children, onClose, className }: { at: 
         <span aria-hidden className="pointer-events-none fixed h-px w-px" style={{ left: at?.x ?? 0, top: at?.y ?? 0 }} />
       </P.Anchor>
       <P.Portal>
-        <P.Content aria-label={label} align="start" sideOffset={4} collisionPadding={8} className={cn("contain-scroll-y z-[60] max-h-[min(80dvh,var(--radix-popover-content-available-height))] min-w-52 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-border bg-card p-1 text-sm shadow-md outline-none", className)}>
+        <P.Content aria-label={label} align="start" sideOffset={4} collisionPadding={8} className={cn("contain-scroll-y z-[60] max-h-[min(80dvh,var(--radix-popover-content-available-height))] min-w-52 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-[13px] border border-border bg-card p-1.5 text-[13px] shadow-xl outline-none fade-up", className)}>
           {children}
         </P.Content>
       </P.Portal>

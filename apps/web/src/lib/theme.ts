@@ -1,3 +1,4 @@
+import type * as React from "react";
 /**
  * The grid draws on a canvas, which cannot read CSS variables. These helpers resolve the design tokens of `index.css` to colors
  * the canvas understands, so the grid keeps the same colors as the rest of the app.
@@ -43,23 +44,34 @@ export function optionColor(name: string | undefined): string {
   return token(`--opt-${(OPTION_COLORS as readonly string[]).includes(name ?? "") ? name : "gray"}`);
 }
 /**
- * Semantic pairs for option chips (module 12): green = done, blue = in progress, orange = waiting, red = overdue/error, purple = special/AI.
- * Other colors keep their soft background with the normal text color.
+ * Option chip (mockup): a dot, a light fill, a light border and bold text of one color. Green = done, blue = in progress, orange = waiting,
+ * red = overdue/error, purple = special/AI; teal, pink, yellow and grey follow the same four-part set (`--<name>`, `-bg`, `-border`, `-dot`).
  */
-const SEMANTIC: Record<string, string> = { green: "ok", blue: "info", orange: "warn", red: "bad", purple: "ai" };
-/** Background and text of an option chip drawn on the canvas. */
-export function optionChip(name: string | undefined): { bg: string; fg: string } {
-  const s = SEMANTIC[name ?? ""];
-  return s ? { bg: token(`--${s}-bg`), fg: token(`--${s}`) } : { bg: optionColor(name), fg: token("--foreground") };
+const CHIP_TOKEN: Record<string, string> = { green: "ok", blue: "info", orange: "warn", red: "bad", purple: "ai", teal: "teal", pink: "pink", yellow: "yellow", gray: "gray" };
+/** Colors given by turns to options that have none yet (grey is left out: it reads as "no color"). */
+const AUTO_ORDER = ["blue", "green", "orange", "purple", "red", "teal", "pink", "yellow"] as const;
+/**
+ * The color an option is shown with. A color the option has is kept; one without gets a color by its position in the column's options,
+ * so it stays the same when the list is filtered. Display only: nothing is written to the data.
+ */
+export function resolveOptionColor(name: string | undefined, index: number): string {
+  if ((OPTION_COLORS as readonly string[]).includes(name ?? "")) return name!;
+  return AUTO_ORDER[Math.max(0, index) % AUTO_ORDER.length]!;
 }
-/** CSS variables of an option chip, for the parts drawn in HTML. */
-export function optionChipVar(name: string | undefined): { background: string; color: string } {
-  const s = SEMANTIC[name ?? ""];
-  return s ? { background: `var(--${s}-bg)`, color: `var(--${s})` } : { background: optionVar(name), color: "var(--foreground)" };
+/** Colors of an option chip drawn on the canvas. */
+export function optionChip(name: string | undefined, index = 0): { bg: string; fg: string; border: string; dot: string } {
+  const s = CHIP_TOKEN[resolveOptionColor(name, index)]!;
+  return { bg: token(`--${s}-bg`), fg: token(`--${s}`), border: token(`--${s}-border`), dot: token(`--${s}-dot`) };
 }
-/** CSS variable of an option color, for the parts drawn in HTML. */
-export function optionVar(name: string | undefined): string {
-  return `var(--opt-${(OPTION_COLORS as readonly string[]).includes(name ?? "") ? name : "gray"})`;
+/** CSS of an option chip for the parts drawn in HTML (`--chip-dot` is the color of the dot). */
+export function optionChipVar(name: string | undefined, index = 0): React.CSSProperties {
+  const s = CHIP_TOKEN[resolveOptionColor(name, index)]!;
+  return { background: `var(--${s}-bg)`, color: `var(--${s})`, borderColor: `var(--${s}-border)`, ["--chip-dot" as string]: `var(--${s}-dot)` };
+}
+/** CSS variable of an option color (a swatch), for the parts drawn in HTML. `index`: position of the option, for one without a color. */
+export function optionVar(name: string | undefined, index?: number): string {
+  const c = index === undefined ? ((OPTION_COLORS as readonly string[]).includes(name ?? "") ? name : "gray") : resolveOptionColor(name, index);
+  return `var(--opt-${c})`;
 }
 
 /** Waits until the fonts the grid draws with are ready (a canvas does not redraw by itself when a font arrives). */

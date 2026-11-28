@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 /**
  * Side panel that slides in from the right (420px, or 560px with `wide`) for the detail of a row or an item.
  * Same behaviour as Modal: focus trap, Esc and the close button close it, and `dirty` asks before dropping unsaved changes.
- * Full width under 640px. `headerExtra` sits beside the title, `subHeader` is a fixed strip under it (tabs); `width` replaces the default width class (for example "sm:w-[480px]"). `soft` keeps the page behind readable (light veil, no blur).
+ * Full width under 640px. `headerExtra` sits beside the title, `subHeader` is a fixed strip under it (tabs); `width` replaces the default width class (for example "sm:w-[480px]"). `soft` is kept for old callers and no longer changes anything (every drawer has the same veil). A floating card 12px from the edges, 490px at most (`wide` or `width` for the few that need more).
  */
-export function Drawer({ title, open, onClose, children, dirty, wide, footer, headerExtra, subHeader, soft, width }: { title: string; open: boolean; onClose: () => void; children: React.ReactNode; dirty?: boolean; wide?: boolean; footer?: React.ReactNode; headerExtra?: React.ReactNode; subHeader?: React.ReactNode; soft?: boolean; width?: string }) {
+export function Drawer({ title, open, onClose, children, dirty, wide, footer, headerExtra, subHeader, width }: { title: string; open: boolean; onClose: () => void; children: React.ReactNode; dirty?: boolean; wide?: boolean; footer?: React.ReactNode; headerExtra?: React.ReactNode; subHeader?: React.ReactNode; soft?: boolean; width?: string }) {
   const [asking, setAsking] = React.useState(false);
   const tryClose = () => {
     if (dirty) setAsking(true);
@@ -18,13 +18,13 @@ export function Drawer({ title, open, onClose, children, dirty, wide, footer, he
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && tryClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className={cn("overlay-fade fixed inset-0 z-50", soft ? "bg-foreground/10" : "bg-foreground/25 backdrop-blur-[2px]")} />
+        <Dialog.Overlay className="overlay-fade fixed inset-0 z-50 bg-slate-900/20 backdrop-blur-[2px]" />
         <Dialog.Content
           aria-describedby={undefined}
-          className={cn("drawer-panel fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-border bg-card shadow-lg sm:rounded-l-card", width ?? (wide ? "sm:w-[560px]" : "sm:w-[420px]"))}
+          className={cn("drawer-panel fixed bottom-3 right-3 top-3 z-50 flex w-[calc(100%-1.5rem)] max-w-[490px] flex-col overflow-hidden rounded-[18px] border border-border bg-card shadow-2xl", wide && "sm:max-w-[640px]", width ?? (wide ? "sm:w-[640px]" : "sm:w-[490px]"))}
         >
           <div className="flex items-center justify-between gap-2 border-b border-border-soft px-5 py-3">
-            <Dialog.Title className="min-w-0 flex-1 text-lg font-semibold tracking-tight text-foreground [overflow-wrap:anywhere]">{title}</Dialog.Title>
+            <Dialog.Title className="min-w-0 flex-1 text-base font-semibold tracking-tight text-foreground [overflow-wrap:anywhere]">{title}</Dialog.Title>
             {headerExtra}
             <Button variant="ghost" onClick={tryClose} aria-label="Đóng" className="shrink-0 !px-2">
               <X size={20} aria-hidden />

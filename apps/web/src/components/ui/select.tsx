@@ -126,7 +126,7 @@ export function Select({ className, children, value, defaultValue, onChange, dis
         if (open || disabled) return;
         if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); onOpenChange(true); }
       }}
-      className={cn("flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-left text-base outline-none transition-colors hover:border-primary-border focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:min-h-9 sm:text-sm", className)}
+      className={cn("flex min-h-11 w-full items-center justify-between gap-2 rounded-[9px] border border-border bg-card px-3 py-1.5 text-left text-[16px] outline-none transition-colors hover:border-primary-border focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:min-h-9 sm:text-sm", className)}
       {...(rest as Record<string, unknown>)}
     >
       <span className={cn("min-w-0 flex-1 truncate", !selected && "text-faint")}>{selected?.label ?? ""}</span>
@@ -150,7 +150,7 @@ export function Select({ className, children, value, defaultValue, onChange, dis
         data-active={o.value === active || undefined}
         onClick={() => choose(o)}
         onMouseMove={() => !o.disabled && active !== o.value && setActive(o.value)}
-        className={cn("flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 sm:min-h-9", o.disabled ? "cursor-not-allowed opacity-50" : "data-[active]:bg-primary-soft", o.value === current && "font-medium text-primary")}
+        className={cn("flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] sm:min-h-8", o.disabled ? "cursor-not-allowed opacity-50" : "data-[active]:bg-primary-soft", o.value === current && "font-medium text-primary")}
       >
         <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{o.label}</span>
         {o.value === current && <Check size={16} aria-hidden className="shrink-0" />}
@@ -193,7 +193,7 @@ export function Select({ className, children, value, defaultValue, onChange, dis
               }}
               onKeyDown={onListKey}
               placeholder="Tìm…"
-              className="min-h-11 w-full rounded-md border border-border bg-card py-1.5 pl-8 pr-2 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 sm:min-h-9 sm:text-sm"
+              className="min-h-11 w-full rounded-[9px] border border-border bg-card py-1.5 pl-8 pr-2 text-[16px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 sm:min-h-8 sm:text-[13px]"
             />
           </div>
         )}

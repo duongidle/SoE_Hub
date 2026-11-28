@@ -85,7 +85,7 @@ export function RowPanel({ session, rowId, level, onClose, onNavigate }: { sessi
   const auto = cols.filter(isAuto);
   const field = (c: Column) => <Field key={c.id} col={c} row={row!} level={level} session={session} ctx={ctx} />;
   return (
-    <Drawer title={row?.row_no ? `Dòng #${row.row_no}` : "Chi tiết dòng"} open onClose={onClose} wide soft headerExtra={headerExtra} subHeader={tabs}>
+    <Drawer title={row?.row_no ? `Dòng #${row.row_no}` : "Chi tiết dòng"} open onClose={onClose} headerExtra={headerExtra} subHeader={tabs}>
       {loadError ? (
         <ErrorState error={loadError} title="Không mở được dòng" />
       ) : !row ? (
@@ -253,11 +253,11 @@ function Field({ col, row, level, session, ctx }: { col: Column; row: Row; level
     const ids = Array.isArray(value) ? (value as string[]) : [];
     control = (
       <div id={id} role="group" aria-label={col.name} className="flex flex-wrap gap-2">
-        {optionsOf(col).map((o) => {
+        {optionsOf(col).map((o, oi) => {
           const on = ids.includes(o.id);
           return (
             <button key={o.id} type="button" aria-pressed={on} onClick={() => void save((on ? ids.filter((x) => x !== o.id) : [...ids, o.id]).filter(Boolean).length ? (on ? ids.filter((x) => x !== o.id) : [...ids, o.id]) : null)} className={cn("min-h-11 rounded-md border px-2 py-1 text-sm sm:min-h-9", on ? "border-primary" : "border-border")}>
-              <OptionChip option={o} />
+              <OptionChip option={o} index={oi} />
               {on && <span className="sr-only"> (đã chọn)</span>}
             </button>
           );

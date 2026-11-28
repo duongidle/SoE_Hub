@@ -111,30 +111,30 @@ const readCollapsed = () => {
   }
 };
 
-const linkBase = "relative flex min-h-10 items-center gap-3 rounded-control px-3 text-sm text-muted-foreground transition-colors hover:bg-primary-soft hover:text-foreground";
-const linkActive = "[&.active]:bg-primary-soft [&.active]:font-semibold [&.active]:text-primary [&.active]:before:absolute [&.active]:before:-left-3 [&.active]:before:top-2 [&.active]:before:bottom-2 [&.active]:before:w-[3px] [&.active]:before:rounded-full [&.active]:before:bg-primary [&.active]:before:content-['']";
+const linkBase = "relative flex min-h-[35px] items-center gap-2 rounded-[9px] px-3 text-[13px] font-medium text-[#4B5068] transition-colors duration-[130ms] hover:bg-primary-soft hover:text-foreground";
+const linkActive = "[&.active]:bg-primary-soft [&.active]:font-semibold [&.active]:text-primary [&.active]:before:absolute [&.active]:before:-left-2 [&.active]:before:top-2 [&.active]:before:bottom-2 [&.active]:before:w-[3px] [&.active]:before:rounded-full [&.active]:before:bg-primary [&.active]:before:content-['']";
 
 /** The menu list; the sidebar on a wide screen and the drawer on a narrow one use the same markup. */
 function SideNav({ items, collapsed, label, onLogout, settingsActive, onNavigate }: { items: NavItem[]; collapsed: boolean; label: string; onLogout?: () => void; settingsActive?: boolean; onNavigate?: () => void }) {
   const text = collapsed ? "sr-only" : "truncate";
   return (
-    <nav aria-label={label} className="flex min-h-0 flex-1 flex-col px-3 pb-3">
-      <div className="contain-scroll-y flex flex-1 flex-col gap-0.5 overflow-y-auto">
+    <nav aria-label={label} className="flex min-h-0 flex-1 flex-col px-2 pb-3">
+      <div className="contain-scroll-y no-scrollbar flex flex-1 flex-col gap-0.5 overflow-y-auto">
         {items.map((n) => (
           <Link key={n.to} to={n.to} onClick={onNavigate} activeOptions={{ exact: n.to === "/" }} title={collapsed ? n.label : undefined} className={cn(linkBase, linkActive, collapsed && "justify-center px-0")}>
-            <n.icon size={18} aria-hidden className="shrink-0" />
+            <n.icon size={16} aria-hidden className="shrink-0" />
             <span className={text}>{n.label}</span>
           </Link>
         ))}
       </div>
       <div className="mt-2 flex flex-col gap-0.5 border-t border-border-soft pt-2">
         <Link to="/cai-dat" onClick={onNavigate} title={collapsed ? "Cài đặt" : undefined} className={cn(linkBase, linkActive, settingsActive && "active", collapsed && "justify-center px-0")}>
-          <Settings size={18} aria-hidden className="shrink-0" />
+          <Settings size={16} aria-hidden className="shrink-0" />
           <span className={text}>Cài đặt</span>
         </Link>
         {onLogout && (
           <button type="button" onClick={onLogout} aria-label="Đăng xuất" title={collapsed ? "Đăng xuất" : undefined} className={cn(linkBase, "cursor-pointer", collapsed && "justify-center px-0")}>
-            <LogOut size={18} aria-hidden className="shrink-0" />
+            <LogOut size={16} aria-hidden className="shrink-0" />
             <span className={text}>Đăng xuất</span>
           </button>
         )}
@@ -250,7 +250,7 @@ export function Shell() {
         Bỏ qua, tới nội dung
       </a>
       <div className="flex h-full overflow-hidden bg-card md:rounded-frame md:shadow-frame">
-        <aside className={cn("hidden shrink-0 flex-col border-r border-border-soft bg-sidebar transition-[width] duration-200 lg:flex", collapsed ? "w-16" : "w-[220px]")}>
+        <aside className={cn("hidden shrink-0 flex-col border-r border-border-soft bg-sidebar transition-[width] duration-[220ms] ease-[cubic-bezier(0.16,1,0.3,1)] lg:flex", collapsed ? "w-16" : "w-[224px]")}>
           <div className={cn("flex h-14 shrink-0 items-center gap-1 px-2", collapsed ? "justify-center" : "justify-between")}>
             <Link to="/" aria-label="SoE HUB, về Tổng quan" className="min-w-0">
               <Brand compact={collapsed} />
@@ -271,7 +271,7 @@ export function Shell() {
 
         <Dialog.Root open={open} onOpenChange={(o) => setOpenPath(o ? path : null)}>
           <Dialog.Portal>
-            <Dialog.Overlay className="overlay-fade fixed inset-0 z-50 bg-foreground/25 backdrop-blur-[2px] lg:hidden" />
+            <Dialog.Overlay className="overlay-fade fixed inset-0 z-50 bg-slate-900/20 backdrop-blur-[2px] lg:hidden" />
             <Dialog.Content aria-describedby={undefined} className="drawer-panel fixed inset-y-0 left-0 z-50 flex w-[260px] max-w-[85vw] flex-col bg-sidebar shadow-lg lg:hidden" style={{ animationName: "drawer-in-left" }}>
               <Dialog.Title className="sr-only">Menu</Dialog.Title>
               <div className="flex h-14 shrink-0 items-center px-3">
@@ -286,13 +286,13 @@ export function Shell() {
 
           <div className="flex min-w-0 flex-1 flex-col bg-workspace">
             <div data-scroll-restoration-id="shell-main" className={cn("contain-scroll-y flex min-h-0 flex-1 flex-col", wide ? "overflow-hidden" : formEdit ? "overflow-y-auto lg:overflow-hidden" : "overflow-y-auto")}>
-              <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b border-border-soft bg-card/85 px-3 backdrop-blur-md sm:px-5">
+              <header className="sticky top-0 z-20 flex h-12 shrink-0 items-center gap-2 border-b border-border-soft bg-card/85 px-4 backdrop-blur-md lg:px-6">
                 <Dialog.Trigger asChild>
                   <Button variant="ghost" className="shrink-0 !px-2 lg:hidden" aria-label="Mở menu" aria-expanded={open}>
                     <Menu size={20} aria-hidden />
                   </Button>
                 </Dialog.Trigger>
-                <nav aria-label="Vị trí" className="flex min-w-0 items-center gap-1.5 text-base">
+                <nav aria-label="Vị trí" className="flex min-w-0 items-center gap-1.5 text-[15px]">
                   {trail.map((t, i) => (
                     <span key={t} className={cn("flex items-center gap-1.5", i === trail.length - 1 ? "min-w-0" : "max-w-40 shrink-0")}>
                       {i > 0 && <ChevronRight size={14} aria-hidden className="shrink-0 text-faint" />}
@@ -325,7 +325,7 @@ export function Shell() {
                   </Button>
                 </div>
               </header>
-              <PageChromeContext.Provider value={chrome}><main id="noi-dung" tabIndex={-1} className={wide ? "flex min-h-0 w-full flex-1 flex-col px-4 py-3 sm:px-6" : formEdit ? "flex w-full flex-col px-4 py-3 sm:px-6 lg:min-h-0 lg:flex-1" : "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8"}>{denied ? <Forbidden /> : isSettingsPath(shown) ? <SettingsLayout me={me} path={shown}><Outlet /></SettingsLayout> : <Outlet />}</main></PageChromeContext.Provider>
+              <PageChromeContext.Provider value={chrome}><main id="noi-dung" tabIndex={-1} className={wide ? "flex min-h-0 w-full flex-1 flex-col px-4 py-4 sm:px-6" : formEdit ? "flex w-full flex-col px-4 py-4 sm:px-6 lg:min-h-0 lg:flex-1" : "mx-auto w-full max-w-6xl px-4 py-6 sm:px-8"}>{denied ? <Forbidden /> : isSettingsPath(shown) ? <SettingsLayout me={me} path={shown}><Outlet /></SettingsLayout> : <Outlet />}</main></PageChromeContext.Provider>
             </div>
           </div>
         </Dialog.Root>

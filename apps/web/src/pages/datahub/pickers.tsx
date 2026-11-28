@@ -11,9 +11,11 @@ import { cn } from "@/lib/utils";
  * it reports the new value and the caller decides when to save.
  */
 
-export function OptionChip({ option }: { option: SelectOption }) {
+/** `index`: position of the option in its column (an option without a color gets one by it). */
+export function OptionChip({ option, index = 0 }: { option: SelectOption; index?: number }) {
   return (
-    <span className="inline-flex max-w-full items-center rounded px-2 py-0.5 text-sm [overflow-wrap:anywhere]" style={optionChipVar(option.color)}>
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold [overflow-wrap:anywhere]" style={optionChipVar(option.color, index)}>
+      <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: "var(--chip-dot)" }} />
       {option.name}
     </span>
   );
@@ -49,7 +51,7 @@ export function SelectPicker({ options, value, multi, onChange, onDone, onCancel
   };
 
   return (
-    <div ref={ref} tabIndex={-1} onKeyDown={onKey} className="w-64 max-w-[calc(100vw-2rem)] rounded-md border border-border bg-card p-2 text-sm shadow-md outline-none">
+    <div ref={ref} tabIndex={-1} onKeyDown={onKey} className="w-64 max-w-[calc(100vw-2rem)] fade-up rounded-[13px] border border-border bg-card p-2 text-[13px] shadow-xl outline-none">
       {options.length > 8 && <Input aria-label="Tìm lựa chọn" placeholder="Tìm lựa chọn" value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} className="mb-2" autoFocus />}
       <div role="listbox" aria-multiselectable={multi} aria-label="Lựa chọn" className="contain-scroll-y flex max-h-60 flex-col gap-0.5 overflow-y-auto">
         {shown.length === 0 && <p className="px-2 py-3 text-muted-foreground">Không có lựa chọn nào khớp.</p>}
@@ -58,7 +60,7 @@ export function SelectPicker({ options, value, multi, onChange, onDone, onCancel
           return (
             <button key={o.id} type="button" role="option" aria-selected={on} onClick={() => pick(o.id)} onMouseMove={() => setActive(i)} className={cn("flex min-h-11 items-center gap-2 rounded px-2 py-1 text-left sm:min-h-9", i === active && "bg-muted")}>
               <span className="flex h-4 w-4 shrink-0 items-center justify-center">{on && <Check size={16} aria-hidden />}</span>
-              <OptionChip option={o} />
+              <OptionChip option={o} index={options.indexOf(o)} />
             </button>
           );
         })}

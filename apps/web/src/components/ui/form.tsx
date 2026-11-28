@@ -19,7 +19,7 @@ export function Button({ className, variant = "primary", loading, disabled, chil
       type="button"
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn("inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-medium transition-[transform,background-color,border-color] duration-100 ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:min-h-9 sm:min-w-0", styles, className)}
+      className={cn("inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-[9px] px-3 py-1.5 text-[13px] font-medium transition-[transform,background-color,border-color] duration-[130ms] ease-out active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 sm:min-h-8 sm:min-w-0", styles, className)}
       {...props}
     >
       {loading && <Loader2 size={16} aria-hidden className="animate-spin motion-reduce:animate-none" />}
@@ -29,7 +29,7 @@ export function Button({ className, variant = "primary", loading, disabled, chil
 }
 
 export function Input({ className, ...props }: React.ComponentProps<"input">) {
-  return <input className={cn("min-h-11 w-full rounded-md border border-border bg-card px-3 py-1.5 text-base outline-none transition-colors placeholder:text-faint hover:border-primary-border focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:min-h-9 sm:text-sm", className)} {...props} />;
+  return <input className={cn("min-h-11 w-full rounded-[9px] border border-border bg-card px-3 py-1.5 text-[16px] outline-none transition-colors placeholder:text-faint hover:border-primary-border focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:min-h-9 sm:text-sm", className)} {...props} />;
 }
 
 /** Text input for a date and time in the Vietnamese format `dd/mm/yyyy` or `dd/mm/yyyy hh:mm` (24h). */
@@ -47,13 +47,13 @@ export { Select } from "./select";
 export type { SelectChange } from "./select";
 
 export function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
-  return <textarea className={cn("w-full rounded-md border border-border bg-card px-3 py-1.5 text-base outline-none transition-colors placeholder:text-faint hover:border-primary-border focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:text-sm", className)} {...props} />;
+  return <textarea className={cn("w-full rounded-[9px] border border-border bg-card px-3 py-1.5 text-[16px] outline-none transition-colors placeholder:text-faint hover:border-primary-border focus:border-primary focus:ring-2 focus:ring-primary/10 disabled:bg-muted disabled:text-muted-foreground aria-[invalid=true]:border-bad sm:text-sm", className)} {...props} />;
 }
 
 export function Field({ label, hint, error, required, name, children }: { label: string; hint?: string; error?: string | null; required?: boolean; name?: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1 text-sm" data-field={name}>
-      <span className="font-medium text-foreground">{label}{required && <span className="text-bad" aria-hidden> *</span>}</span>
+      <span className="text-xs font-semibold text-foreground">{label}{required && <span className="text-bad" aria-hidden> *</span>}</span>
       {children}
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
       {error && <span role="alert" className="text-xs text-bad">{error}</span>}
@@ -107,7 +107,7 @@ export function PageTitle({ children, actions }: { children: React.ReactNode; ac
   }
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{children}</h1>
+      <h1 className="text-lg font-bold tracking-tight text-foreground">{children}</h1>
       {actions && (slot ? createPortal(actions, slot) : <div className="flex flex-wrap gap-2">{actions}</div>)}
     </div>
   );
@@ -117,7 +117,7 @@ export function PageTitle({ children, actions }: { children: React.ReactNode; ac
 export function Table({ children }: { children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-card border border-border bg-card shadow-card">
-      <table className="w-full min-w-max text-left text-sm [&_td]:border-t [&_td]:border-border-soft [&_td]:px-3 [&_td]:py-2.5 [&_th]:bg-muted [&_th]:px-3 [&_th]:py-2.5 [&_th]:text-xs [&_th]:font-semibold [&_th]:text-muted-foreground [&_tbody_tr:hover]:bg-primary-soft/40">{children}</table>
+      <table className="w-full min-w-max text-left text-sm [&_td]:border-t [&_td]:border-border-soft [&_td]:px-3 [&_td]:py-2 [&_th]:bg-[#F8F9FB] [&_th]:px-3 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:text-muted-foreground [&_tbody_tr:hover]:bg-primary-soft/40">{children}</table>
     </div>
   );
 }
@@ -132,13 +132,13 @@ export function Modal({ title, open, onClose, children, dirty, wide }: { title: 
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && tryClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="overlay-fade fixed inset-0 z-50 bg-foreground/30 backdrop-blur-[2px]" />
+        <Dialog.Overlay className="overlay-fade fixed inset-0 z-50 bg-slate-900/25 backdrop-blur-[2px]" />
         <Dialog.Content
           aria-describedby={undefined}
-          className={cn("contain-scroll-y fixed bottom-0 left-1/2 z-50 max-h-[90dvh] w-full -translate-x-1/2 overflow-y-auto rounded-t-card border border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-lg sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 sm:rounded-card", wide ? "max-w-2xl" : "max-w-lg")}
+          className={cn("fade-up contain-scroll-y fixed bottom-0 left-1/2 z-50 max-h-[90dvh] w-full -translate-x-1/2 overflow-y-auto rounded-t-card border border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-lg sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 sm:rounded-card", wide ? "max-w-2xl" : "max-w-lg")}
         >
           <div className="mb-4 flex items-center justify-between gap-2">
-            <Dialog.Title className="text-lg font-semibold tracking-tight text-foreground [overflow-wrap:anywhere]">{title}</Dialog.Title>
+            <Dialog.Title className="text-base font-semibold tracking-tight text-foreground [overflow-wrap:anywhere]">{title}</Dialog.Title>
             <Button variant="ghost" onClick={tryClose} aria-label="Đóng" className="shrink-0 !px-2">
               <X size={20} aria-hidden />
             </Button>
@@ -174,9 +174,9 @@ export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onClose
 
 export function Tabs<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { value: T; label: string }[] }) {
   return (
-    <div role="tablist" className="mb-4 flex gap-1 overflow-x-auto border-b border-border-soft">
+    <div role="tablist" className="no-scrollbar mb-4 flex gap-1 overflow-x-auto border-b border-border-soft">
       {items.map((i) => (
-        <button key={i.value} type="button" role="tab" aria-selected={value === i.value} onClick={() => onChange(i.value)} className={cn("-mb-px whitespace-nowrap rounded-t-md border-b-2 px-3 py-3 text-sm transition-colors sm:py-2", value === i.value ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:bg-primary-soft hover:text-foreground")}>
+        <button key={i.value} type="button" role="tab" aria-selected={value === i.value} onClick={() => onChange(i.value)} className={cn("-mb-px whitespace-nowrap rounded-t-md border-b-2 px-3 py-3 text-[13px] transition-colors sm:py-2", value === i.value ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:bg-primary-soft hover:text-foreground")}>
           {i.label}
         </button>
       ))}

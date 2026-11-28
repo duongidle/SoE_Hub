@@ -475,7 +475,7 @@ function OptionsEditor({ draft, set, error }: { draft: ColumnDraft; set: (p: Par
       <ul className="flex flex-col gap-2">
         {list.map((o, i) => (
           <li key={o.id ?? `n${i}`} className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-            <span aria-hidden className="h-5 w-5 shrink-0 rounded" style={{ background: optionVar(o.color) }} />
+            <span aria-hidden className="h-5 w-5 shrink-0 rounded" style={{ background: optionVar(o.color, i) }} />
             <Input ref={(el) => { refs.current[i] = el; }} aria-label={`Tên lựa chọn ${i + 1}`} value={o.name} maxLength={100} onChange={(e) => update(i, { name: e.target.value })} className="min-w-0 flex-1 basis-40" />
             <Select aria-label={`Màu của lựa chọn ${i + 1}`} value={o.color} onChange={(e) => update(i, { color: e.target.value })} className="!w-32 shrink-0">
               {OPTION_COLORS.map((c) => <option key={c} value={c}>{COLOR_LABEL[c]}</option>)}

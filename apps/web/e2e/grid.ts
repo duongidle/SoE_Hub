@@ -16,7 +16,8 @@ export class GridDriver {
     const widths = JSON.parse((await this.root.getAttribute("data-widths")) ?? "[]") as number[];
     const rowH = Number(await this.root.getAttribute("data-row-height"));
     const marker = Number(await this.root.getAttribute("data-marker-width"));
-    return { box, widths, rowH, marker };
+    const headH = Number((await this.root.getAttribute("data-header-height")) ?? rowH);
+    return { box, widths, rowH, headH, marker };
   }
 
   private async scrollX(): Promise<number> {
@@ -25,7 +26,7 @@ export class GridDriver {
 
   /** Scrolls sideways so that column `c` is fully on screen, then returns the point at its middle in row `r`. */
   async point(c: number, r: number, edge = false): Promise<{ x: number; y: number }> {
-    const { box, widths, rowH, marker } = await this.layout();
+    const { box, widths, rowH, headH, marker } = await this.layout();
     const start = widths.slice(0, c).reduce((a, b) => a + b, 0);
     const w = widths[c] ?? 100;
     const view = box.width - marker;
@@ -36,7 +37,7 @@ export class GridDriver {
       await this.page.waitForTimeout(200);
       sx = await this.scrollX();
     }
-    return { x: box.x + marker + (start - sx) + (edge ? 6 : Math.min(w, view) / 2), y: box.y + rowH + r * rowH + rowH / 2 };
+    return { x: box.x + marker + (start - sx) + (edge ? 6 : Math.min(w, view) / 2), y: box.y + headH + r * rowH + rowH / 2 };
   }
 
   async click(c: number, r: number, opts: { double?: boolean; edge?: boolean } = {}): Promise<void> {
@@ -49,8 +50,8 @@ export class GridDriver {
 
   /** The row marker (the number at the left) of row `r`. */
   async markerPoint(r: number): Promise<{ x: number; y: number }> {
-    const { box, rowH, marker } = await this.layout();
-    return { x: box.x + marker / 2, y: box.y + rowH + r * rowH + rowH / 2 };
+    const { box, rowH, headH, marker } = await this.layout();
+    return { x: box.x + marker / 2, y: box.y + headH + r * rowH + rowH / 2 };
   }
 
   /** Selects the row: a right click on its number (the left click opens the row panel). `append` keeps the rows already selected (Ctrl/Cmd). */

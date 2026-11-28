@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { GridCellKind, type CustomCell, type CustomRenderer, type ProvideEditorComponent } from "@glideapps/glide-data-grid";
 import type { SelectOption } from "@/lib/datahub/types";
-import { optionChip, optionColor, token } from "@/lib/theme";
+import { FONT_STACK, optionChip, optionColor, token } from "@/lib/theme";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/form";
 import { AttachmentField } from "./attachment-field";
@@ -208,6 +208,7 @@ export const soeRenderer: CustomRenderer<SoeCell> = {
         ctx.fillText("—", rect.x + padX, midY + 1);
       }
     } else {
+      ctx.font = `600 12px ${FONT_STACK}`;
       let x = rect.x + padX;
       const max = rect.x + rect.width - padX;
       ctx.textAlign = "left";
@@ -218,16 +219,23 @@ export const soeRenderer: CustomRenderer<SoeCell> = {
       d.ids.forEach((id, i) => {
         const o = d.options.find((x2) => x2.id === id);
         if (!o) return;
-        const label = fitText(ctx, o.name, Math.max(24, max - x - 16));
-        const w = ctx.measureText(label).width + 12;
+        const label = fitText(ctx, o.name, Math.max(24, max - x - 28));
+        const w = ctx.measureText(label).width + 28;
         if (x + w > max + 1 && i > 0) return;
-        const chip = optionChip(o.color);
-        ctx.fillStyle = chip.bg;
+        const chip = optionChip(o.color, d.options.indexOf(o));
         ctx.beginPath();
-        ctx.roundRect(x, midY - 10, w, 20, 10);
+        ctx.roundRect(x + 0.5, midY - 10.5, w - 1, 21, 10.5);
+        ctx.fillStyle = chip.bg;
+        ctx.fill();
+        ctx.strokeStyle = chip.border;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = chip.dot;
+        ctx.beginPath();
+        ctx.arc(x + 10, midY, 3, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = chip.fg;
-        ctx.fillText(label, x + 6, midY + 1);
+        ctx.fillText(label, x + 18, midY + 1);
         x += w + 4;
       });
     }

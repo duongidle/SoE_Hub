@@ -80,6 +80,10 @@
   --color-ai-bg: var(--ai-bg);
   --color-ai-border: var(--ai-border);
   --color-ai-dot: var(--ai-dot);
+  --color-teal: var(--teal);
+  --color-teal-bg: var(--teal-bg);
+  --color-teal-border: var(--teal-border);
+  --color-teal-dot: var(--teal-dot);
   --color-ring: var(--ring);
   --color-selected: var(--selected);
   --color-calc: var(--calc);
@@ -88,10 +92,18 @@
 
 /* Corners (Module 12 mục 3): frame 20, card 16, control 10. The Tailwind steps used across the app follow the same scale. */
 @theme {
-  /* Type scale (chuan-giao-dien): 12 / 14 / 16 / 20 / 24 / 30. text-lg is 20px, the same step as text-xl, so no class lands between steps. */
-  --text-lg: 1.25rem;
-  --text-lg--line-height: 1.5;
-  --radius-md: 10px;
+  /* Whole-pixel type scale (Dương 28/11): 11 / 12 / 13 / 14 / 15 / 18 / 24. xs = caption and label 12, sm = body 13, base = card title 15, lg and xl = page title 18, 2xl = KPI 24. */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.45;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.45;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.4;
+  --text-xl: 1.125rem;
+  --text-xl--line-height: 1.4;
+  --radius-md: 9px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-2xl: 20px;
@@ -146,9 +158,29 @@
   --ai-bg: #f5f3ff;
   --ai-border: #ddd6fe;
   --ai-dot: #8b5cf6;
+  /* Option colors without a meaning of their own (chips): teal, pink, yellow and grey follow the same four-part set. */
+  --teal: #0f766e;
+  --teal-bg: #f0fdfa;
+  --teal-border: #99f6e4;
+  --teal-dot: #14b8a6;
+  --pink: #be185d;
+  --pink-bg: #fdf2f8;
+  --pink-border: #fbcfe8;
+  --pink-dot: #ec4899;
+  --yellow: #a16207;
+  --yellow-bg: #fefce8;
+  --yellow-border: #fde047;
+  --yellow-dot: #eab308;
+  --gray: #475569;
+  --gray-bg: #f8fafc;
+  --gray-border: #e2e8f0;
+  --gray-dot: #94a3b8;
   --ring: #4f46e5;
   /* Selected cell / row in a data grid, and the "calculating" mark. */
   --selected: #e4e7ff;
+  /* Data grid (mockup): header fill and the thin lines. */
+  --grid-head: #f8f9fb;
+  --grid-line: #eef0f6;
   --calc: #6366f1;
   /* Two soft glows behind the frame. */
   --glow-1: rgba(165, 180, 252, 0.3);
@@ -179,9 +211,18 @@ body {
   background-attachment: fixed;
   color: var(--foreground);
   font-family: "SoE Number", "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
 }
+
+/* Scrollbars (mockup): 6px, transparent track, soft thumb. */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(148, 155, 180, 0.35); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(100, 106, 130, 0.55); }
+/* Tab strips and toolbars scroll without a visible bar. */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 button,
 a {
@@ -216,8 +257,15 @@ a {
   100% { transform: scale(1); }
 }
 .onb-pop { animation: onb-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1); }
-.drawer-panel { animation: drawer-in 220ms cubic-bezier(0.22, 1, 0.36, 1); }
-.overlay-fade { animation: fade-in 150ms ease-out; }
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.drawer-panel { animation: drawer-in 300ms ease-out; }
+.overlay-fade { animation: fade-in 200ms ease-out; }
+/* Popover, menu, modal: appear with a short rise (mockup fadeUp). */
+.fade-up { animation: fade-up 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+button, a, input, select, textarea { transition-duration: 130ms; }
 
 /* A scroll area inside the page keeps its scroll to itself (a grid must not drag the page). */
 .contain-scroll-y {
