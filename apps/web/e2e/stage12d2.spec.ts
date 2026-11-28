@@ -73,7 +73,7 @@ test.afterAll(async () => {
 });
 
 for (const [name, url, ready] of [
-  ["home", "/quan-ly-deal", "Dữ liệu"],
+  ["home", "/quan-ly-deal", "Doanh thu theo người"],
   ["dashboard", "/quan-ly-deal/dashboard", "Forecast của team trong kỳ"],
   ["template", "/quan-ly-deal/template", ""],
   ["payments", "/quan-ly-deal/thanh-toan", ""],

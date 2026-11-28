@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { BarChart3, CalendarCheck, Check, ChevronDown, MoreHorizontal, Pencil, Plus, Settings2, Table2, Trash2, Wallet } from "lucide-react";
+import { BarChart3, CalendarCheck, Check, MoreHorizontal, Pencil, Plus, Rows3, Settings2, Table2, Trash2, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Menu, MenuCheckItem, MenuItem } from "@/components/ui/dropdown";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import { createTable, deleteTable, updateTable } from "@/lib/datahub/api";
 import { dealKeys, getDealHome, getPrefs, setPrefs, type DealTable } from "@/lib/datahub/deal-api";
 import { can, useMe } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { ScrollStrip, segCls, tabCls, TableNameDialog } from "../datahub/detail";
+import { ModeSwitch, ScrollStrip, segCls, STRIP_CLS, tabCls, TableNameDialog } from "../datahub/detail";
 import { TableView } from "../datahub/table-view";
 import { SharedPeriodContext, SharedPeriodControlContext, TableMenuExtraContext, useSharedPeriodState } from "@/lib/datahub/deal-view";
 import { PeriodButton, type PeriodScope } from "./period-bar";
@@ -58,6 +58,16 @@ function DealBody({ home, tableId, dashboard }: { home: { datahub_id: string | n
     <SharedPeriodControlContext.Provider value={period}>
     <TableMenuExtraContext.Provider value={isDealTable && hasLeader && !roles.includes("manager") ? <LeaderEditMenuItem /> : null}>
     <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {home.tables.some((t) => t.role_set === "deals") && (
+        <ModeSwitch>
+          <Link to="/quan-ly-deal" aria-current={dashboard ? undefined : "page"} className={segCls(!dashboard)}>
+            <Table2 size={14} aria-hidden /> Dữ liệu
+          </Link>
+          <Link to="/quan-ly-deal/dashboard" aria-current={dashboard ? "page" : undefined} data-testid="deal-dashboard-tab" className={segCls(dashboard)}>
+            <BarChart3 size={14} aria-hidden /> Dashboard
+          </Link>
+        </ModeSwitch>
+      )}
       <PageTitle
         actions={
           <>
@@ -132,37 +142,20 @@ function DealTabs({ home, currentId, dashboard, extra }: { home: { datahub_id: s
       if (t.id === currentId) void nav({ to: "/quan-ly-deal" });
     },
   });
-  const hasDeals = home.tables.some((t) => t.role_set === "deals");
   return (
     <>
       {/* The same strip as a datahub (12C): the "Dữ liệu | Dashboard" switch, "Bảng ▾ (n)", "+", then the tables as tabs that scroll sideways. */}
-      <div className="flex min-w-0 flex-wrap items-center gap-1 sm:flex-nowrap">
-        {hasDeals && (
-          <div role="group" aria-label="Chế độ xem" className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">
-            <Link to="/quan-ly-deal" aria-current={dashboard ? undefined : "page"} className={segCls(!dashboard)}>
-              <Table2 size={14} aria-hidden /> Dữ liệu
-            </Link>
-            <Link to="/quan-ly-deal/dashboard" aria-current={dashboard ? "page" : undefined} data-testid="deal-dashboard-tab" className={segCls(dashboard)}>
-              <BarChart3 size={14} aria-hidden /> Dashboard
-            </Link>
-          </div>
-        )}
+      <div className={cn(STRIP_CLS, dashboard && "border-b-0")}>
         {!dashboard && (
           <div role="tablist" aria-label="Các bảng Quản lý Deal" className="flex min-w-0 basis-full items-center gap-1 sm:flex-1 sm:basis-0">
-            {home.datahub_id && (
-              <div className="flex shrink-0 items-center gap-1">
-                <Button variant="ghost" aria-label="Thêm bảng" title="Thêm bảng" className="!px-2" onClick={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /></Button>
-                <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
-              </div>
-            )}
             <DealTableList home={home} currentId={currentId} />
             <ScrollStrip activeKey={currentId}>
               {home.tables.map((t) => {
                 const on = t.id === currentId;
                 const mine = t.template_id === null;
                 return (
-                  <div key={t.id} className={cn("flex shrink-0 items-center rounded-lg", on && "bg-primary-soft")}>
-                    <Link to="/quan-ly-deal/$tableId" params={{ tableId: t.id }} role="tab" aria-selected={on} title={t.name} className={cn(tabCls(on), "max-w-48 truncate bg-transparent", on && mine && "pr-1")}>
+                  <div key={t.id} className="flex shrink-0 items-center">
+                    <Link to="/quan-ly-deal/$tableId" params={{ tableId: t.id }} role="tab" aria-selected={on} title={t.name} className={cn(tabCls(on), "max-w-48 truncate", on && mine && "pr-1")}>
                       <span className="truncate">{t.name}</span>
                     </Link>
                     {mine && on && (
@@ -174,6 +167,7 @@ function DealTabs({ home, currentId, dashboard, extra }: { home: { datahub_id: s
                   </div>
                 );
               })}
+              {home.datahub_id && <Button variant="ghost" aria-label="Thêm bảng" title="Thêm bảng" className="shrink-0 !px-2" onClick={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /></Button>}
             </ScrollStrip>
           </div>
         )}
@@ -222,7 +216,7 @@ function DealTableList({ home, currentId }: { home: { tables: DealTable[] }; cur
   const list = home.tables.filter((t) => t.name.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(""); }} label="Danh sách bảng" width="w-80" className="p-2"
-      trigger={<Button variant="secondary" aria-label={`Danh sách bảng, ${home.tables.length} bảng`} className="shrink-0 !px-2.5"><Table2 size={16} aria-hidden /> Bảng <ChevronDown size={14} aria-hidden /> <span className="rounded-full bg-muted px-1.5 text-xs leading-5 text-muted-foreground">{home.tables.length}</span></Button>}>
+      trigger={<Button variant="ghost" aria-label={`Danh sách bảng, ${home.tables.length} bảng`} title="Danh sách bảng" className="shrink-0 !gap-1 !px-2"><Rows3 size={16} aria-hidden /><span className="text-xs tabular-nums text-muted-foreground">{home.tables.length}</span></Button>}>
       {home.tables.length > 6 && <Input aria-label="Tìm bảng" placeholder="Tìm bảng" value={q} onChange={(ev) => setQ(ev.target.value)} className="mb-2" autoComplete="off" />}
       <ul className="flex flex-col gap-0.5">
         {list.map((t) => (

@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PersonChip } from "@/components/ui/person";
 import { Link, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
-import { ArrowLeft, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, Layers, MoreHorizontal, Pencil, Plus, Share2, Table2, Trash2, Upload } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, BarChart3, Check, ChevronLeft, ChevronRight, Layers, MoreHorizontal, Pencil, Plus, Rows3, Share2, Table2, Trash2, Upload } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { usePageChrome } from "@/lib/page-chrome";
 import { formatCount, SHARE_PERMISSION_LABELS } from "@soe/shared";
 import { Popover } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +63,16 @@ function DatahubBody({ dh, tableId, current, dashboard }: { dh: DatahubBrief; ta
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       {/* The name is the last breadcrumb; "Nhập dữ liệu" and "Chia sẻ" sit in the top bar, both secondary: the one main button of the screen is "Thêm dòng". */}
+      {dh.access === "owner" && (
+        <ModeSwitch>
+          <Link to="/datahub/$datahubId" params={{ datahubId: dh.id }} aria-current={dashboard ? undefined : "page"} className={segCls(!dashboard)}>
+            <Table2 size={14} aria-hidden /> Dữ liệu
+          </Link>
+          <Link to="/datahub/$datahubId/dashboard" params={{ datahubId: dh.id }} aria-current={dashboard ? "page" : undefined} data-testid="dashboard-tab" className={segCls(!!dashboard)}>
+            <BarChart3 size={14} aria-hidden /> Dashboard
+          </Link>
+        </ModeSwitch>
+      )}
       <PageTitle
         actions={
           <>
@@ -98,7 +110,7 @@ function TableList({ dh, currentId }: { dh: DatahubBrief; currentId?: string }) 
   const list = dh.tables.filter((t) => t.name.toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(""); }} label="Danh sách bảng" width="w-80" className="p-2"
-      trigger={<Button variant="secondary" aria-label={`Danh sách bảng, ${dh.tables.length} bảng`} className="shrink-0 !px-2.5"><Table2 size={16} aria-hidden /> Bảng <ChevronDown size={14} aria-hidden /> <span className="rounded-full bg-muted px-1.5 text-xs leading-5 text-muted-foreground">{dh.tables.length}</span></Button>}>
+      trigger={<Button variant="ghost" aria-label={`Danh sách bảng, ${dh.tables.length} bảng`} title="Danh sách bảng" className="shrink-0 !gap-1 !px-2"><Rows3 size={16} aria-hidden /><span className="text-xs tabular-nums text-muted-foreground">{dh.tables.length}</span></Button>}>
       {dh.tables.length > 6 && <Input aria-label="Tìm bảng" placeholder="Tìm bảng" value={q} onChange={(ev) => setQ(ev.target.value)} className="mb-2" autoComplete="off" />}
       <ul className="flex flex-col gap-0.5">
         {list.map((t) => (
@@ -146,8 +158,24 @@ export function ScrollStrip({ children, activeKey }: { children: React.ReactNode
   );
 }
 
-export const segCls = (on: boolean) => cn("inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-sm sm:min-h-7", on ? "bg-primary-soft font-medium text-primary" : "text-muted-foreground hover:text-foreground");
-export const tabCls = (on: boolean) => cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm sm:min-h-8", on ? "bg-primary-soft font-medium text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground");
+export const segCls = (on: boolean) => cn("inline-flex min-h-10 items-center gap-1.5 rounded-md px-2.5 text-[13px] sm:min-h-6", on ? "bg-primary-soft font-semibold text-primary" : "font-medium text-muted-foreground hover:text-foreground");
+/** One tab of the strip, underline style (Airtable/Lark): muted 13px/500; the open one is ink 600 with a 2px primary line under it. */
+export const tabCls = (on: boolean) => cn("relative inline-flex min-h-11 shrink-0 items-center gap-1.5 px-3 text-[13px] sm:min-h-9", on ? "font-semibold text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary" : "font-medium text-muted-foreground hover:text-foreground");
+/** The strip line: a 1px line under it that the underline of the open tab sits on. */
+export const STRIP_CLS = "flex min-w-0 flex-wrap items-center gap-1 border-b border-border-soft sm:flex-nowrap";
+
+/** The "Dữ liệu | Dashboard" switch, a small segmented control (28px) in the top bar, BEFORE the page's own buttons (render it before `PageTitle`). */
+export function ModeSwitch({ children }: { children: React.ReactNode }) {
+  const chrome = usePageChrome();
+  const add = chrome?.addActions;
+  useLayoutEffect(() => {
+    if (!add) return;
+    add(1);
+    return () => add(-1);
+  }, [add]);
+  const box = <div role="group" aria-label="Chế độ xem" className="inline-flex h-7 shrink-0 items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">{children}</div>;
+  return chrome?.actionsEl ? createPortal(box, chrome.actionsEl) : box;
+}
 
 /** The strip above a table: the "Dữ liệu | Dashboard" switch pinned on the left (the mode is in the address); in Dữ liệu then "+" and the tables as tabs that scroll sideways. */
 function TableTabs({ dh, currentId, dashboardOn }: { dh: DatahubBrief; currentId?: string; dashboardOn: boolean }) {
@@ -168,38 +196,19 @@ function TableTabs({ dh, currentId, dashboardOn }: { dh: DatahubBrief; currentId
 
   return (
     <>
-      <div className="flex min-w-0 flex-wrap items-center gap-1 sm:flex-nowrap">
+      <div className={cn(STRIP_CLS, dashboardOn && "border-b-0")}>
         <Link to="/datahub" className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground sm:min-h-8 sm:min-w-8" aria-label="Về danh sách datahub" title="Về danh sách datahub">
           <ArrowLeft size={16} aria-hidden />
         </Link>
-        {owner && (
-          <div role="group" aria-label="Chế độ xem" className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">
-            <Link to="/datahub/$datahubId" params={{ datahubId: dh.id }} aria-current={dashboardOn ? undefined : "page"} className={segCls(!dashboardOn)}>
-              <Table2 size={14} aria-hidden /> Dữ liệu
-            </Link>
-            <Link to="/datahub/$datahubId/dashboard" params={{ datahubId: dh.id }} aria-current={dashboardOn ? "page" : undefined} data-testid="dashboard-tab" className={segCls(dashboardOn)}>
-              <BarChart3 size={14} aria-hidden /> Dashboard
-            </Link>
-          </div>
-        )}
         {!dashboardOn && (
         <div role="tablist" aria-label="Các bảng" className="flex min-w-0 basis-full items-center gap-1 sm:flex-1 sm:basis-0">
-          {owner && (
-            <div className="flex shrink-0 items-center gap-1">
-              <Menu trigger={<Button variant="ghost" aria-label="Thêm bảng" title="Thêm bảng" className="!px-2"><Plus size={16} aria-hidden /></Button>} align="start">
-                <MenuItem onSelect={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /> Thêm bảng</MenuItem>
-                <MenuItem data-testid="add-merged-table" onSelect={() => setDialog({ kind: "merge" })}><Layers size={16} aria-hidden /> Tạo bảng gộp</MenuItem>
-              </Menu>
-              <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
-            </div>
-          )}
           <TableList dh={dh} currentId={currentId} />
           <ScrollStrip activeKey={currentId}>
             {dh.tables.map((t, i) => {
               const on = t.id === currentId;
               return (
-                <div key={t.id} className={cn("flex shrink-0 items-center rounded-lg", on && "bg-primary-soft")}>
-                  <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: dh.id, tableId: t.id }} role="tab" aria-selected={on} className={cn(tabCls(on), "max-w-48 truncate bg-transparent", on && owner && "pr-1")} title={t.name}>
+                <div key={t.id} className="flex shrink-0 items-center">
+                  <Link to="/datahub/$datahubId/$tableId" params={{ datahubId: dh.id, tableId: t.id }} role="tab" aria-selected={on} className={cn(tabCls(on), "max-w-48 truncate", on && owner && "pr-1")} title={t.name}>
                     {t.kind === "merged" && <Layers size={14} aria-label="Bảng gộp" className="shrink-0" />}
                     <span className="truncate">{t.name}</span>
                   </Link>
@@ -215,6 +224,12 @@ function TableTabs({ dh, currentId, dashboardOn }: { dh: DatahubBrief; currentId
                 </div>
               );
             })}
+            {owner && (
+              <Menu trigger={<Button variant="ghost" aria-label="Thêm bảng" title="Thêm bảng" className="shrink-0 !px-2"><Plus size={16} aria-hidden /></Button>} align="start">
+                <MenuItem onSelect={() => setDialog({ kind: "add" })}><Plus size={16} aria-hidden /> Thêm bảng</MenuItem>
+                <MenuItem data-testid="add-merged-table" onSelect={() => setDialog({ kind: "merge" })}><Layers size={16} aria-hidden /> Tạo bảng gộp</MenuItem>
+              </Menu>
+            )}
           </ScrollStrip>
         </div>
         )}
